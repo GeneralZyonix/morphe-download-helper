@@ -16,6 +16,24 @@ Morphe's open `DOWNLOAD_ORIGINAL_APK` intent contract.
 - Shows a dark, modern UI with a source list and clear limitations.
 - Keeps a local diagnostic log that can be shared from the app.
 
+## Screenshots
+
+| Launcher | Download |
+| --- | --- |
+| ![Launcher screen](docs/screenshots/main.png) | ![Download screen](docs/screenshots/download.png) |
+
+## Download
+
+Grab the latest universal APK from the
+[Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases).
+
+The app is written in Java and contains no native libraries, so **one universal APK works on
+all CPU architectures** (arm64-v8a, armeabi-v7a, x86, x86_64) and on **Android 6.0+**
+(minSdk 23). Separate per-ABI APKs are not needed.
+
+> Release APKs are currently signed with the Android debug key so they can be sideloaded.
+> A proper release keystore can be added later for Play Store-style signing continuity.
+
 ## How it works
 
 Morphe sends an intent with the action
