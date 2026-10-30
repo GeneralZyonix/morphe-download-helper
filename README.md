@@ -7,6 +7,9 @@ Morphe's open `DOWNLOAD_ORIGINAL_APK` intent contract.
 > **Unofficial:** this project is not affiliated with, endorsed by, or maintained by the
 > Morphe project. Morphe ships no helper of its own and does not endorse any helper.
 
+> **New here?** Follow the [Setup Guide](GUIDE.md) to enable the helper and optionally make
+> Morphe open it automatically.
+
 ## Features
 
 - Receives the package, version, version codes, file type, ABIs, and fallback URL from Morphe.
@@ -123,6 +126,8 @@ app/src/main/res/
   drawable/              Logo and warning icon
   values/                Strings and dark theme
   xml/file_paths.xml     FileProvider paths
+docs/guide/              Setup guide screenshots
+GUIDE.md                 Step-by-step Morphe setup guide
 ```
 
 ## Contributing
