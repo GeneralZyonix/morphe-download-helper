@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup Guide
+    url: https://github.com/GeneralZyonix/morphe-download-helper/blob/main/GUIDE.md
+    about: How to enable, trust, and auto-open the helper in Morphe.
+  - name: Morphe Manager issues
+    url: https://github.com/MorpheApp/morphe-manager/issues
+    about: Report bugs in Morphe itself, not in this helper.

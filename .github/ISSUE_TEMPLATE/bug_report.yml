@@ -1,0 +1,124 @@
+name: Bug report
+description: Report a problem with Morphe Download Helper
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Please fill in as much detail as you can.
+
+        **Do not paste GitHub tokens, passwords, or other secrets.**
+
+  - type: input
+    id: helper_version
+    attributes:
+      label: Helper version
+      description: Shown at the bottom of the helper's main screen, or in Morphe → Settings → APK download helper.
+      placeholder: "1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: android_device
+    attributes:
+      label: Android version and device
+      description: For example, "Android 15, Xiaomi 25102PCBEG".
+      placeholder: "Android 15, Pixel 8"
+    validations:
+      required: true
+
+  - type: input
+    id: morphe_version
+    attributes:
+      label: Morphe version
+      description: Morphe → Settings → About.
+      placeholder: "2.3.0"
+    validations:
+      required: true
+
+  - type: input
+    id: target_app
+    attributes:
+      label: App and version being patched
+      description: Include the package name if possible.
+      placeholder: "YouTube 21.30.216 (com.google.android.youtube)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps that trigger the problem.
+      placeholder: |
+        1. Open Morphe
+        2. Patch ...
+        3. Choose "Use a helper app"
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect the helper to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / error
+      description: What happened instead? Include any on-screen error text.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Which source was being tried?
+      options:
+        - Morphe fallback link
+        - APKMirror
+        - APKPure
+        - Not sure
+        - Other
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ### Log file (strongly recommended)
+
+        Open **Morphe Download Helper → Share log**, then attach `helper.log` to this issue.
+        You can drag and drop the file into the issue after creating it.
+
+        The log is stored at:
+
+        `Android/data/be.alterra.morphehelper/files/logs/helper.log`
+
+        If you cannot attach the file, paste the last ~100 lines below.
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log excerpt
+      description: Paste the last ~100 lines of helper.log if you cannot attach the file.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I am using the latest release.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I removed tokens, passwords, and other sensitive information from logs.
+          required: false

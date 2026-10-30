@@ -12,6 +12,22 @@ Morphe's open `DOWNLOAD_ORIGINAL_APK` intent contract.
 New to the helper? Follow the **[illustrated setup guide](GUIDE.md)** to enable it in Morphe,
 trust it, and optionally make Morphe open it automatically.
 
+## Report an issue
+
+Found a bug or want a feature? Use the issue forms:
+
+- [Report a bug](https://github.com/GeneralZyonix/morphe-download-helper/issues/new?template=bug_report.yml)
+- [Request a feature](https://github.com/GeneralZyonix/morphe-download-helper/issues/new?template=feature_request.yml)
+
+Please include:
+
+- Helper version
+- Android version and device
+- Morphe version
+- The app and version being patched
+- The helper log if possible — open the helper and tap **Share log**, then attach
+  `helper.log` to the issue
+
 ## Features
 
 - Receives the package, version, version codes, file type, ABIs, and fallback URL from Morphe.

@@ -64,3 +64,6 @@ also show its own default download button so you can continue manually.
 - The helper only downloads original APKs. It never installs or patches anything itself.
 - Only download apps you are allowed to access, and respect the APK sources' terms of service.
 - One universal APK supports Android 6.0+ on arm64-v8a, armeabi-v7a, x86, and x86_64.
+
+Still stuck? [Open a bug report](https://github.com/GeneralZyonix/morphe-download-helper/issues/new?template=bug_report.yml)
+and include the helper log if possible.
