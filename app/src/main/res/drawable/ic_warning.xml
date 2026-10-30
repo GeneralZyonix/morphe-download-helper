@@ -1,0 +1,16 @@
+<!--
+    Amber warning triangle with a dark exclamation mark.
+    Used by the "Heads up" card and the download-screen limitation row.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M12,2.5 L22.2,20.8 A1.2,1.2 0 0 1 21.1,22.6 H2.9 A1.2,1.2 0 0 1 1.8,20.8 Z" />
+    <path
+        android:fillColor="#0B1220"
+        android:pathData="M11,8h2v7h-2zM11,17h2v2h-2z" />
+</vector>

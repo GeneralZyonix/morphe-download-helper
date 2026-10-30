@@ -1,0 +1,43 @@
+plugins {
+    // Android application plugin; the version is supplied by the root build.gradle.
+    id 'com.android.application'
+}
+
+android {
+    namespace 'be.alterra.morphehelper'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "be.alterra.morphehelper"
+
+        // Android 6.0+ keeps the helper usable on older devices while still allowing
+        // modern network and storage APIs.
+        minSdk 23
+        targetSdk 35
+
+        // Bump both values for every public release.
+        versionCode 14
+        versionName "1.13"
+    }
+
+    buildTypes {
+        release {
+            // Keep shrinking disabled so release APKs behave like debug builds.
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        // Java 17 language level; Android desugaring handles older devices.
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // FileProvider + modern AndroidX helpers.
+    implementation 'androidx.core:core:1.13.1'
+
+    // HTTP client with cookie/redirect support for APK sites.
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}

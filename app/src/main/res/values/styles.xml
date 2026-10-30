@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Dark, action-bar-free theme. The activities build their own UI, so this theme
+        mainly controls the window background and system-bar colors before the first frame.
+    -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0B1220</item>
+        <item name="android:statusBarColor">#0B1220</item>
+        <item name="android:navigationBarColor">#0B1220</item>
+        <item name="android:colorAccent">#6366F1</item>
+    </style>
+</resources>

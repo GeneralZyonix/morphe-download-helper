@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Paths that FileProvider is allowed to expose through content:// URIs.
+    "downloads" is used for APK/APKM/APKS/XAPK files; "logs" is used for the share-log action.
+-->
+<paths>
+    <external-files-path
+        name="downloads"
+        path="downloads/" />
+    <external-files-path
+        name="logs"
+        path="logs/" />
+    <cache-path
+        name="cache_downloads"
+        path="downloads/" />
+</paths>
