@@ -45,7 +45,7 @@ Please include:
 
 | Launcher | Download |
 | --- | --- |
-| ![Launcher screen](docs/screenshots/main.png) | ![Download screen](docs/screenshots/download.png) |
+| ![Launcher screen](docs/screenshots/main-v2.png) | ![Download screen](docs/screenshots/download-v2.png) |
 
 ## Download
 
