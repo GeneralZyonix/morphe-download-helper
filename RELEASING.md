@@ -7,7 +7,7 @@ bump.
 ## 1. Choose the version
 
 - If a target version was given, use it.
-- Otherwise bump the minor version: `1.13` → `1.14`.
+- Otherwise bump the minor version: `1.0` → `1.1`.
 - Increment `versionCode` by 1.
 
 ## 2. Update the version
@@ -15,8 +15,8 @@ bump.
 Edit `app/build.gradle`:
 
 ```gradle
-versionCode 15
-versionName "1.14"
+versionCode 2
+versionName "1.1"
 ```
 
 ## 3. Update the changelog
@@ -24,7 +24,7 @@ versionName "1.14"
 Move the relevant items from `## [Unreleased]` in `CHANGELOG.md` into a new section:
 
 ```markdown
-## [1.14] - 2026-10-30
+## [1.1] - 2026-10-30
 ```
 
 Add a short, user-facing summary of what changed.
@@ -48,7 +48,7 @@ armeabi-v7a, x86, and x86_64. Do not create per-ABI APKs.
 
 ```powershell
 git add app/build.gradle CHANGELOG.md
-git commit -m "Release v1.14"
+git commit -m "Release v1.1"
 git push
 ```
 
@@ -58,15 +58,15 @@ Copy the APK to a release-friendly name:
 
 ```powershell
 Copy-Item app/build/outputs/apk/debug/app-debug.apk `
-  "MorpheDownloadHelper-v1.14-universal.apk"
+  "MorpheDownloadHelper-v1.1-universal.apk"
 ```
 
 Create the release, using the new changelog section as the notes:
 
 ```powershell
-gh release create v1.14 "MorpheDownloadHelper-v1.14-universal.apk" `
-  --title "v1.14 - Universal APK" `
-  --notes "Paste the 1.14 changelog section here" `
+gh release create v1.1 "MorpheDownloadHelper-v1.1-universal.apk" `
+  --title "v1.1 - Universal APK" `
+  --notes "Paste the 1.1 changelog section here" `
   --latest
 ```
 
@@ -79,7 +79,7 @@ If `gh` is not on `PATH`, use:
 ## 7. Verify
 
 ```powershell
-gh release view v1.14 --json url,assets
+gh release view v1.1 --json url,assets
 ```
 
 Confirm the release is public and the APK asset is uploaded.

@@ -10,7 +10,7 @@
   3. Build the universal debug APK.
   4. Commit and push the version bump and changelog.
   5. Create a new GitHub release and upload the APK.
-- If no target version is given, increment the minor version (`1.13` → `1.14`) and
+- If no target version is given, increment the minor version (`1.0` → `1.1`) and
   increment `versionCode` by 1.
 - Do not create per-ABI APKs. The app has no native libraries; one universal APK covers all
   supported devices.
