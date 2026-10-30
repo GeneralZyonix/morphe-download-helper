@@ -14,8 +14,16 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -23,6 +31,10 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.core.content.FileProvider;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -70,10 +82,9 @@ import okhttp3.ResponseBody;
  *   <li>Try APKPure as a last resort.</li>
  * </ol>
  *
- * <p>Uptodown is disabled because its download endpoint requires a Cloudflare Turnstile
- * token that cannot be produced from a plain HTTP request. If nothing is found, the
- * activity returns {@link #RESULT_CANCELED} and Morphe shows its own manual download
- * button.</p>
+ * <p>Uptodown is handled in an embedded WebView because its download endpoint uses
+ * Cloudflare Turnstile. If nothing is found, the activity returns {@link #RESULT_CANCELED}
+ * and Morphe shows its own manual download button.</p>
  *
  * <p><b>Safety</b><br>
  * Morphe re-checks the returned package, version, and signature before using the file.
@@ -100,6 +111,10 @@ public class DownloadActivity extends Activity {
     /** Expected archive type: APK, APKM, APKS, or XAPK. */
     private static final String EXTRA_FILE_TYPE = "app.morphe.manager.extra.FILE_TYPE";
 
+    /** True when Morphe accepts XAPK/APKS archives as well as plain APKs. */
+    private static final String EXTRA_ALLOW_SPLIT_ARCHIVE = "app.morphe.manager.extra.ALLOW_SPLIT_ARCHIVE";
+
+
     /** Web page to try first when the patch bundle provides one. */
     private static final String EXTRA_FALLBACK_WEB_URL = "app.morphe.manager.extra.FALLBACK_WEB_URL";
 
@@ -120,6 +135,18 @@ public class DownloadActivity extends Activity {
 
     /** Base URL used to turn relative APKMirror links into absolute URLs. */
     private static final String APKMIRROR = "https://www.apkmirror.com";
+
+    /** Morphe's public resolver API, the same one its download dialog uses. */
+    private static final String MORPHE_API = "https://api.morphe.software";
+    private static final String MORPHE_USER_AGENT = "Morphe-Manager/1.0";
+
+    /** Does not follow redirects; used to read the Location header from Morphe's API. */
+    private static final OkHttpClient API_HTTP = new OkHttpClient.Builder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build();
 
     // ---------------------------------------------------------------------
     // UI palette
@@ -143,11 +170,7 @@ public class DownloadActivity extends Activity {
     // Feature switches
     // ---------------------------------------------------------------------
 
-    /**
-     * Uptodown needs a Cloudflare Turnstile token, so direct downloads are disabled.
-     * The parsing code is kept for future work but is never reached while this is false.
-     */
-    private static final boolean ENABLE_UPTODOWN = false;
+    /** Uptodown is controlled by SourceSettings. */
 
     /**
      * Google search fallbacks cannot be resolved without a browser. They are allowed to
@@ -180,6 +203,10 @@ public class DownloadActivity extends Activity {
      * Keeping them for the lifetime of the process lets the follow-up download request
      * succeed without re-triggering the challenge.</p>
      */
+    /** Thrown after handing off to the Uptodown WebView; no error UI is needed. */
+    private static final class UptodownHandoffException extends IOException {
+    }
+
     private static final class MemoryCookieJar implements CookieJar {
 
         /** Cookies grouped by host name. */
@@ -227,6 +254,41 @@ public class DownloadActivity extends Activity {
     /** Fallback URL supplied by Morphe, if any. */
     private String fallbackUrl;
 
+    /** Whether Morphe accepts split archives (XAPK/APKS) for this request. */
+    private boolean allowSplitArchive;
+
+    /** Root scroll view, used to reveal the Uptodown section. */
+    private ScrollView scrollView;
+
+    /** Source WebView section shown below the normal status card. */
+    private LinearLayout uptodownSection;
+
+    /** Container for the source WebView. */
+    private FrameLayout uptodownWebContainer;
+
+    /** WebView used for Uptodown's Turnstile page or APKPure's Cloudflare page. */
+    private WebView uptodownWebView;
+
+    /** Dynamic labels for the source WebView section. */
+    private TextView uptodownTitle;
+    private TextView uptodownExplanation;
+
+    /** Active WebView source: "uptodown" or "apkpure". */
+    private String webSource;
+
+    /** Guards against handling the same Uptodown download URL more than once. */
+    private boolean uptodownHandled;
+
+    /** Request values kept for the WebView download path. */
+    private String uptodownPkg;
+    private String uptodownVersion;
+    private String uptodownFileType;
+    private String uptodownReferer;
+
+    /** Auto-refresh timer for a stuck Uptodown download button. */
+    private Runnable uptodownReload;
+    private int uptodownReloads;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -250,6 +312,8 @@ public class DownloadActivity extends Activity {
         String[] abis = intent.getStringArrayExtra(EXTRA_SUPPORTED_ABIS);
         int protocolVersion = intent.getIntExtra(EXTRA_PROTOCOL_VERSION, 0);
         fallbackUrl = intent.getStringExtra(EXTRA_FALLBACK_WEB_URL);
+        allowSplitArchive = intent.getBooleanExtra(EXTRA_ALLOW_SPLIT_ARCHIVE, false);
+
 
         // Log the full request once; this is the first thing to check in a bug report.
         HelperLog.info("Request pkg=" + pkg
@@ -267,13 +331,25 @@ public class DownloadActivity extends Activity {
         String fallbackHost = hostOf(fallbackUrl);
         HelperLog.info("Fallback host: " + fallbackHost);
 
-        // Uptodown requires a Turnstile token, so cancel early and let Morphe offer
-        // its own manual download button instead of showing a broken helper flow.
-        if (!ENABLE_UPTODOWN && isHost(fallbackHost, "uptodown.com")) {
-            HelperLog.info("Uptodown fallback disabled; returning canceled");
-            setResult(RESULT_CANCELED);
-            finish();
+        // A request without a package cannot be resolved. Show the error and let the
+        // user close the screen or open the fallback page.
+        if (TextUtils.isEmpty(pkg)) {
+            setStatus("Morphe did not send a package name.");
+            showFallback();
             return;
+        }
+
+        // Uptodown's page runs Cloudflare Turnstile. A WebView is the only reliable
+        // way to complete that challenge and capture the resulting download URL.
+        if (isHost(fallbackHost, "uptodown.com")) {
+            if (SourceSettings.isEnabled(this, SourceSettings.UPTODOWN)
+                    && SourceSettings.isEnabled(this, SourceSettings.FALLBACK)) {
+                setStatus("Opening Uptodown...");
+                progress.setIndeterminate(true);
+                startUptodownWebFlow(fallbackUrl, pkg, version, fileType);
+                return;
+            }
+            HelperLog.info("Uptodown fallback disabled; trying other sources");
         }
 
         // Google search URLs cannot be resolved without a browser; if this switch is
@@ -282,14 +358,6 @@ public class DownloadActivity extends Activity {
             HelperLog.info("Google search fallback unsupported; returning canceled");
             setResult(RESULT_CANCELED);
             finish();
-            return;
-        }
-
-        // A request without a package cannot be resolved. Show the error and let the
-        // user close the screen or open the fallback page.
-        if (TextUtils.isEmpty(pkg)) {
-            setStatus("Morphe did not send a package name.");
-            showFallback();
             return;
         }
 
@@ -320,26 +388,10 @@ public class DownloadActivity extends Activity {
                     return;
                 }
 
-                // Expose the downloaded file through FileProvider. Morphe can only read
-                // it when the result carries FLAG_GRANT_READ_URI_PERMISSION.
-                Uri uri = FileProvider.getUriForFile(
-                        DownloadActivity.this,
-                        getPackageName() + ".fileprovider",
-                        file
-                );
-                Intent result = new Intent();
-                result.setData(uri);
-                result.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                HelperLog.info("Returning file " + file.getAbsolutePath()
-                        + " (" + file.length() + " bytes)");
-
-                // Switch back to the main thread before touching views or finishing.
-                runOnUiThread(() -> {
-                    setResult(RESULT_OK, result);
-                    setStatus("Done: " + file.getName());
-                    finish();
-                });
+                // Expose the downloaded file through FileProvider and finish.
+                deliverFile(file);
+            } catch (UptodownHandoffException ignored) {
+                // The Uptodown WebView was started on the main thread.
             } catch (Exception e) {
                 if (cancelled) {
                     return;
@@ -354,6 +406,286 @@ public class DownloadActivity extends Activity {
                     showFallback();
                 });
             }
+        });
+    }
+
+    /**
+     * Returns a downloaded file to Morphe through FileProvider.
+     *
+     * <p>Morphe can only read the file when the result carries
+     * {@link Intent#FLAG_GRANT_READ_URI_PERMISSION}.</p>
+     */
+    private void deliverFile(File file) {
+        try {
+            Uri uri = FileProvider.getUriForFile(
+                    DownloadActivity.this,
+                    getPackageName() + ".fileprovider",
+                    file
+            );
+            Intent result = new Intent();
+            result.setData(uri);
+            result.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            HelperLog.info("Returning file " + file.getAbsolutePath()
+                    + " (" + file.length() + " bytes)");
+
+            runOnUiThread(() -> {
+                setResult(RESULT_OK, result);
+                setStatus("Done: " + file.getName());
+                finish();
+            });
+        } catch (Exception e) {
+            HelperLog.error("Could not return file", e);
+            runOnUiThread(() -> {
+                progress.setIndeterminate(false);
+                progress.setProgress(0);
+                setStatus("Download failed: " + e.getMessage());
+                showFallback();
+            });
+        }
+    }
+
+    /** Opens Uptodown in the source WebView and auto-clicks its download button. */
+    private void startUptodownWebFlow(String url, String pkg, String version, String fileType) {
+        startWebFlow("uptodown", url, pkg, version, fileType);
+    }
+
+    /** Opens APKPure search in the source WebView so the user can pass Cloudflare. */
+    private void startApkPureWebFlow(String pkg, String version, String fileType) {
+        String url;
+        try {
+            url = "https://apkpure.com/search?q=" + URLEncoder.encode(pkg, "UTF-8");
+        } catch (Exception ignored) {
+            url = "https://apkpure.com/search?q=" + pkg;
+        }
+        startWebFlow("apkpure", url, pkg, version, fileType);
+    }
+
+    private void startWebFlow(String source, String url, String pkg, String version,
+                              String fileType) {
+        webSource = source;
+        uptodownPkg = pkg;
+        uptodownVersion = version;
+        uptodownFileType = fileType;
+        uptodownReferer = url;
+        uptodownHandled = false;
+        uptodownReloads = 0;
+
+        if ("apkpure".equals(source)) {
+            uptodownTitle.setText("APKPure download");
+            uptodownExplanation.setText(
+                    "APKPure uses Cloudflare protection. If a search page appears, tap the app "
+                            + "result first. On the app page, tap Download APK (not the APKPure app "
+                            + "button). The helper will capture the XAPK or APK and return it to Morphe.");
+        } else {
+            uptodownTitle.setText("Uptodown verification");
+            uptodownExplanation.setText(
+                    "Uptodown needs a quick Cloudflare check. The official download page is "
+                            + "shown below. Wait for the download button, then tap it if the download "
+                            + "does not start automatically. The APK will be returned to Morphe.");
+        }
+        fallbackButton.setVisibility(View.GONE);
+
+        WebView web = new WebView(this);
+        uptodownWebView = web;
+        web.setBackgroundColor(BG_TOP);
+
+        WebSettings settings = web.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setUserAgentString(USER_AGENT);
+        settings.setLoadWithOverviewMode(true);
+        settings.setUseWideViewPort(true);
+        settings.setJavaScriptCanOpenWindowsAutomatically(false);
+        settings.setSupportMultipleWindows(false);
+
+        CookieManager cookies = CookieManager.getInstance();
+        cookies.setAcceptCookie(true);
+        cookies.setAcceptThirdPartyCookies(web, true);
+
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return handleUptodownUrl(request.getUrl().toString());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return handleUptodownUrl(url);
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                HelperLog.info(webSource + " page finished: " + url);
+                uptodownReferer = url;
+                if ("uptodown".equals(webSource)) {
+                    scheduleUptodownReload(view);
+                    // Uptodown's button starts Turnstile and then triggers the download.
+                    view.evaluateJavascript(
+                            "(function(){var n=0;var t=setInterval(function(){"
+                                    + "n++;var b=document.getElementById('detail-download-button');"
+                                    + "if(b){clearInterval(t);b.scrollIntoView({block:'center'});"
+                                    + "setTimeout(function(){b.click();},300);}"
+                                    + "if(n>60)clearInterval(t);},500);})();",
+                            null);
+                } else {
+                    String pkgJson = JSONObject.quote(uptodownPkg);
+                    String versionJson = JSONObject.quote(
+                            uptodownVersion == null ? "" : uptodownVersion);
+                    view.evaluateJavascript(
+                            "(function(){var pkg=" + pkgJson + ",ver=" + versionJson + ";"
+                                    + "var n=0;var t=setInterval(function(){n++;"
+                                    + "var path=location.pathname;"
+                                    + "if(path.indexOf('/search')>=0){"
+                                    + "var ls=document.querySelectorAll('a');"
+                                    + "for(var i=0;i<ls.length;i++){var h=ls[i].href||'';"
+                                    + "if(h.indexOf(pkg)>=0){ls[i].click();clearInterval(t);return;}}}"
+                                    + "if(path.indexOf('/versions')>=0){"
+                                    + "var vs=document.querySelectorAll('a');"
+                                    + "for(var j=0;j<vs.length;j++){var vt=(vs[j].innerText||'').trim();"
+                                    + "if(ver&&vt.indexOf(ver)>=0){vs[j].click();clearInterval(t);return;}}}"
+                                    + "if(ver&&document.body.innerText.indexOf(ver)<0){"
+                                    + "var old=document.querySelector('a[href*=\"/versions\"]');"
+                                    + "if(old){old.click();clearInterval(t);return;}}"
+                                    + "var a=document.querySelector('a[href*=\"d.apkpure.com\"]');"
+                                    + "if(a){clearInterval(t);a.scrollIntoView({block:'center'});"
+                                    + "setTimeout(function(){a.click();},500);return;}"
+                                    + "var bs=document.querySelectorAll('a,button');"
+                                    + "for(var k=0;k<bs.length;k++){var bt=(bs[k].innerText||'').toLowerCase();"
+                                    + "if(bt.indexOf('download apk')>=0&&bt.indexOf('apkpure app')<0){"
+                                    + "clearInterval(t);bs[k].scrollIntoView({block:'center'});"
+                                    + "setTimeout(function(){bs[k].click();},500);return;}}"
+                                    + "if(n>60)clearInterval(t);},500);})();",
+                            null);
+                }
+            }
+        });
+
+        web.setDownloadListener((downloadUrl, userAgent, contentDisposition,
+                                 mimetype, contentLength) -> {
+            if (!handleUptodownUrl(downloadUrl)) {
+                HelperLog.info(webSource + " download listener ignored " + downloadUrl);
+            }
+        });
+
+        // Let the WebView scroll its own page instead of the parent ScrollView.
+        web.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+            } else if (event.getAction() == MotionEvent.ACTION_UP
+                    || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                v.getParent().requestDisallowInterceptTouchEvent(false);
+            }
+            return false;
+        });
+
+        uptodownWebContainer.removeAllViews();
+        uptodownWebContainer.addView(web, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        uptodownSection.setVisibility(View.VISIBLE);
+        scrollView.post(() -> scrollView.smoothScrollTo(0, uptodownSection.getTop()));
+        web.loadUrl(url);
+    }
+
+    /**
+     * If the Uptodown button is still loading after ten seconds, refresh the page.
+     * A refresh often clears a stuck Turnstile state. Limit it to two attempts.
+     */
+    private void scheduleUptodownReload(WebView view) {
+        if (uptodownReload != null) {
+            main.removeCallbacks(uptodownReload);
+        }
+        uptodownReload = () -> {
+            if (uptodownHandled || uptodownWebView != view) {
+                return;
+            }
+            if (uptodownReloads >= 2) {
+                HelperLog.info("Uptodown still loading after two refreshes");
+                return;
+            }
+            uptodownReloads++;
+            HelperLog.info("Uptodown still loading; refreshing page ("
+                    + uptodownReloads + "/2)");
+            view.reload();
+        };
+        main.postDelayed(uptodownReload, 10_000);
+    }
+
+    /** Captures the final download URL from navigation or DownloadListener. */
+    private boolean handleUptodownUrl(String url) {
+        if (url == null) {
+            return false;
+        }
+        String host = hostOf(url);
+        if ("apkpure".equals(webSource)) {
+            if (isHost(host, "d.apkpure.com") || isHost(host, "d.apkpure.net")
+                    || isHost(host, "download.apkpure.com")) {
+                handleUptodownDownload(url);
+                return true;
+            }
+            return false;
+        }
+        if (isHost(host, "dw.uptodown.com") || isHost(host, "dw.uptodown.net")) {
+            handleUptodownDownload(url);
+            return true;
+        }
+        return false;
+    }
+
+    /** Downloads the URL captured from the source WebView and returns it to Morphe. */
+    private void handleUptodownDownload(String url) {
+        if (uptodownHandled) {
+            return;
+        }
+        uptodownHandled = true;
+        HelperLog.info(webSource + " download URL: " + url);
+
+        final String source = webSource;
+        String type = uptodownFileType;
+        if ("apkpure".equals(source) && url.toLowerCase(Locale.US).contains("/xapk/")) {
+            type = "xapk";
+        }
+        final String downloadType = type;
+
+        main.post(() -> {
+            if (uptodownWebView != null) {
+                uptodownWebContainer.removeView(uptodownWebView);
+                uptodownWebView.destroy();
+                uptodownWebView = null;
+            }
+            uptodownSection.setVisibility(View.GONE);
+            progress.setVisibility(View.VISIBLE);
+            progress.setIndeterminate(true);
+            setStatus("Downloading from " + ("apkpure".equals(source) ? "APKPure" : "Uptodown") + "...");
+
+            final String cookie = CookieManager.getInstance().getCookie(url);
+            executor.execute(() -> {
+                try {
+                    File file = downloadFile(
+                            url,
+                            uptodownReferer,
+                            uptodownPkg,
+                            uptodownVersion,
+                            downloadType,
+                            cookie
+                    );
+                    if (!cancelled) {
+                        deliverFile(file);
+                    }
+                } catch (Exception e) {
+                    if (cancelled) {
+                        return;
+                    }
+                    HelperLog.error(source + " download failed", e);
+                    runOnUiThread(() -> {
+                        progress.setIndeterminate(false);
+                        progress.setProgress(0);
+                        setStatus("Download failed: " + e.getMessage());
+                        showFallback();
+                    });
+                }
+            });
         });
     }
 
@@ -470,12 +802,42 @@ public class DownloadActivity extends Activity {
         warningRow.addView(warningIcon, warningIconParams);
 
         TextView warningText = text(
-                "Uptodown isn't supported. Only specific apps work. If no APK is found, "
+                "Uptodown opens a verification page. Only specific apps work. If no APK is found, "
                         + "Morphe's default download button appears.",
                 12, WARN_TEXT, false);
         warningText.setLineSpacing(dp(2), 1f);
         warningRow.addView(warningText, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        // Uptodown verification section. Hidden until the WebView flow starts so the
+        // normal APKMirror/APKPure screens stay clean.
+        uptodownSection = new LinearLayout(this);
+        uptodownSection.setOrientation(LinearLayout.VERTICAL);
+        uptodownSection.setPadding(dp(18), dp(16), dp(18), dp(16));
+        uptodownSection.setBackground(cardBackground());
+        uptodownSection.setVisibility(View.GONE);
+        LinearLayout.LayoutParams uptodownParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        uptodownParams.topMargin = dp(14);
+        root.addView(uptodownSection, uptodownParams);
+
+        uptodownTitle = text("Uptodown verification", 16, TEXT, true);
+        uptodownSection.addView(uptodownTitle);
+
+        uptodownExplanation = text(
+                "Uptodown needs a quick Cloudflare check. The official download page is "
+                        + "shown below. Wait for the download button, then tap it if the download "
+                        + "does not start automatically. The APK will be returned to Morphe.",
+                13, STEPS, false);
+        uptodownExplanation.setLineSpacing(dp(3), 1f);
+        uptodownExplanation.setPadding(0, dp(8), 0, dp(12));
+        uptodownSection.addView(uptodownExplanation);
+
+        uptodownWebContainer = new FrameLayout(this);
+        uptodownSection.addView(uptodownWebContainer, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(520)));
 
         // Fallback button is hidden until resolution fails.
         fallbackButton = primaryButton("Open download page");
@@ -508,6 +870,7 @@ public class DownloadActivity extends Activity {
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
+        scrollView = scroll;
         setContentView(scroll);
     }
 
@@ -640,9 +1003,14 @@ public class DownloadActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        // Stop network work if Android destroys the activity for any reason.
+        // Stop network work and release the WebView if it is still open.
         cancelled = true;
         executor.shutdownNow();
+        if (uptodownWebView != null) {
+            uptodownWebContainer.removeView(uptodownWebView);
+            uptodownWebView.destroy();
+            uptodownWebView = null;
+        }
         super.onDestroy();
     }
 
@@ -657,33 +1025,167 @@ public class DownloadActivity extends Activity {
      * prevent the next source from being tried. If all sources fail, the last exception
      * is propagated to the caller, which shows the fallback UI.</p>
      */
+    /**
+     * Asks Morphe's resolver for the actual download page. This is the same API the
+     * Morphe download dialog uses, so it can return the exact Uptodown -x link.
+     */
+    private String resolveMorpheUrl(String pkg, String version, String[] abis) {
+        String abi = (abis != null && abis.length > 0) ? abis[0] : "arm64-v8a";
+        String query = pkg + "~" + (TextUtils.isEmpty(version) ? "any" : version) + "~" + abi;
+        String url;
+        try {
+            url = MORPHE_API + "/v2/web-search/" + URLEncoder.encode(query, "UTF-8")
+                    .replace("+", "%20")
+                    .replace("%7E", "~");
+        } catch (Exception e) {
+            return null;
+        }
+
+        for (int i = 0; i < 6; i++) {
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("User-Agent", MORPHE_USER_AGENT)
+                    .head()
+                    .build();
+            try (Response response = API_HTTP.newCall(request).execute()) {
+                String location = response.header("Location");
+                HelperLog.info("Morphe resolver " + url + " -> HTTP " + response.code()
+                        + " location=" + location);
+                if (location == null || location.isEmpty()) {
+                    return isHost(hostOf(url), "api.morphe.software") ? null : url;
+                }
+                url = new URL(new URL(url), location).toString();
+                if (!isHost(hostOf(url), "api.morphe.software")) {
+                    return url;
+                }
+            } catch (Exception e) {
+                HelperLog.error("Morphe resolver failed", e);
+                return null;
+            }
+        }
+        return null;
+    }
+
     private File resolve(String pkg, String version, long[] versionCodes,
                          String fileType, String[] abis) throws IOException {
-        // 1. Fallback URL from the patch bundle first. This is often the exact page the
-        //    patch author intended and may be faster than a search.
-        if (!TextUtils.isEmpty(fallbackUrl)) {
-            setStatus("Trying fallback URL...");
-            HelperLog.info("Trying fallback URL: " + fallbackUrl);
-            try {
-                return downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
-            } catch (Exception ignored) {
-                HelperLog.error("Fallback failed", ignored);
+        // 0. Ask Morphe's resolver for the page it would show in its own dialog.
+        if (SourceSettings.isEnabled(this, SourceSettings.FALLBACK)) {
+            String morpheUrl = resolveMorpheUrl(pkg, version, abis);
+            if (morpheUrl != null) {
+                String host = hostOf(morpheUrl);
+                HelperLog.info("Morphe resolver returned: " + morpheUrl);
+                if (isHost(host, "uptodown.com")) {
+                    if (pathOf(morpheUrl).trim().endsWith("-x")
+                            && SourceSettings.isEnabled(this, SourceSettings.UPTODOWN)) {
+                        main.post(() -> {
+                            setStatus("Opening Uptodown...");
+                            progress.setIndeterminate(true);
+                            startUptodownWebFlow(morpheUrl, pkg, version, fileType);
+                        });
+                        throw new UptodownHandoffException();
+                    }
+                } else if (isHost(host, "apkpure.com")
+                        && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+                    main.post(() -> {
+                        setStatus("Opening APKPure...");
+                        progress.setIndeterminate(true);
+                        startWebFlow("apkpure", morpheUrl, pkg, version, fileType);
+                    });
+                    throw new UptodownHandoffException();
+                } else if (isHost(host, "apkmirror.com")
+                        && SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)) {
+                    try {
+                        return downloadFromFallback(morpheUrl, pkg, version, fileType, abis);
+                    } catch (Exception ignored) {
+                        HelperLog.error("Morphe resolver APKMirror link failed", ignored);
+                    }
+                } else if (isDirectFile(morpheUrl)) {
+                    try {
+                        return downloadFile(morpheUrl, null, pkg, version, fileType);
+                    } catch (Exception ignored) {
+                        HelperLog.error("Morphe resolver direct file failed", ignored);
+                    }
+                }
             }
         }
 
-        // 2. Search APKMirror by package name and requested version.
-        setStatus("Trying APKMirror...");
-        HelperLog.info("Trying APKMirror search for " + pkg);
-        try {
-            return downloadFromApkMirrorSearch(pkg, version, fileType, abis);
-        } catch (Exception ignored) {
-            HelperLog.error("APKMirror failed", ignored);
+        // 1. Fallback URL from the patch bundle first.
+        if (SourceSettings.isEnabled(this, SourceSettings.FALLBACK)
+                && !TextUtils.isEmpty(fallbackUrl)) {
+            String fallbackHost = hostOf(fallbackUrl);
+            boolean hostDisabled =
+                    (isHost(fallbackHost, "apkmirror.com")
+                            && !SourceSettings.isEnabled(this, SourceSettings.APKMIRROR))
+                            || (isHost(fallbackHost, "apkpure.com")
+                            && !SourceSettings.isEnabled(this, SourceSettings.APKPURE))
+                            || (isHost(fallbackHost, "uptodown.com")
+                            && !SourceSettings.isEnabled(this, SourceSettings.UPTODOWN));
+            if (!hostDisabled) {
+                setStatus("Trying fallback URL...");
+                HelperLog.info("Trying fallback URL: " + fallbackUrl);
+                try {
+                    return downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
+                } catch (Exception ignored) {
+                    HelperLog.error("Fallback failed", ignored);
+                }
+            } else {
+                HelperLog.info("Skipping fallback from disabled source: " + fallbackHost);
+            }
         }
 
-        // 3. APKPure is the last resort. It is tried even when a version code exists.
-        setStatus("Trying APKPure...");
-        HelperLog.info("Trying APKPure for " + pkg);
-        return downloadFromApkPure(pkg, version, versionCodes, fileType);
+        // 2. APKMirror.
+        if (SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)) {
+            setStatus("Trying APKMirror...");
+            HelperLog.info("Trying APKMirror search for " + pkg);
+            try {
+                return downloadFromApkMirrorSearch(pkg, version, fileType, abis);
+            } catch (Exception ignored) {
+                HelperLog.error("APKMirror failed", ignored);
+            }
+        }
+
+        // 3. APKPure.
+        if (SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+            setStatus("Trying APKPure...");
+            HelperLog.info("Trying APKPure for " + pkg);
+            try {
+                return downloadFromApkPure(pkg, version, versionCodes, fileType);
+            } catch (Exception ignored) {
+                HelperLog.error("APKPure failed", ignored);
+                if (allowSplitArchive) {
+                    main.post(() -> {
+                        setStatus("Opening APKPure...");
+                        progress.setIndeterminate(true);
+                        startApkPureWebFlow(pkg, version, fileType);
+                    });
+                    throw new UptodownHandoffException();
+                }
+            }
+        }
+
+        // 4. F-Droid.
+        if (SourceSettings.isEnabled(this, SourceSettings.FDROID)) {
+            setStatus("Trying F-Droid...");
+            HelperLog.info("Trying F-Droid for " + pkg);
+            try {
+                return downloadFromFdroid(pkg, version, versionCodes, fileType);
+            } catch (Exception ignored) {
+                HelperLog.error("F-Droid failed", ignored);
+            }
+        }
+
+        // 5. Aptoide.
+        if (SourceSettings.isEnabled(this, SourceSettings.APTOIDE)) {
+            setStatus("Trying Aptoide...");
+            HelperLog.info("Trying Aptoide for " + pkg);
+            try {
+                return downloadFromAptoide(pkg, version, versionCodes, fileType);
+            } catch (Exception ignored) {
+                HelperLog.error("Aptoide failed", ignored);
+            }
+        }
+
+        throw new IOException("No enabled download source found an APK");
     }
 
     /**
@@ -693,7 +1195,7 @@ public class DownloadActivity extends Activity {
      * <ul>
      *   <li>Direct file URL ending in .apk/.apkm/.apks/.xapk</li>
      *   <li>APKMirror download, key, variant, release, app, or search page</li>
-     *   <li>Uptodown page (disabled by default; see {@link #ENABLE_UPTODOWN})</li>
+     *   <li>Uptodown page (handled by the WebView flow)</li>
      * </ul>
      */
     private File downloadFromFallback(String fallback, String pkg, String version,
@@ -783,18 +1285,11 @@ public class DownloadActivity extends Activity {
     }
 
     /**
-     * Experimental Uptodown resolver.
-     *
-     * <p>Uptodown currently protects its download endpoint with Cloudflare Turnstile.
-     * The HTML parsing is kept so the feature can be re-enabled if a supported token
-     * source becomes available, but {@link #ENABLE_UPTODOWN} is false by default.</p>
+     * Legacy direct-HTML Uptodown resolver. The active Uptodown flow uses the WebView
+     * path because current pages require Cloudflare Turnstile.
      */
     private File downloadFromUptodown(String url, String pkg, String version,
                                       String fileType) throws IOException {
-        if (!ENABLE_UPTODOWN) {
-            throw new IOException("Uptodown is disabled");
-        }
-
         // Uptodown uses /download on the app page.
         String pageUrl = url;
         if (!pageUrl.toLowerCase(Locale.US).contains("/download")) {
@@ -924,6 +1419,160 @@ public class DownloadActivity extends Activity {
     }
 
     /**
+     * Downloads from F-Droid's public package API.
+     */
+    private File downloadFromFdroid(String pkg, String version, long[] versionCodes,
+                                    String fileType) throws IOException {
+        String apiUrl = "https://f-droid.org/api/v1/packages/"
+                + URLEncoder.encode(pkg, "UTF-8");
+        String json = httpGet(apiUrl, null);
+        try {
+            JSONObject root = new JSONObject(json);
+            JSONArray packages = root.optJSONArray("packages");
+            if (packages == null || packages.length() == 0) {
+                throw new IOException("F-Droid has no packages");
+            }
+
+            JSONObject selected = null;
+            for (int i = 0; i < packages.length(); i++) {
+                JSONObject entry = packages.getJSONObject(i);
+                String entryVersion = entry.optString("versionName", "");
+                long entryCode = entry.optLong("versionCode", -1);
+                if (!TextUtils.isEmpty(version) && entryVersion.equalsIgnoreCase(version)) {
+                    selected = entry;
+                    break;
+                }
+                if (versionCodes != null && contains(versionCodes, entryCode)) {
+                    selected = entry;
+                    break;
+                }
+            }
+
+            if (selected == null && TextUtils.isEmpty(version)) {
+                int suggested = root.optInt("suggestedVersionCode", -1);
+                for (int i = 0; i < packages.length(); i++) {
+                    JSONObject entry = packages.getJSONObject(i);
+                    if (entry.optLong("versionCode", -1) == suggested) {
+                        selected = entry;
+                        break;
+                    }
+                }
+                if (selected == null) {
+                    selected = packages.getJSONObject(0);
+                }
+            }
+
+            if (selected == null) {
+                throw new IOException("Requested version not found on F-Droid");
+            }
+            long selectedCode = selected.optLong("versionCode", -1);
+            String apkName = selected.optString("apkName", "");
+            if (TextUtils.isEmpty(apkName)) {
+                if (selectedCode <= 0) {
+                    throw new IOException("F-Droid package has no APK");
+                }
+                apkName = pkg + "_" + selectedCode + ".apk";
+            }
+            return downloadFile("https://f-droid.org/repo/" + apkName,
+                    "https://f-droid.org", pkg, version, fileType);
+        } catch (JSONException e) {
+            throw new IOException("F-Droid response parse failed", e);
+        }
+    }
+
+    /**
+     * Downloads from Aptoide's public v7 API, only accepting TRUSTED uploads.
+     */
+    private File downloadFromAptoide(String pkg, String version, long[] versionCodes,
+                                     String fileType) throws IOException {
+        try {
+            String searchUrl = "https://ws75.aptoide.com/api/7/apps/search?query="
+                    + URLEncoder.encode(pkg, "UTF-8") + "&limit=10";
+            JSONObject search = new JSONObject(httpGet(searchUrl, null));
+            JSONObject app = findAptoideApp(search, pkg);
+            if (app == null) {
+                throw new IOException("Aptoide search returned no app");
+            }
+
+            JSONObject file = app.optJSONObject("file");
+            if (!aptoideFileMatches(file, version, versionCodes)) {
+                String versionsUrl = "https://ws75.aptoide.com/api/7/listAppVersions?package_name="
+                        + URLEncoder.encode(pkg, "UTF-8") + "&limit=50";
+                JSONObject versions = new JSONObject(httpGet(versionsUrl, null));
+                JSONArray list = versions.optJSONArray("list");
+                if (list == null) {
+                    throw new IOException("Aptoide has no versions");
+                }
+                file = null;
+                for (int i = 0; i < list.length(); i++) {
+                    JSONObject candidate = list.getJSONObject(i).optJSONObject("file");
+                    if (aptoideFileMatches(candidate, version, versionCodes)) {
+                        file = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (file == null) {
+                throw new IOException("Requested version not found on Aptoide");
+            }
+            JSONObject malware = file.optJSONObject("malware");
+            String rank = malware != null ? malware.optString("rank", "") : "";
+            if (!"TRUSTED".equalsIgnoreCase(rank)) {
+                throw new IOException("Aptoide file is not TRUSTED");
+            }
+
+            String path = file.optString("path", file.optString("path_alt", ""));
+            if (TextUtils.isEmpty(path)) {
+                throw new IOException("Aptoide file has no download path");
+            }
+            return downloadFile(path, "https://aptoide.com", pkg, version, fileType);
+        } catch (JSONException e) {
+            throw new IOException("Aptoide response parse failed", e);
+        }
+    }
+
+    private JSONObject findAptoideApp(JSONObject root, String pkg) throws JSONException {
+        JSONObject data = root.optJSONObject("datalist");
+        JSONArray list = data != null ? data.optJSONArray("list") : null;
+        if (list == null) {
+            return null;
+        }
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject app = list.getJSONObject(i);
+            if (pkg.equals(app.optString("package"))) {
+                return app;
+            }
+        }
+        return null;
+    }
+
+    private boolean aptoideFileMatches(JSONObject file, String version, long[] versionCodes) {
+        if (file == null) {
+            return false;
+        }
+        if (TextUtils.isEmpty(version)) {
+            return true;
+        }
+        String entryVersion = file.optString("vername", "");
+        long entryCode = file.optLong("vercode", -1);
+        return entryVersion.equalsIgnoreCase(version)
+                || (versionCodes != null && contains(versionCodes, entryCode));
+    }
+
+    private boolean contains(long[] values, long target) {
+        if (values == null) {
+            return false;
+        }
+        for (long value : values) {
+            if (value == target) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Downloads from APKPure's direct endpoint.
      *
      * <p>The endpoint expects a version code when available, otherwise a version name.
@@ -937,6 +1586,9 @@ public class DownloadActivity extends Activity {
             return downloadFile(url, null, pkg, version, fileType);
         } catch (IOException first) {
             HelperLog.error("APKPure URL failed: " + url, first);
+            if (!allowSplitArchive) {
+                throw first;
+            }
             String alt = buildApkPureAltUrl(pkg, versionCodes, version, fileType);
             if (!alt.equals(url)) {
                 HelperLog.info("APKPure alt URL: " + alt);
@@ -1151,6 +1803,11 @@ public class DownloadActivity extends Activity {
         }
     }
 
+    private File downloadFile(String url, String referer, String pkg, String versionName,
+                              String fileType) throws IOException {
+        return downloadFile(url, referer, pkg, versionName, fileType, null);
+    }
+
     /**
      * Streams a URL to a cache file and reports progress to the UI.
      *
@@ -1159,7 +1816,7 @@ public class DownloadActivity extends Activity {
      * Morphe after the activity returns it.</p>
      */
     private File downloadFile(String url, String referer, String pkg, String versionName,
-                              String fileType) throws IOException {
+                              String fileType, String cookie) throws IOException {
         Request.Builder builder = new Request.Builder()
                 .url(url)
                 .header("User-Agent", USER_AGENT)
@@ -1167,6 +1824,9 @@ public class DownloadActivity extends Activity {
                 .header("Accept-Language", "en-US,en;q=0.9");
         if (referer != null) {
             builder.header("Referer", referer);
+        }
+        if (cookie != null && !cookie.isEmpty()) {
+            builder.header("Cookie", cookie);
         }
 
         HelperLog.info("DOWNLOAD " + url

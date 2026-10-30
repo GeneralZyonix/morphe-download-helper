@@ -55,7 +55,7 @@ also show its own default download button so you can continue manually.
 | --- | --- |
 | The **APK download helper** row is missing | Install/update the helper, then fully close and reopen Morphe. |
 | The helper toggle will not stay on | Confirm the **Trust** prompt. Make sure the latest version is installed. |
-| The helper opens but fails to download | Open the helper and tap **Share log** for details. Uptodown is not supported; APKMirror/APKPure may block automated requests. |
+| The helper opens but fails to download | Open the helper and tap **Share log** for details. Uptodown opens a verification page; APKMirror/APKPure may block automated requests. |
 | Morphe says the helper did not return an APK | Use **Open download page** or Morphe's default download button. |
 | **Installer unknown** is shown | Normal for an APK sideloaded outside the Play Store. |
 

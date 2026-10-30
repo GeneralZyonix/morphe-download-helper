@@ -35,11 +35,16 @@ Please include:
 ## Features
 
 - Receives the package, version, version codes, file type, ABIs, and fallback URL from Morphe.
-- Tries the patch bundle's fallback link first.
-- Falls back to APKMirror, then APKPure.
+- Follows the same resolver link Morphe's own download dialog uses.
+- Falls back to APKMirror, APKPure, F-Droid, and Aptoide.
+- Uses APKPure's numeric `versionCode` endpoint, so the exact requested build is downloaded
+  instead of the latest version.
+- Supports APK, APKM, APKS, and XAPK when Morphe allows split archives.
+- Opens Uptodown or APKPure in an inline WebView when a site needs a browser check.
 - Returns a `content://` URI with read permission so Morphe can validate and use the file.
 - Shows a dark, modern UI with a source list and clear limitations.
 - Keeps a local diagnostic log that can be shared from the app.
+- Source settings screen to enable or disable individual download sources.
 
 ## Screenshots
 
@@ -64,32 +69,43 @@ all CPU architectures** (arm64-v8a, armeabi-v7a, x86, x86_64) and on **Android 6
 Morphe sends an intent with the action
 `app.morphe.manager.action.DOWNLOAD_ORIGINAL_APK`. The helper:
 
-1. Reads the request extras.
-2. Tries the fallback URL from the patch bundle.
-3. Searches APKMirror by package name and requested version.
-4. Tries APKPure as a last resort.
-5. Returns `RESULT_OK`, a `content://` URI, and `FLAG_GRANT_READ_URI_PERMISSION`.
+1. Reads the request extras, including the package, version, numeric version codes, ABIs,
+   file type, and fallback URL.
+2. Asks Morphe's resolver API for the page Morphe would show in its own dialog.
+3. Tries the patch bundle's fallback URL, then APKMirror by package and version.
+4. Tries APKPure using the numeric `versionCode`, then F-Droid and Aptoide.
+5. If a source needs a browser check, opens it in an inline WebView and captures the final
+   download link.
+6. Returns `RESULT_OK`, a `content://` URI, and `FLAG_GRANT_READ_URI_PERMISSION`.
 
 Morphe then re-checks the package name, version, and signature before using the file.
 The helper never installs anything.
 
 ## Download sources
 
-| Order | Source | Notes |
+| Order | Source | Processing |
 | --- | --- | --- |
-| 1 | Morphe fallback link | Supplied by the patch bundle; may be a direct file or APKMirror page. |
-| 2 | APKMirror | Search by package name and requested version. |
-| 3 | APKPure | Last resort; supports APK and split-archive endpoints. |
-| — | Uptodown | Disabled because its download endpoint requires a Cloudflare Turnstile token. |
+| 0 | Morphe resolver | Calls `api.morphe.software/v2/web-search`; opens the returned page directly when it is a supported source. |
+| 1 | Morphe fallback link | Supplied by the patch bundle; may be a direct file or a supported store page. |
+| 2 | APKMirror | Searches by package name, matches the requested version, then resolves the variant and download key. |
+| 3 | APKPure | Requests `d.apkpure.com/b/{APK or XAPK}/{package}?versionCode=...`; uses the numeric version code, then tries the alternate archive format. |
+| 4 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
+| 5 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
+| WebView | Uptodown / APKPure | Used when a source needs Cloudflare/Turnstile interaction. The helper captures the final `dw.uptodown.com` or `d.apkpure.com` URL. |
 
-If no downloadable APK is found, the helper returns `RESULT_CANCELED` and Morphe shows
-its own default download button.
+The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
+sources above. Manage enabled sources in the app under **Source settings**. If no
+downloadable APK is found, the helper returns `RESULT_CANCELED` and Morphe shows its own
+default download button.
 
 ## Limitations
 
 - Only apps with an available APK on the supported sources can be resolved automatically.
-- Uptodown is not supported.
-- APKMirror/APKPure can change their HTML or block automated requests at any time.
+- APKPure's direct endpoint needs Morphe's numeric `versionCode`; without it the helper
+  opens the APKPure page in a WebView.
+- Uptodown and APKPure WebView pages may show ads or a verification challenge; the page can
+  be refreshed, and the user may need to tap the direct download button.
+- APKMirror/APKPure/Aptoide can change their HTML or block automated requests at any time.
 - The helper does not bypass paid apps, license checks, account restrictions, or DRM.
 - Automatic downloads may be restricted by the APK sites' terms of service. Use the helper
   responsibly and only download apps you are allowed to access.
@@ -142,7 +158,9 @@ use **Use a helper app** during patching.
 ```text
 app/src/main/java/be/alterra/morphehelper/
   MainActivity.java      Launcher screen, source list, log actions
-  DownloadActivity.java  Morphe intent contract and APK resolution
+  DownloadActivity.java  Morphe intent contract, resolver, source parsers, WebView fallback
+  SettingsActivity.java  Download source toggles
+  SourceSettings.java    Persisted source preferences
   HelperLog.java         Local append-only diagnostic log
 app/src/main/res/
   drawable/              Logo and warning icon

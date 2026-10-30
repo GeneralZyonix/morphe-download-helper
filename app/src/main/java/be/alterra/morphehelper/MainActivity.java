@@ -202,9 +202,9 @@ public class MainActivity extends Activity {
         warningHeader.addView(warningTitle);
         warning.addView(warningHeader);
 
-        // The helper cannot handle Uptodown and cannot guarantee every app is available.
+        // Uptodown opens an in-app verification page; availability still varies by app.
         TextView warningBody = text(
-                "Uptodown links are not supported. This helper only works for specific apps. "
+                "Uptodown links open a verification page inside the helper. This helper only works for specific apps. "
                         + "If it can't find a downloadable APK automatically, Morphe will "
                         + "show its default download button.",
                 13, WARN_TEXT, false);
@@ -263,14 +263,56 @@ public class MainActivity extends Activity {
         sourcesRow.addView(pureChip, new LinearLayout.LayoutParams(
                 WRAP_CONTENT, WRAP_CONTENT));
 
-        // Uptodown is disabled because its download endpoint needs a Turnstile token.
+        LinearLayout sourcesRow2 = new LinearLayout(this);
+        sourcesRow2.setOrientation(LinearLayout.HORIZONTAL);
+        sourcesRow2.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams sourcesRow2Params = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        sourcesRow2Params.topMargin = dp(8);
+        sourcesCard.addView(sourcesRow2, sourcesRow2Params);
+
+        TextView fdroidChip = sourceChip(
+                "F-Droid",
+                Color.parseColor("#0F766E"),
+                Color.parseColor("#CCFBF1"));
+        LinearLayout.LayoutParams fdroidChipParams = new LinearLayout.LayoutParams(
+                WRAP_CONTENT, WRAP_CONTENT);
+        fdroidChipParams.setMarginEnd(dp(8));
+        sourcesRow2.addView(fdroidChip, fdroidChipParams);
+
+        TextView aptoideChip = sourceChip(
+                "Aptoide",
+                Color.parseColor("#7C2D12"),
+                Color.parseColor("#FED7AA"));
+        LinearLayout.LayoutParams aptoideChipParams = new LinearLayout.LayoutParams(
+                WRAP_CONTENT, WRAP_CONTENT);
+        aptoideChipParams.setMarginEnd(dp(8));
+        sourcesRow2.addView(aptoideChip, aptoideChipParams);
+
+        TextView uptodownChip = sourceChip(
+                "Uptodown",
+                Color.parseColor("#4C1D95"),
+                Color.parseColor("#DDD6FE"));
+        sourcesRow2.addView(uptodownChip, new LinearLayout.LayoutParams(
+                WRAP_CONTENT, WRAP_CONTENT));
+
+        // Uptodown uses an in-app WebView verification page because of Cloudflare Turnstile.
         TextView disabledSource = text(
-                "Tries in this order. Uptodown is not used (Cloudflare protection).",
+                "Tries in this order. Uptodown opens an in-app verification page.",
                 12,
-                Color.parseColor("#FCA5A5"),
+                MUTED,
                 false);
         disabledSource.setPadding(0, dp(12), 0, 0);
         sourcesCard.addView(disabledSource);
+
+        // Open the source settings screen.
+        TextView sourceSettings = secondaryButton("Source settings", TEXT, SECONDARY_BORDER);
+        sourceSettings.setOnClickListener(v ->
+                startActivity(new Intent(this, SettingsActivity.class)));
+        LinearLayout.LayoutParams sourceSettingsParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, dp(50));
+        sourceSettingsParams.topMargin = dp(10);
+        root.addView(sourceSettings, sourceSettingsParams);
 
         // -----------------------------------------------------------------
         // Primary action and maintenance buttons

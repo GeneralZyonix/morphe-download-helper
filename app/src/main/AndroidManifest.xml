@@ -37,6 +37,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Source settings: choose which APK sources the helper may use. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="Download sources" />
+
         <!--
             Helper contract: Morphe sends this action when the user taps
             "Use a helper app". The activity returns a content:// URI to the APK.
