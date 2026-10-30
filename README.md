@@ -7,8 +7,10 @@ Morphe's open `DOWNLOAD_ORIGINAL_APK` intent contract.
 > **Unofficial:** this project is not affiliated with, endorsed by, or maintained by the
 > Morphe project. Morphe ships no helper of its own and does not endorse any helper.
 
-> **New here?** Follow the [Setup Guide](GUIDE.md) to enable the helper and optionally make
-> Morphe open it automatically.
+## Setup Guide
+
+New to the helper? Follow the **[illustrated setup guide](GUIDE.md)** to enable it in Morphe,
+trust it, and optionally make Morphe open it automatically.
 
 ## Features
 

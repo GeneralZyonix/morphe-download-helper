@@ -16,15 +16,11 @@ Morphe open the helper automatically when it needs an APK.
 Open Morphe, tap **Settings** in the bottom bar, scroll down to the **Files** section, and tap
 **APK download helper**.
 
-![Morphe Settings showing the APK download helper row](docs/guide/01-open-settings.png)
-
 ## Step 2: Trust the helper
 
 On the **APK download helper** screen, find **Morphe Download Helper** and turn on its toggle.
 Morphe will ask you to confirm with **Trust**. When it is enabled, the subtitle should show
 something like **Trusted: 1 of 1**.
-
-![Trusting Morphe Download Helper](docs/guide/02-trust-and-auto-open.png)
 
 ## Optional step 3: Open the helper automatically
 
@@ -33,6 +29,14 @@ launch the helper directly when you choose **Help me find an APK**.
 
 If this option is off, Morphe still works normally: it shows the download instructions and a
 **Use a helper app** button, which opens the helper when you tap it.
+
+## Visual guide
+
+The red numbers match the steps above. Tap an image to open it larger.
+
+| 1 — Open the settings row | 2 & 3 — Trust and auto-open |
+| --- | --- |
+| <a href="docs/guide/01-open-settings.png"><img src="docs/guide/01-open-settings.png" alt="Morphe Settings showing the APK download helper row" width="360"></a> | <a href="docs/guide/02-trust-and-auto-open.png"><img src="docs/guide/02-trust-and-auto-open.png" alt="Trusting Morphe Download Helper and enabling Open helper right away" width="360"></a> |
 
 ## Step 4: Use it while patching
 
