@@ -7,6 +7,11 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced the launcher icon with the **Orbit Download** mark: cyan → blue → purple →
+  magenta ring, download arrow, and a small M orb in the GeneralZyonix palette.
+
 ## [1.0] - 2026-10-30
 
 ### Added

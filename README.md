@@ -1,5 +1,9 @@
 # Morphe Download Helper
 
+<p align="center">
+  <img src="docs/icon.png" alt="Morphe Download Helper app icon" width="150">
+</p>
+
 An unofficial Android helper app that downloads the original APK requested by
 [Morphe Manager](https://github.com/MorpheApp/morphe-manager) and hands it back through
 Morphe's open `DOWNLOAD_ORIGINAL_APK` intent contract.
