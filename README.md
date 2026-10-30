@@ -130,6 +130,10 @@ app/src/main/res/
 Issues and pull requests are welcome. Please keep source parsers small and well commented,
 and test changes against a real Morphe request before opening a PR.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
