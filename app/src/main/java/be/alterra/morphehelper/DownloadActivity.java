@@ -1168,6 +1168,12 @@ public class DownloadActivity extends Activity {
         return null;
     }
 
+    /** APKPure serves APK/XAPK, not APKM/APKS. Bundle requests must use APKMirror. */
+    private boolean apkPureCanServe(String fileType) {
+        return !"apkm".equalsIgnoreCase(fileType)
+                && !"apks".equalsIgnoreCase(fileType);
+    }
+
     private long installedVersionCode(String pkg) {
         try {
             PackageInfo info = getPackageManager().getPackageInfo(pkg, 0);
@@ -1197,7 +1203,8 @@ public class DownloadActivity extends Activity {
         // Fast start only applies to codes Morphe actually supplied. If Morphe omits
         // them, follow its resolver link first even if an installed code is available.
         boolean hasCodes = versionCodes != null && versionCodes.length > 0;
-        if (hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+        if (hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+                && apkPureCanServe(fileType)) {
             setSourceLabel("APKPure direct");
             setStatus("Trying APKPure direct...");
             try {
@@ -1319,9 +1326,28 @@ public class DownloadActivity extends Activity {
             }
         }
 
+        // Bundle requests need an APK/XAPK split archive. APKPure cannot serve APKM
+        // directly, but its XAPK asset is a useful fallback if APKMirror is blocked.
+        if (SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+                && allowSplitArchive && isSplitType(fileType)
+                && !apkPureCanServe(fileType)) {
+            HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
+            setSourceLabel("APKPure XAPK");
+            setStatus("Trying APKPure XAPK fallback...");
+            try {
+                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                markSource(SourceSettings.APKPURE, true, "XAPK fallback");
+                return file;
+            } catch (Exception failed) {
+                HelperLog.error("APKPure XAPK fallback failed", failed);
+                markSource(SourceSettings.APKPURE, false, failed.getMessage());
+            }
+        }
+
         // 3. APKPure fallback for requests without a numeric versionCode.
         // When a code exists it was already tried before the resolver.
-        if (!hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+        if (!hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+                && apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure fallback for " + pkg);
             setSourceLabel("APKPure API");
             setStatus("Resolving APKPure API...");
@@ -1376,7 +1402,8 @@ public class DownloadActivity extends Activity {
 
         // APKPure browser fallback is the last resort so a broken page does not block
         // the resolver or APKMirror from being tried.
-        if (allowSplitArchive && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+        if (allowSplitArchive && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+                && apkPureCanServe(fileType)) {
             main.post(() -> {
                 setStatus("Opening APKPure page...");
                 progress.setIndeterminate(true);
@@ -2473,33 +2500,7 @@ public class DownloadActivity extends Activity {
 
     /** Returns true for split-archive formats that APKPure serves from its XAPK endpoint. */
     private boolean isSplitType(String fileType) {
-        return "xapk".equalsIgnoreCase(fileType) || "apks".equalsIgnoreCase(fileType);
+        return "xapk".equalsIgnoreCase(fileType) || "apks".equalsIgnoreCase(fileType)
+                || "apkm".equalsIgnoreCase(fileType);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
