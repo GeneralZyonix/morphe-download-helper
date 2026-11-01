@@ -10,6 +10,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Used to read the installed app's versionCode when Morphe omits it. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Keep long downloads alive while the helper is in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!--
         Android 11+ package visibility: without this block the app cannot see whether
         Morphe is installed or open its launcher activity.
@@ -37,6 +45,12 @@
             </intent-filter>
         </activity>
 
+        <!-- In-app visual setup guide. -->
+        <activity
+            android:name=".GuideActivity"
+            android:exported="false"
+            android:label="Visual guide" />
+
         <!-- Source settings: choose which APK sources the helper may use. -->
         <activity
             android:name=".SettingsActivity"
@@ -57,6 +71,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Shows download progress and keeps the process foreground while downloading. -->
+        <service
+            android:name=".DownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!--
             FileProvider exposes downloaded files and the log file to Morphe/other apps
             through content:// URIs. The allowed paths live in res/xml/file_paths.xml.
@@ -73,3 +93,5 @@
 
     </application>
 </manifest>
+
+

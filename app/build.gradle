@@ -16,8 +16,8 @@ android {
         targetSdk 35
 
         // Bump both values for every public release.
-        versionCode 2
-        versionName "1.1"
+        versionCode 3
+        versionName "1.2"
     }
 
     buildTypes {
@@ -41,3 +41,4 @@ dependencies {
     // HTTP client with cookie/redirect support for APK sites.
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
+

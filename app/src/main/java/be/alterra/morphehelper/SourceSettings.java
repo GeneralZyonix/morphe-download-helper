@@ -24,6 +24,21 @@ final class SourceSettings {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    static void ensureInitialized(Context context) {
+        SharedPreferences prefs = prefs(context);
+        if (prefs.contains(FALLBACK)) {
+            return;
+        }
+        prefs.edit()
+                .putBoolean(FALLBACK, true)
+                .putBoolean(APKMIRROR, true)
+                .putBoolean(APKPURE, true)
+                .putBoolean(UPTODOWN, true)
+                .putBoolean(FDROID, true)
+                .putBoolean(APTOIDE, true)
+                .apply();
+    }
+
     static boolean isEnabled(Context context, String key) {
         return prefs(context).getBoolean(key, true);
     }

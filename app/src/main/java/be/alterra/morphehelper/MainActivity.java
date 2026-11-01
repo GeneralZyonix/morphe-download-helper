@@ -1,13 +1,16 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -76,6 +79,12 @@ public class MainActivity extends Activity {
 
         // Create the log file before any screen can try to share it.
         HelperLog.init(getApplicationContext());
+        SourceSettings.ensureInitialized(this);
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 41);
+        }
 
         // Keep the system bars dark so the light status/navigation icons stay readable.
         getWindow().setStatusBarColor(BG_TOP);
@@ -90,7 +99,7 @@ public class MainActivity extends Activity {
         // Vertical content column with generous top spacing below the status bar.
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(24), dp(48), dp(24), dp(80));
+        applyContentPadding(root);
         scroll.addView(root, new ScrollView.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
         // Used for the "Morphe detected" / "Morphe not installed" status chip.
@@ -175,42 +184,13 @@ public class MainActivity extends Activity {
         steps.setPadding(0, dp(10), 0, 0);
         card.addView(steps);
 
-        // -----------------------------------------------------------------
-        // Warning card: limits the user should know before trusting the helper
-        // -----------------------------------------------------------------
-        LinearLayout warning = new LinearLayout(this);
-        warning.setOrientation(LinearLayout.VERTICAL);
-        warning.setPadding(dp(18), dp(16), dp(18), dp(16));
-        GradientDrawable warningBg = rounded(WARN_BG, 18);
-        warningBg.setStroke(dp(1), WARN_BORDER);
-        warning.setBackground(warningBg);
-        LinearLayout.LayoutParams warningParams = new LinearLayout.LayoutParams(
-                MATCH_PARENT, WRAP_CONTENT);
-        warningParams.topMargin = dp(12);
-        root.addView(warning, warningParams);
-
-        // Amber warning icon plus a short heading.
-        LinearLayout warningHeader = new LinearLayout(this);
-        warningHeader.setOrientation(LinearLayout.HORIZONTAL);
-        warningHeader.setGravity(Gravity.CENTER_VERTICAL);
-        ImageView warningIcon = new ImageView(this);
-        warningIcon.setImageResource(R.drawable.ic_warning);
-        warningHeader.addView(warningIcon, new LinearLayout.LayoutParams(dp(20), dp(20)));
-
-        TextView warningTitle = text("Heads up", 14, WARN_TITLE, true);
-        warningTitle.setPadding(dp(8), 0, 0, 0);
-        warningHeader.addView(warningTitle);
-        warning.addView(warningHeader);
-
-        // Uptodown opens an in-app verification page; availability still varies by app.
-        TextView warningBody = text(
-                "Uptodown links open a verification page inside the helper. This helper only works for specific apps. "
-                        + "If it can't find a downloadable APK automatically, Morphe will "
-                        + "show its default download button.",
-                13, WARN_TEXT, false);
-        warningBody.setLineSpacing(dp(3), 1f);
-        warningBody.setPadding(0, dp(8), 0, 0);
-        warning.addView(warningBody);
+        TextView guideButton = secondaryButton("Visual guide", TEXT, SECONDARY_BORDER);
+        guideButton.setOnClickListener(v ->
+                startActivity(new Intent(this, GuideActivity.class)));
+        LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, dp(46));
+        guideParams.topMargin = dp(14);
+        card.addView(guideButton, guideParams);
 
         // -----------------------------------------------------------------
         // Download sources card: the order used by DownloadActivity.resolve()
@@ -298,7 +278,7 @@ public class MainActivity extends Activity {
 
         // Uptodown uses an in-app WebView verification page because of Cloudflare Turnstile.
         TextView disabledSource = text(
-                "Tries in this order. Uptodown opens an in-app verification page.",
+                "Tries in this order. Source details and browser fallbacks are in Source settings.",
                 12,
                 MUTED,
                 false);
@@ -357,6 +337,46 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams uninstallParams = new LinearLayout.LayoutParams(MATCH_PARENT, dp(50));
         uninstallParams.topMargin = dp(10);
         root.addView(uninstall, uninstallParams);
+
+        // About the developer.
+        LinearLayout about = new LinearLayout(this);
+        about.setOrientation(LinearLayout.VERTICAL);
+        about.setPadding(dp(18), dp(16), dp(18), dp(16));
+        about.setBackground(cardBackground());
+        LinearLayout.LayoutParams aboutParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        aboutParams.topMargin = dp(16);
+        root.addView(about, aboutParams);
+
+        about.addView(text("About", 16, TEXT, true));
+
+        LinearLayout aboutHeader = new LinearLayout(this);
+        aboutHeader.setOrientation(LinearLayout.HORIZONTAL);
+        aboutHeader.setGravity(Gravity.CENTER_VERTICAL);
+        aboutHeader.setPadding(0, dp(12), 0, 0);
+        ImageView gzLogo = new ImageView(this);
+        gzLogo.setImageResource(R.drawable.gz_logo);
+        LinearLayout.LayoutParams gzLogoParams = new LinearLayout.LayoutParams(dp(58), dp(58));
+        gzLogoParams.setMarginEnd(dp(12));
+        aboutHeader.addView(gzLogo, gzLogoParams);
+
+        LinearLayout aboutText = new LinearLayout(this);
+        aboutText.setOrientation(LinearLayout.VERTICAL);
+        aboutText.addView(text("GeneralZyonix", 16, TEXT, true));
+        TextView role = text("Developer of Morphe Download Helper", 12, MUTED, false);
+        role.setPadding(0, dp(3), 0, 0);
+        aboutText.addView(role);
+        aboutHeader.addView(aboutText, new LinearLayout.LayoutParams(
+                0, WRAP_CONTENT, 1f));
+        about.addView(aboutHeader);
+
+        LinearLayout links = new LinearLayout(this);
+        links.setOrientation(LinearLayout.HORIZONTAL);
+        links.setPadding(0, dp(14), 0, 0);
+        links.addView(linkButton("GitHub", "https://github.com/GeneralZyonix/morphe-download-helper"));
+        links.addView(linkButton("Releases", "https://github.com/GeneralZyonix/morphe-download-helper/releases"));
+        links.addView(linkButton("Reddit", "https://www.reddit.com/r/MorpheApp/comments/1xjmnf3/i_made_an_helper_that_fetches_the_right_apk_for/"));
+        about.addView(links);
 
         // Footer shows the installed version, read from PackageManager.
         String version = "v?";
@@ -433,6 +453,12 @@ public class MainActivity extends Activity {
     }
 
     /** Converts density-independent pixels to physical pixels for this screen. */
+    private void applyContentPadding(LinearLayout root) {
+        int screen = getResources().getDisplayMetrics().widthPixels;
+        int max = dp(720);
+        int horizontal = Math.max(dp(24), (screen - max) / 2);
+        root.setPadding(horizontal, dp(48), horizontal, dp(80));
+    }
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density);
     }
@@ -485,6 +511,27 @@ public class MainActivity extends Activity {
     }
 
     /** Creates a dark outlined button with a ripple and custom text/border colors. */
+    private TextView linkButton(String label, String url) {
+        TextView view = text(label, 12, Color.parseColor("#C7D2FE"), true);
+        view.setGravity(Gravity.CENTER);
+        view.setClickable(true);
+        view.setPadding(dp(10), dp(8), dp(10), dp(8));
+        GradientDrawable background = rounded(Color.parseColor("#1E293B"), 12);
+        background.setStroke(dp(1), SECONDARY_BORDER);
+        view.setBackground(background);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                WRAP_CONTENT, WRAP_CONTENT);
+        params.setMarginEnd(dp(6));
+        view.setLayoutParams(params);
+        view.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            } catch (Exception ignored) {
+                // No browser available.
+            }
+        });
+        return view;
+    }
     private TextView secondaryButton(String label, int textColor, int strokeColor) {
         TextView view = new TextView(this);
         view.setText(label);
@@ -532,3 +579,10 @@ public class MainActivity extends Activity {
         return drawable;
     }
 }
+
+
+
+
+
+
+

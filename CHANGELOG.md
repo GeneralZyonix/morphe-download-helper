@@ -5,6 +5,36 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.2] - 2026-11-01
+
+### Added
+
+- Installed-app `versionCode` fallback for requests that omit `VERSION_CODES`.
+- APKPure mobile API resolution, with a direct-asset fast path before the WebView fallback.
+- Pause and Resume controls for active downloads.
+- Source labels above the progress bar, plus download speed, ETA, and resumable partial downloads.
+- Foreground download notification so long downloads are less likely to be killed.
+- Per-source **Test** buttons and last-known source health in Source settings.
+- Granular status updates: installed version, Morphe resolver, source lookup, and download start.
+- **About** section with the GeneralZyonix logo and links to GitHub, Releases, and Reddit.
+- In-app **Visual guide** with the setup screenshots.
+- Adaptive content width for tablets.
+- `IDEAS.md` backlog for deferred features.
+
+### Changed
+
+- Moved Uptodown/APKPure browser-fallback warnings from the main screen into Source settings.
+- APKPure WebView fallback no longer loops on repeated page loads or ad overlays.
+- APKMirror retries only transient rate-limit/server errors, with backoff.
+- APKPure direct download is attempted first when a numeric versionCode is available.
+
+### Notes
+
+- Resolution can take a little longer for some apps now. The helper performs extra checks
+  (installed versionCode, Morphe resolver, APKPure API, source health, retries, and
+  fallbacks) before downloading. This is intentional: it makes the flow more robust and
+  less likely to break when a source changes or omits metadata.
+
 ## [1.1] - 2026-10-30
 
 ### Added
@@ -40,3 +70,5 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - Local diagnostic log with **Share log** and **Clear log** actions.
 - Illustrated setup guide for enabling and trusting the helper in Morphe.
 - Universal APK for Android 6.0+ (arm64-v8a, armeabi-v7a, x86, x86_64).
+
+

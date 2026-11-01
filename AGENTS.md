@@ -22,3 +22,13 @@
 - Default branch: `main`
 - Package: `be.alterra.morphehelper`
 - App name: `Morphe Download Helper`
+
+## Images and screenshots
+
+- Save all new promotional images, screenshots, and Reddit assets in
+  `C:\Users\Ashley\Documents\Morphe helper`.
+- Keep copies used by the repository under `docs/` or `docs/promo/` when they need to be
+  committed or linked from GitHub.
+- Do **not** put the app version number in banners or reusable promo images.
+- Do **not** take new in-app screenshots automatically. Reuse the existing screenshots
+  unless the user explicitly asks for updated ones.

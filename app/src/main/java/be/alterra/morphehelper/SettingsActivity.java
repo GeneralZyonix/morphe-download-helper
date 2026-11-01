@@ -32,10 +32,12 @@ public class SettingsActivity extends Activity {
     private static final int PRIMARY_END = Color.parseColor("#4F46E5");
     private static final int TEXT = Color.parseColor("#F8FAFC");
     private static final int MUTED = Color.parseColor("#94A3B8");
+    private static final int WARN_TEXT = Color.parseColor("#FDE68A");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        SourceSettings.ensureInitialized(this);
         getWindow().setStatusBarColor(BG_TOP);
         getWindow().setNavigationBarColor(BG_TOP);
 
@@ -45,7 +47,7 @@ public class SettingsActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(24), dp(48), dp(24), dp(32));
+        applyContentPadding(root);
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -76,6 +78,14 @@ public class SettingsActivity extends Activity {
         explanation.setPadding(0, dp(18), 0, 0);
         root.addView(explanation);
 
+        TextView webViewNote = text(
+                "APKPure uses its API first and may open an in-app WebView. "
+                        + "Uptodown uses an in-app WebView verification page.",
+                12, WARN_TEXT, false);
+        webViewNote.setLineSpacing(dp(3), 1f);
+        webViewNote.setPadding(0, dp(10), 0, 0);
+        root.addView(webViewNote);
+
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(18), dp(4), dp(18), dp(4));
@@ -91,9 +101,9 @@ public class SettingsActivity extends Activity {
         addSourceRow(card, SourceSettings.APKMIRROR, "APKMirror",
                 "Package and version search");
         addSourceRow(card, SourceSettings.APKPURE, "APKPure",
-                "Fallback APK store");
+                "API first; in-app WebView fallback");
         addSourceRow(card, SourceSettings.UPTODOWN, "Uptodown fallback",
-                "Opens an in-app verification page when linked");
+                "In-app WebView verification page");
         addSourceRow(card, SourceSettings.FDROID, "F-Droid",
                 "Open-source repository; only apps it hosts");
         addSourceRow(card, SourceSettings.APTOIDE, "Aptoide",
@@ -118,10 +128,30 @@ public class SettingsActivity extends Activity {
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
         labels.addView(text(title, 15, TEXT, true));
-        TextView desc = text(description, 12, MUTED, false);
+        int descColor = (SourceSettings.APKPURE.equals(key)
+                || SourceSettings.UPTODOWN.equals(key)) ? WARN_TEXT : MUTED;
+        TextView desc = text(description, 12, descColor, false);
         desc.setPadding(0, dp(3), 0, 0);
         labels.addView(desc);
+        TextView health = text(SourceHealth.summary(this, key), 11, MUTED, false);
+        health.setPadding(0, dp(4), 0, 0);
+        labels.addView(health);
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView test = text("Test", 12, PRIMARY_START, true);
+        test.setPadding(dp(8), dp(8), dp(8), dp(8));
+        test.setClickable(true);
+        test.setFocusable(true);
+        test.setOnClickListener(v -> {
+            test.setText("...");
+            SourceTester.test(this, key, (ok, message) -> runOnUiThread(() -> {
+                test.setText("Test");
+                health.setText(SourceHealth.summary(this, key));
+                Toast.makeText(this, title + ": " + message, Toast.LENGTH_SHORT).show();
+            }));
+        });
+        row.addView(test, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
 
         Switch toggle = new Switch(this);
         toggle.setChecked(SourceSettings.isEnabled(this, key));
@@ -136,10 +166,13 @@ public class SettingsActivity extends Activity {
             }
             SourceSettings.setEnabled(this, key, isChecked);
         });
-        row.addView(toggle, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
+        LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
+                dp(64), dp(48));
+        toggleParams.gravity = Gravity.CENTER_VERTICAL;
+        row.addView(toggle, toggleParams);
+        parent.addView(row, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        parent.addView(row);
 
         View divider = new View(this);
         divider.setBackgroundColor(BORDER);
@@ -147,6 +180,12 @@ public class SettingsActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
     }
 
+    private void applyContentPadding(LinearLayout root) {
+        int screen = getResources().getDisplayMetrics().widthPixels;
+        int max = dp(720);
+        int horizontal = Math.max(dp(24), (screen - max) / 2);
+        root.setPadding(horizontal, dp(48), horizontal, dp(32));
+    }
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density);
     }
@@ -204,3 +243,7 @@ public class SettingsActivity extends Activity {
         );
     }
 }
+
+
+
+
