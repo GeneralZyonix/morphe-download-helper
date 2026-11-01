@@ -29,5 +29,10 @@ AGENTS.md
 RELEASING.md
 IDEAS.md
 
-# Personal promo/screenshots
-/docs/
+# Personal promo/screenshots, with app icon/screenshots made public
+/docs/*
+!/docs/icon.png
+!/docs/screenshots/
+/docs/screenshots/*
+!/docs/screenshots/main-v2.png
+!/docs/screenshots/download-v2.png
