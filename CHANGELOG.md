@@ -5,6 +5,26 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.3] - 2026-11-01
+
+### Added
+
+- Morphe resolver result cache for three hours, plus a four-second resolver timeout.
+- Clearer APKMirror progress states: page, download key, and starting download.
+
+### Changed
+
+- APKPure is tried first when Morphe supplies a numeric `versionCode`.
+- If Morphe supplies no `versionCode`, the Morphe resolver is followed first.
+- APKPure WebView is now the last resort, so a broken page cannot block APKMirror or the resolver.
+- Source list order and Source settings now show APKPure → Morphe link → APKMirror → fallbacks.
+- README clarifies the Morphe resolver link versus the patch-bundle fallback URL.
+- Settings and Visual guide use navigation-bar insets, so bottom buttons clear both gesture and 3-button navigation.
+
+### Notes
+
+- Apps with a versionCode should start faster through APKPure.
+- Requests without a versionCode may still take longer because the helper follows Morphe’s resolver page first, by design.
 ## [1.2] - 2026-11-01
 
 ### Added
@@ -70,5 +90,6 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - Local diagnostic log with **Share log** and **Clear log** actions.
 - Illustrated setup guide for enabling and trusting the helper in Morphe.
 - Universal APK for Android 6.0+ (arm64-v8a, armeabi-v7a, x86, x86_64).
+
 
 

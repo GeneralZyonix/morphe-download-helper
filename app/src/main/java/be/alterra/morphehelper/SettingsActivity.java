@@ -18,6 +18,9 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
 /**
  * Source settings: choose which APK sources DownloadActivity may use.
  */
@@ -96,12 +99,12 @@ public class SettingsActivity extends Activity {
         cardParams.topMargin = dp(18);
         root.addView(card, cardParams);
 
+        addSourceRow(card, SourceSettings.APKPURE, "APKPure",
+                "Fast direct/API path, then WebView fallback");
         addSourceRow(card, SourceSettings.FALLBACK, "Morphe fallback link",
-                "First link supplied by the patch bundle");
+                "Resolver link supplied by Morphe");
         addSourceRow(card, SourceSettings.APKMIRROR, "APKMirror",
                 "Package and version search");
-        addSourceRow(card, SourceSettings.APKPURE, "APKPure",
-                "API first; in-app WebView fallback");
         addSourceRow(card, SourceSettings.UPTODOWN, "Uptodown fallback",
                 "In-app WebView verification page");
         addSourceRow(card, SourceSettings.FDROID, "F-Droid",
@@ -114,6 +117,7 @@ public class SettingsActivity extends Activity {
         LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
         doneParams.topMargin = dp(20);
+        doneParams.bottomMargin = dp(24);
         root.addView(done, doneParams);
 
         setContentView(scroll);
@@ -183,8 +187,14 @@ public class SettingsActivity extends Activity {
     private void applyContentPadding(LinearLayout root) {
         int screen = getResources().getDisplayMetrics().widthPixels;
         int max = dp(720);
-        int horizontal = Math.max(dp(24), (screen - max) / 2);
-        root.setPadding(horizontal, dp(48), horizontal, dp(32));
+        final int horizontal = Math.max(dp(24), (screen - max) / 2);
+        final int baseBottom = dp(32);
+        root.setPadding(horizontal, dp(48), horizontal, baseBottom);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            int navigation = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+            view.setPadding(horizontal, dp(48), horizontal, baseBottom + navigation);
+            return insets;
+        });
     }
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density);
@@ -243,6 +253,9 @@ public class SettingsActivity extends Activity {
         );
     }
 }
+
+
+
 
 
 

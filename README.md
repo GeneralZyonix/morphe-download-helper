@@ -71,12 +71,13 @@ Morphe sends an intent with the action
 
 1. Reads the request extras, including the package, version, numeric version codes, ABIs,
    file type, and fallback URL.
-2. Asks Morphe's resolver API for the page Morphe would show in its own dialog.
-3. Tries the patch bundle's fallback URL, then APKMirror by package and version.
-4. Tries APKPure using the numeric `versionCode`, then F-Droid and Aptoide.
-5. If a source needs a browser check, opens it in an inline WebView and captures the final
-   download link.
-6. Returns `RESULT_OK`, a `content://` URI, and `FLAG_GRANT_READ_URI_PERMISSION`.
+2. If a numeric `versionCode` is available, tries APKPure's direct endpoint first, then its API.
+3. If APKPure does not have the build, asks Morphe's resolver API for the page Morphe would show.
+4. Tries the patch bundle's fallback URL, then APKMirror by package and version.
+5. Falls back to APKPure, F-Droid, and Aptoide.
+6. If a source needs a browser check, opens it in an inline WebView and captures the final
+   download link. APKPure's WebView is the last resort.
+7. Returns `RESULT_OK`, a `content://` URI, and `FLAG_GRANT_READ_URI_PERMISSION`.
 
 Morphe then re-checks the package name, version, and signature before using the file.
 The helper never installs anything.
@@ -85,13 +86,14 @@ The helper never installs anything.
 
 | Order | Source | Processing |
 | --- | --- | --- |
-| 0 | Morphe resolver | Calls `api.morphe.software/v2/web-search`; opens the returned page directly when it is a supported source. |
-| 1 | Morphe fallback link | Supplied by the patch bundle; may be a direct file or a supported store page. |
-| 2 | APKMirror | Searches by package name, matches the requested version, then resolves the variant and download key. |
-| 3 | APKPure | Requests `d.apkpure.com/b/{APK or XAPK}/{package}?versionCode=...`; uses the numeric version code, then tries the alternate archive format. |
-| 4 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
-| 5 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
-| WebView | Uptodown / APKPure | Used when a source needs Cloudflare/Turnstile interaction. The helper captures the final `dw.uptodown.com` or `d.apkpure.com` URL. |
+| 0 | APKPure fast path | When Morphe sends a numeric versionCode, request `d.apkpure.com/b/{APK or XAPK}/{package}?versionCode=...` immediately, then use the APKPure API if needed. |
+| 1 | Morphe resolver | Calls `api.morphe.software/v2/web-search`; Morphe redirects to the direct store page (for example APKMirror/Uptodown). Cached for 3 hours. |
+| 2 | Patch-bundle fallback URL | The `FALLBACK_WEB_URL` extra from the patch bundle; usually a Google search URL, which is skipped, but may be a direct file/store page. |
+| 3 | APKMirror | Searches by package name, matches the requested version, then resolves the variant and download key. |
+| 4 | APKPure fallback | Used when there is no versionCode, or the fast path did not find the build. |
+| 5 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
+| 6 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
+| WebView | Uptodown / APKPure | Uptodown opens from the resolver. APKPure’s page is the last resort so it cannot block the other sources. |
 
 The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
 sources above. Manage enabled sources in the app under **Source settings**. If no
@@ -188,3 +190,4 @@ MIT — see [LICENSE](LICENSE).
 This project is provided as-is. The authors are not responsible for how it is used. Only
 download applications you are legally allowed to access, and respect the terms of service
 of the APK sources listed above.
+

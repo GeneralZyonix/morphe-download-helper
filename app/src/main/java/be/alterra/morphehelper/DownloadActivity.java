@@ -150,8 +150,9 @@ public class DownloadActivity extends Activity {
     private static final OkHttpClient API_HTTP = new OkHttpClient.Builder()
             .followRedirects(false)
             .followSslRedirects(false)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .callTimeout(4, TimeUnit.SECONDS)
             .build();
 
     // ---------------------------------------------------------------------
@@ -1191,13 +1192,53 @@ public class DownloadActivity extends Activity {
             }
         }
 
+        // Fast start: with a numeric code, APKPure can often begin immediately.
+        // The resolver and the other sources remain available as fallbacks.
+        // Fast start only applies to codes Morphe actually supplied. If Morphe omits
+        // them, follow its resolver link first even if an installed code is available.
+        boolean hasCodes = versionCodes != null && versionCodes.length > 0;
+        if (hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+            setSourceLabel("APKPure direct");
+            setStatus("Trying APKPure direct...");
+            try {
+                File file = downloadFromApkPure(pkg, version, codes, fileType);
+                markSource(SourceSettings.APKPURE, true, "direct");
+                return file;
+            } catch (Exception directError) {
+                HelperLog.error("APKPure fast direct failed", directError);
+            }
+
+            setSourceLabel("APKPure API");
+            setStatus("Resolving APKPure API...");
+            try {
+                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                markSource(SourceSettings.APKPURE, true, "API");
+                return file;
+            } catch (Exception apiError) {
+                HelperLog.error("APKPure fast API failed", apiError);
+                markSource(SourceSettings.APKPURE, false, apiError.getMessage());
+            }
+        }
+
         // 0. Ask Morphe's resolver for the page it would show in its own dialog.
         if (SourceSettings.isEnabled(this, SourceSettings.FALLBACK)) {
-            setStatus("Checking Morphe resolver...");
-            String morpheUrl = resolveMorpheUrl(pkg, version, abis);
+            String abi = (abis != null && abis.length > 0) ? abis[0] : "arm64-v8a";
+            String resolverKey = pkg + "|" + version + "|" + abi;
+            String morpheUrl = ResolverCache.get(this, resolverKey);
             if (morpheUrl != null) {
-                String host = hostOf(morpheUrl);
-                HelperLog.info("Morphe resolver returned: " + morpheUrl);
+                HelperLog.info("Using cached Morphe resolver link: " + morpheUrl);
+                setStatus("Using cached resolver...");
+            } else {
+                setStatus("Checking Morphe resolver...");
+                morpheUrl = resolveMorpheUrl(pkg, version, abis);
+                if (morpheUrl != null && !isHost(hostOf(morpheUrl), "google.com")) {
+                    ResolverCache.put(this, resolverKey, morpheUrl);
+                }
+            }
+            final String resolvedUrl = morpheUrl;
+            if (resolvedUrl != null) {
+                String host = hostOf(resolvedUrl);
+                HelperLog.info("Morphe resolver returned: " + resolvedUrl);
                 setStatus("Resolver found " + host + "...");
                 markSource(SourceSettings.FALLBACK, true, "Morphe resolver");
                 if (isHost(host, "uptodown.com")) {
@@ -1206,7 +1247,7 @@ public class DownloadActivity extends Activity {
                         main.post(() -> {
                             setStatus("Opening Uptodown...");
                             progress.setIndeterminate(true);
-                            startUptodownWebFlow(morpheUrl, pkg, version, fileType);
+                            startUptodownWebFlow(resolvedUrl, pkg, version, fileType);
                         });
                         throw new UptodownHandoffException();
                     }
@@ -1217,12 +1258,6 @@ public class DownloadActivity extends Activity {
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver APKPure link failed", ignored);
                     }
-                    main.post(() -> {
-                        setStatus("Opening APKPure...");
-                        progress.setIndeterminate(true);
-                        startWebFlow("apkpure", morpheUrl, pkg, version, fileType);
-                    });
-                    throw new UptodownHandoffException();
                 } else if (isHost(host, "apkmirror.com")
                         && SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)) {
                     setSourceLabel("Morphe resolver");
@@ -1284,25 +1319,10 @@ public class DownloadActivity extends Activity {
             }
         }
 
-        // 3. APKPure.
-        if (SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
-            boolean hasCodes = codes != null && codes.length > 0;
-            HelperLog.info("Trying APKPure for " + pkg);
-
-            // With a numeric code the direct endpoint is faster; otherwise the API is
-            // the only way to resolve the exact build.
-            if (hasCodes) {
-                setSourceLabel("APKPure direct");
-                setStatus("Trying APKPure direct...");
-                try {
-                    File file = downloadFromApkPure(pkg, version, codes, fileType);
-                    markSource(SourceSettings.APKPURE, true, "direct");
-                    return file;
-                } catch (Exception directError) {
-                    HelperLog.error("APKPure direct failed", directError);
-                }
-            }
-
+        // 3. APKPure fallback for requests without a numeric versionCode.
+        // When a code exists it was already tried before the resolver.
+        if (!hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+            HelperLog.info("Trying APKPure fallback for " + pkg);
             setSourceLabel("APKPure API");
             setStatus("Resolving APKPure API...");
             try {
@@ -1311,25 +1331,15 @@ public class DownloadActivity extends Activity {
                 return file;
             } catch (Exception apiError) {
                 HelperLog.error("APKPure API failed", apiError);
-                if (!hasCodes) {
-                    setSourceLabel("APKPure direct");
-                    setStatus("Trying APKPure direct...");
-                    try {
-                        File file = downloadFromApkPure(pkg, version, codes, fileType);
-                        markSource(SourceSettings.APKPURE, true, "direct");
-                        return file;
-                    } catch (Exception directError) {
-                        HelperLog.error("APKPure direct failed", directError);
-                    }
-                }
-                markSource(SourceSettings.APKPURE, false, apiError.getMessage());
-                if (allowSplitArchive) {
-                    main.post(() -> {
-                        setStatus("Opening APKPure page...");
-                        progress.setIndeterminate(true);
-                        startApkPureWebFlow(pkg, version, fileType);
-                    });
-                    throw new UptodownHandoffException();
+                setSourceLabel("APKPure direct");
+                setStatus("Trying APKPure direct...");
+                try {
+                    File file = downloadFromApkPure(pkg, version, codes, fileType);
+                    markSource(SourceSettings.APKPURE, true, "direct");
+                    return file;
+                } catch (Exception directError) {
+                    HelperLog.error("APKPure direct failed", directError);
+                    markSource(SourceSettings.APKPURE, false, directError.getMessage());
                 }
             }
         }
@@ -1362,6 +1372,17 @@ public class DownloadActivity extends Activity {
                 HelperLog.error("Aptoide failed", failed);
                 markSource(SourceSettings.APTOIDE, false, failed.getMessage());
             }
+        }
+
+        // APKPure browser fallback is the last resort so a broken page does not block
+        // the resolver or APKMirror from being tried.
+        if (allowSplitArchive && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+            main.post(() -> {
+                setStatus("Opening APKPure page...");
+                progress.setIndeterminate(true);
+                startApkPureWebFlow(pkg, version, fileType);
+            });
+            throw new UptodownHandoffException();
         }
 
         throw new IOException("No enabled download source found an APK");
@@ -1558,6 +1579,7 @@ public class DownloadActivity extends Activity {
     private File downloadFromVariantPage(String variantUrl, String pkg, String version,
                                          String fileType) throws IOException {
         HelperLog.info("APKMirror variant page: " + variantUrl);
+        setStatus("Checking APKMirror page...");
         String html = httpGet(variantUrl, null);
 
         // Newer APKMirror layouts use a downloadButton link; older layouts use the
@@ -1580,6 +1602,7 @@ public class DownloadActivity extends Activity {
     private File downloadFromKeyPage(String keyUrl, String pkg, String version,
                                      String fileType) throws IOException {
         HelperLog.info("APKMirror key page: " + keyUrl);
+        setStatus("Fetching APKMirror download key...");
         String html = httpGet(keyUrl, null);
 
         // The final link is normally id="download-link"; keep a fallback regex for
@@ -1594,6 +1617,7 @@ public class DownloadActivity extends Activity {
         if (fileUrl == null) {
             throw new IOException("APKMirror final download link not found");
         }
+        setStatus("Starting APKMirror download...");
         return downloadFile(absolute(decodeHtml(fileUrl)), keyUrl, pkg, version, fileType);
     }
 
@@ -2452,6 +2476,9 @@ public class DownloadActivity extends Activity {
         return "xapk".equalsIgnoreCase(fileType) || "apks".equalsIgnoreCase(fileType);
     }
 }
+
+
+
 
 
 

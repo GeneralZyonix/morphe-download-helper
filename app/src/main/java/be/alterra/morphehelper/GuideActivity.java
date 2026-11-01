@@ -1,7 +1,6 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -13,6 +12,9 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 /** In-app visual setup guide with the Morphe screenshots. */
 public class GuideActivity extends Activity {
@@ -37,8 +39,14 @@ public class GuideActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         int screen = getResources().getDisplayMetrics().widthPixels;
-        int horizontal = Math.max(dp(24), (screen - dp(720)) / 2);
-        root.setPadding(horizontal, dp(40), horizontal, dp(104));
+        final int horizontal = Math.max(dp(24), (screen - dp(720)) / 2);
+        final int baseBottom = dp(32);
+        root.setPadding(horizontal, dp(40), horizontal, baseBottom);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            int navigation = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+            view.setPadding(horizontal, dp(40), horizontal, baseBottom + navigation);
+            return insets;
+        });
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -141,4 +149,5 @@ public class GuideActivity extends Activity {
         return (int) (value * getResources().getDisplayMetrics().density);
     }
 }
+
 

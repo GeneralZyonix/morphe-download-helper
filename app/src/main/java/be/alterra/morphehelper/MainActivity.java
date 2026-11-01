@@ -215,7 +215,17 @@ public class MainActivity extends Activity {
         sourcesRowParams.topMargin = dp(12);
         sourcesCard.addView(sourcesRow, sourcesRowParams);
 
-        // 1. The fallback URL supplied by the patch bundle.
+        // 1. APKPure fast path when a versionCode is available.
+        TextView pureChip = sourceChip(
+                "APKPure",
+                Color.parseColor("#064E3B"),
+                Color.parseColor("#A7F3D0"));
+        LinearLayout.LayoutParams pureChipParams = new LinearLayout.LayoutParams(
+                WRAP_CONTENT, WRAP_CONTENT);
+        pureChipParams.setMarginEnd(dp(8));
+        sourcesRow.addView(pureChip, pureChipParams);
+
+        // 2. Morphe resolver/fallback link.
         TextView morpheChip = sourceChip(
                 "Morphe link",
                 Color.parseColor("#312E81"),
@@ -225,22 +235,12 @@ public class MainActivity extends Activity {
         morpheChipParams.setMarginEnd(dp(8));
         sourcesRow.addView(morpheChip, morpheChipParams);
 
-        // 2. APKMirror search by package name and requested version.
+        // 3. APKMirror search by package name and requested version.
         TextView mirrorChip = sourceChip(
                 "APKMirror",
                 Color.parseColor("#1E3A8A"),
                 Color.parseColor("#BFDBFE"));
-        LinearLayout.LayoutParams mirrorChipParams = new LinearLayout.LayoutParams(
-                WRAP_CONTENT, WRAP_CONTENT);
-        mirrorChipParams.setMarginEnd(dp(8));
-        sourcesRow.addView(mirrorChip, mirrorChipParams);
-
-        // 3. APKPure as the last resort.
-        TextView pureChip = sourceChip(
-                "APKPure",
-                Color.parseColor("#064E3B"),
-                Color.parseColor("#A7F3D0"));
-        sourcesRow.addView(pureChip, new LinearLayout.LayoutParams(
+        sourcesRow.addView(mirrorChip, new LinearLayout.LayoutParams(
                 WRAP_CONTENT, WRAP_CONTENT));
 
         LinearLayout sourcesRow2 = new LinearLayout(this);
