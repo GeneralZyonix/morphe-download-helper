@@ -2270,7 +2270,8 @@ public class DownloadActivity extends Activity {
             }
 
             // Search URL or anything else: resolve from the first result.
-            String firstVersion = findFirstVersionUrl(httpGet(url, null));
+            String firstVersion = findFirstVersionUrl(httpGet(url, null),
+                    requestedAppName, pkg);
             if (firstVersion != null) {
                 String appUrl = firstVersion.replaceAll("/[^/]+/$", "/");
                 String appHtml = httpGet(absolute(appUrl), url);
@@ -2344,10 +2345,10 @@ public class DownloadActivity extends Activity {
                 + URLEncoder.encode(pkg, "UTF-8");
         HelperLog.info("APKMirror search URL: " + searchUrl);
         String searchHtml = httpGet(searchUrl, null);
-        String firstVersion = findFirstVersionUrl(searchHtml);
+        String firstVersion = findFirstVersionUrl(searchHtml, requestedAppName, pkg);
         HelperLog.info("APKMirror first version URL: " + firstVersion);
         if (firstVersion == null) {
-            throw new IOException("APKMirror search returned no results");
+            throw new IOException("No matching app on APKMirror");
         }
 
         // A release URL looks like /apk/<dev>/<app>/<version>-release/. Strip the
@@ -2735,17 +2736,41 @@ public class DownloadActivity extends Activity {
      * <p>APKMirror marks app titles with {@code class="fontBlack"}; release links contain
      * {@code -release/}. Related-app links are ignored.</p>
      */
-    private String findFirstVersionUrl(String html) {
+    private String findFirstVersionUrl(String html, String appName, String pkg) {
         Matcher m = Pattern.compile(
                 "<a class=\"fontBlack\" href=\"([^\"]+)\"[^>]*>([^<]+)</a>",
                 Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html);
         while (m.find()) {
             String href = decodeHtml(m.group(1));
-            if (href.contains("-release/")) {
+            String text = decodeHtml(m.group(2));
+            if (href.contains("-release/") && matchesApp(href, text, appName, pkg)) {
                 return href;
             }
         }
         return null;
+    }
+
+    private boolean matchesApp(String href, String text, String appName, String pkg) {
+        String haystack = (href + " " + text).toLowerCase(Locale.US);
+        String compact = haystack.replaceAll("[^a-z0-9]", "");
+        String normalizedName = appName == null ? "" : appName.toLowerCase(Locale.US);
+        String compactName = normalizedName.replaceAll("[^a-z0-9]", "");
+        if (compactName.length() >= 3 && compact.contains(compactName)) {
+            return true;
+        }
+        for (String token : normalizedName.split("[^a-z0-9]+")) {
+            if (token.length() >= 4 && haystack.contains(token)) {
+                return true;
+            }
+        }
+        String[] packageParts = pkg == null ? new String[0]
+                : pkg.toLowerCase(Locale.US).split("\\.");
+        for (String token : packageParts) {
+            if (token.length() >= 4 && compact.contains(token)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
