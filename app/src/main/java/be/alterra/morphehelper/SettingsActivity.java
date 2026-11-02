@@ -1,6 +1,7 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -17,6 +18,8 @@ import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.util.List;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -36,6 +39,7 @@ public class SettingsActivity extends Activity {
     private static final int TEXT = Color.parseColor("#F8FAFC");
     private static final int MUTED = Color.parseColor("#94A3B8");
     private static final int WARN_TEXT = Color.parseColor("#FDE68A");
+    private static final int RED = Color.parseColor("#F87171");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,8 +71,8 @@ public class SettingsActivity extends Activity {
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(text("Download sources", 24, TEXT, true));
-        TextView subtitle = text("Choose which sources the helper may use", 13, MUTED, false);
+        titles.addView(text("Settings", 24, TEXT, true));
+        TextView subtitle = text("Sources, storage, and download order", 13, MUTED, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -88,6 +92,9 @@ public class SettingsActivity extends Activity {
         webViewNote.setLineSpacing(dp(3), 1f);
         webViewNote.setPadding(0, dp(10), 0, 0);
         root.addView(webViewNote);
+
+        addStorageCard(root);
+        addOrderCard(root);
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -123,6 +130,174 @@ public class SettingsActivity extends Activity {
         setContentView(scroll);
     }
 
+    private void addStorageCard(LinearLayout root) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(cardBackground());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text("Storage", 16, TEXT, true));
+
+        String location = AppSettings.location(this);
+        String locationLabel = AppSettings.LOCATION_EXTERNAL.equals(location)
+                ? "App external storage" : "Internal app cache (default)";
+        LinearLayout folder = settingRow("Download folder", locationLabel);
+        folder.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Download folder")
+                .setSingleChoiceItems(new String[]{
+                        "Internal app cache (default)",
+                        "App external storage"
+                }, AppSettings.LOCATION_EXTERNAL.equals(location) ? 1 : 0, (dialog, which) -> {
+                    AppSettings.setLocation(this, which == 1
+                            ? AppSettings.LOCATION_EXTERNAL : AppSettings.LOCATION_INTERNAL);
+                    dialog.dismiss();
+                    recreate();
+                })
+                .show());
+        card.addView(folder);
+
+        String retention = AppSettings.retention(this);
+        String retentionLabel;
+        switch (retention) {
+            case AppSettings.HOUR_1: retentionLabel = "Delete after 1 hour"; break;
+            case AppSettings.HOUR_24: retentionLabel = "Delete after 24 hours"; break;
+            case AppSettings.DAY_7: retentionLabel = "Delete after 7 days"; break;
+            default: retentionLabel = "Keep downloads"; break;
+        }
+        LinearLayout keep = settingRow("Keep downloads", retentionLabel);
+        keep.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Keep downloads")
+                .setSingleChoiceItems(new String[]{
+                        "Keep downloads",
+                        "Delete after 1 hour",
+                        "Delete after 24 hours",
+                        "Delete after 7 days"
+                }, retentionIndex(retention), (dialog, which) -> {
+                    String[] values = {AppSettings.KEEP, AppSettings.HOUR_1,
+                            AppSettings.HOUR_24, AppSettings.DAY_7};
+                    AppSettings.setRetention(this, values[which]);
+                    dialog.dismiss();
+                    recreate();
+                })
+                .show());
+        card.addView(keep);
+
+        TextView note = text(
+                "Cleanup runs when the helper opens, so downloads are not slowed down.",
+                11, MUTED, false);
+        note.setPadding(0, dp(6), 0, dp(10));
+        card.addView(note);
+
+        TextView delete = actionButton("Delete all downloaded APKs", RED);
+        delete.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Delete downloaded APKs?")
+                .setMessage("This removes every file in the selected download folder.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    int count = AppSettings.deleteAllDownloads(this);
+                    Toast.makeText(this, count + " file(s) deleted.", Toast.LENGTH_SHORT).show();
+                })
+                .show());
+        card.addView(delete);
+    }
+
+    private int retentionIndex(String retention) {
+        if (AppSettings.HOUR_1.equals(retention)) return 1;
+        if (AppSettings.HOUR_24.equals(retention)) return 2;
+        if (AppSettings.DAY_7.equals(retention)) return 3;
+        return 0;
+    }
+
+    private void addOrderCard(LinearLayout root) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(cardBackground());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text("Source order", 16, TEXT, true));
+        TextView note = text(
+                "Use the arrows to change which source is tried first.",
+                12, MUTED, false);
+        note.setPadding(0, dp(4), 0, dp(8));
+        card.addView(note);
+
+        List<String> order = AppSettings.sourceOrder(this);
+        for (int i = 0; i < order.size(); i++) {
+            String key = order.get(i);
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(8), 0, dp(8));
+
+            TextView label = text((i + 1) + ". " + AppSettings.sourceLabel(key),
+                    14, TEXT, false);
+            row.addView(label, new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView up = text("\u2191", 18, PRIMARY_START, true);
+            up.setPadding(dp(10), dp(4), dp(10), dp(4));
+            up.setClickable(true);
+            up.setOnClickListener(v -> {
+                AppSettings.moveSource(this, key, -1);
+                recreate();
+            });
+            row.addView(up);
+            TextView down = text("\u2193", 18, PRIMARY_START, true);
+            down.setPadding(dp(10), dp(4), dp(10), dp(4));
+            down.setClickable(true);
+            down.setOnClickListener(v -> {
+                AppSettings.moveSource(this, key, 1);
+                recreate();
+            });
+            row.addView(down);
+            card.addView(row);
+        }
+
+        TextView reset = actionButton("Reset to default order", PRIMARY_START);
+        reset.setOnClickListener(v -> {
+            AppSettings.resetSourceOrder(this);
+            recreate();
+        });
+        card.addView(reset);
+    }
+
+    private LinearLayout settingRow(String title, String value) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(0, dp(10), 0, dp(10));
+        row.addView(text(title, 14, TEXT, true));
+        TextView detail = text(value, 12, MUTED, false);
+        detail.setPadding(0, dp(3), 0, 0);
+        row.addView(detail);
+        row.setClickable(true);
+        row.setFocusable(true);
+        return row;
+    }
+
+    private TextView actionButton(String label, int color) {
+        TextView view = text(label, 14, color, true);
+        view.setGravity(Gravity.CENTER);
+        view.setPadding(dp(12), dp(12), dp(12), dp(12));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(Color.parseColor("#0B1220"));
+        background.setCornerRadius(dp(12));
+        background.setStroke(dp(1), BORDER);
+        view.setBackground(background);
+        view.setClickable(true);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(8);
+        view.setLayoutParams(params);
+        return view;
+    }
     private void addSourceRow(LinearLayout parent, String key, String title, String description) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -253,6 +428,11 @@ public class SettingsActivity extends Activity {
         );
     }
 }
+
+
+
+
+
 
 
 

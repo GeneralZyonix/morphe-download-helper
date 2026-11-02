@@ -316,6 +316,7 @@ public class DownloadActivity extends Activity {
         // Prepare logging first so every later step is captured.
         HelperLog.init(getApplicationContext());
         SourceSettings.ensureInitialized(this);
+        new Thread(() -> AppSettings.cleanup(this)).start();
 
         // Build the dark UI before reading the intent; the UI is then updated as work runs.
         buildUi();
@@ -696,8 +697,14 @@ public class DownloadActivity extends Activity {
 
         final String source = webSource;
         String type = uptodownFileType;
-        if ("apkpure".equals(source) && url.toLowerCase(Locale.US).contains("/xapk/")) {
-            type = "xapk";
+        if ("apkpure".equals(source)) {
+            if (url.toLowerCase(Locale.US).contains("/xapk/")) {
+                type = "xapk";
+            }
+        } else {
+            // Uptodown normally serves a full APK. Requested APKS/APKM can otherwise
+            // give the file a misleading extension and make Morphe reject it.
+            type = "apk";
         }
         final String downloadType = type;
 
@@ -1203,6 +1210,9 @@ public class DownloadActivity extends Activity {
         // Fast start only applies to codes Morphe actually supplied. If Morphe omits
         // them, follow its resolver link first even if an installed code is available.
         boolean hasCodes = versionCodes != null && versionCodes.length > 0;
+        if (!AppSettings.sourceOrder(this).equals(AppSettings.defaultOrder())) {
+            return resolveCustom(pkg, version, codes, hasCodes, fileType, abis);
+        }
         if (hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
             setSourceLabel("APKPure direct");
@@ -1413,6 +1423,224 @@ public class DownloadActivity extends Activity {
         }
 
         throw new IOException("No enabled download source found an APK");
+    }
+
+    private File resolveCustom(String pkg, String version, long[] codes, boolean hasCodes,
+                               String fileType, String[] abis) throws IOException {
+        for (String source : AppSettings.sourceOrder(this)) {
+            if (!SourceSettings.isEnabled(this, source)) {
+                continue;
+            }
+            File file = null;
+            if (SourceSettings.APKPURE.equals(source)) {
+                file = customApkPure(pkg, version, codes, hasCodes, fileType, abis);
+            } else if (SourceSettings.FALLBACK.equals(source)) {
+                file = customMorphe(pkg, version, codes, fileType, abis);
+            } else if (SourceSettings.APKMIRROR.equals(source)) {
+                file = customApkMirror(pkg, version, fileType, abis);
+            } else if (SourceSettings.FDROID.equals(source)) {
+                file = customFdroid(pkg, version, codes, fileType);
+            } else if (SourceSettings.APTOIDE.equals(source)) {
+                file = customAptoide(pkg, version, codes, fileType);
+            }
+            if (file != null) {
+                return file;
+            }
+        }
+
+        if (SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+                && allowSplitArchive && isSplitType(fileType)
+                && !apkPureCanServe(fileType)) {
+            HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
+            setSourceLabel("APKPure XAPK");
+            setStatus("Trying APKPure XAPK fallback...");
+            try {
+                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                markSource(SourceSettings.APKPURE, true, "XAPK fallback");
+                return file;
+            } catch (Exception failed) {
+                HelperLog.error("APKPure XAPK fallback failed", failed);
+                markSource(SourceSettings.APKPURE, false, failed.getMessage());
+            }
+        }
+
+        if (!hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+                && apkPureCanServe(fileType)) {
+            HelperLog.info("Trying APKPure fallback for " + pkg);
+            setSourceLabel("APKPure API");
+            setStatus("Resolving APKPure API...");
+            try {
+                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                markSource(SourceSettings.APKPURE, true, "API");
+                return file;
+            } catch (Exception apiError) {
+                HelperLog.error("APKPure API failed", apiError);
+                setSourceLabel("APKPure direct");
+                setStatus("Trying APKPure direct...");
+                try {
+                    File file = downloadFromApkPure(pkg, version, codes, fileType);
+                    markSource(SourceSettings.APKPURE, true, "direct");
+                    return file;
+                } catch (Exception directError) {
+                    HelperLog.error("APKPure direct failed", directError);
+                    markSource(SourceSettings.APKPURE, false, directError.getMessage());
+                }
+            }
+        }
+
+        if (allowSplitArchive && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+                && (apkPureCanServe(fileType) || isSplitType(fileType))) {
+            main.post(() -> {
+                setStatus("Opening APKPure page...");
+                progress.setIndeterminate(true);
+                startApkPureWebFlow(pkg, version, fileType);
+            });
+            throw new UptodownHandoffException();
+        }
+        throw new IOException("No enabled download source found an APK");
+    }
+
+    private File customApkPure(String pkg, String version, long[] codes, boolean hasCodes,
+                               String fileType, String[] abis) {
+        if (!hasCodes || !apkPureCanServe(fileType)) {
+            return null;
+        }
+        setSourceLabel("APKPure direct");
+        setStatus("Trying APKPure direct...");
+        try {
+            File file = downloadFromApkPure(pkg, version, codes, fileType);
+            markSource(SourceSettings.APKPURE, true, "direct");
+            return file;
+        } catch (Exception directError) {
+            HelperLog.error("APKPure fast direct failed", directError);
+        }
+        setSourceLabel("APKPure API");
+        setStatus("Resolving APKPure API...");
+        try {
+            File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+            markSource(SourceSettings.APKPURE, true, "API");
+            return file;
+        } catch (Exception apiError) {
+            HelperLog.error("APKPure fast API failed", apiError);
+            markSource(SourceSettings.APKPURE, false, apiError.getMessage());
+            return null;
+        }
+    }
+
+    private File customMorphe(String pkg, String version, long[] codes,
+                              String fileType, String[] abis) throws IOException {
+        String abi = (abis != null && abis.length > 0) ? abis[0] : "arm64-v8a";
+        String key = pkg + "|" + version + "|" + abi;
+        String url = ResolverCache.get(this, key);
+        if (url != null) {
+            setStatus("Using cached resolver...");
+        } else {
+            setStatus("Checking Morphe resolver...");
+            url = resolveMorpheUrl(pkg, version, abis);
+            if (url != null && !isHost(hostOf(url), "google.com")) {
+                ResolverCache.put(this, key, url);
+            }
+        }
+        if (url != null) {
+            String host = hostOf(url);
+            setStatus("Resolver found " + host + "...");
+            markSource(SourceSettings.FALLBACK, true, "Morphe resolver");
+            if (isHost(host, "uptodown.com") && pathOf(url).trim().endsWith("-x")
+                    && SourceSettings.isEnabled(this, SourceSettings.UPTODOWN)) {
+                final String resolved = url;
+                main.post(() -> {
+                    setStatus("Opening Uptodown...");
+                    progress.setIndeterminate(true);
+                    startUptodownWebFlow(resolved, pkg, version, fileType);
+                });
+                throw new UptodownHandoffException();
+            }
+            if (isHost(host, "apkpure.com") && apkPureCanServe(fileType)
+                    && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+                try {
+                    return downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                } catch (Exception failed) {
+                    HelperLog.error("Morphe resolver APKPure link failed", failed);
+                }
+            } else if (isHost(host, "apkmirror.com")
+                    && SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)) {
+                try {
+                    return downloadFromFallback(url, pkg, version, fileType, abis);
+                } catch (Exception failed) {
+                    HelperLog.error("Morphe resolver APKMirror link failed", failed);
+                }
+            } else if (isDirectFile(url)) {
+                try {
+                    return downloadFile(url, null, pkg, version, fileType);
+                } catch (Exception failed) {
+                    HelperLog.error("Morphe resolver direct file failed", failed);
+                }
+            }
+        }
+
+        if (!TextUtils.isEmpty(fallbackUrl)) {
+            String host = hostOf(fallbackUrl);
+            boolean disabled = (isHost(host, "apkmirror.com")
+                    && !SourceSettings.isEnabled(this, SourceSettings.APKMIRROR))
+                    || (isHost(host, "apkpure.com")
+                    && !SourceSettings.isEnabled(this, SourceSettings.APKPURE))
+                    || (isHost(host, "uptodown.com")
+                    && !SourceSettings.isEnabled(this, SourceSettings.UPTODOWN));
+            if (!disabled) {
+                setStatus("Trying fallback URL...");
+                try {
+                    File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
+                    markSource(SourceSettings.FALLBACK, true, "fallback link");
+                    return file;
+                } catch (Exception failed) {
+                    HelperLog.error("Fallback failed", failed);
+                    markSource(SourceSettings.FALLBACK, false, failed.getMessage());
+                }
+            }
+        }
+        return null;
+    }
+
+    private File customApkMirror(String pkg, String version, String fileType, String[] abis) {
+        setSourceLabel("APKMirror");
+        setStatus("Searching APKMirror...");
+        try {
+            File file = downloadFromApkMirrorSearch(pkg, version, fileType, abis);
+            markSource(SourceSettings.APKMIRROR, true, "search");
+            return file;
+        } catch (Exception failed) {
+            HelperLog.error("APKMirror failed", failed);
+            markSource(SourceSettings.APKMIRROR, false, failed.getMessage());
+            return null;
+        }
+    }
+
+    private File customFdroid(String pkg, String version, long[] codes, String fileType) {
+        setSourceLabel("F-Droid");
+        setStatus("Checking F-Droid...");
+        try {
+            File file = downloadFromFdroid(pkg, version, codes, fileType);
+            markSource(SourceSettings.FDROID, true, "package API");
+            return file;
+        } catch (Exception failed) {
+            HelperLog.error("F-Droid failed", failed);
+            markSource(SourceSettings.FDROID, false, failed.getMessage());
+            return null;
+        }
+    }
+
+    private File customAptoide(String pkg, String version, long[] codes, String fileType) {
+        setSourceLabel("Aptoide");
+        setStatus("Searching Aptoide...");
+        try {
+            File file = downloadFromAptoide(pkg, version, codes, fileType);
+            markSource(SourceSettings.APTOIDE, true, "TRUSTED upload");
+            return file;
+        } catch (Exception failed) {
+            HelperLog.error("Aptoide failed", failed);
+            markSource(SourceSettings.APTOIDE, false, failed.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -2163,9 +2391,9 @@ public class DownloadActivity extends Activity {
      */
     private File downloadFile(String url, String referer, String pkg, String versionName,
                               String fileType, String cookie) throws IOException {
-        File dir = new File(getCacheDir(), "downloads");
+        File dir = AppSettings.downloadDir(this);
         if (!dir.exists() && !dir.mkdirs()) {
-            throw new IOException("Cannot create cache directory");
+            throw new IOException("Cannot create download directory");
         }
         String partBase = sanitize(pkg + "-" + versionName + "-"
                 + hostOf(url) + "-" + fileType);
@@ -2504,3 +2732,6 @@ public class DownloadActivity extends Activity {
                 || "apkm".equalsIgnoreCase(fileType);
     }
 }
+
+
+

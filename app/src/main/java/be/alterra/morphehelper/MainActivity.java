@@ -80,6 +80,8 @@ public class MainActivity extends Activity {
         // Create the log file before any screen can try to share it.
         HelperLog.init(getApplicationContext());
         SourceSettings.ensureInitialized(this);
+        new Thread(() -> AppSettings.cleanup(this)).start();
+        new Thread(() -> AppSettings.cleanup(this)).start();
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -286,7 +288,7 @@ public class MainActivity extends Activity {
         sourcesCard.addView(disabledSource);
 
         // Open the source settings screen.
-        TextView sourceSettings = secondaryButton("Source settings", TEXT, SECONDARY_BORDER);
+        TextView sourceSettings = secondaryButton("Settings", TEXT, SECONDARY_BORDER);
         sourceSettings.setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
         LinearLayout.LayoutParams sourceSettingsParams = new LinearLayout.LayoutParams(
@@ -579,6 +581,9 @@ public class MainActivity extends Activity {
         return drawable;
     }
 }
+
+
+
 
 
 

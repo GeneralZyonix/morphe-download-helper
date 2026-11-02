@@ -55,7 +55,7 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:label="Download sources" />
+            android:label="Settings" />
 
         <!--
             Helper contract: Morphe sends this action when the user taps
@@ -93,5 +93,6 @@
 
     </application>
 </manifest>
+
 
 
