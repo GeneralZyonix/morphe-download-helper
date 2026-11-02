@@ -5,6 +5,32 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.4] - 2026-11-02
+
+### Added
+
+- **Appteka** source for SnapTube, clearly marked with a hazard warning.
+- SnapTube-only Appteka scope by default, with an opt-in to use Appteka as an extra source
+  for all apps.
+- Settings for download folder, retention cleanup, and deleting downloaded APKs.
+- Source order controls with move up/down and reset to default.
+
+### Changed
+
+- APKM/APKS requests use APKMirror first, with an APKPure XAPK fallback.
+- Settings now combines storage, source order, source toggles, and the Appteka warning.
+
+### Fixed
+
+- Uptodown pages that provide a plain APK now save it with the correct `.apk` extension
+  instead of the requested split-archive extension.
+- Appteka downloads resolve the exact SnapTube version and version code.
+
+### Notes
+
+- Appteka hosts modded APKs. It is limited to SnapTube by default, and using it for other
+  apps is not recommended because those builds may contain altered code.
+
 ## [1.3] - 2026-11-01
 
 ### Added

@@ -36,7 +36,7 @@ Please include:
 
 - Receives the package, version, version codes, file type, ABIs, and fallback URL from Morphe.
 - Follows the same resolver link Morphe's own download dialog uses.
-- Falls back to APKMirror, APKPure, F-Droid, and Aptoide.
+- Falls back to APKMirror, APKPure, F-Droid, Aptoide, and Appteka for SnapTube.
 - Uses APKPure's numeric `versionCode` endpoint, so the exact requested build is downloaded
   instead of the latest version.
 - Supports APK, APKM, APKS, and XAPK when Morphe allows split archives.
@@ -44,7 +44,9 @@ Please include:
 - Returns a `content://` URI with read permission so Morphe can validate and use the file.
 - Shows a dark, modern UI with a source list and clear limitations.
 - Keeps a local diagnostic log that can be shared from the app.
-- Source settings screen to enable or disable individual download sources.
+- Settings for the download folder, retention, source order, and individual sources.
+- Appteka is limited to SnapTube by default and carries a hazard warning. It is not
+  recommended for other apps because Appteka hosts modded APKs.
 
 ## Screenshots
 
@@ -74,7 +76,7 @@ Morphe sends an intent with the action
 2. If a numeric `versionCode` is available, tries APKPure's direct endpoint first, then its API.
 3. If APKPure does not have the build, asks Morphe's resolver API for the page Morphe would show.
 4. Tries the patch bundle's fallback URL, then APKMirror by package and version.
-5. Falls back to APKPure, F-Droid, and Aptoide.
+5. Falls back to APKPure, F-Droid, Aptoide, and Appteka (SnapTube only by default).
 6. If a source needs a browser check, opens it in an inline WebView and captures the final
    download link. APKPure's WebView is the last resort.
 7. Returns `RESULT_OK`, a `content://` URI, and `FLAG_GRANT_READ_URI_PERMISSION`.
@@ -93,10 +95,11 @@ The helper never installs anything.
 | 4 | APKPure fallback | Used when there is no versionCode, or the fast path did not find the build. |
 | 5 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
 | 6 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
+| 7 | Appteka | Resolves the exact version by package and version code. SnapTube only by default; the source is marked as hazardous because it hosts modded APKs. |
 | WebView | Uptodown / APKPure | Uptodown opens from the resolver. APKPure’s page is the last resort so it cannot block the other sources. |
 
 The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
-sources above. Manage enabled sources in the app under **Source settings**. If no
+sources above. Manage sources, order, and storage in the app under **Settings**. If no
 downloadable APK is found, the helper returns `RESULT_CANCELED` and Morphe shows its own
 default download button.
 
@@ -108,6 +111,8 @@ default download button.
 - Uptodown and APKPure WebView pages may show ads or a verification challenge; the page can
   be refreshed, and the user may need to tap the direct download button.
 - APKMirror/APKPure/Aptoide can change their HTML or block automated requests at any time.
+- Appteka is limited to SnapTube by default. It hosts modded APKs, so enabling it for other
+  apps is not recommended and may return altered or unstable builds.
 - The helper does not bypass paid apps, license checks, account restrictions, or DRM.
 - Automatic downloads may be restricted by the APK sites' terms of service. Use the helper
   responsibly and only download apps you are allowed to access.
