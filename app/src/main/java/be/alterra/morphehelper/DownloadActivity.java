@@ -551,6 +551,26 @@ public class DownloadActivity extends Activity {
         startWebFlow("apkpure", url, pkg, version, fileType);
     }
 
+    private void startApkMirrorWebFlow(String url, String pkg, String version,
+                                       String fileType) {
+        startWebFlow("apkmirror", url, pkg, version, fileType);
+    }
+
+    private void handoffToApkMirrorWeb(String url, String pkg, String version,
+                                       String fileType) throws UptodownHandoffException {
+        main.post(() -> {
+            setStatus("Opening APKMirror...");
+            progress.setIndeterminate(true);
+            startApkMirrorWebFlow(url, pkg, version, fileType);
+        });
+        throw new UptodownHandoffException();
+    }
+
+    private boolean isCloudflareBlock(IOException error) {
+        String message = error == null ? null : error.getMessage();
+        return message != null && message.contains("HTTP 403");
+    }
+
     private void startWebFlow(String source, String url, String pkg, String version,
                               String fileType) {
         webSource = source;
@@ -568,6 +588,12 @@ public class DownloadActivity extends Activity {
                     "APKPure uses Cloudflare protection. If a search page appears, tap the app "
                             + "result first. On the app page, tap Download APK (not the APKPure app "
                             + "button). The helper will capture the XAPK or APK and return it to Morphe.");
+        } else if ("apkmirror".equals(source)) {
+            uptodownTitle.setText("APKMirror verification");
+            uptodownExplanation.setText(
+                    "APKMirror needs a quick Cloudflare check. The exact download page is shown "
+                            + "below. The helper will press the download button automatically once "
+                            + "the page is ready.");
         } else {
             uptodownTitle.setText("Uptodown verification");
             uptodownExplanation.setText(
@@ -618,6 +644,40 @@ public class DownloadActivity extends Activity {
                                     + "if(b){clearInterval(t);b.scrollIntoView({block:'center'});"
                                     + "setTimeout(function(){b.click();},300);}"
                                     + "if(n>60)clearInterval(t);},500);})();",
+                            null);
+                } else if ("apkmirror".equals(webSource)) {
+                    view.evaluateJavascript(
+                            "(function(){var n=0;var t=setInterval(function(){n++;"
+                                    + "var cs=['#accept-btn','.accept-btn',"
+                                    + "'#onetrust-accept-btn-handler','.fc-cta-consent',"
+                                    + "'.cky-btn-accept','.osano-cm-accept-all',"
+                                    + "'#didomi-notice-agree-button',"
+                                    + "'button[data-testid=\"uc-accept-all-button\"]'];"
+                                    + "for(var c=0;c<cs.length;c++){var el=document.querySelector(cs[c]);"
+                                    + "if(el){el.click();}}"
+                                    + "var all=document.querySelectorAll('button,a');"
+                                    + "for(var i=0;i<all.length;i++){var ct=(all[i].innerText||'')"
+                                    + ".trim().toLowerCase();"
+                                    + "if(ct==='accept'||ct==='accept all'||ct==='accept cookies'"
+                                    + "||ct==='i agree'||ct==='agree'||ct==='consent'"
+                                    + "||ct==='allow all'||ct.indexOf('akkoord')>=0"
+                                    + "||ct.indexOf('accept')>=0){all[i].click();}}"
+                                    + "var a=document.querySelector('a#download-link,"
+                                    + "a[href*=\"download.php\"]');"
+                                    + "if(a){clearInterval(t);a.scrollIntoView({block:'center'});"
+                                    + "setTimeout(function(){a.click();},500);return;}"
+                                    + "var b=document.querySelector('a.downloadButton,"
+                                    + "a[href*=\"/download/?key=\"]');"
+                                    + "if(b){clearInterval(t);b.scrollIntoView({block:'center'});"
+                                    + "setTimeout(function(){b.click();},500);return;}"
+                                    + "var bs=document.querySelectorAll('a,button');"
+                                    + "for(var j=0;j<bs.length;j++){"
+                                    + "var txt=(bs[j].innerText||'').toLowerCase();"
+                                    + "if(txt.indexOf('download apk bundle')>=0"
+                                    + "||txt.indexOf('download apk')>=0&&txt.indexOf('apkmirror app')<0){"
+                                    + "clearInterval(t);bs[j].scrollIntoView({block:'center'});"
+                                    + "setTimeout(function(){bs[j].click();},500);return;}}"
+                                    + "if(n>600)clearInterval(t);},100);})();",
                             null);
                 } else {
                     String pkgJson = JSONObject.quote(uptodownPkg);
@@ -735,11 +795,39 @@ public class DownloadActivity extends Activity {
             }
             return false;
         }
+        if ("apkmirror".equals(webSource)) {
+            if (isHost(host, "apkmirror.com")
+                    && url.toLowerCase(Locale.US).contains("download.php")) {
+                handleUptodownDownload(url);
+                return true;
+            }
+            return false;
+        }
         if (isHost(host, "dw.uptodown.com") || isHost(host, "dw.uptodown.net")) {
             handleUptodownDownload(url);
             return true;
         }
         return false;
+    }
+
+    private String webSourceKey() {
+        if ("apkpure".equals(webSource)) {
+            return SourceSettings.APKPURE;
+        }
+        if ("apkmirror".equals(webSource)) {
+            return SourceSettings.APKMIRROR;
+        }
+        return SourceSettings.UPTODOWN;
+    }
+
+    private String webSourceName() {
+        if ("apkpure".equals(webSource)) {
+            return "APKPure";
+        }
+        if ("apkmirror".equals(webSource)) {
+            return "APKMirror";
+        }
+        return "Uptodown";
     }
 
     /** Downloads the URL captured from the source WebView and returns it to Morphe. */
@@ -756,6 +844,8 @@ public class DownloadActivity extends Activity {
             if (url.toLowerCase(Locale.US).contains("/xapk/")) {
                 type = "xapk";
             }
+        } else if ("apkmirror".equals(source)) {
+            type = TextUtils.isEmpty(uptodownFileType) ? "apk" : uptodownFileType;
         } else {
             // Uptodown normally serves a full APK. Requested APKS/APKM can otherwise
             // give the file a misleading extension and make Morphe reject it.
@@ -772,7 +862,7 @@ public class DownloadActivity extends Activity {
             uptodownSection.setVisibility(View.GONE);
             progress.setVisibility(View.VISIBLE);
             progress.setIndeterminate(true);
-            setStatus("Downloading from " + ("apkpure".equals(source) ? "APKPure" : "Uptodown") + "...");
+            setStatus("Downloading from " + webSourceName() + "...");
 
             final String cookie = CookieManager.getInstance().getCookie(url);
             executor.execute(() -> {
@@ -785,14 +875,12 @@ public class DownloadActivity extends Activity {
                             downloadType,
                             cookie
                     );
-                    markSource("apkpure".equals(source)
-                            ? SourceSettings.APKPURE : SourceSettings.UPTODOWN, true, "WebView");
+                    markSource(webSourceKey(), true, "WebView");
                     if (!cancelled) {
                         deliverFile(file);
                     }
                 } catch (Exception e) {
-                    markSource("apkpure".equals(source)
-                            ? SourceSettings.APKPURE : SourceSettings.UPTODOWN, false, e.getMessage());
+                    markSource(webSourceKey(), false, e.getMessage());
                     if (cancelled) {
                         return;
                     }
@@ -1568,6 +1656,8 @@ public class DownloadActivity extends Activity {
                         File file = downloadFromFallback(morpheUrl, pkg, version, fileType, abis);
                         markSource(SourceSettings.FALLBACK, true, "Resolver APKMirror");
                         return file;
+                    } catch (UptodownHandoffException handoff) {
+                        throw handoff;
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver APKMirror link failed", ignored);
                     }
@@ -1605,6 +1695,8 @@ public class DownloadActivity extends Activity {
                     File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
                     markSource(SourceSettings.FALLBACK, true, "fallback link");
                     return file;
+                } catch (UptodownHandoffException handoff) {
+                    throw handoff;
                 } catch (Exception failed) {
                     HelperLog.error("Fallback failed", failed);
                     markSource(SourceSettings.FALLBACK, false, failed.getMessage());
@@ -1623,6 +1715,8 @@ public class DownloadActivity extends Activity {
                 File file = downloadFromApkMirrorSearch(pkg, version, fileType, abis);
                 markSource(SourceSettings.APKMIRROR, true, "search");
                 return file;
+            } catch (UptodownHandoffException handoff) {
+                throw handoff;
             } catch (Exception failed) {
                 HelperLog.error("APKMirror failed", failed);
                 markSource(SourceSettings.APKMIRROR, false, failed.getMessage());
@@ -1913,6 +2007,8 @@ public class DownloadActivity extends Activity {
                     File file = downloadFromFallback(url, pkg, version, fileType, abis);
                     markSource(SourceSettings.FALLBACK, true, "Resolver APKMirror");
                     return file;
+                } catch (UptodownHandoffException handoff) {
+                    throw handoff;
                 } catch (Exception failed) {
                     HelperLog.error("Morphe resolver APKMirror link failed", failed);
                 }
@@ -1944,6 +2040,8 @@ public class DownloadActivity extends Activity {
                     File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
                     markSource(SourceSettings.FALLBACK, true, "fallback link");
                     return file;
+                } catch (UptodownHandoffException handoff) {
+                    throw handoff;
                 } catch (Exception failed) {
                     HelperLog.error("Fallback failed", failed);
                     markSource(SourceSettings.FALLBACK, false, failed.getMessage());
@@ -1953,13 +2051,16 @@ public class DownloadActivity extends Activity {
         return null;
     }
 
-    private File customApkMirror(String pkg, String version, String fileType, String[] abis) {
+    private File customApkMirror(String pkg, String version, String fileType, String[] abis)
+            throws IOException {
         setSourceLabel("APKMirror");
         setStatus("Searching APKMirror...");
         try {
             File file = downloadFromApkMirrorSearch(pkg, version, fileType, abis);
             markSource(SourceSettings.APKMIRROR, true, "search");
             return file;
+        } catch (UptodownHandoffException handoff) {
+            throw handoff;
         } catch (Exception failed) {
             HelperLog.error("APKMirror failed", failed);
             markSource(SourceSettings.APKMIRROR, false, failed.getMessage());
@@ -2282,7 +2383,15 @@ public class DownloadActivity extends Activity {
                                          String fileType) throws IOException {
         HelperLog.info("APKMirror variant page: " + variantUrl);
         setStatus("Checking APKMirror page...");
-        String html = httpGet(variantUrl, null);
+        String html;
+        try {
+            html = httpGet(variantUrl, null);
+        } catch (IOException error) {
+            if (isCloudflareBlock(error)) {
+                handoffToApkMirrorWeb(variantUrl, pkg, version, fileType);
+            }
+            throw error;
+        }
 
         // Newer APKMirror layouts use a downloadButton link; older layouts use the
         // /download/?key= pattern. Try both before giving up.
@@ -2305,7 +2414,15 @@ public class DownloadActivity extends Activity {
                                      String fileType) throws IOException {
         HelperLog.info("APKMirror key page: " + keyUrl);
         setStatus("Fetching APKMirror download key...");
-        String html = httpGet(keyUrl, null);
+        String html;
+        try {
+            html = httpGet(keyUrl, null);
+        } catch (IOException error) {
+            if (isCloudflareBlock(error)) {
+                handoffToApkMirrorWeb(keyUrl, pkg, version, fileType);
+            }
+            throw error;
+        }
 
         // The final link is normally id="download-link"; keep a fallback regex for
         // layout changes.
