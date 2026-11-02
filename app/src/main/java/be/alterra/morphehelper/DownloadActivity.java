@@ -299,6 +299,7 @@ public class DownloadActivity extends Activity {
     /** Dynamic labels for the source WebView section. */
     private TextView uptodownTitle;
     private TextView uptodownExplanation;
+    private TextView githubWebButton;
 
     /** Active WebView source: "uptodown" or "apkpure". */
     private String webSource;
@@ -1132,6 +1133,13 @@ public class DownloadActivity extends Activity {
         uptodownExplanation.setPadding(0, dp(8), 0, dp(12));
         uptodownSection.addView(uptodownExplanation);
 
+        githubWebButton = secondaryButton("This app is on GitHub");
+        githubWebButton.setOnClickListener(v -> searchGitHubFromWebView());
+        LinearLayout.LayoutParams githubWebParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+        githubWebParams.bottomMargin = dp(10);
+        uptodownSection.addView(githubWebButton, githubWebParams);
+
         uptodownWebContainer = new FrameLayout(this);
         uptodownSection.addView(uptodownWebContainer, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1405,6 +1413,23 @@ public class DownloadActivity extends Activity {
         }
         retryButton.setEnabled(false);
         startResolution(true);
+    }
+
+    private void searchGitHubFromWebView() {
+        if (report == null) {
+            return;
+        }
+        cancelWebFlowTimeout();
+        uptodownHandled = true;
+        if (uptodownWebView != null) {
+            uptodownWebContainer.removeView(uptodownWebView);
+            uptodownWebView.destroy();
+            uptodownWebView = null;
+        }
+        uptodownSection.setVisibility(View.GONE);
+        setPauseVisible(false);
+        stopDownloadService();
+        searchGitHub();
     }
 
     private void searchGitHub() {
