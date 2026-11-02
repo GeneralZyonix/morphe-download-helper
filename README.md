@@ -50,9 +50,9 @@ Please include:
 
 ## Screenshots
 
-| Launcher | Download |
-| --- | --- |
-| ![Launcher screen](docs/screenshots/main-v2.png) | ![Download screen](docs/screenshots/download-v2.png) |
+| Launcher | Setup | Download |
+| --- | --- | --- |
+| ![Launcher screen](docs/screenshots/main-v1.4.png) | ![Helper setup](docs/screenshots/setup-v1.4.png) | ![Download screen](docs/screenshots/download-v1.4.png) |
 
 ## Download
 
