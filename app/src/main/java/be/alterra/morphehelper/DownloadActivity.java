@@ -319,6 +319,8 @@ public class DownloadActivity extends Activity {
     private Runnable uptodownReload;
     private int uptodownReloads;
 
+    private Runnable webFlowTimeout;
+
     private LinearLayout diagnosticsCard;
     private LinearLayout diagnosticsRows;
     private TextView diagnosticsSummary;
@@ -759,7 +761,33 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT));
         uptodownSection.setVisibility(View.VISIBLE);
         scrollView.post(() -> scrollView.smoothScrollTo(0, uptodownSection.getTop()));
+        cancelWebFlowTimeout();
+        webFlowTimeout = () -> {
+            if (uptodownHandled || uptodownWebView != web) {
+                return;
+            }
+            uptodownHandled = true;
+            HelperLog.info(webSource + " timed out waiting for the download page");
+            markSource(webSourceKey(), false, "Timed out waiting for the download page");
+            if (report != null) {
+                report.finishFailure("Timed out waiting for the download page");
+                HelperLog.info(report.resultBlock());
+            }
+            web.stopLoading();
+            stopDownloadService();
+            setPauseVisible(false);
+            setStatus("The download page took too long to respond.");
+            showFailure();
+        };
+        main.postDelayed(webFlowTimeout, 45_000);
         web.loadUrl(url);
+    }
+
+    private void cancelWebFlowTimeout() {
+        if (webFlowTimeout != null) {
+            main.removeCallbacks(webFlowTimeout);
+            webFlowTimeout = null;
+        }
     }
 
     /**
@@ -840,6 +868,7 @@ public class DownloadActivity extends Activity {
         if (uptodownHandled) {
             return;
         }
+        cancelWebFlowTimeout();
         uptodownHandled = true;
         HelperLog.info(webSource + " download URL: " + url);
 
@@ -1468,6 +1497,7 @@ public class DownloadActivity extends Activity {
     protected void onDestroy() {
         // Stop network work and release the WebView if it is still open.
         cancelled = true;
+        cancelWebFlowTimeout();
         executor.shutdownNow();
         if (uptodownWebView != null) {
             uptodownWebContainer.removeView(uptodownWebView);
