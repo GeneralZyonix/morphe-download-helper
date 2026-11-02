@@ -314,6 +314,8 @@ public class DownloadActivity extends Activity {
     private String uptodownVersion;
     private String uptodownFileType;
     private String uptodownReferer;
+    private String webOriginalUrl;
+    private int webRetries;
 
     /** Auto-refresh timer for a stuck Uptodown download button. */
     private Runnable uptodownReload;
@@ -443,6 +445,7 @@ public class DownloadActivity extends Activity {
             return;
         }
         retrySources = retryOnly ? failed : null;
+        webRetries = 0;
         String abi = (requestAbis != null && requestAbis.length > 0)
                 ? requestAbis[0] : "unknown";
         report = new ResolutionReport(requestedAppName, requestPkg, requestVersion,
@@ -582,6 +585,7 @@ public class DownloadActivity extends Activity {
         uptodownVersion = version;
         uptodownFileType = fileType;
         uptodownReferer = url;
+        webOriginalUrl = url;
         uptodownHandled = false;
         uptodownReloads = 0;
 
@@ -922,6 +926,15 @@ public class DownloadActivity extends Activity {
                         deliverFile(file);
                     }
                 } catch (Exception e) {
+                    if ("apkmirror".equals(source) && isRetryableWebDownload(e)
+                            && webRetries < 1 && !cancelled) {
+                        webRetries++;
+                        uptodownHandled = false;
+                        HelperLog.info("Retrying APKMirror with a fresh download key");
+                        main.post(() -> startWebFlow(source, webOriginalUrl,
+                                uptodownPkg, uptodownVersion, uptodownFileType));
+                        return;
+                    }
                     markSource(webSourceKey(), false, e.getMessage());
                     if (cancelled) {
                         return;
@@ -1470,6 +1483,11 @@ public class DownloadActivity extends Activity {
                 });
             }
         });
+    }
+
+    private boolean isRetryableWebDownload(Exception error) {
+        String message = error == null ? null : error.getMessage();
+        return message != null && message.contains("state: 0");
     }
 
     private void copyDiagnostics() {
