@@ -641,6 +641,7 @@ public class DownloadActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 HelperLog.info(webSource + " page finished: " + url);
+                scheduleWebFlowTimeout(view);
                 uptodownReferer = url;
                 if ("uptodown".equals(webSource)) {
                     scheduleUptodownReload(view);
@@ -761,7 +762,15 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT));
         uptodownSection.setVisibility(View.VISIBLE);
         scrollView.post(() -> scrollView.smoothScrollTo(0, uptodownSection.getTop()));
+        scheduleWebFlowTimeout(web);
+        web.loadUrl(url);
+    }
+
+    private void scheduleWebFlowTimeout(WebView web) {
         cancelWebFlowTimeout();
+        if (uptodownHandled) {
+            return;
+        }
         webFlowTimeout = () -> {
             if (uptodownHandled || uptodownWebView != web) {
                 return;
@@ -779,8 +788,7 @@ public class DownloadActivity extends Activity {
             setStatus("The download page took too long to respond.");
             showFailure();
         };
-        main.postDelayed(webFlowTimeout, 45_000);
-        web.loadUrl(url);
+        main.postDelayed(webFlowTimeout, 90_000);
     }
 
     private void cancelWebFlowTimeout() {
