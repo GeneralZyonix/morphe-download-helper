@@ -574,7 +574,8 @@ public class DownloadActivity extends Activity {
     private void startWebFlow(String source, String url, String pkg, String version,
                               String fileType) {
         webSource = source;
-        setSourceLabel("apkpure".equals(source) ? "APKPure WebView" : "Uptodown WebView");
+        setSourceLabel("apkpure".equals(source) ? "APKPure WebView"
+                : "apkmirror".equals(source) ? "APKMirror WebView" : "Uptodown WebView");
         uptodownPkg = pkg;
         uptodownVersion = version;
         uptodownFileType = fileType;
@@ -615,6 +616,10 @@ public class DownloadActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setSupportMultipleWindows(false);
+        if ("apkmirror".equals(source)) {
+            settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+            web.clearCache(true);
+        }
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
