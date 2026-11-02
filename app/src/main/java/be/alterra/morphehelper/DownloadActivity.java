@@ -2824,6 +2824,7 @@ public class DownloadActivity extends Activity {
             if (!part.renameTo(file)) {
                 throw new IOException("Cannot finalize downloaded file");
             }
+            file = ArchiveTypeDetector.normalizeExtension(file);
             try {
                 DownloadedFileValidator.validate(this, file, pkg, versionName,
                         requestVersionCodes);
