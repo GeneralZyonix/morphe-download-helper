@@ -42,8 +42,10 @@ Please include:
 - Supports APK, APKM, APKS, and XAPK when Morphe allows split archives.
 - Opens Uptodown or APKPure in an inline WebView when a site needs a browser check.
 - Returns a `content://` URI with read permission so Morphe can validate and use the file.
+- Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a source list and clear limitations.
-- Keeps a local diagnostic log that can be shared from the app.
+- Shows per-source failure details and offers **Retry failed sources** and **Copy details**.
+- Keeps a structured, human-readable diagnostic log that can be shared from the app.
 - Settings for the download folder, retention, source order, and individual sources.
 - Appteka is limited to SnapTube by default and carries a hazard warning. It is not
   recommended for other apps because Appteka hosts modded APKs.

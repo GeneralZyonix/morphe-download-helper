@@ -1,6 +1,8 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -31,6 +33,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
@@ -53,6 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -175,6 +179,8 @@ public class DownloadActivity extends Activity {
     private static final int MUTED = Color.parseColor("#94A3B8");
     private static final int STEPS = Color.parseColor("#CBD5E1");
     private static final int WARN_TEXT = Color.parseColor("#FDE68A");
+    private static final int GREEN = Color.parseColor("#34D399");
+    private static final int RED = Color.parseColor("#F87171");
 
     // ---------------------------------------------------------------------
     // Feature switches
@@ -311,6 +317,19 @@ public class DownloadActivity extends Activity {
     private Runnable uptodownReload;
     private int uptodownReloads;
 
+    private LinearLayout diagnosticsCard;
+    private LinearLayout diagnosticsRows;
+    private TextView diagnosticsSummary;
+    private TextView retryButton;
+    private TextView copyButton;
+    private ResolutionReport report;
+    private Set<String> retrySources;
+    private String requestPkg;
+    private String requestVersion;
+    private String requestFileType;
+    private long[] requestVersionCodes;
+    private String[] requestAbis;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -338,7 +357,11 @@ public class DownloadActivity extends Activity {
         fallbackUrl = intent.getStringExtra(EXTRA_FALLBACK_WEB_URL);
         allowSplitArchive = intent.getBooleanExtra(EXTRA_ALLOW_SPLIT_ARCHIVE, false);
         requestedAppName = appName;
-
+        requestPkg = pkg;
+        requestVersion = version;
+        requestFileType = fileType;
+        requestVersionCodes = versionCodes;
+        requestAbis = abis;
 
         // Log the full request once; this is the first thing to check in a bug report.
         HelperLog.info("Request pkg=" + pkg
@@ -350,13 +373,13 @@ public class DownloadActivity extends Activity {
                 + " protocol=" + protocolVersion
                 + " fallback=" + fallbackUrl);
         HelperLog.info("Enabled sources"
-                + " fallback=" + SourceSettings.isEnabled(this, SourceSettings.FALLBACK)
-                + " apkmirror=" + SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)
-                + " apkpure=" + SourceSettings.isEnabled(this, SourceSettings.APKPURE)
-                + " uptodown=" + SourceSettings.isEnabled(this, SourceSettings.UPTODOWN)
-                + " fdroid=" + SourceSettings.isEnabled(this, SourceSettings.FDROID)
-                + " aptoide=" + SourceSettings.isEnabled(this, SourceSettings.APTOIDE)
-                + " appteka=" + SourceSettings.isEnabled(this, SourceSettings.APPTEKA)
+                + " fallback=" + sourceAllowed(SourceSettings.FALLBACK)
+                + " apkmirror=" + sourceAllowed(SourceSettings.APKMIRROR)
+                + " apkpure=" + sourceAllowed(SourceSettings.APKPURE)
+                + " uptodown=" + sourceAllowed(SourceSettings.UPTODOWN)
+                + " fdroid=" + sourceAllowed(SourceSettings.FDROID)
+                + " aptoide=" + sourceAllowed(SourceSettings.APTOIDE)
+                + " appteka=" + sourceAllowed(SourceSettings.APPTEKA)
                 + " apptekaSnapTubeOnly=" + AppSettings.apptekaSnapTubeOnly(this));
 
         // -----------------------------------------------------------------
@@ -376,8 +399,8 @@ public class DownloadActivity extends Activity {
         // Uptodown's page runs Cloudflare Turnstile. A WebView is the only reliable
         // way to complete that challenge and capture the resulting download URL.
         if (isHost(fallbackHost, "uptodown.com")) {
-            if (SourceSettings.isEnabled(this, SourceSettings.UPTODOWN)
-                    && SourceSettings.isEnabled(this, SourceSettings.FALLBACK)) {
+            if (sourceAllowed(SourceSettings.UPTODOWN)
+                    && sourceAllowed(SourceSettings.FALLBACK)) {
                 setStatus("Opening Uptodown...");
                 progress.setIndeterminate(true);
                 startUptodownWebFlow(fallbackUrl, pkg, version, fileType);
@@ -405,42 +428,58 @@ public class DownloadActivity extends Activity {
         setStatus("Preparing " + label + "...");
         progress.setIndeterminate(true);
 
-        // Lambda captures need effectively final values.
-        final String packageName = pkg;
-        final String versionName = version;
-        final String type = fileType;
-        final String[] supportedAbis = abis;
-        final long[] codes = versionCodes;
+        startResolution(false);
+    }
 
-        // -----------------------------------------------------------------
-        // 4. Resolve and download on a background thread
-        // -----------------------------------------------------------------
-        startDownloadService("Preparing " + label + "...");
+    private void startResolution(boolean retryOnly) {
+        Set<String> failed = retryOnly && report != null
+                ? report.failedKeys() : Collections.emptySet();
+        if (retryOnly && failed.isEmpty()) {
+            return;
+        }
+        retrySources = retryOnly ? failed : null;
+        String abi = (requestAbis != null && requestAbis.length > 0)
+                ? requestAbis[0] : "unknown";
+        report = new ResolutionReport(requestedAppName, requestPkg, requestVersion,
+                requestFileType, abi);
+        HelperLog.info(report.headerBlock());
+
+        diagnosticsCard.setVisibility(View.GONE);
+        fallbackButton.setVisibility(View.GONE);
+        sourceLabel.setVisibility(View.GONE);
+        cancelButton.setText("Cancel");
+        progress.setVisibility(View.VISIBLE);
+        progress.setIndeterminate(true);
+        progress.setProgress(0);
+        setPauseVisible(false);
+        if (retryOnly) {
+            setStatus("Retrying failed sources...");
+        }
+        startDownloadService(retryOnly ? "Retrying failed sources..." : "Resolving APK...");
+
         executor.execute(() -> {
             try {
-                File file = resolve(packageName, versionName, codes, type, supportedAbis);
+                File file = resolve(requestPkg, requestVersion, requestVersionCodes,
+                        requestFileType, requestAbis);
                 if (cancelled) {
                     return;
                 }
-
-                // Expose the downloaded file through FileProvider and finish.
                 deliverFile(file);
             } catch (UptodownHandoffException ignored) {
-                // The Uptodown WebView was started on the main thread.
             } catch (Exception e) {
                 if (cancelled) {
                     return;
                 }
-
-                // Any failure is non-fatal: show the reason and offer the fallback page.
+                report.finishFailure(e.getMessage());
+                HelperLog.info(report.resultBlock());
                 HelperLog.error("Download failed", e);
                 stopDownloadService();
                 setPauseVisible(false);
                 runOnUiThread(() -> {
                     progress.setIndeterminate(false);
                     progress.setProgress(0);
-                    setStatus("Download failed: " + e.getMessage());
-                    showFallback();
+                    setStatus("Could not find a matching APK.");
+                    showFailure();
                 });
             }
         });
@@ -463,6 +502,10 @@ public class DownloadActivity extends Activity {
             result.setData(uri);
             result.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
+            if (report != null) {
+                report.finishSuccess(file);
+                HelperLog.info(report.resultBlock());
+            }
             HelperLog.info("Returning file " + file.getAbsolutePath()
                     + " (" + file.length() + " bytes)");
             stopDownloadService();
@@ -474,13 +517,17 @@ public class DownloadActivity extends Activity {
                 finish();
             });
         } catch (Exception e) {
+            if (report != null) {
+                report.finishFailure(e.getMessage());
+                HelperLog.info(report.resultBlock());
+            }
             HelperLog.error("Could not return file", e);
             stopDownloadService();
             runOnUiThread(() -> {
                 progress.setIndeterminate(false);
                 progress.setProgress(0);
-                setStatus("Download failed: " + e.getMessage());
-                showFallback();
+                setStatus("Could not find a matching APK.");
+                showFailure();
             });
         }
     }
@@ -746,13 +793,17 @@ public class DownloadActivity extends Activity {
                     if (cancelled) {
                         return;
                     }
+                    if (report != null) {
+                        report.finishFailure(e.getMessage());
+                        HelperLog.info(report.resultBlock());
+                    }
                     HelperLog.error(source + " download failed", e);
                     setPauseVisible(false);
                     runOnUiThread(() -> {
                         progress.setIndeterminate(false);
                         progress.setProgress(0);
-                        setStatus("Download failed: " + e.getMessage());
-                        showFallback();
+                        setStatus("Could not find a matching APK.");
+                        showFailure();
                     });
                 }
             });
@@ -855,6 +906,42 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         progressParams.topMargin = dp(18);
         card.addView(progress, progressParams);
+
+        diagnosticsCard = new LinearLayout(this);
+        diagnosticsCard.setOrientation(LinearLayout.VERTICAL);
+        diagnosticsCard.setPadding(dp(18), dp(16), dp(18), dp(16));
+        diagnosticsCard.setBackground(cardBackground());
+        diagnosticsCard.setVisibility(View.GONE);
+        LinearLayout.LayoutParams diagnosticsParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        diagnosticsParams.topMargin = dp(14);
+        root.addView(diagnosticsCard, diagnosticsParams);
+
+        diagnosticsCard.addView(text("What was tried", 16, TEXT, true));
+        diagnosticsSummary = text("", 12, MUTED, false);
+        diagnosticsSummary.setLineSpacing(dp(3), 1f);
+        diagnosticsSummary.setPadding(0, dp(6), 0, dp(4));
+        diagnosticsCard.addView(diagnosticsSummary);
+
+        diagnosticsRows = new LinearLayout(this);
+        diagnosticsRows.setOrientation(LinearLayout.VERTICAL);
+        diagnosticsCard.addView(diagnosticsRows);
+
+        retryButton = secondaryButton("Retry failed sources");
+        retryButton.setVisibility(View.GONE);
+        retryButton.setOnClickListener(v -> retryFailedSources());
+        LinearLayout.LayoutParams retryParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        retryParams.topMargin = dp(10);
+        diagnosticsCard.addView(retryButton, retryParams);
+
+        copyButton = secondaryButton("Copy details");
+        copyButton.setVisibility(View.GONE);
+        copyButton.setOnClickListener(v -> copyDiagnostics());
+        LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        copyParams.topMargin = dp(8);
+        diagnosticsCard.addView(copyButton, copyParams);
 
         // Uptodown verification section. Hidden until the WebView flow starts so the
         // normal APKMirror/APKPure screens stay clean.
@@ -1082,23 +1169,89 @@ public class DownloadActivity extends Activity {
         }
     }
     private void markSource(String key, boolean ok, String message) {
+        if (report != null) {
+            report.record(key, ok, message);
+        }
         SourceHealth.record(this, key, ok, message == null ? "" : message);
     }
 
-    /**
-     * Shows the manual fallback UI after a failed or impossible automatic download.
-     *
-     * <p>Hides the progress bar, reveals the fallback button when a URL exists, and
-     * changes "Cancel" to "Close" because the operation has finished.</p>
-     */
     private void showFallback() {
+        showFailure();
+    }
+
+    private void showFailure() {
         main.post(() -> {
             progress.setVisibility(View.GONE);
+            sourceLabel.setVisibility(View.GONE);
             if (!TextUtils.isEmpty(fallbackUrl)) {
                 fallbackButton.setVisibility(View.VISIBLE);
             }
             cancelButton.setText("Close");
+            if (report != null) {
+                populateDiagnostics(report);
+            }
         });
+    }
+
+    private void populateDiagnostics(ResolutionReport resolutionReport) {
+        List<ResolutionReport.Attempt> attempts = resolutionReport.attempts();
+        Set<String> failed = resolutionReport.failedKeys();
+
+        diagnosticsRows.removeAllViews();
+        diagnosticsCard.setVisibility(View.VISIBLE);
+        String reason = resolutionReport.failureReason();
+        if (TextUtils.isEmpty(reason)) {
+            reason = "No matching APK was found.";
+        } else if (!reason.endsWith(".")) {
+            reason += ".";
+        }
+        diagnosticsSummary.setText(reason
+                + (attempts.isEmpty() ? "" : " Tried " + attempts.size()
+                + " source attempt(s)."));
+
+        for (ResolutionReport.Attempt attempt : attempts) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setPadding(0, dp(8), 0, dp(8));
+            row.addView(text(attempt.label, 14, TEXT, true));
+
+            String detail = (attempt.success ? "OK" : "FAILED")
+                    + (TextUtils.isEmpty(attempt.detail) ? "" : " \u2022 " + attempt.detail);
+            TextView detailView = text(detail, 12, attempt.success ? GREEN : RED, false);
+            detailView.setPadding(0, dp(3), 0, 0);
+            row.addView(detailView);
+            diagnosticsRows.addView(row);
+
+            View divider = new View(this);
+            divider.setBackgroundColor(BORDER);
+            diagnosticsRows.addView(divider, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+        }
+
+        retryButton.setVisibility(failed.isEmpty() ? View.GONE : View.VISIBLE);
+        retryButton.setEnabled(true);
+        copyButton.setVisibility(View.VISIBLE);
+    }
+
+    private void retryFailedSources() {
+        if (report == null || report.failedKeys().isEmpty()) {
+            return;
+        }
+        retryButton.setEnabled(false);
+        startResolution(true);
+    }
+
+    private void copyDiagnostics() {
+        if (report == null) {
+            return;
+        }
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            return;
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText(
+                "Morphe Download Helper diagnostics", report.resultBlock()));
+        Toast.makeText(this, "Diagnostics copied.", Toast.LENGTH_SHORT).show();
     }
 
     /** Cancels background work and returns RESULT_CANCELED to Morphe. */
@@ -1188,6 +1341,11 @@ public class DownloadActivity extends Activity {
                 && !"apks".equalsIgnoreCase(fileType);
     }
 
+    private boolean sourceAllowed(String key) {
+        return SourceSettings.isEnabled(this, key)
+                && (retrySources == null || retrySources.contains(key));
+    }
+
     private long installedVersionCode(String pkg) {
         try {
             PackageInfo info = getPackageManager().getPackageInfo(pkg, 0);
@@ -1220,7 +1378,7 @@ public class DownloadActivity extends Activity {
         if (!AppSettings.sourceOrder(this).equals(AppSettings.defaultOrder())) {
             return resolveCustom(pkg, version, codes, hasCodes, fileType, abis);
         }
-        if (hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+        if (hasCodes && sourceAllowed(SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
             setSourceLabel("APKPure direct");
             setStatus("Trying APKPure direct...");
@@ -1229,6 +1387,8 @@ public class DownloadActivity extends Activity {
                 markSource(SourceSettings.APKPURE, true, "direct");
                 return file;
             } catch (Exception directError) {
+                markSource(SourceSettings.APKPURE, false,
+                        "direct: " + directError.getMessage());
                 HelperLog.error("APKPure fast direct failed", directError);
             }
 
@@ -1245,7 +1405,7 @@ public class DownloadActivity extends Activity {
         }
 
         // 0. Ask Morphe's resolver for the page it would show in its own dialog.
-        if (SourceSettings.isEnabled(this, SourceSettings.FALLBACK)) {
+        if (sourceAllowed(SourceSettings.FALLBACK)) {
             String abi = (abis != null && abis.length > 0) ? abis[0] : "arm64-v8a";
             String resolverKey = pkg + "|" + version + "|" + abi;
             String morpheUrl = ResolverCache.get(this, resolverKey);
@@ -1264,10 +1424,10 @@ public class DownloadActivity extends Activity {
                 String host = hostOf(resolvedUrl);
                 HelperLog.info("Morphe resolver returned: " + resolvedUrl);
                 setStatus("Resolver found " + host + "...");
-                markSource(SourceSettings.FALLBACK, true, "Morphe resolver");
                 if (isHost(host, "uptodown.com")) {
                     if (pathOf(morpheUrl).trim().endsWith("-x")
-                            && SourceSettings.isEnabled(this, SourceSettings.UPTODOWN)) {
+                            && sourceAllowed(SourceSettings.UPTODOWN)) {
+                        markSource(SourceSettings.FALLBACK, true, "Opened Uptodown");
                         main.post(() -> {
                             setStatus("Opening Uptodown...");
                             progress.setIndeterminate(true);
@@ -1276,41 +1436,50 @@ public class DownloadActivity extends Activity {
                         throw new UptodownHandoffException();
                     }
                 } else if (isHost(host, "apkpure.com")
-                        && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+                        && sourceAllowed(SourceSettings.APKPURE)) {
                     try {
-                        return downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                        File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                        markSource(SourceSettings.FALLBACK, true, "Resolver APKPure");
+                        return file;
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver APKPure link failed", ignored);
                     }
                 } else if (isHost(host, "apkmirror.com")
-                        && SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)) {
+                        && sourceAllowed(SourceSettings.APKMIRROR)) {
                     setSourceLabel("Morphe resolver");
                     try {
-                        return downloadFromFallback(morpheUrl, pkg, version, fileType, abis);
+                        File file = downloadFromFallback(morpheUrl, pkg, version, fileType, abis);
+                        markSource(SourceSettings.FALLBACK, true, "Resolver APKMirror");
+                        return file;
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver APKMirror link failed", ignored);
                     }
                 } else if (isDirectFile(morpheUrl)) {
                     try {
-                        return downloadFile(morpheUrl, null, pkg, version, fileType);
+                        File file = downloadFile(morpheUrl, null, pkg, version, fileType);
+                        markSource(SourceSettings.FALLBACK, true, "Resolver direct file");
+                        return file;
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver direct file failed", ignored);
                     }
                 }
+                markSource(SourceSettings.FALLBACK, false, "Resolver did not produce a file");
+            } else {
+                markSource(SourceSettings.FALLBACK, false, "No resolver result");
             }
         }
 
         // 1. Fallback URL from the patch bundle first.
-        if (SourceSettings.isEnabled(this, SourceSettings.FALLBACK)
+        if (sourceAllowed(SourceSettings.FALLBACK)
                 && !TextUtils.isEmpty(fallbackUrl)) {
             String fallbackHost = hostOf(fallbackUrl);
             boolean hostDisabled =
                     (isHost(fallbackHost, "apkmirror.com")
-                            && !SourceSettings.isEnabled(this, SourceSettings.APKMIRROR))
+                            && !sourceAllowed(SourceSettings.APKMIRROR))
                             || (isHost(fallbackHost, "apkpure.com")
-                            && !SourceSettings.isEnabled(this, SourceSettings.APKPURE))
+                            && !sourceAllowed(SourceSettings.APKPURE))
                             || (isHost(fallbackHost, "uptodown.com")
-                            && !SourceSettings.isEnabled(this, SourceSettings.UPTODOWN));
+                            && !sourceAllowed(SourceSettings.UPTODOWN));
             if (!hostDisabled) {
                 setSourceLabel("Morphe fallback");
                 setStatus("Trying fallback URL...");
@@ -1329,7 +1498,7 @@ public class DownloadActivity extends Activity {
         }
 
         // 2. APKMirror.
-        if (SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)) {
+        if (sourceAllowed(SourceSettings.APKMIRROR)) {
             setSourceLabel("APKMirror");
             setStatus("Searching APKMirror...");
             HelperLog.info("Trying APKMirror search for " + pkg);
@@ -1345,7 +1514,7 @@ public class DownloadActivity extends Activity {
 
         // Bundle requests need an APK/XAPK split archive. APKPure cannot serve APKM
         // directly, but its XAPK asset is a useful fallback if APKMirror is blocked.
-        if (SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+        if (sourceAllowed(SourceSettings.APKPURE)
                 && allowSplitArchive && isSplitType(fileType)
                 && !apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
@@ -1363,7 +1532,7 @@ public class DownloadActivity extends Activity {
 
         // 3. APKPure fallback for requests without a numeric versionCode.
         // When a code exists it was already tried before the resolver.
-        if (!hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+        if (!hasCodes && sourceAllowed(SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure fallback for " + pkg);
             setSourceLabel("APKPure API");
@@ -1373,6 +1542,7 @@ public class DownloadActivity extends Activity {
                 markSource(SourceSettings.APKPURE, true, "API");
                 return file;
             } catch (Exception apiError) {
+                markSource(SourceSettings.APKPURE, false, "API: " + apiError.getMessage());
                 HelperLog.error("APKPure API failed", apiError);
                 setSourceLabel("APKPure direct");
                 setStatus("Trying APKPure direct...");
@@ -1382,13 +1552,13 @@ public class DownloadActivity extends Activity {
                     return file;
                 } catch (Exception directError) {
                     HelperLog.error("APKPure direct failed", directError);
-                    markSource(SourceSettings.APKPURE, false, directError.getMessage());
+                    markSource(SourceSettings.APKPURE, false, "direct: " + directError.getMessage());
                 }
             }
         }
 
         // 4. F-Droid.
-        if (SourceSettings.isEnabled(this, SourceSettings.FDROID)) {
+        if (sourceAllowed(SourceSettings.FDROID)) {
             setSourceLabel("F-Droid");
             setStatus("Checking F-Droid...");
             HelperLog.info("Trying F-Droid for " + pkg);
@@ -1403,7 +1573,7 @@ public class DownloadActivity extends Activity {
         }
 
         // 5. Aptoide.
-        if (SourceSettings.isEnabled(this, SourceSettings.APTOIDE)) {
+        if (sourceAllowed(SourceSettings.APTOIDE)) {
             setSourceLabel("Aptoide");
             setStatus("Searching Aptoide...");
             HelperLog.info("Trying Aptoide for " + pkg);
@@ -1417,7 +1587,7 @@ public class DownloadActivity extends Activity {
             }
         }
 
-        if (SourceSettings.isEnabled(this, SourceSettings.APPTEKA)
+        if (sourceAllowed(SourceSettings.APPTEKA)
                 && !isSplitType(fileType)
                 && AppSettings.apptekaAllowed(this, pkg)) {
             setSourceLabel("Appteka");
@@ -1435,7 +1605,7 @@ public class DownloadActivity extends Activity {
 
         // APKPure browser fallback is the last resort so a broken page does not block
         // the resolver or APKMirror from being tried.
-        if (allowSplitArchive && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+        if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
             main.post(() -> {
                 setStatus("Opening APKPure page...");
@@ -1451,7 +1621,7 @@ public class DownloadActivity extends Activity {
     private File resolveCustom(String pkg, String version, long[] codes, boolean hasCodes,
                                String fileType, String[] abis) throws IOException {
         for (String source : AppSettings.sourceOrder(this)) {
-            if (!SourceSettings.isEnabled(this, source)) {
+            if (!sourceAllowed(source)) {
                 continue;
             }
             File file = null;
@@ -1473,7 +1643,7 @@ public class DownloadActivity extends Activity {
             }
         }
 
-        if (SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+        if (sourceAllowed(SourceSettings.APKPURE)
                 && allowSplitArchive && isSplitType(fileType)
                 && !apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
@@ -1489,7 +1659,7 @@ public class DownloadActivity extends Activity {
             }
         }
 
-        if (!hasCodes && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+        if (!hasCodes && sourceAllowed(SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure fallback for " + pkg);
             setSourceLabel("APKPure API");
@@ -1499,6 +1669,7 @@ public class DownloadActivity extends Activity {
                 markSource(SourceSettings.APKPURE, true, "API");
                 return file;
             } catch (Exception apiError) {
+                markSource(SourceSettings.APKPURE, false, "API: " + apiError.getMessage());
                 HelperLog.error("APKPure API failed", apiError);
                 setSourceLabel("APKPure direct");
                 setStatus("Trying APKPure direct...");
@@ -1508,12 +1679,12 @@ public class DownloadActivity extends Activity {
                     return file;
                 } catch (Exception directError) {
                     HelperLog.error("APKPure direct failed", directError);
-                    markSource(SourceSettings.APKPURE, false, directError.getMessage());
+                    markSource(SourceSettings.APKPURE, false, "direct: " + directError.getMessage());
                 }
             }
         }
 
-        if (allowSplitArchive && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
+        if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
                 && (apkPureCanServe(fileType) || isSplitType(fileType))) {
             main.post(() -> {
                 setStatus("Opening APKPure page...");
@@ -1537,6 +1708,8 @@ public class DownloadActivity extends Activity {
             markSource(SourceSettings.APKPURE, true, "direct");
             return file;
         } catch (Exception directError) {
+            markSource(SourceSettings.APKPURE, false,
+                    "direct: " + directError.getMessage());
             HelperLog.error("APKPure fast direct failed", directError);
         }
         setSourceLabel("APKPure API");
@@ -1569,9 +1742,9 @@ public class DownloadActivity extends Activity {
         if (url != null) {
             String host = hostOf(url);
             setStatus("Resolver found " + host + "...");
-            markSource(SourceSettings.FALLBACK, true, "Morphe resolver");
             if (isHost(host, "uptodown.com") && pathOf(url).trim().endsWith("-x")
-                    && SourceSettings.isEnabled(this, SourceSettings.UPTODOWN)) {
+                    && sourceAllowed(SourceSettings.UPTODOWN)) {
+                markSource(SourceSettings.FALLBACK, true, "Opened Uptodown");
                 final String resolved = url;
                 main.post(() -> {
                     setStatus("Opening Uptodown...");
@@ -1581,36 +1754,45 @@ public class DownloadActivity extends Activity {
                 throw new UptodownHandoffException();
             }
             if (isHost(host, "apkpure.com") && apkPureCanServe(fileType)
-                    && SourceSettings.isEnabled(this, SourceSettings.APKPURE)) {
+                    && sourceAllowed(SourceSettings.APKPURE)) {
                 try {
-                    return downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                    File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                    markSource(SourceSettings.FALLBACK, true, "Resolver APKPure");
+                    return file;
                 } catch (Exception failed) {
                     HelperLog.error("Morphe resolver APKPure link failed", failed);
                 }
             } else if (isHost(host, "apkmirror.com")
-                    && SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)) {
+                    && sourceAllowed(SourceSettings.APKMIRROR)) {
                 try {
-                    return downloadFromFallback(url, pkg, version, fileType, abis);
+                    File file = downloadFromFallback(url, pkg, version, fileType, abis);
+                    markSource(SourceSettings.FALLBACK, true, "Resolver APKMirror");
+                    return file;
                 } catch (Exception failed) {
                     HelperLog.error("Morphe resolver APKMirror link failed", failed);
                 }
             } else if (isDirectFile(url)) {
                 try {
-                    return downloadFile(url, null, pkg, version, fileType);
+                    File file = downloadFile(url, null, pkg, version, fileType);
+                    markSource(SourceSettings.FALLBACK, true, "Resolver direct file");
+                    return file;
                 } catch (Exception failed) {
                     HelperLog.error("Morphe resolver direct file failed", failed);
                 }
             }
+            markSource(SourceSettings.FALLBACK, false, "Resolver did not produce a file");
+        } else {
+            markSource(SourceSettings.FALLBACK, false, "No resolver result");
         }
 
         if (!TextUtils.isEmpty(fallbackUrl)) {
             String host = hostOf(fallbackUrl);
             boolean disabled = (isHost(host, "apkmirror.com")
-                    && !SourceSettings.isEnabled(this, SourceSettings.APKMIRROR))
+                    && !sourceAllowed(SourceSettings.APKMIRROR))
                     || (isHost(host, "apkpure.com")
-                    && !SourceSettings.isEnabled(this, SourceSettings.APKPURE))
+                    && !sourceAllowed(SourceSettings.APKPURE))
                     || (isHost(host, "uptodown.com")
-                    && !SourceSettings.isEnabled(this, SourceSettings.UPTODOWN));
+                    && !sourceAllowed(SourceSettings.UPTODOWN));
             if (!disabled) {
                 setStatus("Trying fallback URL...");
                 try {
@@ -2642,6 +2824,14 @@ public class DownloadActivity extends Activity {
             if (!part.renameTo(file)) {
                 throw new IOException("Cannot finalize downloaded file");
             }
+            try {
+                DownloadedFileValidator.validate(this, file, pkg, versionName,
+                        requestVersionCodes);
+            } catch (IOException invalid) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+                throw invalid;
+            }
             HelperLog.info("Saved " + file.getAbsolutePath()
                     + " (" + file.length() + " bytes)");
             return file;
@@ -2852,6 +3042,5 @@ public class DownloadActivity extends Activity {
                 || "apkm".equalsIgnoreCase(fileType);
     }
 }
-
 
 

@@ -184,6 +184,8 @@ final class AppSettings {
                 return "F-Droid";
             case SourceSettings.APTOIDE:
                 return "Aptoide";
+            case SourceSettings.UPTODOWN:
+                return "Uptodown";
             case SourceSettings.APPTEKA:
                 return "Appteka";
             default:
