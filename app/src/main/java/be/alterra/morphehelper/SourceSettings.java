@@ -15,6 +15,7 @@ final class SourceSettings {
     static final String FDROID = "fdroid";
     static final String APTOIDE = "aptoide";
     static final String APPTEKA = "appteka";
+    static final String GITHUB = "github";
 
     private static final String PREFS = "download_sources";
 

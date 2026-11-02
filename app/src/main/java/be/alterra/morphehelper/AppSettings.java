@@ -188,6 +188,8 @@ final class AppSettings {
                 return "Uptodown";
             case SourceSettings.APPTEKA:
                 return "Appteka";
+            case SourceSettings.GITHUB:
+                return "GitHub releases";
             default:
                 return key;
         }

@@ -122,6 +122,8 @@ public class SettingsActivity extends Activity {
         addSourceRow(card, SourceSettings.APPTEKA, "\u26A0 Appteka",
                 "Modded APK catalog; not recommended for apps other than SnapTube");
 
+        addGitHubAppsCard(root);
+
         TextView done = primaryButton("Done");
         done.setOnClickListener(v -> finish());
         LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
@@ -274,6 +276,75 @@ public class SettingsActivity extends Activity {
                 11, MUTED, false);
         note.setPadding(0, dp(6), 0, 0);
         card.addView(note);
+    }
+
+    private void addGitHubAppsCard(LinearLayout root) {
+        List<GitHubAppStore.Entry> entries = GitHubAppStore.all(this);
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(cardBackground());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text("GitHub apps", 16, TEXT, true));
+        TextView note = text(
+                "Remembered GitHub release sources. Remove an app if it becomes available "
+                        + "on a regular APK source.",
+                12, MUTED, false);
+        note.setLineSpacing(dp(3), 1f);
+        note.setPadding(0, dp(4), 0, dp(4));
+        card.addView(note);
+
+        if (entries.isEmpty()) {
+            TextView empty = text(
+                    "No GitHub apps remembered yet. Use Search GitHub releases on a failed "
+                            + "download to add one.",
+                    12, MUTED, false);
+            empty.setLineSpacing(dp(3), 1f);
+            empty.setPadding(0, dp(8), 0, 0);
+            card.addView(empty);
+            return;
+        }
+
+        for (GitHubAppStore.Entry entry : entries) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(10), 0, dp(10));
+
+            LinearLayout labels = new LinearLayout(this);
+            labels.setOrientation(LinearLayout.VERTICAL);
+            labels.addView(text(entry.label, 14, TEXT, true));
+            TextView repo = text(entry.repo, 12, MUTED, false);
+            repo.setPadding(0, dp(3), 0, 0);
+            labels.addView(repo);
+            row.addView(labels, new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView remove = text("X", 16, RED, true);
+            remove.setGravity(Gravity.CENTER);
+            remove.setPadding(dp(12), dp(8), dp(12), dp(8));
+            remove.setContentDescription("Remove GitHub app " + entry.label);
+            remove.setClickable(true);
+            remove.setFocusable(true);
+            remove.setOnClickListener(v -> {
+                GitHubAppStore.remove(this, entry.packageName);
+                Toast.makeText(this, entry.label + " removed from GitHub apps.",
+                        Toast.LENGTH_SHORT).show();
+                recreate();
+            });
+            row.addView(remove, new LinearLayout.LayoutParams(dp(48), dp(48)));
+            card.addView(row);
+
+            View divider = new View(this);
+            divider.setBackgroundColor(BORDER);
+            card.addView(divider, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+        }
     }
 
     private void addOrderCard(LinearLayout root) {

@@ -45,6 +45,8 @@ Please include:
 - Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a source list and clear limitations.
 - Shows per-source failure details and offers **Retry failed sources** and **Copy details**.
+- Offers an optional **Search GitHub releases** fallback for apps distributed only on GitHub.
+- Remembers successful GitHub apps in Settings; each can be removed with one tap.
 - Keeps a structured, human-readable diagnostic log that can be shared from the app.
 - Settings for the download folder, retention, source order, and individual sources.
 - Appteka is limited to SnapTube by default and carries a hazard warning. It is not
