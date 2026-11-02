@@ -95,6 +95,7 @@ public class SettingsActivity extends Activity {
 
         addStorageCard(root);
         addOrderCard(root);
+        addApptekaWarningCard(root);
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -118,6 +119,8 @@ public class SettingsActivity extends Activity {
                 "Open-source repository; only apps it hosts");
         addSourceRow(card, SourceSettings.APTOIDE, "Aptoide",
                 "API search; only uploads marked TRUSTED");
+        addSourceRow(card, SourceSettings.APPTEKA, "\u26A0 Appteka",
+                "Modded APK catalog; not recommended for apps other than SnapTube");
 
         TextView done = primaryButton("Done");
         done.setOnClickListener(v -> finish());
@@ -210,6 +213,67 @@ public class SettingsActivity extends Activity {
         if (AppSettings.HOUR_24.equals(retention)) return 2;
         if (AppSettings.DAY_7.equals(retention)) return 3;
         return 0;
+    }
+
+    private void addApptekaWarningCard(LinearLayout root) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(cardBackground());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text("\u26A0 Appteka warning", 16, RED, true));
+
+        TextView message = text(
+                "Appteka hosts modded APKs, including modified versions of popular apps. "
+                        + "We do not recommend enabling Appteka for any app other than SnapTube. "
+                        + "Modded APKs can contain altered code, behave unpredictably, or be rejected by Morphe.",
+                12, WARN_TEXT, false);
+        message.setLineSpacing(dp(3), 1f);
+        message.setPadding(0, dp(8), 0, dp(4));
+        card.addView(message);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(12), 0, 0);
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text("Only use Appteka for SnapTube", 14, TEXT, true));
+        TextView detail = text("Recommended. Turn off to use Appteka for every app.",
+                12, MUTED, false);
+        detail.setPadding(0, dp(3), 0, 0);
+        labels.addView(detail);
+        row.addView(labels, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch toggle = new Switch(this);
+        toggle.setChecked(AppSettings.apptekaSnapTubeOnly(this));
+        toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setApptekaSnapTubeOnly(this, isChecked);
+            if (!isChecked) {
+                Toast.makeText(this,
+                        "Appteka is now an extra source for every app. Use at your own risk.",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+        LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
+                dp(64), dp(48));
+        toggleParams.gravity = Gravity.CENTER_VERTICAL;
+        row.addView(toggle, toggleParams);
+        card.addView(row);
+
+        TextView note = text(
+                "When this is off, Appteka is tried in the source order for all apps, not just SnapTube.",
+                11, MUTED, false);
+        note.setPadding(0, dp(6), 0, 0);
+        card.addView(note);
     }
 
     private void addOrderCard(LinearLayout root) {
@@ -307,7 +371,8 @@ public class SettingsActivity extends Activity {
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
         labels.addView(text(title, 15, TEXT, true));
-        int descColor = (SourceSettings.APKPURE.equals(key)
+        int descColor = SourceSettings.APPTEKA.equals(key) ? RED
+                : (SourceSettings.APKPURE.equals(key)
                 || SourceSettings.UPTODOWN.equals(key)) ? WARN_TEXT : MUTED;
         TextView desc = text(description, 12, descColor, false);
         desc.setPadding(0, dp(3), 0, 0);

@@ -142,6 +142,9 @@ public class DownloadActivity extends Activity {
     private static final String APKPURE_API =
             "https://tapi.pureapk.com/v3/get_app_his_version";
 
+    private static final String APPTEKA_API =
+            "https://appteka.store/api/1/app/info";
+
     /** Morphe's public resolver API, the same one its download dialog uses. */
     private static final String MORPHE_API = "https://api.morphe.software";
     private static final String MORPHE_USER_AGENT = "Morphe-Manager/1.0";
@@ -352,7 +355,9 @@ public class DownloadActivity extends Activity {
                 + " apkpure=" + SourceSettings.isEnabled(this, SourceSettings.APKPURE)
                 + " uptodown=" + SourceSettings.isEnabled(this, SourceSettings.UPTODOWN)
                 + " fdroid=" + SourceSettings.isEnabled(this, SourceSettings.FDROID)
-                + " aptoide=" + SourceSettings.isEnabled(this, SourceSettings.APTOIDE));
+                + " aptoide=" + SourceSettings.isEnabled(this, SourceSettings.APTOIDE)
+                + " appteka=" + SourceSettings.isEnabled(this, SourceSettings.APPTEKA)
+                + " apptekaSnapTubeOnly=" + AppSettings.apptekaSnapTubeOnly(this));
 
         // -----------------------------------------------------------------
         // 2. Reject fallback hosts that the helper cannot handle
@@ -801,7 +806,9 @@ public class DownloadActivity extends Activity {
         root.addView(subtitle, subtitleParams);
 
         // Static source order; the live status line below shows which one is active.
-        TextView sources = text("Sources: Morphe link → APKMirror → APKPure", 12, MUTED, false);
+        TextView sources = text(
+                "Sources: APKPure → Morphe → APKMirror → F-Droid → Aptoide → Appteka (SnapTube)",
+                12, MUTED, false);
         sources.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams sourcesParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1410,6 +1417,22 @@ public class DownloadActivity extends Activity {
             }
         }
 
+        if (SourceSettings.isEnabled(this, SourceSettings.APPTEKA)
+                && !isSplitType(fileType)
+                && AppSettings.apptekaAllowed(this, pkg)) {
+            setSourceLabel("Appteka");
+            setStatus("Searching Appteka...");
+            HelperLog.info("Trying Appteka for " + pkg);
+            try {
+                File file = downloadFromAppteka(pkg, version, codes);
+                markSource(SourceSettings.APPTEKA, true, "catalog");
+                return file;
+            } catch (Exception failed) {
+                HelperLog.error("Appteka failed", failed);
+                markSource(SourceSettings.APPTEKA, false, failed.getMessage());
+            }
+        }
+
         // APKPure browser fallback is the last resort so a broken page does not block
         // the resolver or APKMirror from being tried.
         if (allowSplitArchive && SourceSettings.isEnabled(this, SourceSettings.APKPURE)
@@ -1442,6 +1465,8 @@ public class DownloadActivity extends Activity {
                 file = customFdroid(pkg, version, codes, fileType);
             } else if (SourceSettings.APTOIDE.equals(source)) {
                 file = customAptoide(pkg, version, codes, fileType);
+            } else if (SourceSettings.APPTEKA.equals(source)) {
+                file = customAppteka(pkg, version, codes, fileType);
             }
             if (file != null) {
                 return file;
@@ -1640,6 +1665,101 @@ public class DownloadActivity extends Activity {
             HelperLog.error("Aptoide failed", failed);
             markSource(SourceSettings.APTOIDE, false, failed.getMessage());
             return null;
+        }
+    }
+
+    private File customAppteka(String pkg, String version, long[] codes, String fileType) {
+        if (isSplitType(fileType) || !AppSettings.apptekaAllowed(this, pkg)) {
+            return null;
+        }
+        setSourceLabel("Appteka");
+        setStatus("Searching Appteka...");
+        try {
+            File file = downloadFromAppteka(pkg, version, codes);
+            markSource(SourceSettings.APPTEKA, true, "catalog");
+            return file;
+        } catch (Exception failed) {
+            HelperLog.error("Appteka failed", failed);
+            markSource(SourceSettings.APPTEKA, false, failed.getMessage());
+            return null;
+        }
+    }
+
+    private File downloadFromAppteka(String pkg, String version, long[] versionCodes)
+            throws IOException {
+        String lookupUrl = APPTEKA_API + "?package="
+                + URLEncoder.encode(pkg, "UTF-8") + "&locale=en";
+        JSONObject result = apptekaResult(httpGet(lookupUrl, null));
+        JSONObject info = result.optJSONObject("info");
+        if (info == null || !pkg.equals(info.optString("package"))) {
+            throw new IOException("Appteka returned a different package");
+        }
+
+        boolean noVersionRequested = TextUtils.isEmpty(version)
+                && (versionCodes == null || versionCodes.length == 0);
+        boolean infoMatches = noVersionRequested
+                || sameVersion(info.optString("ver_name"), version)
+                || contains(versionCodes, info.optLong("ver_code", -1));
+
+        JSONObject selectedByCode = null;
+        JSONObject selectedByName = null;
+        JSONArray versions = result.optJSONArray("versions");
+        if (versions != null) {
+            for (int i = 0; i < versions.length(); i++) {
+                JSONObject candidate = versions.optJSONObject(i);
+                if (candidate == null) {
+                    continue;
+                }
+                if (contains(versionCodes, candidate.optLong("ver_code", -1))) {
+                    selectedByCode = candidate;
+                    break;
+                }
+                if (selectedByName == null
+                        && sameVersion(candidate.optString("ver_name"), version)) {
+                    selectedByName = candidate;
+                }
+            }
+        }
+
+        JSONObject selected = selectedByCode != null ? selectedByCode : selectedByName;
+        String link;
+        if (selected != null
+                && !selected.optString("app_id").equals(info.optString("app_id"))) {
+            String appId = selected.optString("app_id");
+            String versionUrl = APPTEKA_API + "?app_id="
+                    + URLEncoder.encode(appId, "UTF-8") + "&locale=en";
+            JSONObject selectedResult = apptekaResult(httpGet(versionUrl, null));
+            JSONObject selectedInfo = selectedResult.optJSONObject("info");
+            if (selectedInfo == null || !pkg.equals(selectedInfo.optString("package"))) {
+                throw new IOException("Appteka version has a different package");
+            }
+            link = selectedResult.optString("link");
+        } else {
+            if (!infoMatches && !TextUtils.isEmpty(version)) {
+                throw new IOException("Requested version not found on Appteka");
+            }
+            link = result.optString("link");
+        }
+
+        link = decodeHtml(link);
+        if (TextUtils.isEmpty(link) || !isHost(hostOf(link), "appteka.store")
+                || !link.contains("/download/")) {
+            throw new IOException("Appteka did not return a download link");
+        }
+        HelperLog.info("Appteka link for " + pkg + ": " + link);
+        return downloadFile(link, "https://appteka.store/", pkg, version, "apk");
+    }
+
+    private JSONObject apptekaResult(String body) throws IOException {
+        try {
+            JSONObject root = new JSONObject(body);
+            JSONObject result = root.optJSONObject("result");
+            if (result == null) {
+                throw new IOException("Appteka returned no app data");
+            }
+            return result;
+        } catch (JSONException e) {
+            throw new IOException("Appteka response parse failed", e);
         }
     }
 

@@ -14,6 +14,7 @@ final class SourceSettings {
     static final String UPTODOWN = "uptodown";
     static final String FDROID = "fdroid";
     static final String APTOIDE = "aptoide";
+    static final String APPTEKA = "appteka";
 
     private static final String PREFS = "download_sources";
 
@@ -36,6 +37,7 @@ final class SourceSettings {
                 .putBoolean(UPTODOWN, true)
                 .putBoolean(FDROID, true)
                 .putBoolean(APTOIDE, true)
+                .putBoolean(APPTEKA, true)
                 .apply();
     }
 
@@ -49,7 +51,7 @@ final class SourceSettings {
 
     static int enabledCount(Context context) {
         int count = 0;
-        for (String key : new String[]{FALLBACK, APKMIRROR, APKPURE, UPTODOWN, FDROID, APTOIDE}) {
+        for (String key : new String[]{FALLBACK, APKMIRROR, APKPURE, UPTODOWN, FDROID, APTOIDE, APPTEKA}) {
             if (isEnabled(context, key)) {
                 count++;
             }

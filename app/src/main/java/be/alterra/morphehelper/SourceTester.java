@@ -59,6 +59,10 @@ final class SourceTester {
                         builder = request("https://ws75.aptoide.com/api/7/listAppVersions"
                                 + "?package_name=com.accuweather.android&limit=50");
                         break;
+                    case SourceSettings.APPTEKA:
+                        builder = request("https://appteka.store/api/1/app/info"
+                                + "?package=com.snaptube.premium&locale=en");
+                        break;
                     default:
                         throw new IOException("Unknown source");
                 }

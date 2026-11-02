@@ -18,17 +18,21 @@ final class AppSettings {
     static final String HOUR_24 = "24h";
     static final String DAY_7 = "7d";
 
+    static final String SNAPTUBE_PACKAGE = "com.snaptube.premium";
+
     private static final String PREFS = "app_settings";
     private static final String KEY_LOCATION = "download_location";
     private static final String KEY_RETENTION = "download_retention";
     private static final String KEY_ORDER = "source_order";
+    private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
 
     private static final List<String> DEFAULT_ORDER = Arrays.asList(
             SourceSettings.APKPURE,
             SourceSettings.FALLBACK,
             SourceSettings.APKMIRROR,
             SourceSettings.FDROID,
-            SourceSettings.APTOIDE
+            SourceSettings.APTOIDE,
+            SourceSettings.APPTEKA
     );
 
     private AppSettings() {
@@ -56,6 +60,18 @@ final class AppSettings {
 
     static void setRetention(Context context, String retention) {
         prefs(context).edit().putString(KEY_RETENTION, retention).apply();
+    }
+
+    static boolean apptekaSnapTubeOnly(Context context) {
+        return prefs(context).getBoolean(KEY_APPTEKA_SNAPTUBE_ONLY, true);
+    }
+
+    static void setApptekaSnapTubeOnly(Context context, boolean snapTubeOnly) {
+        prefs(context).edit().putBoolean(KEY_APPTEKA_SNAPTUBE_ONLY, snapTubeOnly).apply();
+    }
+
+    static boolean apptekaAllowed(Context context, String pkg) {
+        return SNAPTUBE_PACKAGE.equals(pkg) || !apptekaSnapTubeOnly(context);
     }
 
     static File downloadDir(Context context) {
@@ -168,6 +184,8 @@ final class AppSettings {
                 return "F-Droid";
             case SourceSettings.APTOIDE:
                 return "Aptoide";
+            case SourceSettings.APPTEKA:
+                return "Appteka";
             default:
                 return key;
         }

@@ -271,6 +271,15 @@ public class MainActivity extends Activity {
         aptoideChipParams.setMarginEnd(dp(8));
         sourcesRow2.addView(aptoideChip, aptoideChipParams);
 
+        TextView apptekaChip = sourceChip(
+                "\u26A0 Appteka",
+                Color.parseColor("#7F1D1D"),
+                Color.parseColor("#FECACA"));
+        LinearLayout.LayoutParams apptekaChipParams = new LinearLayout.LayoutParams(
+                WRAP_CONTENT, WRAP_CONTENT);
+        apptekaChipParams.setMarginEnd(dp(8));
+        sourcesRow2.addView(apptekaChip, apptekaChipParams);
+
         TextView uptodownChip = sourceChip(
                 "Uptodown",
                 Color.parseColor("#4C1D95"),
@@ -278,9 +287,9 @@ public class MainActivity extends Activity {
         sourcesRow2.addView(uptodownChip, new LinearLayout.LayoutParams(
                 WRAP_CONTENT, WRAP_CONTENT));
 
-        // Uptodown uses an in-app WebView verification page because of Cloudflare Turnstile.
         TextView disabledSource = text(
-                "Tries in this order. Source details and browser fallbacks are in Source settings.",
+                "Tries in this order. Appteka is limited to SnapTube by default; "
+                        + "source details and browser fallbacks are in Settings.",
                 12,
                 MUTED,
                 false);
