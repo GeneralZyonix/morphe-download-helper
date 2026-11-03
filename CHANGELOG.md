@@ -5,6 +5,68 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.5] - 2026-11-03
+
+### Added
+
+- Built-in update checker for new GitHub releases, checked on launch at most every six hours.
+- **Updates** settings card with a check toggle, manual check, update mode, Shizuku status,
+  and a changelog button.
+- **Notify me when available** mode: a single notification opens an update screen with the
+  version, release notes, and installation choices.
+- **Automatically update via Shizuku** mode: the helper checks, downloads, and installs a
+  new release silently when Shizuku is installed, running, and approved.
+- Completion notification after a successful automatic self-update: “Morphe Download Helper
+  was updated to version X.” Android may close the helper while replacing its own APK, so a
+  delayed check confirms the installed version before posting this.
+- Update choices in the update screen: **Install normally**, **Install via Shizuku** (when
+  Shizuku is ready), **Remind me later** (24 hours), and **Skip this version**.
+- Battery optimization checker in Settings, with a green **Unrestricted ✓** state and a
+  request-exemption action when Android may delay background checks or notifications.
+- Download folder choices: **Downloads/Morphe Helper** by default on Android 10+, internal
+  app cache, app external storage, or a custom folder chosen with Android’s folder picker.
+- Update APKs are staged in `Download/Morphe Helper/updates` and cleaned up after install.
+
+### Update choices explained
+
+- **Notify me when available** — the helper posts one notification. Tapping it opens the
+  update screen, where you can read the changelog and choose normally, via Shizuku, remind
+  later, or skip this version. This is the default and works without Shizuku.
+- **Automatically update via Shizuku** — the helper installs new releases silently after
+  Shizuku permission is granted. If Shizuku is unavailable, the helper falls back to the
+  notify flow so an update is never silently missed.
+- **Install normally** — opens Android’s package installer. This is the safest choice if
+  you do not use Shizuku or want to confirm the install manually.
+- **Install via Shizuku** — installs without the normal package-installer prompts, but only
+  appears when Shizuku is ready.
+- **Remind me later** — hides the update for 24 hours, then checks again.
+- **Skip this version** — suppresses notifications for that release until a newer one appears.
+- Turning off **Check for updates** disables both notification and automatic update checks.
+
+### Changed
+
+- Update notifications are now a single tap target instead of three small action buttons.
+- The default download folder is `Downloads/Morphe Helper` on Android 10 and newer; older
+  devices keep the internal default until public storage permission is granted.
+- The update screen uses navigation-bar insets, so its buttons never sit inside the gesture
+  or three-button navigation bar.
+
+### Fixed
+
+- Shizuku updates now copy the staged APK to a location readable by Android’s package
+  manager, fixing installs that previously failed with exit code 255.
+- Update installation works with the new public Downloads staging area and cleans up staged
+  files on the next helper launch if the process was closed during an update.
+
+### Notes
+
+- Automatic updates require the Shizuku app, Shizuku running, and helper permission. No root
+  is required.
+- The update checker uses GitHub’s latest-release API and requires a release asset ending in
+  `.apk`. The universal APK is preferred when present.
+- Battery optimization exemptions are requested through Android’s standard system dialog;
+  they can be revoked at any time in Android settings.
+
 ## [1.4] - 2026-11-02
 
 ### Added
