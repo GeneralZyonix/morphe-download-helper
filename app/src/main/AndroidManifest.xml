@@ -4,7 +4,8 @@
     Unofficial third-party helper for Morphe Manager.
     This manifest declares the intent contract Morphe uses to request an APK.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Needed to search APKMirror/APKPure and download the APK. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -12,11 +13,18 @@
 
     <!-- Used to read the installed app's versionCode when Morphe omits it. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <!-- Keep long downloads alive while the helper is in the background. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <uses-sdk tools:overrideLibrary="rikka.shizuku.api,rikka.shizuku.provider" />
 
     <!--
         Android 11+ package visibility: without this block the app cannot see whether
@@ -51,6 +59,11 @@
             android:exported="false"
             android:label="Visual guide" />
 
+        <activity
+            android:name=".UpdateActivity"
+            android:exported="false"
+            android:label="Update" />
+
         <!-- Source settings: choose which APK sources the helper may use. -->
         <activity
             android:name=".SettingsActivity"
@@ -77,6 +90,14 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <receiver
+            android:name=".UpdateReminderReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".UpdateInstalledReceiver"
+            android:exported="false" />
+
         <!--
             FileProvider exposes downloaded files and the log file to Morphe/other apps
             through content:// URIs. The allowed paths live in res/xml/file_paths.xml.
@@ -91,8 +112,19 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
     </application>
 </manifest>
+
+
+
 
 
 

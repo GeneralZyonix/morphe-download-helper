@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
         HelperLog.init(getApplicationContext());
         SourceSettings.ensureInitialized(this);
         new Thread(() -> AppSettings.cleanup(this)).start();
-        new Thread(() -> AppSettings.cleanup(this)).start();
+        new Thread(() -> UpdateManager.cleanupStagedUpdates(this)).start();
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -404,6 +404,7 @@ public class MainActivity extends Activity {
         root.addView(footer, footerParams);
 
         setContentView(scroll);
+        UpdateManager.maybeCheckOnLaunch(this);
     }
 
     /**
@@ -590,6 +591,7 @@ public class MainActivity extends Activity {
         return drawable;
     }
 }
+
 
 
 

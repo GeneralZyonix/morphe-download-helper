@@ -1,17 +1,32 @@
 package be.alterra.morphehelper;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
+
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import androidx.documentfile.provider.DocumentFile;
 
 /** General app settings and download storage helpers. */
 final class AppSettings {
 
     static final String LOCATION_INTERNAL = "internal";
     static final String LOCATION_EXTERNAL = "external";
+    static final String LOCATION_PUBLIC = "public";
+    static final String LOCATION_CUSTOM = "custom";
 
     static final String KEEP = "keep";
     static final String HOUR_1 = "1h";
@@ -22,6 +37,7 @@ final class AppSettings {
 
     private static final String PREFS = "app_settings";
     private static final String KEY_LOCATION = "download_location";
+    private static final String KEY_CUSTOM_TREE = "custom_tree_uri";
     private static final String KEY_RETENTION = "download_retention";
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
@@ -47,11 +63,46 @@ final class AppSettings {
     }
 
     static String location(Context context) {
-        return prefs(context).getString(KEY_LOCATION, LOCATION_INTERNAL);
+        String fallback = Build.VERSION.SDK_INT >= 29
+                ? LOCATION_PUBLIC : LOCATION_INTERNAL;
+        return prefs(context).getString(KEY_LOCATION, fallback);
     }
 
     static void setLocation(Context context, String location) {
         prefs(context).edit().putString(KEY_LOCATION, location).apply();
+    }
+
+    static String customTreeUri(Context context) {
+        return prefs(context).getString(KEY_CUSTOM_TREE, "");
+    }
+
+    static void setCustomTreeUri(Context context, String uri) {
+        prefs(context).edit().putString(KEY_CUSTOM_TREE, uri == null ? "" : uri).apply();
+    }
+
+    static String locationLabel(Context context) {
+        String location = location(context);
+        if (LOCATION_EXTERNAL.equals(location)) {
+            return "App external storage";
+        }
+        if (LOCATION_PUBLIC.equals(location)) {
+            return "Downloads/Morphe Helper";
+        }
+        if (LOCATION_CUSTOM.equals(location)) {
+            String uri = customTreeUri(context);
+            if (!uri.isEmpty()) {
+                try {
+                    DocumentFile folder = DocumentFile.fromTreeUri(
+                            context, Uri.parse(uri));
+                    if (folder != null && folder.getName() != null) {
+                        return "Custom: " + folder.getName();
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            return "Custom folder";
+        }
+        return "Internal app cache";
     }
 
     static String retention(Context context) {
@@ -87,6 +138,128 @@ final class AppSettings {
         return dir;
     }
 
+    static void publishDownload(Context context, File file) {
+        if (file == null || !file.isFile()) {
+            return;
+        }
+        String location = location(context);
+        if (LOCATION_PUBLIC.equals(location)) {
+            publishPublic(context, file);
+        } else if (LOCATION_CUSTOM.equals(location)) {
+            publishCustom(context, file);
+        }
+    }
+
+    private static void publishPublic(Context context, File file) {
+        String mime = mimeFor(file.getName());
+        try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                ContentResolver resolver = context.getContentResolver();
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.MediaColumns.DISPLAY_NAME, file.getName());
+                values.put(MediaStore.MediaColumns.MIME_TYPE, mime);
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/Morphe Helper");
+                values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+                Uri uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                if (uri == null) {
+                    throw new Exception("Could not create file in Downloads");
+                }
+                try {
+                    try (InputStream input = new FileInputStream(file);
+                         OutputStream output = resolver.openOutputStream(uri)) {
+                        if (output == null) {
+                            throw new Exception("Could not open Downloads file");
+                        }
+                        copy(input, output);
+                    }
+                    ContentValues done = new ContentValues();
+                    done.put(MediaStore.MediaColumns.IS_PENDING, 0);
+                    resolver.update(uri, done, null, null);
+                } catch (Exception error) {
+                    resolver.delete(uri, null, null);
+                    throw error;
+                }
+            } else {
+                File dir = new File(
+                        Environment.getExternalStoragePublicDirectory(
+                                Environment.DIRECTORY_DOWNLOADS),
+                        "Morphe Helper");
+                if (!dir.exists() && !dir.mkdirs()) {
+                    throw new Exception("Could not create Downloads/Morphe Helper");
+                }
+                File target = uniqueFile(dir, file.getName());
+                try (InputStream input = new FileInputStream(file);
+                     OutputStream output = new FileOutputStream(target)) {
+                    copy(input, output);
+                }
+            }
+            HelperLog.info("Saved a copy in Downloads/Morphe Helper");
+        } catch (Exception error) {
+            HelperLog.error("Could not copy download to Downloads", error);
+        }
+    }
+
+    private static void publishCustom(Context context, File file) {
+        String tree = customTreeUri(context);
+        if (tree.isEmpty()) {
+            return;
+        }
+        try {
+            DocumentFile root = DocumentFile.fromTreeUri(context, Uri.parse(tree));
+            if (root == null || !root.canWrite()) {
+                throw new Exception("Custom download folder is not writable");
+            }
+            DocumentFile target = root.createFile(mimeFor(file.getName()), file.getName());
+            if (target == null) {
+                throw new Exception("Could not create file in custom folder");
+            }
+            try (InputStream input = new FileInputStream(file);
+                 OutputStream output = context.getContentResolver()
+                         .openOutputStream(target.getUri())) {
+                if (output == null) {
+                    throw new Exception("Could not open custom folder file");
+                }
+                copy(input, output);
+            }
+            HelperLog.info("Saved a copy in the custom download folder");
+        } catch (Exception error) {
+            HelperLog.error("Could not copy download to custom folder", error);
+        }
+    }
+
+    private static void copy(InputStream input, OutputStream output) throws Exception {
+        byte[] buffer = new byte[64 * 1024];
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            output.write(buffer, 0, read);
+        }
+    }
+
+    private static String mimeFor(String name) {
+        String lower = name.toLowerCase();
+        if (lower.endsWith(".apk")) {
+            return "application/vnd.android.package-archive";
+        }
+        return "application/octet-stream";
+    }
+
+    private static File uniqueFile(File dir, String name) {
+        File file = new File(dir, name);
+        if (!file.exists()) {
+            return file;
+        }
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        String extension = dot > 0 ? name.substring(dot) : "";
+        for (int i = 2; ; i++) {
+            File candidate = new File(dir, base + " (" + i + ")" + extension);
+            if (!candidate.exists()) {
+                return candidate;
+            }
+        }
+    }
+
     static long retentionMillis(Context context) {
         switch (retention(context)) {
             case HOUR_1:
@@ -120,18 +293,74 @@ final class AppSettings {
     }
 
     static int deleteAllDownloads(Context context) {
+        int deleted = 0;
         File dir = downloadDir(context);
         File[] files = dir.listFiles();
-        if (files == null) {
-            return 0;
-        }
-        int deleted = 0;
-        for (File file : files) {
-            if (file.isFile() && file.delete()) {
-                deleted++;
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile() && file.delete()) {
+                    deleted++;
+                }
             }
         }
+        if (LOCATION_PUBLIC.equals(location(context))) {
+            deleted += deletePublicDownloads(context);
+        } else if (LOCATION_CUSTOM.equals(location(context))) {
+            deleted += deleteCustomDownloads(context);
+        }
         return deleted;
+    }
+
+    private static int deletePublicDownloads(Context context) {
+        try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                return context.getContentResolver().delete(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                        MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?",
+                        new String[]{Environment.DIRECTORY_DOWNLOADS + "/Morphe Helper/%"});
+            }
+            File dir = new File(
+                    Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_DOWNLOADS),
+                    "Morphe Helper");
+            File[] files = dir.listFiles();
+            if (files == null) {
+                return 0;
+            }
+            int deleted = 0;
+            for (File file : files) {
+                if (file.isFile() && file.delete()) {
+                    deleted++;
+                }
+            }
+            return deleted;
+        } catch (Exception error) {
+            HelperLog.error("Could not delete Downloads copies", error);
+            return 0;
+        }
+    }
+
+    private static int deleteCustomDownloads(Context context) {
+        String tree = customTreeUri(context);
+        if (tree.isEmpty()) {
+            return 0;
+        }
+        try {
+            DocumentFile root = DocumentFile.fromTreeUri(context, Uri.parse(tree));
+            if (root == null) {
+                return 0;
+            }
+            int deleted = 0;
+            for (DocumentFile child : root.listFiles()) {
+                if (child.isFile() && child.delete()) {
+                    deleted++;
+                }
+            }
+            return deleted;
+        } catch (Exception error) {
+            HelperLog.error("Could not delete custom downloads", error);
+            return 0;
+        }
     }
 
     static List<String> sourceOrder(Context context) {

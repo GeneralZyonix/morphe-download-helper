@@ -20,6 +20,10 @@ android {
         versionName "1.4"
     }
 
+    buildFeatures {
+        aidl true
+    }
+
     buildTypes {
         release {
             // Keep shrinking disabled so release APKs behave like debug builds.
@@ -37,9 +41,16 @@ android {
 dependencies {
     // FileProvider + modern AndroidX helpers.
     implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.documentfile:documentfile:1.0.1'
 
     // HTTP client with cookie/redirect support for APK sites.
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
 }
+
+
+
 
 

@@ -507,6 +507,7 @@ public class DownloadActivity extends Activity {
                     getPackageName() + ".fileprovider",
                     file
             );
+            AppSettings.publishDownload(this, file);
             Intent result = new Intent();
             result.setData(uri);
             result.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);

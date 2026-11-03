@@ -10,6 +10,9 @@
     <external-files-path
         name="logs"
         path="logs/" />
+    <external-files-path
+        name="updates"
+        path="updates/" />
     <cache-path
         name="cache_downloads"
         path="downloads/" />
