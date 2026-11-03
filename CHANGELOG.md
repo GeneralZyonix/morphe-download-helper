@@ -26,6 +26,23 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - Download folder choices: **Downloads/Morphe Helper** by default on Android 10+, internal
   app cache, app external storage, or a custom folder chosen with Android’s folder picker.
 - Update APKs are staged in `Download/Morphe Helper/updates` and cleaned up after install.
+- **GitHub release downloads**: an optional **Search GitHub releases** fallback for apps
+  distributed through GitHub instead of regular APK sites. Successful repositories are
+  remembered and can be managed from Settings.
+
+### GitHub downloads
+
+- When the normal sources fail, the failure screen offers **Search GitHub releases**.
+- The helper searches GitHub repositories by app name or package, then checks release tags
+  for the requested version.
+- It accepts APK, APKM, APKS, XAPK, and other APK-family release assets, preferring the
+  format Morphe requested.
+- The downloaded file is still checked against the requested package and version before it
+  is handed back to Morphe.
+- A successful repository is remembered in **Settings → GitHub apps** and is tried first on
+  the next request for that package. It can be removed with the **X** button if the app
+  becomes available on a regular source.
+- A **This app is on GitHub** shortcut is also available in the fallback WebView area.
 
 ### Update choices explained
 
