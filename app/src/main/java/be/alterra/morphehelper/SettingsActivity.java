@@ -49,6 +49,7 @@ public class SettingsActivity extends Activity {
     private static final int MUTED = Color.parseColor("#94A3B8");
     private static final int WARN_TEXT = Color.parseColor("#FDE68A");
     private static final int RED = Color.parseColor("#F87171");
+    private static final int GREEN = Color.parseColor("#34D399");
     private static final int SHIZUKU_REQUEST_CODE = 71;
     private static final int FOLDER_REQUEST_CODE = 72;
     private static final int STORAGE_PERMISSION_CODE = 73;
@@ -312,7 +313,8 @@ public class SettingsActivity extends Activity {
         card.addView(text("Background", 16, TEXT, true));
         batteryIgnoring = isIgnoringBatteryOptimizations();
         LinearLayout row = settingRow("Battery optimization",
-                batteryIgnoring ? "Unrestricted" : "Optimized \u2014 may delay checks");
+                batteryIgnoring ? "Unrestricted" : "Optimized \u2014 may delay checks",
+                batteryIgnoring);
         row.setOnClickListener(v -> requestBatteryExemption());
         card.addView(row);
 
@@ -764,8 +766,11 @@ public class SettingsActivity extends Activity {
         });
         card.addView(reset);
     }
-
     private LinearLayout settingRow(String title, String value) {
+        return settingRow(title, value, false);
+    }
+
+    private LinearLayout settingRow(String title, String value, boolean confirmed) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -783,9 +788,18 @@ public class SettingsActivity extends Activity {
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
         labels.addView(text(title, 14, TEXT, true));
-        TextView detail = text(value, 12, MUTED, false);
+        LinearLayout detailRow = new LinearLayout(this);
+        detailRow.setOrientation(LinearLayout.HORIZONTAL);
+        detailRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView detail = text(value, 12, confirmed ? GREEN : MUTED, false);
         detail.setPadding(0, dp(3), 0, 0);
-        labels.addView(detail);
+        detailRow.addView(detail);
+        if (confirmed) {
+            TextView check = text("\u2713", 13, GREEN, true);
+            check.setPadding(dp(6), dp(3), 0, 0);
+            detailRow.addView(check);
+        }
+        labels.addView(detailRow);
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
