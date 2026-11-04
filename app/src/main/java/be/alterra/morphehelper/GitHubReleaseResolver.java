@@ -37,7 +37,7 @@ final class GitHubReleaseResolver {
     }
 
     private static final String API = "https://api.github.com";
-    private static final String USER_AGENT = "Morphe-Download-Helper/1.4";
+    private static final String USER_AGENT = "Morphe-Download-Helper/1.5";
 
     private static final OkHttpClient HTTP = new OkHttpClient.Builder()
             .followRedirects(true)
@@ -51,7 +51,7 @@ final class GitHubReleaseResolver {
     }
 
     static List<Candidate> search(String appName, String pkg, String version,
-                                  String fileType) throws IOException {
+                                  String fileType, String[] abis) throws IOException {
         String query = appName == null || appName.trim().isEmpty() ? pkg : appName;
         List<String> repos = searchRepos(query + " in:name");
         if (repos.isEmpty()) {
@@ -65,7 +65,7 @@ final class GitHubReleaseResolver {
                 continue;
             }
             try {
-                candidates.addAll(findInRepo(repo, version, fileType));
+                candidates.addAll(findInRepo(repo, version, fileType, abis));
             } catch (Exception error) {
                 HelperLog.error("GitHub repo lookup failed: " + repo, error);
             }
@@ -76,8 +76,8 @@ final class GitHubReleaseResolver {
         return candidates;
     }
 
-    static List<Candidate> findInRepo(String repo, String version, String fileType)
-            throws IOException {
+    static List<Candidate> findInRepo(String repo, String version, String fileType,
+                                      String[] abis) throws IOException {
         String url = API + "/repos/" + repo + "/releases?per_page=100";
         JSONArray releases = getArray(url);
         List<Candidate> candidates = new ArrayList<>();
@@ -90,7 +90,7 @@ final class GitHubReleaseResolver {
                     release.optString("name"), version)) {
                 continue;
             }
-            Candidate candidate = assetFor(release, repo, fileType);
+            Candidate candidate = assetFor(release, repo, fileType, abis);
             if (candidate != null) {
                 candidates.add(candidate);
             }
@@ -98,7 +98,8 @@ final class GitHubReleaseResolver {
         return candidates;
     }
 
-    private static Candidate assetFor(JSONObject release, String repo, String fileType) {
+    private static Candidate assetFor(JSONObject release, String repo, String fileType,
+                                      String[] abis) {
         JSONArray assets = release.optJSONArray("assets");
         if (assets == null) {
             return null;
@@ -116,6 +117,8 @@ final class GitHubReleaseResolver {
         }
 
         for (String extension : order) {
+            Candidate best = null;
+            int bestScore = -1;
             for (int i = 0; i < assets.length(); i++) {
                 JSONObject asset = assets.optJSONObject(i);
                 if (asset == null) {
@@ -123,14 +126,50 @@ final class GitHubReleaseResolver {
                 }
                 String name = asset.optString("name", "");
                 String url = asset.optString("browser_download_url", "");
-                if (name.toLowerCase(Locale.US).endsWith("." + extension)
-                        && url.startsWith("https://")) {
-                    return new Candidate(repo, release.optString("tag_name"), name, url,
+                if (!name.toLowerCase(Locale.US).endsWith("." + extension)
+                        || !url.startsWith("https://")) {
+                    continue;
+                }
+                int score = abiScore(name, abis);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = new Candidate(repo, release.optString("tag_name"), name, url,
                             extension);
                 }
             }
+            if (best != null) {
+                return best;
+            }
         }
         return null;
+    }
+
+    private static int abiScore(String assetName, String[] abis) {
+        String name = assetName.toLowerCase(Locale.US);
+        int score = 0;
+        if (abis != null) {
+            for (String abi : abis) {
+                String wanted = abi == null ? "" : abi.toLowerCase(Locale.US);
+                if (wanted.contains("arm64")
+                        && (name.contains("arm64") || name.contains("aarch64"))) {
+                    score = Math.max(score, 3);
+                } else if ((wanted.contains("armeabi") || wanted.equals("arm"))
+                        && name.contains("arm") && !name.contains("arm64")) {
+                    score = Math.max(score, 3);
+                } else if (wanted.contains("x86_64") || wanted.equals("x64")) {
+                    if (name.contains("x86_64") || name.contains("x64")) {
+                        score = Math.max(score, 3);
+                    }
+                } else if (wanted.equals("x86") && name.contains("x86")
+                        && !name.contains("x86_64")) {
+                    score = Math.max(score, 3);
+                }
+            }
+        }
+        if (name.contains("universal")) {
+            score = Math.min(score, 2);
+        }
+        return score;
     }
 
     private static boolean matchesVersion(String tag, String name, String version) {
@@ -213,4 +252,5 @@ final class GitHubReleaseResolver {
         }
     }
 }
+
 

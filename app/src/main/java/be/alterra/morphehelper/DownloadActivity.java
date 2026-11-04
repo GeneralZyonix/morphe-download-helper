@@ -1452,7 +1452,7 @@ public class DownloadActivity extends Activity {
             try {
                 List<GitHubReleaseResolver.Candidate> candidates =
                         GitHubReleaseResolver.search(requestedAppName, requestPkg,
-                                requestVersion, requestFileType);
+                                requestVersion, requestFileType, requestAbis);
                 if (candidates.isEmpty()) {
                     recorded[0] = true;
                     markSource(SourceSettings.GITHUB, false,
@@ -1634,15 +1634,30 @@ public class DownloadActivity extends Activity {
         }
     }
 
+    private String installedVersionName(String pkg) {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(pkg, 0);
+            return info.versionName == null ? "" : info.versionName;
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
     private File resolve(String pkg, String version, long[] versionCodes,
                          String fileType, String[] abis) throws IOException {
         long[] codes = versionCodes;
         if (codes == null || codes.length == 0) {
             setStatus("Checking installed version...");
+            String installedName = installedVersionName(pkg);
             long installed = installedVersionCode(pkg);
-            if (installed > 0) {
+            if (installed > 0 && (TextUtils.isEmpty(version)
+                    || sameVersion(installedName, version))) {
                 codes = new long[]{installed};
                 HelperLog.info("Using installed versionCode=" + installed + " for " + pkg);
+            } else if (installed > 0) {
+                HelperLog.info("Ignoring installed versionCode=" + installed
+                        + " for " + pkg + " because installed version is "
+                        + installedName + " (requested " + version + ")");
             }
         }
 
@@ -1651,22 +1666,6 @@ public class DownloadActivity extends Activity {
         // Fast start only applies to codes Morphe actually supplied. If Morphe omits
         // them, follow its resolver link first even if an installed code is available.
         boolean hasCodes = versionCodes != null && versionCodes.length > 0;
-        GitHubAppStore.Entry remembered = GitHubAppStore.get(this, pkg);
-        if (remembered != null
-                && (retrySources == null || retrySources.contains(SourceSettings.GITHUB))) {
-            setSourceLabel("GitHub");
-            setStatus("Checking GitHub releases...");
-            HelperLog.info("Trying remembered GitHub repo " + remembered.repo);
-            try {
-                File file = downloadFromRememberedGitHub(
-                        remembered, pkg, version, fileType);
-                markSource(SourceSettings.GITHUB, true, remembered.repo);
-                return file;
-            } catch (Exception error) {
-                HelperLog.error("Remembered GitHub repo failed", error);
-                markSource(SourceSettings.GITHUB, false, error.getMessage());
-            }
-        }
         if (!AppSettings.sourceOrder(this).equals(AppSettings.defaultOrder())) {
             return resolveCustom(pkg, version, codes, hasCodes, fileType, abis);
         }
@@ -1736,6 +1735,14 @@ public class DownloadActivity extends Activity {
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver APKPure link failed", ignored);
                     }
+                } else if (isHost(host, "github.com")
+                        && sourceAllowed(SourceSettings.GITHUB)) {
+                    String repo = githubRepoFromUrl(resolvedUrl);
+                    if (repo != null) {
+                        HelperLog.info("Remembering GitHub repo " + repo
+                                + "; it will be tried after normal APK sources");
+                        GitHubAppStore.put(this, pkg, repo, requestedAppName);
+                    }
                 } else if (isHost(host, "apkmirror.com")
                         && sourceAllowed(SourceSettings.APKMIRROR)) {
                     setSourceLabel("Morphe resolver");
@@ -1767,8 +1774,15 @@ public class DownloadActivity extends Activity {
         if (sourceAllowed(SourceSettings.FALLBACK)
                 && !TextUtils.isEmpty(fallbackUrl)) {
             String fallbackHost = hostOf(fallbackUrl);
+            String fallbackRepo = githubRepoFromUrl(fallbackUrl);
+            if (fallbackRepo != null) {
+                HelperLog.info("Remembering fallback GitHub repo " + fallbackRepo
+                        + "; it will be tried after normal APK sources");
+                GitHubAppStore.put(this, pkg, fallbackRepo, requestedAppName);
+            }
             boolean hostDisabled =
-                    (isHost(fallbackHost, "apkmirror.com")
+                    fallbackRepo != null
+                            || (isHost(fallbackHost, "apkmirror.com")
                             && !sourceAllowed(SourceSettings.APKMIRROR))
                             || (isHost(fallbackHost, "apkpure.com")
                             && !sourceAllowed(SourceSettings.APKPURE))
@@ -1901,6 +1915,26 @@ public class DownloadActivity extends Activity {
             }
         }
 
+        // GitHub is deliberately the final APK source. Remembered repositories are
+        // only used after the normal sources have failed.
+        GitHubAppStore.Entry remembered = GitHubAppStore.get(this, pkg);
+        if (remembered != null
+                && (retrySources == null || retrySources.contains(SourceSettings.GITHUB))) {
+            setSourceLabel("GitHub");
+            setStatus("Checking GitHub releases...");
+            HelperLog.info("Trying remembered GitHub repo as last resort "
+                    + remembered.repo);
+            try {
+                File file = downloadFromRememberedGitHub(
+                        remembered, pkg, version, fileType, abis);
+                markSource(SourceSettings.GITHUB, true, remembered.repo);
+                return file;
+            } catch (Exception error) {
+                HelperLog.error("Remembered GitHub repo failed", error);
+                markSource(SourceSettings.GITHUB, false, error.getMessage());
+            }
+        }
+
         // APKPure browser fallback is the last resort so a broken page does not block
         // the resolver or APKMirror from being tried.
         if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
@@ -1917,10 +1951,10 @@ public class DownloadActivity extends Activity {
     }
 
     private File downloadFromRememberedGitHub(GitHubAppStore.Entry entry, String pkg,
-                                               String version, String fileType)
-            throws IOException {
+                                               String version, String fileType,
+                                               String[] abis) throws IOException {
         List<GitHubReleaseResolver.Candidate> candidates =
-                GitHubReleaseResolver.findInRepo(entry.repo, version, fileType);
+                GitHubReleaseResolver.findInRepo(entry.repo, version, fileType, abis);
         if (candidates.isEmpty()) {
             throw new IOException("No matching release in " + entry.repo);
         }
@@ -2302,6 +2336,9 @@ public class DownloadActivity extends Activity {
         String lower = url.toLowerCase(Locale.US);
         String host = hostOf(url);
         HelperLog.info("Fallback host: " + host);
+
+        // GitHub fallback URLs are deliberately deferred until after the normal APK
+        // sources have been tried. They are remembered by resolve() instead.
 
         // Uptodown support is kept for future use but disabled at the feature-switch level.
         if (isHost(host, "uptodown.com")) {
@@ -2796,6 +2833,9 @@ public class DownloadActivity extends Activity {
             return downloadFile(url, null, pkg, version, fileType);
         } catch (IOException first) {
             HelperLog.error("APKPure URL failed: " + url, first);
+            if (first instanceof DownloadedFileValidator.VersionMismatchException) {
+                throw first;
+            }
             if (!allowSplitArchive) {
                 throw first;
             }
@@ -3347,6 +3387,26 @@ public class DownloadActivity extends Activity {
         }
     }
 
+    /**
+     * Extracts owner/repo from a GitHub release URL. Returns null for GitHub search
+     * pages and other shapes that are not a specific repository release.
+     */
+    private String githubRepoFromUrl(String url) {
+        if (TextUtils.isEmpty(url) || !isHost(hostOf(url), "github.com")) {
+            return null;
+        }
+        try {
+            String[] parts = new URL(url).getPath().split("/");
+            if (parts.length < 5 || !"releases".equals(parts[3])
+                    || parts[1].isEmpty() || parts[2].isEmpty()) {
+                return null;
+            }
+            return parts[1] + "/" + parts[2];
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     /** Returns true when the host is the domain itself or a subdomain of it. */
     private boolean isHost(String host, String domain) {
         return host != null && (host.equals(domain) || host.endsWith("." + domain));
@@ -3417,4 +3477,5 @@ public class DownloadActivity extends Activity {
                 || "apkm".equalsIgnoreCase(fileType);
     }
 }
+
 
