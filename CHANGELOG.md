@@ -5,6 +5,25 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.5.2] - 2026-11-04
+
+### Fixed
+
+- When Morphe's resolver points to a GitHub release, that release is now treated as the
+  patch source's intended source and used immediately. This fixes patch sources such as
+  kveld9's Brave patches, which require the GitHub standalone APK even when APKPure has the
+  same version as an XAPK.
+- APKPure's same-version XAPK is skipped for plain-APK requests when GitHub is the intended
+  source, preventing a successful download that would later fail patching.
+- Aptoide and other generic sources are bypassed when the resolver explicitly selects a
+  GitHub release for the patch source.
+
+### Changed
+
+- GitHub is still the automatic final fallback for normal requests. The resolver pointing
+  at GitHub is the signal that GitHub should be used first for that request.
+- Updated the README and Reddit release notes to explain the distinction.
+
 ## [1.5.1] - 2026-11-04
 
 ### Fixed

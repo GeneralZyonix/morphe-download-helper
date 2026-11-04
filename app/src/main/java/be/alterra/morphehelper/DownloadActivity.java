@@ -284,6 +284,9 @@ public class DownloadActivity extends Activity {
     /** Whether Morphe accepts split archives (XAPK/APKS) for this request. */
     private boolean allowSplitArchive;
 
+    /** True when Morphe's resolver points at a GitHub release for this request. */
+    private boolean githubResolverHint;
+
     /** Root scroll view, used to reveal the Uptodown section. */
     private ScrollView scrollView;
 
@@ -1655,9 +1658,24 @@ public class DownloadActivity extends Activity {
                         && sourceAllowed(SourceSettings.GITHUB)) {
                     String repo = githubRepoFromUrl(resolvedUrl);
                     if (repo != null) {
-                        HelperLog.info("Remembering GitHub repo " + repo
-                                + "; it will be tried after normal APK sources");
+                        githubResolverHint = true;
+                        HelperLog.info("Morphe resolver points to GitHub repo " + repo
+                                + "; using the release for this patch source");
                         GitHubAppStore.put(this, pkg, repo, requestedAppName);
+                        setSourceLabel("GitHub");
+                        setStatus("Checking GitHub release...");
+                        try {
+                            GitHubAppStore.Entry entry = new GitHubAppStore.Entry(
+                                    pkg, repo, requestedAppName,
+                                    System.currentTimeMillis());
+                            File file = downloadFromRememberedGitHub(
+                                    entry, pkg, version, fileType, abis);
+                            markSource(SourceSettings.GITHUB, true, repo);
+                            return file;
+                        } catch (Exception failed) {
+                            HelperLog.error("GitHub resolver release failed", failed);
+                            markSource(SourceSettings.GITHUB, false, failed.getMessage());
+                        }
                     }
                 } else if (isHost(host, "apkmirror.com")
                         && sourceAllowed(SourceSettings.APKMIRROR)) {
@@ -1692,6 +1710,7 @@ public class DownloadActivity extends Activity {
             String fallbackHost = hostOf(fallbackUrl);
             String fallbackRepo = githubRepoFromUrl(fallbackUrl);
             if (fallbackRepo != null) {
+                githubResolverHint = true;
                 HelperLog.info("Remembering fallback GitHub repo " + fallbackRepo
                         + "; it will be tried after normal APK sources");
                 GitHubAppStore.put(this, pkg, fallbackRepo, requestedAppName);
@@ -2730,6 +2749,10 @@ public class DownloadActivity extends Activity {
         if (bestSplit && !allowSplitArchive && !isSplitType(fileType)) {
             throw new IOException("APKPure only has a split archive for this version");
         }
+        if (bestSplit && githubResolverHint && !isSplitType(fileType)) {
+            throw new IOException("APKPure only has a split archive; "
+                    + "keeping the GitHub release for this patch source");
+        }
 
         JSONObject asset = best.optJSONObject("asset");
         String assetUrl = asset.optString("url");
@@ -2768,7 +2791,7 @@ public class DownloadActivity extends Activity {
             if (first instanceof DownloadedFileValidator.VersionMismatchException) {
                 throw first;
             }
-            if (!allowSplitArchive) {
+            if (!allowSplitArchive || (githubResolverHint && !isSplitType(fileType))) {
                 throw first;
             }
             String alt = buildApkPureAltUrl(pkg, versionCodes, version, fileType);

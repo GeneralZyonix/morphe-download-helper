@@ -37,7 +37,7 @@ final class GitHubReleaseResolver {
     }
 
     private static final String API = "https://api.github.com";
-    private static final String USER_AGENT = "Morphe-Download-Helper/1.5.1";
+    private static final String USER_AGENT = "Morphe-Download-Helper/1.5.2";
 
     private static final OkHttpClient HTTP = new OkHttpClient.Builder()
             .followRedirects(true)
@@ -252,6 +252,7 @@ final class GitHubReleaseResolver {
         }
     }
 }
+
 
 
 
