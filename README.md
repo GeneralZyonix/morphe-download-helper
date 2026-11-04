@@ -45,8 +45,9 @@ Please include:
 - Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a source list and clear limitations.
 - Shows per-source failure details and offers **Retry failed sources** and **Copy details**.
-- Offers an optional **Search GitHub releases** fallback for apps distributed only on GitHub.
-- Remembers successful GitHub apps in Settings; each can be removed with one tap.
+- Searches GitHub releases automatically as the final fallback when normal APK sources fail;
+  there is no separate GitHub button.
+- Remembers successful GitHub repositories in Settings; each can be removed with one tap.
 - Keeps a structured, human-readable diagnostic log that can be shared from the app.
 - Built-in update checker with a changelog screen: notify me, or install silently through
   Shizuku with an optional battery-optimization exemption.
@@ -104,12 +105,15 @@ The helper never installs anything.
 | 5 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
 | 6 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
 | 7 | Appteka | Resolves the exact version by package and version code. SnapTube only by default; the source is marked as hazardous because it hosts modded APKs. |
-| WebView | Uptodown / APKPure | Uptodown opens from the resolver. APKPure’s page is the last resort so it cannot block the other sources. |
+| 8 | GitHub releases | Automatic last resort. Tries a remembered repository or searches GitHub, checks the requested version, prefers the matching ABI, and remembers the repository. |
+| WebView | Uptodown / APKPure | Uptodown opens from the resolver. APKPure's page is the last resort so it cannot block the other sources. |
 
 The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
-sources above. Manage sources, order, and storage in the app under **Settings**. If no
-downloadable APK is found, the helper returns `RESULT_CANCELED` and Morphe shows its own
-default download button.
+sources above. GitHub is automatic: there is no **Search GitHub releases** button anymore.
+The helper stores the repository name (`owner/repo`), not a fixed APK, and selects the
+matching release version each time. Manage remembered repositories in **Settings → GitHub
+apps**. If no downloadable APK is found, the helper returns `RESULT_CANCELED` and Morphe
+shows its own default download button.
 
 ## Limitations
 

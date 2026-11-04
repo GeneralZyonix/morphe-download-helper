@@ -5,6 +5,30 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.5.1] - 2026-11-04
+
+### Fixed
+
+- Installed-app version codes are now reused only when the installed version name matches
+  Morphe's requested version. This prevents downloading an older build such as Brave 1.92.140
+  when the patch requests 1.98.62.
+- Split archives are validated against the requested package and version. A wrong XAPK can
+  no longer reach Morphe just because split-archive validation was previously skipped.
+- APKPure no longer retries its alternate APK/XAPK endpoint after a version mismatch, which
+  removes the duplicate large downloads users saw.
+- GitHub release assets now prefer the requested ABI, so Brave downloads
+  `BraveMonoarm64.apk` instead of a universal build.
+
+### Changed
+
+- GitHub releases are now an automatic last resort. After the normal APK sources fail, the
+  helper uses the remembered repository or searches GitHub automatically.
+- The manual **Search GitHub releases** and **This app is on GitHub** buttons have been
+  removed because GitHub is automatic now.
+- GitHub repositories detected from Morphe's resolver are remembered automatically. The
+  helper stores the repository, not a fixed APK, and fetches the matching release each time.
+- The changelog and README now describe the automatic GitHub behavior.
+
 ## [1.5] - 2026-11-03
 
 ### Added

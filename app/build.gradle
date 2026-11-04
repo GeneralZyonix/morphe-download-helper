@@ -16,8 +16,8 @@ android {
         targetSdk 35
 
         // Bump both values for every public release.
-        versionCode 6
-        versionName "1.5"
+        versionCode 7
+        versionName "1.5.1"
     }
 
     buildFeatures {
@@ -49,6 +49,7 @@ dependencies {
     implementation 'dev.rikka.shizuku:api:13.1.5'
     implementation 'dev.rikka.shizuku:provider:13.1.5'
 }
+
 
 
 

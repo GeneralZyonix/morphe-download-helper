@@ -18,7 +18,7 @@ final class UpdateChecker {
 
     private static final String LATEST_RELEASE =
             "https://api.github.com/repos/GeneralZyonix/morphe-download-helper/releases/latest";
-    static final String USER_AGENT = "Morphe-Download-Helper/1.5";
+    static final String USER_AGENT = "Morphe-Download-Helper/1.5.1";
 
     private static final OkHttpClient HTTP = new OkHttpClient.Builder()
             .followRedirects(true)
@@ -106,6 +106,7 @@ final class UpdateChecker {
         }
     }
 }
+
 
 
 

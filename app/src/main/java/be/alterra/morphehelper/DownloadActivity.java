@@ -299,7 +299,6 @@ public class DownloadActivity extends Activity {
     /** Dynamic labels for the source WebView section. */
     private TextView uptodownTitle;
     private TextView uptodownExplanation;
-    private TextView githubWebButton;
 
     /** Active WebView source: "uptodown" or "apkpure". */
     private String webSource;
@@ -328,7 +327,6 @@ public class DownloadActivity extends Activity {
     private LinearLayout diagnosticsRows;
     private TextView diagnosticsSummary;
     private TextView retryButton;
-    private TextView githubButton;
     private TextView copyButton;
     private ResolutionReport report;
     private Set<String> retrySources;
@@ -1093,14 +1091,6 @@ public class DownloadActivity extends Activity {
         retryParams.topMargin = dp(10);
         diagnosticsCard.addView(retryButton, retryParams);
 
-        githubButton = secondaryButton("Search GitHub releases");
-        githubButton.setVisibility(View.GONE);
-        githubButton.setOnClickListener(v -> searchGitHub());
-        LinearLayout.LayoutParams githubParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-        githubParams.topMargin = dp(8);
-        diagnosticsCard.addView(githubButton, githubParams);
-
         copyButton = secondaryButton("Copy details");
         copyButton.setVisibility(View.GONE);
         copyButton.setOnClickListener(v -> copyDiagnostics());
@@ -1133,13 +1123,6 @@ public class DownloadActivity extends Activity {
         uptodownExplanation.setLineSpacing(dp(3), 1f);
         uptodownExplanation.setPadding(0, dp(8), 0, dp(12));
         uptodownSection.addView(uptodownExplanation);
-
-        githubWebButton = secondaryButton("This app is on GitHub");
-        githubWebButton.setOnClickListener(v -> searchGitHubFromWebView());
-        LinearLayout.LayoutParams githubWebParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
-        githubWebParams.bottomMargin = dp(10);
-        uptodownSection.addView(githubWebButton, githubWebParams);
 
         uptodownWebContainer = new FrameLayout(this);
         uptodownSection.addView(uptodownWebContainer, new LinearLayout.LayoutParams(
@@ -1403,8 +1386,6 @@ public class DownloadActivity extends Activity {
 
         retryButton.setVisibility(failed.isEmpty() ? View.GONE : View.VISIBLE);
         retryButton.setEnabled(true);
-        githubButton.setVisibility(View.VISIBLE);
-        githubButton.setEnabled(true);
         copyButton.setVisibility(View.VISIBLE);
     }
 
@@ -1416,99 +1397,34 @@ public class DownloadActivity extends Activity {
         startResolution(true);
     }
 
-    private void searchGitHubFromWebView() {
-        if (report == null) {
-            return;
+    private File downloadFromGitHubSearch(String pkg, String version, String fileType,
+                                           String[] abis) throws IOException {
+        List<GitHubReleaseResolver.Candidate> candidates =
+                GitHubReleaseResolver.search(requestedAppName, pkg, version, fileType, abis);
+        if (candidates.isEmpty()) {
+            throw new IOException("No matching GitHub release found");
         }
-        cancelWebFlowTimeout();
-        uptodownHandled = true;
-        if (uptodownWebView != null) {
-            uptodownWebContainer.removeView(uptodownWebView);
-            uptodownWebView.destroy();
-            uptodownWebView = null;
-        }
-        uptodownSection.setVisibility(View.GONE);
-        setPauseVisible(false);
-        stopDownloadService();
-        searchGitHub();
-    }
-
-    private void searchGitHub() {
-        if (report == null || TextUtils.isEmpty(requestPkg)) {
-            return;
-        }
-        githubButton.setEnabled(false);
-        diagnosticsCard.setVisibility(View.GONE);
-        fallbackButton.setVisibility(View.GONE);
-        progress.setVisibility(View.VISIBLE);
-        progress.setIndeterminate(true);
-        setPauseVisible(false);
-        setSourceLabel("GitHub");
-        setStatus("Searching GitHub...");
-        startDownloadService("Searching GitHub...");
-
-        executor.execute(() -> {
-            boolean[] recorded = {false};
+        IOException last = null;
+        for (GitHubReleaseResolver.Candidate candidate : candidates) {
             try {
-                List<GitHubReleaseResolver.Candidate> candidates =
-                        GitHubReleaseResolver.search(requestedAppName, requestPkg,
-                                requestVersion, requestFileType, requestAbis);
-                if (candidates.isEmpty()) {
-                    recorded[0] = true;
-                    markSource(SourceSettings.GITHUB, false,
-                            "No matching repository or release");
-                    throw new IOException("No matching GitHub release found");
-                }
-
-                Exception last = null;
-                for (GitHubReleaseResolver.Candidate candidate : candidates) {
-                    try {
-                        HelperLog.info("Trying GitHub " + candidate.repo + " "
-                                + candidate.tag + " (" + candidate.assetName + ")");
-                        File file = downloadFile(
-                                candidate.assetUrl,
-                                "https://github.com/" + candidate.repo
-                                        + "/releases/tag/" + candidate.tag,
-                                requestPkg,
-                                requestVersion,
-                                candidate.fileType
-                        );
-                        GitHubAppStore.put(this, requestPkg, candidate.repo,
-                                requestedAppName);
-                        markSource(SourceSettings.GITHUB, true,
-                                candidate.repo + " " + candidate.tag);
-                        deliverFile(file);
-                        return;
-                    } catch (Exception error) {
-                        last = error;
-                        recorded[0] = true;
-                        markSource(SourceSettings.GITHUB, false,
-                                candidate.repo + ": " + error.getMessage());
-                        HelperLog.error("GitHub asset failed: " + candidate.repo, error);
-                    }
-                }
-                throw last == null
-                        ? new IOException("No matching GitHub release found") : last;
-            } catch (Exception error) {
-                if (cancelled) {
-                    return;
-                }
-                if (!recorded[0]) {
-                    markSource(SourceSettings.GITHUB, false, error.getMessage());
-                }
-                report.finishFailure(error.getMessage());
-                HelperLog.info(report.resultBlock());
-                HelperLog.error("GitHub search failed", error);
-                stopDownloadService();
-                setPauseVisible(false);
-                runOnUiThread(() -> {
-                    progress.setIndeterminate(false);
-                    progress.setProgress(0);
-                    setStatus("GitHub search failed.");
-                    showFailure();
-                });
+                HelperLog.info("Trying GitHub " + candidate.repo + " "
+                        + candidate.tag + " (" + candidate.assetName + ")");
+                File file = downloadFile(
+                        candidate.assetUrl,
+                        "https://github.com/" + candidate.repo
+                                + "/releases/tag/" + candidate.tag,
+                        pkg,
+                        version,
+                        candidate.fileType
+                );
+                GitHubAppStore.put(this, pkg, candidate.repo, requestedAppName);
+                return file;
+            } catch (IOException error) {
+                last = error;
+                HelperLog.error("GitHub asset failed: " + candidate.repo, error);
             }
-        });
+        }
+        throw last == null ? new IOException("No matching GitHub release found") : last;
     }
 
     private boolean isRetryableWebDownload(Exception error) {
@@ -1931,6 +1847,22 @@ public class DownloadActivity extends Activity {
                 return file;
             } catch (Exception error) {
                 HelperLog.error("Remembered GitHub repo failed", error);
+                markSource(SourceSettings.GITHUB, false, error.getMessage());
+            }
+        }
+
+        // If no repository was remembered, search GitHub automatically as the final
+        // APK source. The manual GitHub button is intentionally gone.
+        if (retrySources == null || retrySources.contains(SourceSettings.GITHUB)) {
+            setSourceLabel("GitHub");
+            setStatus("Searching GitHub...");
+            HelperLog.info("Searching GitHub releases as last resort");
+            try {
+                File file = downloadFromGitHubSearch(pkg, version, fileType, abis);
+                markSource(SourceSettings.GITHUB, true, "automatic search");
+                return file;
+            } catch (Exception error) {
+                HelperLog.error("Automatic GitHub search failed", error);
                 markSource(SourceSettings.GITHUB, false, error.getMessage());
             }
         }
@@ -3477,5 +3409,6 @@ public class DownloadActivity extends Activity {
                 || "apkm".equalsIgnoreCase(fileType);
     }
 }
+
 
 
