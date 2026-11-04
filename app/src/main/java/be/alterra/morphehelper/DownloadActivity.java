@@ -1872,7 +1872,10 @@ public class DownloadActivity extends Activity {
 
         // If no repository was remembered, search GitHub automatically as the final
         // APK source. The manual GitHub button is intentionally gone.
-        if (retrySources == null || retrySources.contains(SourceSettings.GITHUB)) {
+        boolean hasRequestedVersion = !TextUtils.isEmpty(version)
+                && !"any".equalsIgnoreCase(version.trim());
+        if (hasRequestedVersion
+                && (retrySources == null || retrySources.contains(SourceSettings.GITHUB))) {
             setSourceLabel("GitHub");
             setStatus("Searching GitHub...");
             HelperLog.info("Searching GitHub releases as last resort");

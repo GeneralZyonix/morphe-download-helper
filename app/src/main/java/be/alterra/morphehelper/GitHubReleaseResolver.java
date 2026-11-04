@@ -93,6 +93,9 @@ final class GitHubReleaseResolver {
             Candidate candidate = assetFor(release, repo, fileType, abis);
             if (candidate != null) {
                 candidates.add(candidate);
+                if (noVersion(version)) {
+                    break;
+                }
             }
         }
         return candidates;
@@ -173,10 +176,15 @@ final class GitHubReleaseResolver {
     }
 
     private static boolean matchesVersion(String tag, String name, String version) {
-        if (version == null || version.trim().isEmpty()) {
+        if (noVersion(version)) {
             return true;
         }
         return normalize(tag).equals(normalize(version));
+    }
+
+    private static boolean noVersion(String version) {
+        return version == null || version.trim().isEmpty()
+                || "any".equalsIgnoreCase(version.trim());
     }
 
     private static String normalize(String value) {
@@ -252,6 +260,7 @@ final class GitHubReleaseResolver {
         }
     }
 }
+
 
 
 
