@@ -5,6 +5,16 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.4] - 2026-11-05
+
+### Fixed
+
+- APKMirror downloads no longer stall in the WebView when the Morphe resolver fallback
+  is disabled. The WebView now follows search results, release pages, and variant pages
+  automatically before pressing the download button.
+- APKMirror scroll links such as **Scroll to available downloads** and **Download** are
+  no longer mistaken for the final download button.
+
 ## [1.6.3] - 2026-11-05
 
 ### Fixed
