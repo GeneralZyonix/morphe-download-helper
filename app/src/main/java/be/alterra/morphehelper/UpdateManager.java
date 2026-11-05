@@ -230,11 +230,11 @@ final class UpdateManager {
 
     static void checkAsync(Context context, boolean manual, Callback callback) {
         if (!manual && !isEnabled(context)) {
-            callbackDone(callback, "Update checks are disabled.");
+            callbackDone(callback, context.getString(R.string.update_msg_checks_disabled));
             return;
         }
         if (!checking.compareAndSet(false, true)) {
-            callbackDone(callback, "Update check already running.");
+            callbackDone(callback, context.getString(R.string.update_msg_check_running));
             return;
         }
         Context app = context.getApplicationContext();
@@ -247,25 +247,25 @@ final class UpdateManager {
                 String skipped = prefs(app).getString(KEY_SKIPPED_VERSION, "");
                 if (!info.isNewerThan(UpdateChecker.installedVersion(app))) {
                     cancelNotification(app);
-                    message = "You are up to date (v" + info.version + ").";
+                    message = app.getString(R.string.update_msg_up_to_date, info.version);
                 } else if (info.version.equals(skipped)) {
                     cancelNotification(app);
-                    message = "Update v" + info.version + " is skipped.";
+                    message = app.getString(R.string.update_msg_skipped, info.version);
                 } else if (!manual && System.currentTimeMillis()
                         < prefs(app).getLong(KEY_SNOOZE_UNTIL, 0)) {
-                    message = "Update reminder is snoozed.";
+                    message = app.getString(R.string.update_msg_snoozed);
                 } else if (MODE_SHIZUKU.equals(mode(app))
                         && ShizukuHelper.status(app) == ShizukuHelper.READY
                         && !info.assetUrl.isEmpty()) {
-                    message = "Update v" + info.version + " found. Installing with Shizuku...";
+                    message = app.getString(R.string.update_msg_found_installing, info.version);
                     installUpdate(app, info);
                 } else {
                     notifyUpdate(app, info);
-                    message = "Update v" + info.version + " available.";
+                    message = app.getString(R.string.update_msg_available, info.version);
                 }
             } catch (Exception error) {
                 HelperLog.error("Update check failed", error);
-                message = "Update check failed: " + error.getMessage();
+                message = app.getString(R.string.update_msg_failed, error.getMessage());
             } finally {
                 checking.set(false);
             }
@@ -456,14 +456,14 @@ final class UpdateManager {
         if (manager == null) {
             return;
         }
-        createChannel(manager);
+        createChannel(context, manager);
         Intent open = new Intent(context, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         PendingIntent pending = PendingIntent.getActivity(context, 20, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        String text = "Morphe Download Helper was updated to version " + version + ".";
+        String text = context.getString(R.string.notif_updated_text, version);
         Notification.Builder builder = notificationBuilder(context)
-                .setContentTitle("Morphe Download Helper updated")
+                .setContentTitle(context.getString(R.string.notif_updated_title))
                 .setContentText(text)
                 .setStyle(new Notification.BigTextStyle().bigText(text))
                 .setContentIntent(pending)
@@ -477,16 +477,15 @@ final class UpdateManager {
         if (manager == null) {
             return;
         }
-        createChannel(manager);
+        createChannel(context, manager);
         Intent content = new Intent(context, UpdateActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         PendingIntent contentPending = PendingIntent.getActivity(context, 10, content,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        String text = "Morphe Download Helper v" + info.version
-                + " is available. Tap to see what's new and choose how to install it.";
+        String text = context.getString(R.string.notif_update_text, info.version);
         Notification.Builder builder = notificationBuilder(context)
-                .setContentTitle("Update available")
+                .setContentTitle(context.getString(R.string.notif_update_title))
                 .setContentText(text)
                 .setStyle(new Notification.BigTextStyle().bigText(text))
                 .setContentIntent(contentPending)
@@ -505,11 +504,12 @@ final class UpdateManager {
                 .setPriority(Notification.PRIORITY_LOW);
     }
 
-    private static void createChannel(NotificationManager manager) {
+    private static void createChannel(Context context, NotificationManager manager) {
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(
-                    CHANNEL, "Updates", NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setDescription("Morphe Download Helper updates");
+                    CHANNEL, context.getString(R.string.notif_channel_updates),
+                    NotificationManager.IMPORTANCE_DEFAULT);
+            channel.setDescription(context.getString(R.string.notif_channel_updates_desc));
             manager.createNotificationChannel(channel);
         }
     }

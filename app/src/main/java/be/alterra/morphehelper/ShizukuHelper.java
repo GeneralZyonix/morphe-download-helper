@@ -64,25 +64,26 @@ final class ShizukuHelper {
         }
     }
 
-    static String statusLabel(int status) {
+    static String statusLabel(Context context, int status) {
         switch (status) {
             case READY:
-                return "Ready";
+                return context.getString(R.string.shizuku_ready);
             case PERMISSION_REQUIRED:
-                return "Permission required";
+                return context.getString(R.string.shizuku_permission_required);
             case NOT_RUNNING:
-                return "Not running";
+                return context.getString(R.string.shizuku_not_running);
             case NOT_INSTALLED:
-                return "Not installed";
+                return context.getString(R.string.shizuku_not_installed);
             default:
-                return "Unsupported";
+                return context.getString(R.string.shizuku_unsupported);
         }
     }
 
     static void install(Context context, File apk, Callback callback) {
         int status = status(context);
         if (status != READY) {
-            callback.done(false, "Shizuku is " + statusLabel(status).toLowerCase());
+            callback.done(false, context.getString(
+                    R.string.shizuku_not_ready, statusLabel(context, status)));
             return;
         }
 
@@ -108,7 +109,9 @@ final class ShizukuHelper {
                     finished[0] = true;
                     Shizuku.unbindUserService(args, this, true);
                     main.post(() -> callback.done(result == 0,
-                            result == 0 ? "Update installed" : "Install exit code " + result));
+                            result == 0
+                                    ? context.getString(R.string.shizuku_update_installed)
+                                    : context.getString(R.string.shizuku_install_exit, result)));
                 } catch (Exception error) {
                     finished[0] = true;
                     Shizuku.unbindUserService(args, this, true);
@@ -132,7 +135,7 @@ final class ShizukuHelper {
                     Shizuku.unbindUserService(args, connection, true);
                 } catch (Exception ignored) {
                 }
-                callback.done(false, "Shizuku install timed out");
+                callback.done(false, context.getString(R.string.shizuku_install_timeout));
             }, 30_000);
         } catch (Exception error) {
             callback.done(false, String.valueOf(error.getMessage()));

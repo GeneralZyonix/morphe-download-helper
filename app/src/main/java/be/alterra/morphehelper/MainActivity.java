@@ -123,9 +123,9 @@ public class MainActivity extends Activity {
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(text("Morphe Download Helper", 22, TEXT, true));
+        titles.addView(text(getString(R.string.app_name), 22, TEXT, true));
 
-        TextView subtitle = text("APK download helper for Morphe", 14, MUTED, false);
+        TextView subtitle = text(getString(R.string.main_subtitle), 14, MUTED, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         titles.addView(subtitle);
 
@@ -146,7 +146,8 @@ public class MainActivity extends Activity {
         chip.addView(dot, new LinearLayout.LayoutParams(dp(8), dp(8)));
 
         TextView chipText = text(
-                morpheInstalled ? "Morphe detected" : "Morphe not installed",
+                morpheInstalled ? getString(R.string.main_status_detected)
+                        : getString(R.string.main_status_missing),
                 12,
                 morpheInstalled ? Color.parseColor("#A7F3D0") : Color.parseColor("#FDE68A"),
                 false
@@ -173,20 +174,15 @@ public class MainActivity extends Activity {
         cardParams.topMargin = dp(22);
         root.addView(card, cardParams);
 
-        card.addView(text("How to use", 16, TEXT, true));
+        card.addView(text(getString(R.string.main_how_to_use), 16, TEXT, true));
 
         // Keep these steps short; the Morphe side owns the actual trust flow.
-        TextView steps = text(
-                "1. Open Morphe\n"
-                        + "2. Settings → APK download helper\n"
-                        + "3. Trust “Morphe Download Helper”\n"
-                        + "4. Patch an app and choose “Use a helper app”",
-                14, STEPS, false);
+        TextView steps = text(getString(R.string.main_steps), 14, STEPS, false);
         steps.setLineSpacing(dp(4), 1f);
         steps.setPadding(0, dp(10), 0, 0);
         card.addView(steps);
 
-        TextView guideButton = secondaryButton("Visual guide", TEXT, SECONDARY_BORDER);
+        TextView guideButton = secondaryButton(getString(R.string.main_visual_guide), TEXT, SECONDARY_BORDER);
         guideButton.setOnClickListener(v ->
                 startActivity(new Intent(this, GuideActivity.class)));
         LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(
@@ -206,7 +202,7 @@ public class MainActivity extends Activity {
         sourcesParams.topMargin = dp(12);
         root.addView(sourcesCard, sourcesParams);
 
-        sourcesCard.addView(text("Download sources", 16, TEXT, true));
+        sourcesCard.addView(text(getString(R.string.main_sources_title), 16, TEXT, true));
 
         // Chips are laid out left-to-right; they are short enough for normal phones.
         LinearLayout sourcesRow = new LinearLayout(this);
@@ -219,7 +215,7 @@ public class MainActivity extends Activity {
 
         // 1. APKPure fast path when a versionCode is available.
         TextView pureChip = sourceChip(
-                "APKPure",
+                getString(R.string.source_apkpure),
                 Color.parseColor("#064E3B"),
                 Color.parseColor("#A7F3D0"));
         LinearLayout.LayoutParams pureChipParams = new LinearLayout.LayoutParams(
@@ -229,7 +225,7 @@ public class MainActivity extends Activity {
 
         // 2. Morphe resolver/fallback link.
         TextView morpheChip = sourceChip(
-                "Morphe link",
+                getString(R.string.main_source_morphe_link),
                 Color.parseColor("#312E81"),
                 Color.parseColor("#C7D2FE"));
         LinearLayout.LayoutParams morpheChipParams = new LinearLayout.LayoutParams(
@@ -239,7 +235,7 @@ public class MainActivity extends Activity {
 
         // 3. APKMirror search by package name and requested version.
         TextView mirrorChip = sourceChip(
-                "APKMirror",
+                getString(R.string.source_apkmirror),
                 Color.parseColor("#1E3A8A"),
                 Color.parseColor("#BFDBFE"));
         sourcesRow.addView(mirrorChip, new LinearLayout.LayoutParams(
@@ -254,7 +250,7 @@ public class MainActivity extends Activity {
         sourcesCard.addView(sourcesRow2, sourcesRow2Params);
 
         TextView fdroidChip = sourceChip(
-                "F-Droid",
+                getString(R.string.source_fdroid),
                 Color.parseColor("#0F766E"),
                 Color.parseColor("#CCFBF1"));
         LinearLayout.LayoutParams fdroidChipParams = new LinearLayout.LayoutParams(
@@ -263,7 +259,7 @@ public class MainActivity extends Activity {
         sourcesRow2.addView(fdroidChip, fdroidChipParams);
 
         TextView aptoideChip = sourceChip(
-                "Aptoide",
+                getString(R.string.source_aptoide),
                 Color.parseColor("#7C2D12"),
                 Color.parseColor("#FED7AA"));
         LinearLayout.LayoutParams aptoideChipParams = new LinearLayout.LayoutParams(
@@ -272,7 +268,7 @@ public class MainActivity extends Activity {
         sourcesRow2.addView(aptoideChip, aptoideChipParams);
 
         TextView apptekaChip = sourceChip(
-                "\u26A0 Appteka",
+                getString(R.string.main_source_appteka),
                 Color.parseColor("#7F1D1D"),
                 Color.parseColor("#FECACA"));
         LinearLayout.LayoutParams apptekaChipParams = new LinearLayout.LayoutParams(
@@ -281,23 +277,19 @@ public class MainActivity extends Activity {
         sourcesRow2.addView(apptekaChip, apptekaChipParams);
 
         TextView uptodownChip = sourceChip(
-                "Uptodown",
+                getString(R.string.source_uptodown),
                 Color.parseColor("#4C1D95"),
                 Color.parseColor("#DDD6FE"));
         sourcesRow2.addView(uptodownChip, new LinearLayout.LayoutParams(
                 WRAP_CONTENT, WRAP_CONTENT));
 
         TextView disabledSource = text(
-                "Tries in this order. Appteka is limited to SnapTube by default; "
-                        + "source details and browser fallbacks are in Settings.",
-                12,
-                MUTED,
-                false);
+                getString(R.string.main_sources_note), 12, MUTED, false);
         disabledSource.setPadding(0, dp(12), 0, 0);
         sourcesCard.addView(disabledSource);
 
         // Open the source settings screen.
-        TextView sourceSettings = secondaryButton("Settings", TEXT, SECONDARY_BORDER);
+        TextView sourceSettings = secondaryButton(getString(R.string.common_settings), TEXT, SECONDARY_BORDER);
         sourceSettings.setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
         LinearLayout.LayoutParams sourceSettingsParams = new LinearLayout.LayoutParams(
@@ -308,7 +300,7 @@ public class MainActivity extends Activity {
         // -----------------------------------------------------------------
         // Primary action and maintenance buttons
         // -----------------------------------------------------------------
-        TextView openMorphe = primaryButton("Open Morphe");
+        TextView openMorphe = primaryButton(getString(R.string.main_open_morphe));
         openMorphe.setOnClickListener(v -> openMorphe());
         LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(MATCH_PARENT, dp(54));
         openParams.topMargin = dp(20);
@@ -321,23 +313,23 @@ public class MainActivity extends Activity {
         logRowParams.topMargin = dp(10);
         root.addView(logRow, logRowParams);
 
-        TextView shareLog = secondaryButton("Share log", TEXT, SECONDARY_BORDER);
+        TextView shareLog = secondaryButton(getString(R.string.main_share_log), TEXT, SECONDARY_BORDER);
         shareLog.setOnClickListener(v -> shareLog());
         LinearLayout.LayoutParams shareParams = new LinearLayout.LayoutParams(0, dp(50), 1f);
         shareParams.setMarginEnd(dp(6));
         logRow.addView(shareLog, shareParams);
 
-        TextView clearLog = secondaryButton("Clear log", TEXT, SECONDARY_BORDER);
+        TextView clearLog = secondaryButton(getString(R.string.main_clear_log), TEXT, SECONDARY_BORDER);
         clearLog.setOnClickListener(v -> {
             HelperLog.clear();
-            Toast.makeText(this, "Log cleared.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.main_log_cleared, Toast.LENGTH_SHORT).show();
         });
         LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(0, dp(50), 1f);
         clearParams.setMarginStart(dp(6));
         logRow.addView(clearLog, clearParams);
 
         // Red-tinted destructive action. Android shows its own uninstall confirmation.
-        TextView uninstall = secondaryButton("Uninstall helper", RED, RED_BORDER);
+        TextView uninstall = secondaryButton(getString(R.string.main_uninstall), RED, RED_BORDER);
         uninstall.setOnClickListener(v -> {
             Intent intent = new Intent(
                     Intent.ACTION_DELETE,
@@ -359,7 +351,7 @@ public class MainActivity extends Activity {
         aboutParams.topMargin = dp(16);
         root.addView(about, aboutParams);
 
-        about.addView(text("About", 16, TEXT, true));
+        about.addView(text(getString(R.string.main_about), 16, TEXT, true));
 
         LinearLayout aboutHeader = new LinearLayout(this);
         aboutHeader.setOrientation(LinearLayout.HORIZONTAL);
@@ -374,7 +366,7 @@ public class MainActivity extends Activity {
         LinearLayout aboutText = new LinearLayout(this);
         aboutText.setOrientation(LinearLayout.VERTICAL);
         aboutText.addView(text("GeneralZyonix", 16, TEXT, true));
-        TextView role = text("Developer of Morphe Download Helper", 12, MUTED, false);
+        TextView role = text(getString(R.string.main_developer_role), 12, MUTED, false);
         role.setPadding(0, dp(3), 0, 0);
         aboutText.addView(role);
         aboutHeader.addView(aboutText, new LinearLayout.LayoutParams(
@@ -385,7 +377,8 @@ public class MainActivity extends Activity {
         links.setOrientation(LinearLayout.HORIZONTAL);
         links.setPadding(0, dp(14), 0, 0);
         links.addView(linkButton("GitHub", "https://github.com/GeneralZyonix/morphe-download-helper"));
-        links.addView(linkButton("Releases", "https://github.com/GeneralZyonix/morphe-download-helper/releases"));
+        links.addView(linkButton(getString(R.string.main_link_releases),
+                "https://github.com/GeneralZyonix/morphe-download-helper/releases"));
         links.addView(linkButton("Reddit", "https://www.reddit.com/r/MorpheApp/comments/1xjmnf3/i_made_an_helper_that_fetches_the_right_apk_for/"));
         about.addView(links);
 
@@ -426,11 +419,12 @@ public class MainActivity extends Activity {
             try {
                 startActivity(launch);
             } catch (Exception e) {
-                Toast.makeText(this, "Could not open Morphe: " + e.getMessage(),
+                Toast.makeText(this,
+                        getString(R.string.main_error_open_morphe, e.getMessage()),
                         Toast.LENGTH_LONG).show();
             }
         } else {
-            Toast.makeText(this, "Morphe is not installed.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.main_error_morphe_missing, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -443,7 +437,7 @@ public class MainActivity extends Activity {
     private void shareLog() {
         File log = HelperLog.getLogFile();
         if (log == null || !log.exists()) {
-            Toast.makeText(this, "No log yet.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.main_error_no_log, Toast.LENGTH_LONG).show();
             return;
         }
         try {
@@ -455,11 +449,12 @@ public class MainActivity extends Activity {
             Intent send = new Intent(Intent.ACTION_SEND);
             send.setType("text/plain");
             send.putExtra(Intent.EXTRA_STREAM, uri);
-            send.putExtra(Intent.EXTRA_SUBJECT, "Morphe Download Helper log");
+            send.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.main_log_subject));
             send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(send, "Share helper log"));
+            startActivity(Intent.createChooser(send, getString(R.string.main_share_log_title)));
         } catch (Exception e) {
-            Toast.makeText(this, "Could not share log: " + e.getMessage(),
+            Toast.makeText(this,
+                    getString(R.string.main_error_share_log, e.getMessage()),
                     Toast.LENGTH_LONG).show();
         }
     }

@@ -64,7 +64,7 @@ final class SourceTester {
                                 + "?package=com.snaptube.premium&locale=en");
                         break;
                     default:
-                        throw new IOException("Unknown source");
+                        throw new IOException(context.getString(R.string.source_test_unknown_source));
                 }
                 Request request = builder.build();
                 try (Response response = HTTP.newCall(request).execute()) {
@@ -73,7 +73,9 @@ final class SourceTester {
                     message = "HTTP " + code;
                 }
             } catch (Exception e) {
-                message = e.getMessage() == null ? "Failed" : e.getMessage();
+                message = e.getMessage() == null
+                        ? context.getString(R.string.source_test_failed)
+                        : e.getMessage();
             }
             SourceHealth.record(context, key, ok, message);
             callback.done(ok, message);

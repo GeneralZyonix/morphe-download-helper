@@ -2,4 +2,351 @@
 <resources>
     <!-- Launcher label and the title used by the in-app screens. -->
     <string name="app_name">Morphe Download Helper</string>
+
+    <!-- Shared labels. -->
+    <string name="common_settings">Settings</string>
+    <string name="common_update">Update</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_close">Close</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_done">Done</string>
+    <string name="common_back">Back</string>
+    <string name="common_ok">OK</string>
+    <string name="common_failed">FAILED</string>
+
+    <!-- Launcher screen. -->
+    <string name="main_subtitle">APK download helper for Morphe</string>
+    <string name="main_status_detected">Morphe detected</string>
+    <string name="main_status_missing">Morphe not installed</string>
+    <string name="main_how_to_use">How to use</string>
+    <string name="main_steps">1. Open Morphe\n2. Settings → APK download helper\n3. Trust “Morphe Download Helper”\n4. Patch an app and choose “Use a helper app”</string>
+    <string name="main_visual_guide">Visual guide</string>
+    <string name="main_sources_title">Download sources</string>
+    <string name="main_source_morphe_link">Morphe link</string>
+    <string name="main_source_appteka">\u26A0 Appteka</string>
+    <string name="main_sources_note">Tries in this order. Appteka is limited to SnapTube by default; source details and browser fallbacks are in Settings.</string>
+    <string name="main_open_morphe">Open Morphe</string>
+    <string name="main_share_log">Share log</string>
+    <string name="main_clear_log">Clear log</string>
+    <string name="main_log_cleared">Log cleared.</string>
+    <string name="main_uninstall">Uninstall helper</string>
+    <string name="main_about">About</string>
+    <string name="main_developer_role">Developer of Morphe Download Helper</string>
+    <string name="main_link_releases">Releases</string>
+    <string name="main_error_open_morphe">Could not open Morphe: %1$s</string>
+    <string name="main_error_morphe_missing">Morphe is not installed.</string>
+    <string name="main_error_no_log">No log yet.</string>
+    <string name="main_log_subject">Morphe Download Helper log</string>
+    <string name="main_share_log_title">Share helper log</string>
+    <string name="main_error_share_log">Could not share log: %1$s</string>
+
+    <!-- Visual setup guide. -->
+    <string name="guide_title">Visual setup guide</string>
+    <string name="guide_intro">Enable the helper in Morphe and optionally let Morphe open it automatically.</string>
+    <string name="guide_step1_title">Open Morphe Settings</string>
+    <string name="guide_step1_body">Tap Settings in the bottom bar, scroll to Files, then tap APK download helper.</string>
+    <string name="guide_step2_title">Trust the helper</string>
+    <string name="guide_step2_body">Find Morphe Download Helper and turn on its toggle. Confirm the Trust prompt.</string>
+    <string name="guide_step3_title">Optional: open it right away</string>
+    <string name="guide_step3_body">Turn on Open helper right away to skip Morphe’s download instructions.</string>
+    <string name="guide_step4_title">Use it while patching</string>
+    <string name="guide_step4_body">Patch an app and choose Use a helper app. Wait for the download; the helper returns the APK automatically.</string>
+
+    <!-- Update screen. -->
+    <string name="update_current_version">Current version</string>
+    <string name="update_loading">Loading latest release…</string>
+    <string name="update_whats_new">What’s new</string>
+    <string name="update_whats_new_in">What’s new in v%1$s</string>
+    <string name="update_error_loading">Could not load release notes: %1$s</string>
+    <string name="update_versions">Current v%1$s  •  Latest v%2$s</string>
+    <string name="update_available">Morphe Download Helper v%1$s is available.</string>
+    <string name="update_up_to_date">You are up to date.</string>
+    <string name="update_already_up_to_date">You are already up to date.</string>
+    <string name="update_install_normal">Install normally</string>
+    <string name="update_install_shizuku">Install via Shizuku</string>
+    <string name="update_remind_later">Remind me later</string>
+    <string name="update_skip_version">Skip this version</string>
+    <string name="update_error_no_asset">This update has no downloadable APK asset.</string>
+    <string name="update_downloading">Downloading update v%1$s…</string>
+    <string name="update_error_mismatch">Downloaded update does not match this helper.</string>
+    <string name="update_installing_shizuku">Installing with Shizuku…</string>
+    <string name="update_opening_installer">Opening Android installer…</string>
+    <string name="update_error_failed">Update failed: %1$s</string>
+    <string name="update_installed">Update installed. Reopen the helper.</string>
+    <string name="update_error_shizuku">Shizuku failed: %1$s. Opening Android installer…</string>
+    <string name="update_installer_opened">Android installer opened. Follow the prompt.</string>
+    <string name="update_error_installer">Could not open installer: %1$s</string>
+
+    <!-- Settings screen. -->
+    <string name="settings_subtitle">Sources, storage, and download order</string>
+    <string name="settings_sources">Sources</string>
+    <string name="settings_sources_hint">Disabled sources are skipped completely. At least one source must stay enabled.</string>
+    <string name="settings_webview_hint">APKPure may use an in-app WebView. Uptodown uses an in-app verification page.</string>
+    <string name="settings_source_apkpure_desc">Fast direct/API path, then WebView fallback</string>
+    <string name="settings_source_fallback_title">Morphe fallback link</string>
+    <string name="settings_source_fallback_desc">Resolver link supplied by Morphe</string>
+    <string name="settings_source_apkmirror_desc">Package and version search</string>
+    <string name="settings_source_uptodown_title">Uptodown fallback</string>
+    <string name="settings_source_uptodown_desc">In-app WebView verification page</string>
+    <string name="settings_source_fdroid_desc">Open-source repository; only apps it hosts</string>
+    <string name="settings_source_aptoide_desc">API search; only uploads marked TRUSTED</string>
+    <string name="settings_source_appteka_title">\u26A0 Appteka</string>
+    <string name="settings_source_appteka_desc">Modded APK catalog; not recommended for apps other than SnapTube</string>
+    <string name="settings_updates">Updates</string>
+    <string name="settings_status_not_checked">Current v%1$s • Not checked yet</string>
+    <string name="settings_status_available">Current v%1$s • v%2$s available</string>
+    <string name="settings_status_up_to_date">Current v%1$s • Up to date</string>
+    <string name="settings_check_updates">Check for updates</string>
+    <string name="settings_check_updates_detail">Notify me when a new release exists</string>
+    <string name="settings_checks_enabled">Update checks enabled.</string>
+    <string name="settings_checks_disabled">Update checks disabled.</string>
+    <string name="settings_mode_shizuku">Automatic via Shizuku</string>
+    <string name="settings_mode_notify">Notify me when available</string>
+    <string name="settings_update_mode">Update mode</string>
+    <string name="settings_mode_notify_option">Notify me when available</string>
+    <string name="settings_mode_shizuku_option">Automatically update via Shizuku</string>
+    <string name="settings_check_now">Check now</string>
+    <string name="settings_checking">Checking for updates…</string>
+    <string name="settings_changelog">Changelog</string>
+    <string name="settings_view_update">View update v%1$s</string>
+    <string name="settings_shizuku_note">Shizuku auto-update requires Shizuku to be installed, running, and approved. If it is unavailable, the helper falls back to a notification.</string>
+    <string name="settings_background">Background</string>
+    <string name="settings_battery_optimization">Battery optimization</string>
+    <string name="settings_battery_unrestricted">Unrestricted</string>
+    <string name="settings_battery_already_unrestricted">Battery optimization is already unrestricted for this app.</string>
+    <string name="settings_battery_optimized">Optimized — may delay checks</string>
+    <string name="settings_battery_note">Allow Morphe Helper to run without battery restrictions so update checks, downloads, and notifications are not delayed.</string>
+    <string name="settings_battery_dialog_title">Allow background updates?</string>
+    <string name="settings_battery_dialog_message">Android may delay update checks and notifications while this app is battery optimized. Request an exemption so updates can run reliably.</string>
+    <string name="settings_not_now">Not now</string>
+    <string name="settings_request_exemption">Request exemption</string>
+    <string name="settings_automatic_enabled">Automatic updates enabled via Shizuku.</string>
+    <string name="settings_shizuku_denied">Shizuku permission denied. Using notifications.</string>
+    <string name="settings_shizuku_dialog_title">Allow Shizuku updates?</string>
+    <string name="settings_shizuku_dialog_message">Shizuku will be asked to install helper updates silently. You can remove this permission in Shizuku at any time.</string>
+    <string name="settings_use_notifications">Use notifications</string>
+    <string name="settings_grant_permission">Grant permission</string>
+    <string name="settings_shizuku_not_running_title">Shizuku is not running</string>
+    <string name="settings_shizuku_not_running_message">Start Shizuku first, then return here to enable automatic updates.</string>
+    <string name="settings_open_shizuku">Open Shizuku</string>
+    <string name="settings_shizuku_not_installed_title">Shizuku is not installed</string>
+    <string name="settings_shizuku_not_installed_message">Install Shizuku to enable silent automatic updates. Without it, updates are announced by notification.</string>
+    <string name="settings_get_shizuku">Get Shizuku</string>
+    <string name="settings_shizuku_unsupported">This Shizuku version is not supported.</string>
+    <string name="settings_storage">Storage</string>
+    <string name="settings_download_folder">Download folder</string>
+    <string name="settings_folder_public">Downloads/Morphe Helper (default)</string>
+    <string name="settings_folder_internal">Internal app cache</string>
+    <string name="settings_folder_external">App external storage</string>
+    <string name="settings_folder_custom">Choose another folder…</string>
+    <string name="settings_keep_downloads">Keep downloads</string>
+    <string name="settings_retention_1h">Delete after 1 hour</string>
+    <string name="settings_retention_24h">Delete after 24 hours</string>
+    <string name="settings_retention_7d">Delete after 7 days</string>
+    <string name="settings_keep_forever">Keep downloads</string>
+    <string name="settings_cleanup_note">Cleanup runs when the helper opens, so downloads are not slowed down.</string>
+    <string name="settings_delete_all">Delete all downloaded APKs</string>
+    <string name="settings_delete_dialog_title">Delete downloaded APKs?</string>
+    <string name="settings_delete_dialog_message">This removes every file in the selected download folder.</string>
+    <string name="settings_no_folder_picker">No folder picker available.</string>
+    <string name="settings_storage_denied">Storage permission denied. Keeping the current folder.</string>
+    <string name="settings_appteka_title">\u26A0 Appteka warning</string>
+    <string name="settings_appteka_message">Appteka hosts modded APKs, including modified versions of popular apps. We do not recommend enabling Appteka for any app other than SnapTube. Modded APKs can contain altered code, behave unpredictably, or be rejected by Morphe.</string>
+    <string name="settings_appteka_snaptube_only">Only use Appteka for SnapTube</string>
+    <string name="settings_appteka_snaptube_only_detail">Recommended. Turn off to use Appteka for every app.</string>
+    <string name="settings_appteka_all_apps_warning">Appteka is now an extra source for every app. Use at your own risk.</string>
+    <string name="settings_appteka_off_note">When this is off, Appteka is tried in the source order for all apps, not just SnapTube.</string>
+    <string name="settings_github_apps">GitHub apps</string>
+    <string name="settings_github_apps_note">Remembered GitHub release sources. Remove an app if it becomes available on a regular APK source.</string>
+    <string name="settings_github_apps_empty">No GitHub apps remembered yet. Use Search GitHub releases on a failed download to add one.</string>
+    <string name="settings_remove_github_app">Remove GitHub app %1$s</string>
+    <string name="settings_github_app_removed">%1$s removed from GitHub apps.</string>
+    <string name="settings_source_order">Source order</string>
+    <string name="settings_source_order_note">Use the arrows to change which source is tried first.</string>
+    <string name="settings_reset_order">Reset to default order</string>
+    <string name="settings_test">Test</string>
+    <string name="settings_testing">…</string>
+    <string name="settings_test_result">%1$s: %2$s</string>
+    <string name="settings_min_one_source">Keep at least one source enabled.</string>
+    <string name="settings_move_up">Move up</string>
+    <string name="settings_move_down">Move down</string>
+    <plurals name="settings_files_deleted">
+        <item quantity="one">%1$d file deleted.</item>
+        <item quantity="other">%1$d files deleted.</item>
+    </plurals>
+
+    <!-- Download screen. -->
+    <string name="download_subtitle">Fetching the original APK</string>
+    <string name="download_sources_summary">Sources: APKPure → Morphe → APKMirror → F-Droid → Aptoide → Appteka (SnapTube)</string>
+    <string name="download_tried_title">What was tried</string>
+    <string name="download_retry_failed">Retry failed sources</string>
+    <string name="download_copy_details">Copy details</string>
+    <string name="download_uptodown_title">Uptodown verification</string>
+    <string name="download_uptodown_explanation">Uptodown needs a quick Cloudflare check. The official download page is shown below. Wait for the download button, then tap it if the download does not start automatically. The APK will be returned to Morphe.</string>
+    <string name="download_open_page">Open download page</string>
+    <string name="download_pause">Pause</string>
+    <string name="download_resume">Resume</string>
+    <string name="download_error_no_package">Morphe did not send a package name.</string>
+    <string name="download_opening_uptodown">Opening Uptodown…</string>
+    <string name="download_preparing">Preparing %1$s…</string>
+    <string name="download_retrying">Retrying failed sources…</string>
+    <string name="download_resolving">Resolving APK…</string>
+    <string name="download_error_no_match">Could not find a matching APK.</string>
+    <string name="download_done">Done: %1$s</string>
+    <string name="download_opening_apkmirror">Opening APKMirror…</string>
+    <string name="download_apkpure_title">APKPure download</string>
+    <string name="download_apkpure_explanation">APKPure uses Cloudflare protection. If a search page appears, tap the app result first. On the app page, tap Download APK (not the APKPure app button). The helper will capture the XAPK or APK and return it to Morphe.</string>
+    <string name="download_apkmirror_title">APKMirror verification</string>
+    <string name="download_apkmirror_explanation">APKMirror needs a quick Cloudflare check. The exact download page is shown below. The helper will press the download button automatically once the page is ready.</string>
+    <string name="download_error_page_timeout">The download page took too long to respond.</string>
+    <string name="download_error_page_timeout_detail">Timed out waiting for the download page</string>
+    <string name="download_downloading_from">Downloading from %1$s…</string>
+    <string name="download_source_label">Source: %1$s</string>
+    <string name="source_label_apkpure_direct">APKPure direct</string>
+    <string name="source_label_apkpure_api">APKPure API</string>
+    <string name="source_label_apkpure_xapk">APKPure XAPK</string>
+    <string name="source_label_apkpure_webview">APKPure WebView</string>
+    <string name="source_label_apkmirror">APKMirror</string>
+    <string name="source_label_apkmirror_webview">APKMirror WebView</string>
+    <string name="source_label_uptodown_webview">Uptodown WebView</string>
+    <string name="source_label_github">GitHub</string>
+    <string name="source_label_morphe_resolver">Morphe resolver</string>
+    <string name="source_label_morphe_fallback">Morphe fallback</string>
+    <string name="source_label_fdroid">F-Droid</string>
+    <string name="source_label_aptoide">Aptoide</string>
+    <string name="source_label_appteka">Appteka</string>
+    <string name="download_resuming">Resuming download…</string>
+    <string name="download_paused">Paused</string>
+    <string name="download_error_no_match_detail">No matching APK was found.</string>
+    <string name="download_checking_version">Checking installed version…</string>
+    <string name="download_trying_apkpure_direct">Trying APKPure direct…</string>
+    <string name="download_resolving_apkpure_api">Resolving APKPure API…</string>
+    <string name="download_using_cached_resolver">Using cached resolver…</string>
+    <string name="download_checking_resolver">Checking Morphe resolver…</string>
+    <string name="download_resolver_found">Resolver found %1$s…</string>
+    <string name="download_checking_github_release">Checking GitHub release…</string>
+    <string name="download_trying_fallback">Trying fallback URL…</string>
+    <string name="download_searching_apkmirror">Searching APKMirror…</string>
+    <string name="download_trying_xapk">Trying APKPure XAPK fallback…</string>
+    <string name="download_checking_fdroid">Checking F-Droid…</string>
+    <string name="download_searching_aptoide">Searching Aptoide…</string>
+    <string name="download_searching_appteka">Searching Appteka…</string>
+    <string name="download_checking_github_releases">Checking GitHub releases…</string>
+    <string name="download_searching_github">Searching GitHub…</string>
+    <string name="download_opening_apkpure">Opening APKPure page…</string>
+    <string name="download_checking_apkmirror_page">Checking APKMirror page…</string>
+    <string name="download_fetching_key">Fetching APKMirror download key…</string>
+    <string name="download_starting_apkmirror">Starting APKMirror download…</string>
+    <string name="download_starting">Starting download…</string>
+    <string name="download_progress">Downloading… %1$d%% • %2$s</string>
+    <string name="download_progress_eta">Downloading… %1$d%% • %2$s • %3$ds left</string>
+    <string name="download_diagnostics_copied">Diagnostics copied.</string>
+    <string name="download_diagnostics_clip_label">Morphe Download Helper diagnostics</string>
+    <string name="download_notification_default">Downloading…</string>
+    <plurals name="download_tried_sources">
+        <item quantity="one">%1$d source attempt.</item>
+        <item quantity="other">%1$d source attempts.</item>
+    </plurals>
+
+    <!-- Source attempt details shown in diagnostics. -->
+    <string name="source_detail_opened_uptodown">Opened Uptodown</string>
+    <string name="source_detail_resolver_apkpure">Resolver APKPure</string>
+    <string name="source_detail_resolver_apkmirror">Resolver APKMirror</string>
+    <string name="source_detail_resolver_direct">Resolver direct file</string>
+    <string name="source_detail_resolver_no_file">Resolver did not produce a file</string>
+    <string name="source_detail_no_resolver_result">No resolver result</string>
+    <string name="source_detail_fallback_link">fallback link</string>
+    <string name="source_detail_search">search</string>
+    <string name="source_detail_xapk_fallback">XAPK fallback</string>
+    <string name="source_detail_package_api">package API</string>
+    <string name="source_detail_trusted_upload">TRUSTED upload</string>
+    <string name="source_detail_catalog">catalog</string>
+    <string name="source_detail_automatic_search">automatic search</string>
+    <string name="source_detail_webview">WebView</string>
+
+    <!-- Download source names. -->
+    <string name="source_apkpure">APKPure</string>
+    <string name="source_morphe_link">Morphe link</string>
+    <string name="source_apkmirror">APKMirror</string>
+    <string name="source_uptodown">Uptodown</string>
+    <string name="source_fdroid">F-Droid</string>
+    <string name="source_aptoide">Aptoide</string>
+    <string name="source_appteka">Appteka</string>
+    <string name="source_github_releases">GitHub releases</string>
+
+    <!-- Update manager notifications and messages. -->
+    <string name="update_msg_checks_disabled">Update checks are disabled.</string>
+    <string name="update_msg_check_running">Update check already running.</string>
+    <string name="update_msg_up_to_date">You are up to date (v%1$s).</string>
+    <string name="update_msg_skipped">Update v%1$s is skipped.</string>
+    <string name="update_msg_snoozed">Update reminder is snoozed.</string>
+    <string name="update_msg_found_installing">Update v%1$s found. Installing with Shizuku…</string>
+    <string name="update_msg_available">Update v%1$s available.</string>
+    <string name="update_msg_failed">Update check failed: %1$s</string>
+    <string name="notif_updated_title">Morphe Download Helper updated</string>
+    <string name="notif_updated_text">Morphe Download Helper was updated to version %1$s.</string>
+    <string name="notif_update_title">Update available</string>
+    <string name="notif_update_text">Morphe Download Helper v%1$s is available. Tap to see what’s new and choose how to install it.</string>
+    <string name="notif_channel_updates">Updates</string>
+    <string name="notif_channel_updates_desc">Morphe Download Helper updates</string>
+    <string name="notif_channel_downloads">Downloads</string>
+    <string name="notif_channel_downloads_desc">APK download progress</string>
+
+    <!-- Shizuku status. -->
+    <string name="shizuku_ready">Ready</string>
+    <string name="shizuku_permission_required">Permission required</string>
+    <string name="shizuku_not_running">Not running</string>
+    <string name="shizuku_not_installed">Not installed</string>
+    <string name="shizuku_unsupported">Unsupported</string>
+    <string name="shizuku_not_ready">Shizuku is %1$s</string>
+    <string name="shizuku_update_installed">Update installed</string>
+    <string name="shizuku_install_exit">Install exit code %1$d</string>
+    <string name="shizuku_install_timeout">Shizuku install timed out</string>
+
+    <!-- Source health. -->
+    <string name="source_health_not_tested">Not tested yet</string>
+    <string name="source_health_failed">Failed</string>
+
+    <!-- Download locations. -->
+    <string name="location_external">App external storage</string>
+    <string name="location_internal">Internal app cache</string>
+    <string name="location_custom">Custom: %1$s</string>
+    <string name="location_custom_folder">Custom folder</string>
+
+    <!-- Failure reasons shown to the user. -->
+    <string name="error_unknown">Unknown error</string>
+    <string name="error_prefix_direct">Direct: </string>
+    <string name="error_prefix_api">API: </string>
+    <string name="error_http_404">Not found (HTTP 404)</string>
+    <string name="error_http_403">Access blocked (HTTP 403)</string>
+    <string name="error_http_429">Rate limited (HTTP 429)</string>
+    <string name="error_timeout">Connection timed out</string>
+    <string name="error_html">Source returned a web page instead of a file</string>
+    <string name="error_version_not_found">Requested version not found</string>
+    <string name="error_no_matching_version">No matching version found</string>
+    <string name="error_no_matching_app">No matching app found</string>
+    <string name="error_no_source">No source found a matching APK</string>
+    <string name="error_cancelled">Cancelled</string>
+    <string name="source_test_failed">Failed</string>
+    <string name="source_test_unknown_source">Unknown source</string>
+
+    <!-- Diagnostic report copied by the user. -->
+    <string name="report_result_title">========== DOWNLOAD RESULT ==========</string>
+    <string name="report_request">Request: %1$s %2$s</string>
+    <string name="report_result">Result: %1$s</string>
+    <string name="report_success">SUCCESS</string>
+    <string name="report_failed">FAILED</string>
+    <string name="report_duration">Duration: %1$s</string>
+    <string name="report_sources_tried">Sources tried:</string>
+    <string name="report_none">  None</string>
+    <string name="report_source_line">%1$d. %2$s - %3$s</string>
+    <string name="report_file">File: %1$s</string>
+    <string name="report_size">Size: %1$s</string>
+    <string name="report_reason">Reason: %1$s</string>
+    <string name="report_what_you_can_do">What you can do:</string>
+    <string name="report_action_retry">  - Tap Retry failed sources.</string>
+    <string name="report_action_check_version">  - Check that this version is available.</string>
+    <string name="report_action_change_order">  - Change the source order in Settings.</string>
+    <string name="report_end">========== END REQUEST ==========</string>
+    <string name="report_unknown">unknown</string>
 </resources>
