@@ -459,6 +459,71 @@ public class SettingsActivity extends Activity {
         uploadRow.addView(uploadSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(uploadRow);
 
+        LinearLayout alwaysUploadRow = new LinearLayout(this);
+        alwaysUploadRow.setOrientation(LinearLayout.HORIZONTAL);
+        alwaysUploadRow.setGravity(Gravity.CENTER_VERTICAL);
+        alwaysUploadRow.setPadding(0, dp(8), 0, dp(8));
+        LinearLayout alwaysUploadLabels = new LinearLayout(this);
+        alwaysUploadLabels.setOrientation(LinearLayout.VERTICAL);
+        alwaysUploadLabels.addView(text("Always upload to VirusTotal", 14, TEXT, true));
+        TextView alwaysUploadDetail = text(
+                "Skip hash lookup and upload every downloaded APK", 12, MUTED, false);
+        alwaysUploadDetail.setPadding(0, dp(3), 0, 0);
+        alwaysUploadLabels.addView(alwaysUploadDetail);
+        alwaysUploadRow.addView(alwaysUploadLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch alwaysUploadSwitch = new Switch(this);
+        alwaysUploadSwitch.setChecked(AppSettings.virusTotalAlwaysUpload(this));
+        alwaysUploadSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        alwaysUploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        alwaysUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setVirusTotalAlwaysUpload(this, isChecked);
+            if (isChecked) {
+                Toast.makeText(this,
+                        "Every download will now wait for a VirusTotal upload. "
+                                + "New-file uploads do not consume lookup quota.",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+        alwaysUploadRow.addView(alwaysUploadSwitch,
+                new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(alwaysUploadRow);
+
+        LinearLayout quotaUploadRow = new LinearLayout(this);
+        quotaUploadRow.setOrientation(LinearLayout.HORIZONTAL);
+        quotaUploadRow.setGravity(Gravity.CENTER_VERTICAL);
+        quotaUploadRow.setPadding(0, dp(8), 0, dp(8));
+        LinearLayout quotaUploadLabels = new LinearLayout(this);
+        quotaUploadLabels.setOrientation(LinearLayout.VERTICAL);
+        quotaUploadLabels.addView(text("Upload if quota exceeded", 14, TEXT, true));
+        TextView quotaUploadDetail = text(
+                "Use upload instead when a hash lookup hits the quota", 12, MUTED, false);
+        quotaUploadDetail.setPadding(0, dp(3), 0, 0);
+        quotaUploadLabels.addView(quotaUploadDetail);
+        quotaUploadRow.addView(quotaUploadLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch quotaUploadSwitch = new Switch(this);
+        quotaUploadSwitch.setChecked(AppSettings.virusTotalUploadOnQuota(this));
+        quotaUploadSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        quotaUploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        quotaUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
+                AppSettings.setVirusTotalUploadOnQuota(this, isChecked));
+        quotaUploadRow.addView(quotaUploadSwitch,
+                new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(quotaUploadRow);
+
+        TextView uploadInfo = text(
+                "Always upload makes every download take longer. VirusTotal documents "
+                        + "new-file uploads as not consuming API lookup quota, but uploads "
+                        + "still share the APK and may be rate-limited. If both upload "
+                        + "fallbacks are enabled, upload is tried before aborting.",
+                11, MUTED, false);
+        uploadInfo.setLineSpacing(dp(3), 1f);
+        uploadInfo.setPadding(0, dp(4), 0, 0);
+        card.addView(uploadInfo);
+
         boolean abortOnQuota = AppSettings.virusTotalAbortOnQuota(this);
         LinearLayout quotaRow = settingRow("Quota exceeded",
                 abortOnQuota ? "Abort handoff" : "Continue unscanned");

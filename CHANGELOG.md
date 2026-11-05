@@ -17,6 +17,12 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - **Upload unknown files** setting, off by default. If VirusTotal has no report for the
   hash, the APK can be uploaded for analysis. This shares the file with VirusTotal and
   security vendors and is limited to files up to 650 MB.
+- **Always upload to VirusTotal** setting, off by default. It skips the hash lookup and
+  uploads every downloaded APK, making every download flow longer. VirusTotal documents
+  new-file uploads as not consuming API lookup quota, though uploads still share the APK
+  and may be rate-limited.
+- **Upload if quota exceeded** setting, off by default. When a hash lookup hits the API
+  quota, the helper can try the upload path instead of aborting or continuing unscanned.
 - **Block detected files** toggle. When enabled, files with VirusTotal detections are
   deleted instead of being returned. Unknown hashes, missing keys, and lookup errors fail
   open and allow the download.

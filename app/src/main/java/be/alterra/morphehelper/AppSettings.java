@@ -46,6 +46,8 @@ final class AppSettings {
     private static final String KEY_VT_BLOCK = "virustotal_block_detections";
     private static final String KEY_VT_QUOTA_ABORT = "virustotal_quota_abort";
     private static final String KEY_VT_UPLOAD_UNKNOWN = "virustotal_upload_unknown";
+    private static final String KEY_VT_ALWAYS_UPLOAD = "virustotal_always_upload";
+    private static final String KEY_VT_UPLOAD_ON_QUOTA = "virustotal_upload_on_quota";
 
     private static final List<String> DEFAULT_ORDER = Arrays.asList(
             SourceSettings.APKPURE,
@@ -124,6 +126,22 @@ final class AppSettings {
 
     static void setVirusTotalUploadUnknown(Context context, boolean upload) {
         prefs(context).edit().putBoolean(KEY_VT_UPLOAD_UNKNOWN, upload).apply();
+    }
+
+    static boolean virusTotalAlwaysUpload(Context context) {
+        return prefs(context).getBoolean(KEY_VT_ALWAYS_UPLOAD, false);
+    }
+
+    static void setVirusTotalAlwaysUpload(Context context, boolean upload) {
+        prefs(context).edit().putBoolean(KEY_VT_ALWAYS_UPLOAD, upload).apply();
+    }
+
+    static boolean virusTotalUploadOnQuota(Context context) {
+        return prefs(context).getBoolean(KEY_VT_UPLOAD_ON_QUOTA, false);
+    }
+
+    static void setVirusTotalUploadOnQuota(Context context, boolean upload) {
+        prefs(context).edit().putBoolean(KEY_VT_UPLOAD_ON_QUOTA, upload).apply();
     }
 
     static String locationLabel(Context context) {

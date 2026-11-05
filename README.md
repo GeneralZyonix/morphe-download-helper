@@ -52,7 +52,8 @@ Please include:
 - Built-in update checker with a changelog screen: notify me, or install silently through
   Shizuku with an optional battery-optimization exemption.
 - Optional **VirusTotal hash check** before handing an APK to Morphe. Hash lookup is the
-  default; uploading unknown files for analysis is a separate opt-in setting.
+  default; uploading unknown files, always uploading, or falling back to upload when the
+  lookup quota is exceeded are separate opt-in settings.
 - Settings for the download folder, retention, source order, and individual sources.
 - Saves downloaded APKs to `Downloads/Morphe Helper` by default on Android 10+, with
   internal, external, and custom-folder options.

@@ -105,7 +105,17 @@ final class VirusTotalScanner {
                     "Could not calculate the file hash.");
         }
 
+        if (AppSettings.virusTotalAlwaysUpload(context)) {
+            HelperLog.info("VirusTotal always-upload setting is enabled");
+            return uploadAndAnalyze(context, file, hash, apiKey);
+        }
+
         Result lookup = lookup(hash, apiKey);
+        if (lookup.status == Status.QUOTA_EXCEEDED
+                && AppSettings.virusTotalUploadOnQuota(context)) {
+            HelperLog.info("VirusTotal quota exceeded; using upload fallback");
+            return uploadAndAnalyze(context, file, hash, apiKey);
+        }
         if (lookup.status != Status.UNKNOWN || !AppSettings.virusTotalUploadUnknown(context)) {
             return lookup;
         }

@@ -504,7 +504,10 @@ public class DownloadActivity extends Activity {
             progress.setIndeterminate(true);
         });
         VirusTotalScanner.Result result = VirusTotalScanner.scan(this, file);
-        boolean uploadAttempt = AppSettings.virusTotalUploadUnknown(this)
+        boolean uploadConfigured = AppSettings.virusTotalUploadUnknown(this)
+                || AppSettings.virusTotalAlwaysUpload(this)
+                || AppSettings.virusTotalUploadOnQuota(this);
+        boolean uploadAttempt = uploadConfigured
                 && (result.status == VirusTotalScanner.Status.UNKNOWN
                 || result.status == VirusTotalScanner.Status.ERROR);
         if (result.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
