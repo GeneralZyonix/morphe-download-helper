@@ -198,6 +198,18 @@ GUIDE.md                 Step-by-step Morphe setup guide
 Issues and pull requests are welcome. Please keep source parsers small and well commented,
 and test changes against a real Morphe request before opening a PR.
 
+## Translations
+
+Want to add a language? See [TRANSLATING.md](TRANSLATING.md) for the English strings,
+placeholder rules, and import instructions.
+
+The source list is currently in
+[PR #4](https://github.com/GeneralZyonix/morphe-download-helper/pull/4); the English
+resource file is
+[here](https://github.com/GeneralZyonix/morphe-download-helper/blob/feat/i18n-extract-fr/app/src/main/res/values/strings.xml),
+with a French example
+[here](https://github.com/GeneralZyonix/morphe-download-helper/blob/feat/i18n-extract-fr/app/src/main/res/values-fr/strings.xml).
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
