@@ -1,17 +1,15 @@
 # Translating Morphe Download Helper
 
-The Android string resources are being extracted in
-[PR #4](https://github.com/GeneralZyonix/morphe-download-helper/pull/4).
+The English source strings are in
+[app/src/main/res/values/strings.xml](app/src/main/res/values/strings.xml).
 
-Until that PR is merged, the English source list is available here:
-
-- [English `values/strings.xml`](https://github.com/GeneralZyonix/morphe-download-helper/blob/feat/i18n-extract-fr/app/src/main/res/values/strings.xml)
-- [French example `values-fr/strings.xml`](https://github.com/GeneralZyonix/morphe-download-helper/blob/feat/i18n-extract-fr/app/src/main/res/values-fr/strings.xml)
+A French example is available in
+[app/src/main/res/values-fr/strings.xml](app/src/main/res/values-fr/strings.xml).
 
 ## Add a language
 
 1. Fork the repository and create a branch.
-2. Copy the English `values/strings.xml` to
+2. Copy `app/src/main/res/values/strings.xml` to
    `app/src/main/res/values-<language-code>/strings.xml`.
    For example, German uses `values-de/strings.xml`.
 3. Translate only the text between the XML tags.
@@ -30,8 +28,7 @@ Until that PR is merged, the English source list is available here:
 
 ## Importing a translation
 
-Maintainers can merge the new resource directory directly once the i18n extraction PR is
-merged. No Java changes are needed.
+Maintainers can merge the new resource directory directly. No Java changes are needed.
 
 Please verify that:
 
@@ -44,8 +41,7 @@ Please verify that:
 
 | Language | File | Status |
 | --- | --- | --- |
-| English | `values/strings.xml` | Source, in PR #4 |
-| French | `values-fr/strings.xml` | Test translation in PR #4 |
+| English | `values/strings.xml` | Source |
+| French | `values-fr/strings.xml` | Contributed by @foXaCe |
 
-The French translation currently covers the existing UI. The newer VirusTotal settings
-and upload-progress messages are not translated yet.
+The French translation covers the VirusTotal settings and upload-progress messages too.

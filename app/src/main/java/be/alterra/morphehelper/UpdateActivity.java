@@ -68,16 +68,18 @@ public class UpdateActivity extends Activity {
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text("Morphe Download Helper", 24, Color.parseColor("#F8FAFC"), true);
+        TextView title = text(getString(R.string.app_name), 24, Color.parseColor("#F8FAFC"), true);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
-        version = text("Current version", 14, Color.parseColor("#94A3B8"), false);
+        version = text(getString(R.string.update_current_version), 14,
+                Color.parseColor("#94A3B8"), false);
         version.setGravity(Gravity.CENTER);
         version.setPadding(0, dp(8), 0, 0);
         root.addView(version);
 
-        status = text("Loading latest release...", 15, Color.parseColor("#CBD5E1"), false);
+        status = text(getString(R.string.update_loading), 15,
+                Color.parseColor("#CBD5E1"), false);
         status.setGravity(Gravity.CENTER);
         status.setPadding(0, dp(18), 0, dp(12));
         root.addView(status);
@@ -99,7 +101,8 @@ public class UpdateActivity extends Activity {
         root.addView(actions, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        notesTitle = text("What's new", 16, Color.parseColor("#F8FAFC"), true);
+        notesTitle = text(getString(R.string.update_whats_new), 16,
+                Color.parseColor("#F8FAFC"), true);
         notesTitle.setPadding(0, dp(18), 0, dp(8));
         notesTitle.setVisibility(View.GONE);
         root.addView(notesTitle);
@@ -127,13 +130,13 @@ public class UpdateActivity extends Activity {
             return;
         }
         loaded = true;
-        status.setText("Loading latest release...");
+        status.setText(R.string.update_loading);
         progress.setVisibility(View.VISIBLE);
         actions.setVisibility(View.GONE);
         UpdateManager.fetchLatestAsync(this, (latest, error) -> {
             progress.setVisibility(View.GONE);
             if (latest == null) {
-                status.setText("Could not load release notes: " + error);
+                status.setText(getString(R.string.update_error_loading, error));
                 addCloseButton();
                 return;
             }
@@ -149,19 +152,20 @@ public class UpdateActivity extends Activity {
         }
         String current = UpdateChecker.installedVersion(this);
         boolean newer = info.isNewerThan(current);
-        version.setText("Current v" + current + "  \u2022  Latest v" + info.version);
+        version.setText(getString(R.string.update_versions, current, info.version));
 
         if (newer) {
-            status.setText("Morphe Download Helper v" + info.version + " is available.");
+            status.setText(getString(R.string.update_available, info.version));
         } else if (changelogOnly) {
-            status.setText("You are up to date.");
+            status.setText(R.string.update_up_to_date);
         } else {
-            status.setText("You are already up to date.");
+            status.setText(R.string.update_already_up_to_date);
         }
 
         if (!info.notes.isEmpty()) {
             notesTitle.setText(changelogOnly || !newer
-                    ? "What's new in v" + info.version : "What's new");
+                    ? getString(R.string.update_whats_new_in, info.version)
+                    : getString(R.string.update_whats_new));
             notes.setText(cleanNotes(info.notes));
             notesTitle.setVisibility(View.VISIBLE);
             notes.setVisibility(View.VISIBLE);
@@ -190,17 +194,17 @@ public class UpdateActivity extends Activity {
         actions.removeAllViews();
         actions.setVisibility(View.VISIBLE);
         if (newer && !info.assetUrl.isEmpty()) {
-            addButton("Install normally", () -> startUpdate(false));
+            addButton(getString(R.string.update_install_normal), () -> startUpdate(false));
             if (ShizukuHelper.status(this) == ShizukuHelper.READY) {
-                addButton("Install via Shizuku", () -> startUpdate(true));
+                addButton(getString(R.string.update_install_shizuku), () -> startUpdate(true));
             }
         }
         if (newer) {
-            addButton("Remind me later", () -> {
+            addButton(getString(R.string.update_remind_later), () -> {
                 UpdateManager.remindLater(this);
                 finish();
             });
-            addButton("Skip this version", () -> {
+            addButton(getString(R.string.update_skip_version), () -> {
                 UpdateManager.skipVersion(this);
                 finish();
             });
@@ -209,7 +213,7 @@ public class UpdateActivity extends Activity {
     }
 
     private void addCloseButton() {
-        addButton("Close", this::finish);
+        addButton(getString(R.string.common_close), this::finish);
     }
 
     private String cleanNotes(String value) {
@@ -240,7 +244,7 @@ public class UpdateActivity extends Activity {
 
     private void startUpdate(boolean useShizuku) {
         if (info == null || info.assetUrl.isEmpty()) {
-            status.setText("This update has no downloadable APK asset.");
+            status.setText(R.string.update_error_no_asset);
             progress.setVisibility(View.GONE);
             return;
         }
@@ -248,7 +252,8 @@ public class UpdateActivity extends Activity {
         progress.setVisibility(View.VISIBLE);
         new Thread(() -> {
             try {
-                runOnUiThread(() -> status.setText("Downloading update v" + info.version + "..."));
+                runOnUiThread(() -> status.setText(
+                        getString(R.string.update_downloading, info.version)));
                 UpdateManager.DownloadedUpdate update = UpdateManager.download(this, info);
                 PackageInfo archive = getPackageManager()
                         .getPackageArchiveInfo(update.localFile.getAbsolutePath(), 0);
@@ -256,23 +261,23 @@ public class UpdateActivity extends Activity {
                         || !getPackageName().equals(archive.packageName)
                         || !info.version.equals(archive.versionName)) {
                     update.delete(this);
-                    throw new Exception("Downloaded update does not match this helper.");
+                    throw new Exception(getString(R.string.update_error_mismatch));
                 }
 
                 UpdateManager.scheduleInstalledCheck(this, info.version);
                 boolean canUseShizuku = useShizuku
                         && ShizukuHelper.status(this) == ShizukuHelper.READY;
                 if (canUseShizuku) {
-                    runOnUiThread(() -> status.setText("Installing with Shizuku..."));
+                    runOnUiThread(() -> status.setText(R.string.update_installing_shizuku));
                     installWithShizuku(update);
                 } else {
-                    runOnUiThread(() -> status.setText("Opening Android installer..."));
+                    runOnUiThread(() -> status.setText(R.string.update_opening_installer));
                     openAndroidInstaller(update.localFile);
                 }
             } catch (Exception error) {
                 HelperLog.error("Update install failed", error);
                 runOnUiThread(() -> {
-                    status.setText("Update failed: " + error.getMessage());
+                    status.setText(getString(R.string.update_error_failed, error.getMessage()));
                     progress.setVisibility(View.GONE);
                     actions.setVisibility(View.VISIBLE);
                 });
@@ -283,11 +288,11 @@ public class UpdateActivity extends Activity {
     private void installWithShizuku(UpdateManager.DownloadedUpdate update) {
         ShizukuHelper.install(this, update.installFile, (ok, message) -> {
             if (ok) {
-                status.setText("Update installed. Reopen the helper.");
+                status.setText(R.string.update_installed);
                 progress.setVisibility(View.GONE);
                 update.delete(this);
             } else {
-                status.setText("Shizuku failed: " + message + ". Opening Android installer...");
+                status.setText(getString(R.string.update_error_shizuku, message));
                 openAndroidInstaller(update.localFile);
             }
         });
@@ -302,11 +307,11 @@ public class UpdateActivity extends Activity {
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
                     | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
-            status.setText("Android installer opened. Follow the prompt.");
+            status.setText(R.string.update_installer_opened);
             progress.setVisibility(View.GONE);
         } catch (Exception error) {
             HelperLog.error("Could not open Android installer", error);
-            status.setText("Could not open installer: " + error.getMessage());
+            status.setText(getString(R.string.update_error_installer, error.getMessage()));
             progress.setVisibility(View.GONE);
         }
     }

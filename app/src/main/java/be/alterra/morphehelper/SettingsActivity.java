@@ -3,11 +3,13 @@ package be.alterra.morphehelper;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.LocaleManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.os.Build;
+import android.os.LocaleList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -29,6 +31,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.List;
+import java.util.Locale;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -66,11 +69,11 @@ public class SettingsActivity extends Activity {
                 boolean granted = grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED;
                 if (granted) {
                     UpdateManager.setMode(this, UpdateManager.MODE_SHIZUKU);
-                    Toast.makeText(this, "Automatic updates enabled via Shizuku.",
+                    Toast.makeText(this, R.string.settings_automatic_enabled,
                             Toast.LENGTH_SHORT).show();
                 } else {
                     UpdateManager.setMode(this, UpdateManager.MODE_NOTIFY);
-                    Toast.makeText(this, "Shizuku permission denied. Using notifications.",
+                    Toast.makeText(this, R.string.settings_shizuku_denied,
                             Toast.LENGTH_LONG).show();
                 }
                 recreate();
@@ -107,13 +110,14 @@ public class SettingsActivity extends Activity {
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(text("Settings", 24, TEXT, true));
-        TextView subtitle = text("Sources, storage, and download order", 13, MUTED, false);
+        titles.addView(text(getString(R.string.common_settings), 24, TEXT, true));
+        TextView subtitle = text(getString(R.string.settings_subtitle), 13, MUTED, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         root.addView(header);
 
+        addLanguageRow(root);
         addUpdatesCard(root);
         addBatteryCard(root);
         addSecurityCard(root);
@@ -130,43 +134,44 @@ public class SettingsActivity extends Activity {
         cardParams.topMargin = dp(18);
         root.addView(card, cardParams);
 
-        TextView sourceTitle = text("Sources", 16, TEXT, true);
+        TextView sourceTitle = text(getString(R.string.settings_sources), 16, TEXT, true);
         sourceTitle.setPadding(0, dp(14), 0, dp(4));
         card.addView(sourceTitle);
 
         TextView sourceHint = text(
-                "Disabled sources are skipped completely. At least one source must stay enabled.",
-                12, MUTED, false);
+                getString(R.string.settings_sources_hint), 12, MUTED, false);
         sourceHint.setLineSpacing(dp(3), 1f);
         sourceHint.setPadding(0, 0, 0, dp(6));
         card.addView(sourceHint);
 
         TextView sourceWebViewHint = text(
-                "APKPure may use an in-app WebView. Uptodown uses an in-app verification page.",
-                11, WARN_TEXT, false);
+                getString(R.string.settings_webview_hint), 11, WARN_TEXT, false);
         sourceWebViewHint.setLineSpacing(dp(2), 1f);
         sourceWebViewHint.setPadding(0, 0, 0, dp(4));
         card.addView(sourceWebViewHint);
 
-        addSourceRow(card, SourceSettings.APKPURE, "APKPure",
-                "Fast direct/API path, then WebView fallback");
-        addSourceRow(card, SourceSettings.FALLBACK, "Morphe fallback link",
-                "Resolver link supplied by Morphe");
-        addSourceRow(card, SourceSettings.APKMIRROR, "APKMirror",
-                "Package and version search");
-        addSourceRow(card, SourceSettings.UPTODOWN, "Uptodown fallback",
-                "In-app WebView verification page");
-        addSourceRow(card, SourceSettings.FDROID, "F-Droid",
-                "Open-source repository; only apps it hosts");
-        addSourceRow(card, SourceSettings.APTOIDE, "Aptoide",
-                "API search; only uploads marked TRUSTED");
-        addSourceRow(card, SourceSettings.APPTEKA, "\u26A0 Appteka",
-                "Modded APK catalog; not recommended for apps other than SnapTube");
+        addSourceRow(card, SourceSettings.APKPURE, getString(R.string.source_apkpure),
+                getString(R.string.settings_source_apkpure_desc));
+        addSourceRow(card, SourceSettings.FALLBACK,
+                getString(R.string.settings_source_fallback_title),
+                getString(R.string.settings_source_fallback_desc));
+        addSourceRow(card, SourceSettings.APKMIRROR, getString(R.string.source_apkmirror),
+                getString(R.string.settings_source_apkmirror_desc));
+        addSourceRow(card, SourceSettings.UPTODOWN,
+                getString(R.string.settings_source_uptodown_title),
+                getString(R.string.settings_source_uptodown_desc));
+        addSourceRow(card, SourceSettings.FDROID, getString(R.string.source_fdroid),
+                getString(R.string.settings_source_fdroid_desc));
+        addSourceRow(card, SourceSettings.APTOIDE, getString(R.string.source_aptoide),
+                getString(R.string.settings_source_aptoide_desc));
+        addSourceRow(card, SourceSettings.APPTEKA,
+                getString(R.string.settings_source_appteka_title),
+                getString(R.string.settings_source_appteka_desc));
 
         addApptekaWarningCard(root);
         addGitHubAppsCard(root);
 
-        TextView done = primaryButton("Done");
+        TextView done = primaryButton(getString(R.string.common_done));
         done.setOnClickListener(v -> finish());
         LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
@@ -191,6 +196,72 @@ public class SettingsActivity extends Activity {
         super.onDestroy();
     }
 
+    private void addLanguageRow(LinearLayout root) {
+        LinearLayout row = settingRow(getString(R.string.settings_language),
+                currentLanguageLabel());
+        row.setOnClickListener(v -> showLanguageDialog());
+        root.addView(row);
+    }
+
+    private String currentLanguageLabel() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            LocaleManager manager = getSystemService(LocaleManager.class);
+            if (manager != null) {
+                LocaleList locales = manager.getApplicationLocales();
+                if (!locales.isEmpty()) {
+                    return languageLabel(locales.get(0));
+                }
+            }
+        }
+        return getString(R.string.settings_language_system);
+    }
+
+    private String languageLabel(Locale locale) {
+        String code = locale == null ? "" : locale.getLanguage();
+        if ("fr".equals(code)) {
+            return getString(R.string.settings_language_french);
+        }
+        if ("en".equals(code)) {
+            return getString(R.string.settings_language_english);
+        }
+        return locale == null ? getString(R.string.settings_language_system)
+                : locale.getDisplayLanguage(locale);
+    }
+
+    private void showLanguageDialog() {
+        if (Build.VERSION.SDK_INT < 33) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.settings_language)
+                    .setMessage(R.string.settings_language_android13)
+                    .setPositiveButton(R.string.common_ok, null)
+                    .show();
+            return;
+        }
+
+        LocaleManager manager = getSystemService(LocaleManager.class);
+        if (manager == null) {
+            return;
+        }
+        LocaleList current = manager.getApplicationLocales();
+        int selected = current.isEmpty() ? 0
+                : ("fr".equals(current.get(0).getLanguage()) ? 2 : 1);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.settings_language)
+                .setSingleChoiceItems(new String[]{
+                        getString(R.string.settings_language_system),
+                        getString(R.string.settings_language_english),
+                        getString(R.string.settings_language_french)
+                }, selected, (dialog, which) -> {
+                    LocaleList locales = which == 0
+                            ? LocaleList.getEmptyLocaleList()
+                            : LocaleList.forLanguageTags(which == 1 ? "en" : "fr");
+                    manager.setApplicationLocales(locales);
+                    dialog.dismiss();
+                    recreate();
+                })
+                .show();
+    }
+
     private void addUpdatesCard(LinearLayout root) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -201,17 +272,17 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text("Updates", 16, TEXT, true));
+        card.addView(text(getString(R.string.settings_updates), 16, TEXT, true));
 
         String current = UpdateChecker.installedVersion(this);
         UpdateInfo latest = UpdateManager.cachedLatest(this);
         String status;
         if (latest == null) {
-            status = "Current v" + current + " \u2022 Not checked yet";
+            status = getString(R.string.settings_status_not_checked, current);
         } else if (latest.isNewerThan(current)) {
-            status = "Current v" + current + " \u2022 v" + latest.version + " available";
+            status = getString(R.string.settings_status_available, current, latest.version);
         } else {
-            status = "Current v" + current + " \u2022 Up to date";
+            status = getString(R.string.settings_status_up_to_date, current);
         }
         TextView statusView = text(status, 13, MUTED, false);
         statusView.setPadding(0, dp(6), 0, dp(6));
@@ -223,8 +294,9 @@ public class SettingsActivity extends Activity {
         enabledRow.setPadding(0, dp(6), 0, dp(6));
         LinearLayout enabledLabels = new LinearLayout(this);
         enabledLabels.setOrientation(LinearLayout.VERTICAL);
-        enabledLabels.addView(text("Check for updates", 14, TEXT, true));
-        TextView enabledDetail = text("Notify me when a new release exists", 12, MUTED, false);
+        enabledLabels.addView(text(getString(R.string.settings_check_updates), 14, TEXT, true));
+        TextView enabledDetail = text(
+                getString(R.string.settings_check_updates_detail), 12, MUTED, false);
         enabledDetail.setPadding(0, dp(3), 0, 0);
         enabledLabels.addView(enabledDetail);
         enabledRow.addView(enabledLabels, new LinearLayout.LayoutParams(
@@ -237,9 +309,9 @@ public class SettingsActivity extends Activity {
         enabledSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             UpdateManager.setEnabled(this, isChecked);
             if (isChecked) {
-                Toast.makeText(this, "Update checks enabled.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.settings_checks_enabled, Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Update checks disabled.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.settings_checks_disabled, Toast.LENGTH_SHORT).show();
             }
         });
         enabledRow.addView(enabledSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
@@ -247,13 +319,14 @@ public class SettingsActivity extends Activity {
 
         String mode = UpdateManager.mode(this);
         String modeLabel = UpdateManager.MODE_SHIZUKU.equals(mode)
-                ? "Automatic via Shizuku" : "Notify me when available";
-        LinearLayout modeRow = settingRow("Update mode", modeLabel);
+                ? getString(R.string.settings_mode_shizuku)
+                : getString(R.string.settings_mode_notify);
+        LinearLayout modeRow = settingRow(getString(R.string.settings_update_mode), modeLabel);
         modeRow.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("Update mode")
+                .setTitle(R.string.settings_update_mode)
                 .setSingleChoiceItems(new String[]{
-                        "Notify me when available",
-                        "Automatically update via Shizuku"
+                        getString(R.string.settings_mode_notify_option),
+                        getString(R.string.settings_mode_shizuku_option)
                 }, UpdateManager.MODE_SHIZUKU.equals(mode) ? 1 : 0, (dialog, which) -> {
                     dialog.dismiss();
                     if (which == 0) {
@@ -268,13 +341,13 @@ public class SettingsActivity extends Activity {
 
         int shizukuStatus = ShizukuHelper.status(this);
         LinearLayout shizukuRow = settingRow("Shizuku",
-                ShizukuHelper.statusLabel(shizukuStatus));
+                ShizukuHelper.statusLabel(this, shizukuStatus));
         shizukuRow.setOnClickListener(v -> requestShizukuMode());
         card.addView(shizukuRow);
 
-        TextView check = actionButton("Check now", PRIMARY_START);
+        TextView check = actionButton(getString(R.string.settings_check_now), PRIMARY_START);
         check.setOnClickListener(v -> {
-            Toast.makeText(this, "Checking for updates...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.settings_checking, Toast.LENGTH_SHORT).show();
             UpdateManager.checkAsync(this, true, message -> {
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                 recreate();
@@ -282,22 +355,20 @@ public class SettingsActivity extends Activity {
         });
         card.addView(check);
 
-        TextView changelog = actionButton("Changelog", PRIMARY_START);
+        TextView changelog = actionButton(getString(R.string.settings_changelog), PRIMARY_START);
         changelog.setOnClickListener(v -> startActivity(new Intent(this, UpdateActivity.class)
                 .putExtra(UpdateActivity.EXTRA_CHANGELOG, true)));
         card.addView(changelog);
 
         if (latest != null && latest.isNewerThan(current) && !latest.releaseUrl.isEmpty()) {
-            TextView download = actionButton("View update v" + latest.version, PRIMARY_START);
+            TextView download = actionButton(
+                    getString(R.string.settings_view_update, latest.version), PRIMARY_START);
             download.setOnClickListener(v ->
                     startActivity(new Intent(this, UpdateActivity.class)));
             card.addView(download);
         }
 
-        TextView note = text(
-                "Shizuku auto-update requires Shizuku to be installed, running, and approved. "
-                        + "If it is unavailable, the helper falls back to a notification.",
-                11, MUTED, false);
+        TextView note = text(getString(R.string.settings_shizuku_note), 11, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(8), 0, 0);
         card.addView(note);
@@ -313,18 +384,17 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text("Background", 16, TEXT, true));
+        card.addView(text(getString(R.string.settings_background), 16, TEXT, true));
         batteryIgnoring = isIgnoringBatteryOptimizations();
-        LinearLayout row = settingRow("Battery optimization",
-                batteryIgnoring ? "Unrestricted" : "Optimized \u2014 may delay checks",
+        LinearLayout row = settingRow(getString(R.string.settings_battery_optimization),
+                getString(batteryIgnoring
+                        ? R.string.settings_battery_unrestricted
+                        : R.string.settings_battery_optimized),
                 batteryIgnoring);
         row.setOnClickListener(v -> requestBatteryExemption());
         card.addView(row);
 
-        TextView note = text(
-                "Allow Morphe Helper to run without battery restrictions so update checks, "
-                        + "downloads, and notifications are not delayed.",
-                11, MUTED, false);
+        TextView note = text(getString(R.string.settings_battery_note), 11, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(8), 0, 0);
         card.addView(note);
@@ -337,16 +407,15 @@ public class SettingsActivity extends Activity {
 
     private void requestBatteryExemption() {
         if (isIgnoringBatteryOptimizations()) {
-            Toast.makeText(this, "Battery optimization is already unrestricted for this app.",
+            Toast.makeText(this, R.string.settings_battery_already_unrestricted,
                     Toast.LENGTH_SHORT).show();
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Allow background updates?")
-                .setMessage("Android may delay update checks and notifications while this app "
-                        + "is battery optimized. Request an exemption so updates can run reliably.")
-                .setNegativeButton("Not now", null)
-                .setPositiveButton("Request exemption", (dialog, which) -> {
+                .setTitle(R.string.settings_battery_dialog_title)
+                .setMessage(R.string.settings_battery_dialog_message)
+                .setNegativeButton(R.string.settings_not_now, null)
+                .setPositiveButton(R.string.settings_request_exemption, (dialog, which) -> {
                     try {
                         startActivity(new Intent(
                                 Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
@@ -372,7 +441,7 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text("Security", 16, TEXT, true));
+        card.addView(text(getString(R.string.virustotal_security), 16, TEXT, true));
 
         LinearLayout scanRow = new LinearLayout(this);
         scanRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -380,8 +449,9 @@ public class SettingsActivity extends Activity {
         scanRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout scanLabels = new LinearLayout(this);
         scanLabels.setOrientation(LinearLayout.VERTICAL);
-        scanLabels.addView(text("VirusTotal hash check", 14, TEXT, true));
-        TextView scanDetail = text("Check downloaded files by SHA-256", 12, MUTED, false);
+        scanLabels.addView(text(getString(R.string.virustotal_hash_check), 14, TEXT, true));
+        TextView scanDetail = text(getString(R.string.virustotal_hash_check_detail),
+                12, MUTED, false);
         scanDetail.setPadding(0, dp(3), 0, 0);
         scanLabels.addView(scanDetail);
         scanRow.addView(scanLabels, new LinearLayout.LayoutParams(
@@ -394,8 +464,7 @@ public class SettingsActivity extends Activity {
         scanSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalEnabled(this, isChecked);
             if (isChecked && AppSettings.virusTotalApiKey(this).isEmpty()) {
-                Toast.makeText(this,
-                        "Add a VirusTotal API key to start scanning.",
+                Toast.makeText(this, R.string.virustotal_add_key_toast,
                         Toast.LENGTH_LONG).show();
             }
         });
@@ -403,8 +472,9 @@ public class SettingsActivity extends Activity {
         card.addView(scanRow);
 
         boolean hasKey = !AppSettings.virusTotalApiKey(this).isEmpty();
-        LinearLayout keyRow = settingRow("VirusTotal API key",
-                hasKey ? "Configured" : "Not set");
+        LinearLayout keyRow = settingRow(getString(R.string.virustotal_api_key),
+                getString(hasKey ? R.string.virustotal_configured
+                        : R.string.virustotal_not_set));
         keyRow.setOnClickListener(v -> showVirusTotalKeyDialog());
         card.addView(keyRow);
 
@@ -414,8 +484,10 @@ public class SettingsActivity extends Activity {
         blockRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout blockLabels = new LinearLayout(this);
         blockLabels.setOrientation(LinearLayout.VERTICAL);
-        blockLabels.addView(text("Block detected files", 14, TEXT, true));
-        TextView blockDetail = text("Stop handing the APK to Morphe", 12, MUTED, false);
+        blockLabels.addView(text(getString(R.string.virustotal_block_detected),
+                14, TEXT, true));
+        TextView blockDetail = text(getString(R.string.virustotal_block_detail),
+                12, MUTED, false);
         blockDetail.setPadding(0, dp(3), 0, 0);
         blockLabels.addView(blockDetail);
         blockRow.addView(blockLabels, new LinearLayout.LayoutParams(
@@ -436,9 +508,10 @@ public class SettingsActivity extends Activity {
         uploadRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout uploadLabels = new LinearLayout(this);
         uploadLabels.setOrientation(LinearLayout.VERTICAL);
-        uploadLabels.addView(text("Upload unknown files", 14, TEXT, true));
+        uploadLabels.addView(text(getString(R.string.virustotal_upload_unknown),
+                14, TEXT, true));
         TextView uploadDetail = text(
-                "If no hash is found, send the APK for analysis", 12, MUTED, false);
+                getString(R.string.virustotal_upload_unknown_detail), 12, MUTED, false);
         uploadDetail.setPadding(0, dp(3), 0, 0);
         uploadLabels.addView(uploadDetail);
         uploadRow.addView(uploadLabels, new LinearLayout.LayoutParams(
@@ -451,8 +524,7 @@ public class SettingsActivity extends Activity {
         uploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalUploadUnknown(this, isChecked);
             if (isChecked) {
-                Toast.makeText(this,
-                        "Unknown APKs will be uploaded to VirusTotal.",
+                Toast.makeText(this, R.string.virustotal_unknown_upload_toast,
                         Toast.LENGTH_SHORT).show();
             }
         });
@@ -465,9 +537,11 @@ public class SettingsActivity extends Activity {
         alwaysUploadRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout alwaysUploadLabels = new LinearLayout(this);
         alwaysUploadLabels.setOrientation(LinearLayout.VERTICAL);
-        alwaysUploadLabels.addView(text("Always upload to VirusTotal", 14, TEXT, true));
+        alwaysUploadLabels.addView(text(getString(R.string.virustotal_always_upload),
+                14, TEXT, true));
         TextView alwaysUploadDetail = text(
-                "Skip hash lookup and upload every downloaded APK", 12, MUTED, false);
+                getString(R.string.virustotal_always_upload_detail),
+                12, MUTED, false);
         alwaysUploadDetail.setPadding(0, dp(3), 0, 0);
         alwaysUploadLabels.addView(alwaysUploadDetail);
         alwaysUploadRow.addView(alwaysUploadLabels, new LinearLayout.LayoutParams(
@@ -480,8 +554,7 @@ public class SettingsActivity extends Activity {
         alwaysUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalAlwaysUpload(this, isChecked);
             if (isChecked) {
-                Toast.makeText(this,
-                        "Always upload enabled. Downloads may take longer.",
+                Toast.makeText(this, R.string.virustotal_always_upload_toast,
                         Toast.LENGTH_LONG).show();
             }
         });
@@ -495,9 +568,11 @@ public class SettingsActivity extends Activity {
         quotaUploadRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout quotaUploadLabels = new LinearLayout(this);
         quotaUploadLabels.setOrientation(LinearLayout.VERTICAL);
-        quotaUploadLabels.addView(text("Upload if quota exceeded", 14, TEXT, true));
+        quotaUploadLabels.addView(text(getString(R.string.virustotal_upload_on_quota),
+                14, TEXT, true));
         TextView quotaUploadDetail = text(
-                "Use upload instead when a hash lookup hits the quota", 12, MUTED, false);
+                getString(R.string.virustotal_upload_on_quota_detail),
+                12, MUTED, false);
         quotaUploadDetail.setPadding(0, dp(3), 0, 0);
         quotaUploadLabels.addView(quotaUploadDetail);
         quotaUploadRow.addView(quotaUploadLabels, new LinearLayout.LayoutParams(
@@ -513,24 +588,21 @@ public class SettingsActivity extends Activity {
                 new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(quotaUploadRow);
 
-        TextView uploadInfo = text(
-                "Always upload makes every download take longer. VirusTotal documents "
-                        + "new-file uploads as not consuming API lookup quota, but uploads "
-                        + "still share the APK and may be rate-limited. If both upload "
-                        + "fallbacks are enabled, upload is tried before aborting.",
+        TextView uploadInfo = text(getString(R.string.virustotal_upload_info),
                 11, MUTED, false);
         uploadInfo.setLineSpacing(dp(3), 1f);
         uploadInfo.setPadding(0, dp(4), 0, 0);
         card.addView(uploadInfo);
 
         boolean abortOnQuota = AppSettings.virusTotalAbortOnQuota(this);
-        LinearLayout quotaRow = settingRow("Quota exceeded",
-                abortOnQuota ? "Abort handoff" : "Continue unscanned");
+        LinearLayout quotaRow = settingRow(getString(R.string.virustotal_quota_exceeded),
+                getString(abortOnQuota ? R.string.virustotal_quota_abort
+                        : R.string.virustotal_quota_continue));
         quotaRow.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("When the VirusTotal quota is exceeded")
+                .setTitle(R.string.virustotal_quota_dialog_title)
                 .setSingleChoiceItems(new String[]{
-                        "Continue unscanned",
-                        "Abort handoff to Morphe"
+                        getString(R.string.virustotal_quota_continue),
+                        getString(R.string.virustotal_quota_dialog_abort)
                 }, AppSettings.virusTotalAbortOnQuota(this) ? 1 : 0, (dialog, which) -> {
                     AppSettings.setVirusTotalAbortOnQuota(this, which == 1);
                     dialog.dismiss();
@@ -539,25 +611,13 @@ public class SettingsActivity extends Activity {
                 .show());
         card.addView(quotaRow);
 
-        TextView quota = text(
-                "VirusTotal public API limits: about 4 requests/minute and 500/day. "
-                        + "Uploads are limited to 32 MB directly, or 650 MB through "
-                        + "VirusTotal's upload URL. New-file uploads do not consume "
-                        + "lookup quota; premium API limits depend on the license.",
+        TextView quota = text(getString(R.string.virustotal_api_limits),
                 11, MUTED, false);
         quota.setLineSpacing(dp(3), 1f);
         quota.setPadding(0, dp(8), 0, 0);
         card.addView(quota);
 
-        TextView note = text(
-                "Hash lookup is the default and the APK is never uploaded unless "
-                        + "Upload unknown files is enabled. Uploads share the APK with "
-                        + "VirusTotal and security vendors and are limited to 650 MB. "
-                        + "A VirusTotal API key is required; results are advisory and "
-                        + "may miss new malware. "
-                        + "Unknown files, denied keys, quota errors, or lookup failures "
-                        + "do not block the download unless the quota-exceeded setting "
-                        + "is set to abort; the user is warned when the scan cannot run.",
+        TextView note = text(getString(R.string.virustotal_note),
                 11, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(6), 0, 0);
@@ -575,15 +635,15 @@ public class SettingsActivity extends Activity {
         input.setPadding(padding, padding, padding, padding);
 
         new AlertDialog.Builder(this)
-                .setTitle("VirusTotal API key")
-                .setMessage("Stored only on this device. The APK itself is never uploaded.")
+                .setTitle(R.string.virustotal_api_key_dialog_title)
+                .setMessage(R.string.virustotal_api_key_dialog_message)
                 .setView(input)
-                .setNegativeButton("Cancel", null)
-                .setNeutralButton("Clear", (dialog, which) -> {
+                .setNegativeButton(R.string.common_cancel, null)
+                .setNeutralButton(R.string.virustotal_api_key_clear, (dialog, which) -> {
                     AppSettings.setVirusTotalApiKey(this, "");
                     recreate();
                 })
-                .setPositiveButton("Save", (dialog, which) -> {
+                .setPositiveButton(R.string.virustotal_api_key_save, (dialog, which) -> {
                     AppSettings.setVirusTotalApiKey(this, input.getText().toString());
                     recreate();
                 })
@@ -594,41 +654,39 @@ public class SettingsActivity extends Activity {
         int status = ShizukuHelper.status(this);
         if (status == ShizukuHelper.READY) {
             UpdateManager.setMode(this, UpdateManager.MODE_SHIZUKU);
-            Toast.makeText(this, "Automatic updates enabled via Shizuku.",
+            Toast.makeText(this, R.string.settings_automatic_enabled,
                     Toast.LENGTH_SHORT).show();
             recreate();
             return;
         }
         if (status == ShizukuHelper.PERMISSION_REQUIRED) {
             new AlertDialog.Builder(this)
-                    .setTitle("Allow Shizuku updates?")
-                    .setMessage("Shizuku will be asked to install helper updates silently. "
-                            + "You can remove this permission in Shizuku at any time.")
-                    .setNegativeButton("Use notifications", (dialog, which) -> {
+                    .setTitle(R.string.settings_shizuku_dialog_title)
+                    .setMessage(R.string.settings_shizuku_dialog_message)
+                    .setNegativeButton(R.string.settings_use_notifications, (dialog, which) -> {
                         UpdateManager.setMode(this, UpdateManager.MODE_NOTIFY);
                         recreate();
                     })
-                    .setPositiveButton("Grant permission", (dialog, which) ->
+                    .setPositiveButton(R.string.settings_grant_permission, (dialog, which) ->
                             ShizukuHelper.requestPermission(SHIZUKU_REQUEST_CODE))
                     .show();
             return;
         }
         if (status == ShizukuHelper.NOT_RUNNING) {
             new AlertDialog.Builder(this)
-                    .setTitle("Shizuku is not running")
-                    .setMessage("Start Shizuku first, then return here to enable automatic updates.")
-                    .setNegativeButton("Cancel", null)
-                    .setPositiveButton("Open Shizuku", (dialog, which) -> openShizuku())
+                    .setTitle(R.string.settings_shizuku_not_running_title)
+                    .setMessage(R.string.settings_shizuku_not_running_message)
+                    .setNegativeButton(R.string.common_cancel, null)
+                    .setPositiveButton(R.string.settings_open_shizuku, (dialog, which) -> openShizuku())
                     .show();
             return;
         }
         if (status == ShizukuHelper.NOT_INSTALLED) {
             new AlertDialog.Builder(this)
-                    .setTitle("Shizuku is not installed")
-                    .setMessage("Install Shizuku to enable silent automatic updates. "
-                            + "Without it, updates are announced by notification.")
-                    .setNegativeButton("Use notifications", null)
-                    .setPositiveButton("Get Shizuku", (dialog, which) -> {
+                    .setTitle(R.string.settings_shizuku_not_installed_title)
+                    .setMessage(R.string.settings_shizuku_not_installed_message)
+                    .setNegativeButton(R.string.settings_use_notifications, null)
+                    .setPositiveButton(R.string.settings_get_shizuku, (dialog, which) -> {
                         try {
                             startActivity(new Intent(Intent.ACTION_VIEW,
                                     Uri.parse("https://shizuku.rikka.app/download/")));
@@ -638,7 +696,7 @@ public class SettingsActivity extends Activity {
                     .show();
             return;
         }
-        Toast.makeText(this, "This Shizuku version is not supported.",
+        Toast.makeText(this, R.string.settings_shizuku_unsupported,
                 Toast.LENGTH_SHORT).show();
     }
 
@@ -666,17 +724,18 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text("Storage", 16, TEXT, true));
+        card.addView(text(getString(R.string.settings_storage), 16, TEXT, true));
 
         String location = AppSettings.location(this);
-        LinearLayout folder = settingRow("Download folder", AppSettings.locationLabel(this));
+        LinearLayout folder = settingRow(getString(R.string.settings_download_folder),
+                AppSettings.locationLabel(this));
         folder.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("Download folder")
+                .setTitle(R.string.settings_download_folder)
                 .setSingleChoiceItems(new String[]{
-                        "Downloads/Morphe Helper (default)",
-                        "Internal app cache",
-                        "App external storage",
-                        "Choose another folder..."
+                        getString(R.string.settings_folder_public),
+                        getString(R.string.settings_folder_internal),
+                        getString(R.string.settings_folder_external),
+                        getString(R.string.settings_folder_custom)
                 }, locationIndex(location), (dialog, which) -> {
                     dialog.dismiss();
                     chooseLocation(which);
@@ -687,19 +746,19 @@ public class SettingsActivity extends Activity {
         String retention = AppSettings.retention(this);
         String retentionLabel;
         switch (retention) {
-            case AppSettings.HOUR_1: retentionLabel = "Delete after 1 hour"; break;
-            case AppSettings.HOUR_24: retentionLabel = "Delete after 24 hours"; break;
-            case AppSettings.DAY_7: retentionLabel = "Delete after 7 days"; break;
-            default: retentionLabel = "Keep downloads"; break;
+            case AppSettings.HOUR_1: retentionLabel = getString(R.string.settings_retention_1h); break;
+            case AppSettings.HOUR_24: retentionLabel = getString(R.string.settings_retention_24h); break;
+            case AppSettings.DAY_7: retentionLabel = getString(R.string.settings_retention_7d); break;
+            default: retentionLabel = getString(R.string.settings_keep_forever); break;
         }
-        LinearLayout keep = settingRow("Keep downloads", retentionLabel);
+        LinearLayout keep = settingRow(getString(R.string.settings_keep_downloads), retentionLabel);
         keep.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("Keep downloads")
+                .setTitle(R.string.settings_keep_downloads)
                 .setSingleChoiceItems(new String[]{
-                        "Keep downloads",
-                        "Delete after 1 hour",
-                        "Delete after 24 hours",
-                        "Delete after 7 days"
+                        getString(R.string.settings_keep_forever),
+                        getString(R.string.settings_retention_1h),
+                        getString(R.string.settings_retention_24h),
+                        getString(R.string.settings_retention_7d)
                 }, retentionIndex(retention), (dialog, which) -> {
                     String[] values = {AppSettings.KEEP, AppSettings.HOUR_1,
                             AppSettings.HOUR_24, AppSettings.DAY_7};
@@ -710,20 +769,21 @@ public class SettingsActivity extends Activity {
                 .show());
         card.addView(keep);
 
-        TextView note = text(
-                "Cleanup runs when the helper opens, so downloads are not slowed down.",
-                11, MUTED, false);
+        TextView note = text(getString(R.string.settings_cleanup_note), 11, MUTED, false);
         note.setPadding(0, dp(6), 0, dp(10));
         card.addView(note);
 
-        TextView delete = actionButton("Delete all downloaded APKs", RED);
+        TextView delete = actionButton(getString(R.string.settings_delete_all), RED);
         delete.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("Delete downloaded APKs?")
-                .setMessage("This removes every file in the selected download folder.")
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Delete", (dialog, which) -> {
+                .setTitle(R.string.settings_delete_dialog_title)
+                .setMessage(R.string.settings_delete_dialog_message)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.common_delete, (dialog, which) -> {
                     int count = AppSettings.deleteAllDownloads(this);
-                    Toast.makeText(this, count + " file(s) deleted.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this,
+                            getResources().getQuantityString(
+                                    R.plurals.settings_files_deleted, count, count),
+                            Toast.LENGTH_SHORT).show();
                 })
                 .show());
         card.addView(delete);
@@ -745,7 +805,7 @@ public class SettingsActivity extends Activity {
             try {
                 startActivityForResult(intent, FOLDER_REQUEST_CODE);
             } catch (Exception error) {
-                Toast.makeText(this, "No folder picker available.",
+                Toast.makeText(this, R.string.settings_no_folder_picker,
                         Toast.LENGTH_SHORT).show();
             }
             return;
@@ -798,7 +858,7 @@ public class SettingsActivity extends Activity {
             AppSettings.setLocation(this, pendingLocation);
             recreate();
         } else {
-            Toast.makeText(this, "Storage permission denied. Keeping the current folder.",
+            Toast.makeText(this, R.string.settings_storage_denied,
                     Toast.LENGTH_LONG).show();
         }
         pendingLocation = null;
@@ -821,12 +881,9 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text("\u26A0 Appteka warning", 16, RED, true));
+        card.addView(text(getString(R.string.settings_appteka_title), 16, RED, true));
 
-        TextView message = text(
-                "Appteka hosts modded APKs, including modified versions of popular apps. "
-                        + "We do not recommend enabling Appteka for any app other than SnapTube. "
-                        + "Modded APKs can contain altered code, behave unpredictably, or be rejected by Morphe.",
+        TextView message = text(getString(R.string.settings_appteka_message),
                 12, WARN_TEXT, false);
         message.setLineSpacing(dp(3), 1f);
         message.setPadding(0, dp(8), 0, dp(4));
@@ -839,8 +896,8 @@ public class SettingsActivity extends Activity {
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text("Only use Appteka for SnapTube", 14, TEXT, true));
-        TextView detail = text("Recommended. Turn off to use Appteka for every app.",
+        labels.addView(text(getString(R.string.settings_appteka_snaptube_only), 14, TEXT, true));
+        TextView detail = text(getString(R.string.settings_appteka_snaptube_only_detail),
                 12, MUTED, false);
         detail.setPadding(0, dp(3), 0, 0);
         labels.addView(detail);
@@ -854,8 +911,7 @@ public class SettingsActivity extends Activity {
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setApptekaSnapTubeOnly(this, isChecked);
             if (!isChecked) {
-                Toast.makeText(this,
-                        "Appteka is now an extra source for every app. Use at your own risk.",
+                Toast.makeText(this, R.string.settings_appteka_all_apps_warning,
                         Toast.LENGTH_LONG).show();
             }
         });
@@ -865,9 +921,7 @@ public class SettingsActivity extends Activity {
         row.addView(toggle, toggleParams);
         card.addView(row);
 
-        TextView note = text(
-                "When this is off, Appteka is tried in the source order for all apps, not just SnapTube.",
-                11, MUTED, false);
+        TextView note = text(getString(R.string.settings_appteka_off_note), 11, MUTED, false);
         note.setPadding(0, dp(6), 0, 0);
         card.addView(note);
     }
@@ -884,19 +938,14 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text("GitHub apps", 16, TEXT, true));
-        TextView note = text(
-                "Remembered GitHub release sources. Remove an app if it becomes available "
-                        + "on a regular APK source.",
-                12, MUTED, false);
+        card.addView(text(getString(R.string.settings_github_apps), 16, TEXT, true));
+        TextView note = text(getString(R.string.settings_github_apps_note), 12, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(4), 0, dp(4));
         card.addView(note);
 
         if (entries.isEmpty()) {
-            TextView empty = text(
-                    "No GitHub apps remembered yet. Use Search GitHub releases on a failed "
-                            + "download to add one.",
+            TextView empty = text(getString(R.string.settings_github_apps_empty),
                     12, MUTED, false);
             empty.setLineSpacing(dp(3), 1f);
             empty.setPadding(0, dp(8), 0, 0);
@@ -922,12 +971,14 @@ public class SettingsActivity extends Activity {
             TextView remove = text("X", 16, RED, true);
             remove.setGravity(Gravity.CENTER);
             remove.setPadding(dp(12), dp(8), dp(12), dp(8));
-            remove.setContentDescription("Remove GitHub app " + entry.label);
+            remove.setContentDescription(
+                    getString(R.string.settings_remove_github_app, entry.label));
             remove.setClickable(true);
             remove.setFocusable(true);
             remove.setOnClickListener(v -> {
                 GitHubAppStore.remove(this, entry.packageName);
-                Toast.makeText(this, entry.label + " removed from GitHub apps.",
+                Toast.makeText(this,
+                        getString(R.string.settings_github_app_removed, entry.label),
                         Toast.LENGTH_SHORT).show();
                 recreate();
             });
@@ -951,10 +1002,8 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text("Source order", 16, TEXT, true));
-        TextView note = text(
-                "Use the arrows to change which source is tried first.",
-                12, MUTED, false);
+        card.addView(text(getString(R.string.settings_source_order), 16, TEXT, true));
+        TextView note = text(getString(R.string.settings_source_order_note), 12, MUTED, false);
         note.setPadding(0, dp(4), 0, dp(8));
         card.addView(note);
 
@@ -966,12 +1015,13 @@ public class SettingsActivity extends Activity {
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(0, dp(8), 0, dp(8));
 
-            TextView label = text((i + 1) + ". " + AppSettings.sourceLabel(key),
+            TextView label = text((i + 1) + ". " + AppSettings.sourceLabel(this, key),
                     14, TEXT, false);
             row.addView(label, new LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             TextView up = text("\u2191", 18, PRIMARY_START, true);
+            up.setContentDescription(getString(R.string.settings_move_up));
             up.setPadding(dp(10), dp(4), dp(10), dp(4));
             up.setClickable(true);
             up.setOnClickListener(v -> {
@@ -980,6 +1030,7 @@ public class SettingsActivity extends Activity {
             });
             row.addView(up);
             TextView down = text("\u2193", 18, PRIMARY_START, true);
+            down.setContentDescription(getString(R.string.settings_move_down));
             down.setPadding(dp(10), dp(4), dp(10), dp(4));
             down.setClickable(true);
             down.setOnClickListener(v -> {
@@ -990,7 +1041,7 @@ public class SettingsActivity extends Activity {
             card.addView(row);
         }
 
-        TextView reset = actionButton("Reset to default order", PRIMARY_START);
+        TextView reset = actionButton(getString(R.string.settings_reset_order), PRIMARY_START);
         reset.setOnClickListener(v -> {
             AppSettings.resetSourceOrder(this);
             recreate();
@@ -1084,16 +1135,17 @@ public class SettingsActivity extends Activity {
         labels.addView(health);
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView test = text("Test", 12, PRIMARY_START, true);
+        TextView test = text(getString(R.string.settings_test), 12, PRIMARY_START, true);
         test.setPadding(dp(8), dp(8), dp(8), dp(8));
         test.setClickable(true);
         test.setFocusable(true);
         test.setOnClickListener(v -> {
-            test.setText("...");
+            test.setText(R.string.settings_testing);
             SourceTester.test(this, key, (ok, message) -> runOnUiThread(() -> {
-                test.setText("Test");
+                test.setText(R.string.settings_test);
                 health.setText(SourceHealth.summary(this, key));
-                Toast.makeText(this, title + ": " + message, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.settings_test_result, title, message),
+                        Toast.LENGTH_SHORT).show();
             }));
         });
         row.addView(test, new LinearLayout.LayoutParams(
@@ -1106,7 +1158,7 @@ public class SettingsActivity extends Activity {
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!isChecked && SourceSettings.enabledCount(this) <= 1) {
                 buttonView.setChecked(true);
-                Toast.makeText(this, "Keep at least one source enabled.",
+                Toast.makeText(this, R.string.settings_min_one_source,
                         Toast.LENGTH_SHORT).show();
                 return;
             }

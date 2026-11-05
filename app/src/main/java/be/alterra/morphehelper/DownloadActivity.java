@@ -404,7 +404,7 @@ public class DownloadActivity extends Activity {
         // A request without a package cannot be resolved. Show the error and let the
         // user close the screen or open the fallback page.
         if (TextUtils.isEmpty(pkg)) {
-            setStatus("Morphe did not send a package name.");
+            setStatus(R.string.download_error_no_package);
             showFallback();
             return;
         }
@@ -414,7 +414,7 @@ public class DownloadActivity extends Activity {
         if (isHost(fallbackHost, "uptodown.com")) {
             if (sourceAllowed(SourceSettings.UPTODOWN)
                     && sourceAllowed(SourceSettings.FALLBACK)) {
-                setStatus("Opening Uptodown...");
+                setStatus(R.string.download_opening_uptodown);
                 progress.setIndeterminate(true);
                 startUptodownWebFlow(fallbackUrl, pkg, version, fileType);
                 return;
@@ -438,7 +438,7 @@ public class DownloadActivity extends Activity {
         if (!TextUtils.isEmpty(version)) {
             label += " " + version;
         }
-        setStatus("Preparing " + label + "...");
+        setStatus(getString(R.string.download_preparing, label));
         progress.setIndeterminate(true);
 
         startResolution(false);
@@ -454,22 +454,24 @@ public class DownloadActivity extends Activity {
         webRetries = 0;
         String abi = (requestAbis != null && requestAbis.length > 0)
                 ? requestAbis[0] : "unknown";
-        report = new ResolutionReport(requestedAppName, requestPkg, requestVersion,
+        report = new ResolutionReport(this, requestedAppName, requestPkg, requestVersion,
                 requestFileType, abi);
         HelperLog.info(report.headerBlock());
 
         diagnosticsCard.setVisibility(View.GONE);
         fallbackButton.setVisibility(View.GONE);
         sourceLabel.setVisibility(View.GONE);
-        cancelButton.setText("Cancel");
+        cancelButton.setText(R.string.common_cancel);
         progress.setVisibility(View.VISIBLE);
         progress.setIndeterminate(true);
         progress.setProgress(0);
         setPauseVisible(false);
         if (retryOnly) {
-            setStatus("Retrying failed sources...");
+            setStatus(R.string.download_retrying);
         }
-        startDownloadService(retryOnly ? "Retrying failed sources..." : "Resolving APK...");
+        startDownloadService(retryOnly
+                ? getString(R.string.download_retrying)
+                : getString(R.string.download_resolving));
 
         executor.execute(() -> {
             try {
@@ -492,7 +494,7 @@ public class DownloadActivity extends Activity {
                 runOnUiThread(() -> {
                     progress.setIndeterminate(false);
                     progress.setProgress(0);
-                    setStatus("Could not find a matching APK.");
+                    setStatus(R.string.download_error_no_match);
                     showFailure();
                 });
             }
@@ -552,46 +554,49 @@ public class DownloadActivity extends Activity {
 
             if (scan.status == VirusTotalScanner.Status.UPLOAD_PENDING) {
                 showScanOutcomeForFiveSeconds(
-                        "VirusTotal analysis is still pending. Handoff aborted.");
+                        getString(R.string.virustotal_pending_abort));
                 if (!cancelled) {
                     abortHandoff(file,
-                            "VirusTotal analysis still pending; handoff aborted",
-                            "VirusTotal analysis still pending.");
+                            getString(R.string.virustotal_pending_reason),
+                            getString(R.string.virustotal_pending_status));
                 }
                 return;
             }
 
             if (scan.isDetection()) {
                 boolean block = AppSettings.virusTotalBlockDetections(this);
-                showScanOutcomeForFiveSeconds("VirusTotal: " + scan.message
-                        + (block ? " Blocking handoff." : " Continuing anyway."));
+                showScanOutcomeForFiveSeconds(getString(
+                        block ? R.string.virustotal_detected_block
+                                : R.string.virustotal_detected_continue,
+                        scan.message));
                 if (cancelled) {
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
                     return;
                 }
                 if (block) {
-                    abortHandoff(file, "VirusTotal blocked this file: " + scan.message,
-                            "VirusTotal found malware signatures.");
+                    abortHandoff(file,
+                            getString(R.string.virustotal_blocked_reason, scan.message),
+                            getString(R.string.virustotal_blocked_signatures));
                     return;
                 }
             } else if (scan.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
                     && AppSettings.virusTotalAbortOnQuota(this)) {
                 showScanOutcomeForFiveSeconds(
-                        "VirusTotal quota exceeded. Aborting handoff.");
+                        getString(R.string.virustotal_quota_aborting));
                 if (!cancelled) {
                     abortHandoff(file,
-                            "VirusTotal quota exceeded; handoff aborted: " + scan.message,
-                            "VirusTotal quota exceeded.");
+                            getString(R.string.virustotal_quota_reason, scan.message),
+                            getString(R.string.virustotal_quota_status));
                 }
                 return;
             } else if (scan.status == VirusTotalScanner.Status.CLEAN) {
                 showScanOutcomeForFiveSeconds(
-                        "VirusTotal: no detections found. Continuing...");
+                        getString(R.string.virustotal_clean_continue));
             } else if (scan.status != VirusTotalScanner.Status.CANCELLED
                     && scan.status != VirusTotalScanner.Status.DISABLED) {
-                showScanOutcomeForFiveSeconds("VirusTotal: " + scan.message
-                        + " Continuing unscanned.");
+                showScanOutcomeForFiveSeconds(
+                        getString(R.string.virustotal_unscanned_continue, scan.message));
             }
 
             if (cancelled) {
@@ -621,7 +626,7 @@ public class DownloadActivity extends Activity {
             setPauseVisible(false);
             runOnUiThread(() -> {
                 setResult(RESULT_OK, result);
-                setStatus("Done: " + file.getName());
+                setStatus(getString(R.string.download_done, file.getName()));
                 finish();
             });
         } catch (Exception e) {
@@ -634,7 +639,7 @@ public class DownloadActivity extends Activity {
             runOnUiThread(() -> {
                 progress.setIndeterminate(false);
                 progress.setProgress(0);
-                setStatus("Could not find a matching APK.");
+                setStatus(R.string.download_error_no_match);
                 showFailure();
             });
         }
@@ -693,7 +698,7 @@ public class DownloadActivity extends Activity {
     private void handoffToApkMirrorWeb(String url, String pkg, String version,
                                        String fileType) throws UptodownHandoffException {
         main.post(() -> {
-            setStatus("Opening APKMirror...");
+            setStatus(R.string.download_opening_apkmirror);
             progress.setIndeterminate(true);
             startApkMirrorWebFlow(url, pkg, version, fileType);
         });
@@ -708,8 +713,11 @@ public class DownloadActivity extends Activity {
     private void startWebFlow(String source, String url, String pkg, String version,
                               String fileType) {
         webSource = source;
-        setSourceLabel("apkpure".equals(source) ? "APKPure WebView"
-                : "apkmirror".equals(source) ? "APKMirror WebView" : "Uptodown WebView");
+        setSourceLabel("apkpure".equals(source)
+                ? getString(R.string.source_label_apkpure_webview)
+                : "apkmirror".equals(source)
+                        ? getString(R.string.source_label_apkmirror_webview)
+                        : getString(R.string.source_label_uptodown_webview));
         uptodownPkg = pkg;
         uptodownVersion = version;
         uptodownFileType = fileType;
@@ -719,23 +727,14 @@ public class DownloadActivity extends Activity {
         uptodownReloads = 0;
 
         if ("apkpure".equals(source)) {
-            uptodownTitle.setText("APKPure download");
-            uptodownExplanation.setText(
-                    "APKPure uses Cloudflare protection. If a search page appears, tap the app "
-                            + "result first. On the app page, tap Download APK (not the APKPure app "
-                            + "button). The helper will capture the XAPK or APK and return it to Morphe.");
+            uptodownTitle.setText(R.string.download_apkpure_title);
+            uptodownExplanation.setText(R.string.download_apkpure_explanation);
         } else if ("apkmirror".equals(source)) {
-            uptodownTitle.setText("APKMirror verification");
-            uptodownExplanation.setText(
-                    "APKMirror needs a quick Cloudflare check. The exact download page is shown "
-                            + "below. The helper will press the download button automatically once "
-                            + "the page is ready.");
+            uptodownTitle.setText(R.string.download_apkmirror_title);
+            uptodownExplanation.setText(R.string.download_apkmirror_explanation);
         } else {
-            uptodownTitle.setText("Uptodown verification");
-            uptodownExplanation.setText(
-                    "Uptodown needs a quick Cloudflare check. The official download page is "
-                            + "shown below. Wait for the download button, then tap it if the download "
-                            + "does not start automatically. The APK will be returned to Morphe.");
+            uptodownTitle.setText(R.string.download_uptodown_title);
+            uptodownExplanation.setText(R.string.download_uptodown_explanation);
         }
         fallbackButton.setVisibility(View.GONE);
 
@@ -910,15 +909,16 @@ public class DownloadActivity extends Activity {
             }
             uptodownHandled = true;
             HelperLog.info(webSource + " timed out waiting for the download page");
-            markSource(webSourceKey(), false, "Timed out waiting for the download page");
+            markSource(webSourceKey(), false,
+                    getString(R.string.download_error_page_timeout_detail));
             if (report != null) {
-                report.finishFailure("Timed out waiting for the download page");
+                report.finishFailure(getString(R.string.download_error_page_timeout_detail));
                 HelperLog.info(report.resultBlock());
             }
             web.stopLoading();
             stopDownloadService();
             setPauseVisible(false);
-            setStatus("The download page took too long to respond.");
+            setStatus(R.string.download_error_page_timeout);
             showFailure();
         };
         main.postDelayed(webFlowTimeout, 90_000);
@@ -1037,7 +1037,7 @@ public class DownloadActivity extends Activity {
             uptodownSection.setVisibility(View.GONE);
             progress.setVisibility(View.VISIBLE);
             progress.setIndeterminate(true);
-            setStatus("Downloading from " + webSourceName() + "...");
+            setStatus(getString(R.string.download_downloading_from, webSourceName()));
 
             final String cookie = CookieManager.getInstance().getCookie(url);
             executor.execute(() -> {
@@ -1050,7 +1050,7 @@ public class DownloadActivity extends Activity {
                             downloadType,
                             cookie
                     );
-                    markSource(webSourceKey(), true, "WebView");
+                    markSource(webSourceKey(), true, getString(R.string.source_detail_webview));
                     if (!cancelled) {
                         deliverFile(file);
                     }
@@ -1077,7 +1077,7 @@ public class DownloadActivity extends Activity {
                     runOnUiThread(() -> {
                         progress.setIndeterminate(false);
                         progress.setProgress(0);
-                        setStatus("Could not find a matching APK.");
+                        setStatus(R.string.download_error_no_match);
                         showFailure();
                     });
                 }
@@ -1124,7 +1124,7 @@ public class DownloadActivity extends Activity {
         root.addView(logo, new LinearLayout.LayoutParams(dp(84), dp(84)));
 
         // Screen title.
-        TextView title = text("Morphe Download Helper", 24, TEXT, true);
+        TextView title = text(getString(R.string.app_name), 24, TEXT, true);
         title.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1133,7 +1133,7 @@ public class DownloadActivity extends Activity {
         root.addView(title, titleParams);
 
         // Short subtitle explaining what the screen is doing.
-        TextView subtitle = text("Fetching the original APK", 14, MUTED, false);
+        TextView subtitle = text(getString(R.string.download_subtitle), 14, MUTED, false);
         subtitle.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1142,8 +1142,7 @@ public class DownloadActivity extends Activity {
         root.addView(subtitle, subtitleParams);
 
         // Static source order; the live status line below shows which one is active.
-        TextView sources = text(
-                "Sources: APKPure → Morphe → APKMirror → F-Droid → Aptoide → Appteka (SnapTube)",
+        TextView sources = text(getString(R.string.download_sources_summary),
                 12, MUTED, false);
         sources.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams sourcesParams = new LinearLayout.LayoutParams(
@@ -1202,7 +1201,7 @@ public class DownloadActivity extends Activity {
         diagnosticsParams.topMargin = dp(14);
         root.addView(diagnosticsCard, diagnosticsParams);
 
-        diagnosticsCard.addView(text("What was tried", 16, TEXT, true));
+        diagnosticsCard.addView(text(getString(R.string.download_tried_title), 16, TEXT, true));
         diagnosticsSummary = text("", 12, MUTED, false);
         diagnosticsSummary.setLineSpacing(dp(3), 1f);
         diagnosticsSummary.setPadding(0, dp(6), 0, dp(4));
@@ -1212,7 +1211,7 @@ public class DownloadActivity extends Activity {
         diagnosticsRows.setOrientation(LinearLayout.VERTICAL);
         diagnosticsCard.addView(diagnosticsRows);
 
-        retryButton = secondaryButton("Retry failed sources");
+        retryButton = secondaryButton(getString(R.string.download_retry_failed));
         retryButton.setVisibility(View.GONE);
         retryButton.setOnClickListener(v -> retryFailedSources());
         LinearLayout.LayoutParams retryParams = new LinearLayout.LayoutParams(
@@ -1220,7 +1219,7 @@ public class DownloadActivity extends Activity {
         retryParams.topMargin = dp(10);
         diagnosticsCard.addView(retryButton, retryParams);
 
-        copyButton = secondaryButton("Copy details");
+        copyButton = secondaryButton(getString(R.string.download_copy_details));
         copyButton.setVisibility(View.GONE);
         copyButton.setOnClickListener(v -> copyDiagnostics());
         LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(
@@ -1241,13 +1240,10 @@ public class DownloadActivity extends Activity {
         uptodownParams.topMargin = dp(14);
         root.addView(uptodownSection, uptodownParams);
 
-        uptodownTitle = text("Uptodown verification", 16, TEXT, true);
+        uptodownTitle = text(getString(R.string.download_uptodown_title), 16, TEXT, true);
         uptodownSection.addView(uptodownTitle);
 
-        uptodownExplanation = text(
-                "Uptodown needs a quick Cloudflare check. The official download page is "
-                        + "shown below. Wait for the download button, then tap it if the download "
-                        + "does not start automatically. The APK will be returned to Morphe.",
+        uptodownExplanation = text(getString(R.string.download_uptodown_explanation),
                 13, STEPS, false);
         uptodownExplanation.setLineSpacing(dp(3), 1f);
         uptodownExplanation.setPadding(0, dp(8), 0, dp(12));
@@ -1259,7 +1255,7 @@ public class DownloadActivity extends Activity {
                 dp(520)));
 
         // Fallback button is hidden until resolution fails.
-        fallbackButton = primaryButton("Open download page");
+        fallbackButton = primaryButton(getString(R.string.download_open_page));
         fallbackButton.setVisibility(View.GONE);
         fallbackButton.setOnClickListener(v -> {
             if (!TextUtils.isEmpty(fallbackUrl)) {
@@ -1276,7 +1272,7 @@ public class DownloadActivity extends Activity {
         fallbackParams.topMargin = dp(16);
         root.addView(fallbackButton, fallbackParams);
 
-        pauseButton = secondaryButton("Pause");
+        pauseButton = secondaryButton(getString(R.string.download_pause));
         pauseButton.setVisibility(View.GONE);
         pauseButton.setOnClickListener(v -> togglePause());
         LinearLayout.LayoutParams pauseParams = new LinearLayout.LayoutParams(
@@ -1285,7 +1281,7 @@ public class DownloadActivity extends Activity {
         root.addView(pauseButton, pauseParams);
 
         // Cancel/Close button is always visible.
-        cancelButton = secondaryButton("Cancel");
+        cancelButton = secondaryButton(getString(R.string.common_cancel));
         cancelButton.setOnClickListener(v -> cancel());
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1398,6 +1394,10 @@ public class DownloadActivity extends Activity {
         main.post(() -> status.setText(text));
     }
 
+    private void setStatus(int textRes) {
+        setStatus(getString(textRes));
+    }
+
     private void startDownloadService(String text) {
         Intent intent = new Intent(this, DownloadService.class)
                 .setAction(DownloadService.ACTION_START)
@@ -1425,9 +1425,13 @@ public class DownloadActivity extends Activity {
     }
     private void setSourceLabel(String label) {
         main.post(() -> {
-            sourceLabel.setText("Source: " + label);
+            sourceLabel.setText(getString(R.string.download_source_label, label));
             sourceLabel.setVisibility(View.VISIBLE);
         });
+    }
+
+    private void setSourceLabel(int labelRes) {
+        setSourceLabel(getString(labelRes));
     }
 
     private void setPauseVisible(boolean visible) {
@@ -1435,7 +1439,7 @@ public class DownloadActivity extends Activity {
             pauseButton.setVisibility(visible ? View.VISIBLE : View.GONE);
             if (!visible) {
                 paused = false;
-                pauseButton.setText("Pause");
+                pauseButton.setText(R.string.download_pause);
             }
         });
     }
@@ -1443,14 +1447,16 @@ public class DownloadActivity extends Activity {
     private void togglePause() {
         if (paused) {
             paused = false;
-            pauseButton.setText("Pause");
-            setStatus("Resuming download...");
-            updateDownloadService("Resuming download...", progress.getProgress(), false);
+            pauseButton.setText(R.string.download_pause);
+            setStatus(R.string.download_resuming);
+            updateDownloadService(getString(R.string.download_resuming),
+                    progress.getProgress(), false);
         } else {
             paused = true;
-            pauseButton.setText("Resume");
-            setStatus("Paused");
-            updateDownloadService("Paused", progress.getProgress(), false);
+            pauseButton.setText(R.string.download_resume);
+            setStatus(R.string.download_paused);
+            updateDownloadService(getString(R.string.download_paused),
+                    progress.getProgress(), false);
         }
     }
     private void markSource(String key, boolean ok, String message) {
@@ -1471,7 +1477,7 @@ public class DownloadActivity extends Activity {
             if (!TextUtils.isEmpty(fallbackUrl)) {
                 fallbackButton.setVisibility(View.VISIBLE);
             }
-            cancelButton.setText("Close");
+            cancelButton.setText(R.string.common_close);
             if (report != null) {
                 populateDiagnostics(report);
             }
@@ -1486,13 +1492,13 @@ public class DownloadActivity extends Activity {
         diagnosticsCard.setVisibility(View.VISIBLE);
         String reason = resolutionReport.failureReason();
         if (TextUtils.isEmpty(reason)) {
-            reason = "No matching APK was found.";
+            reason = getString(R.string.download_error_no_match_detail);
         } else if (!reason.endsWith(".")) {
             reason += ".";
         }
-        diagnosticsSummary.setText(reason
-                + (attempts.isEmpty() ? "" : " Tried " + attempts.size()
-                + " source attempt(s)."));
+        diagnosticsSummary.setText(reason + (attempts.isEmpty() ? ""
+                : " " + getResources().getQuantityString(
+                        R.plurals.download_tried_sources, attempts.size(), attempts.size())));
 
         for (ResolutionReport.Attempt attempt : attempts) {
             LinearLayout row = new LinearLayout(this);
@@ -1500,7 +1506,8 @@ public class DownloadActivity extends Activity {
             row.setPadding(0, dp(8), 0, dp(8));
             row.addView(text(attempt.label, 14, TEXT, true));
 
-            String detail = (attempt.success ? "OK" : "FAILED")
+            String detail = getString(attempt.success
+                    ? R.string.common_ok : R.string.common_failed)
                     + (TextUtils.isEmpty(attempt.detail) ? "" : " \u2022 " + attempt.detail);
             TextView detailView = text(detail, 12, attempt.success ? GREEN : RED, false);
             detailView.setPadding(0, dp(3), 0, 0);
@@ -1570,8 +1577,9 @@ public class DownloadActivity extends Activity {
             return;
         }
         clipboard.setPrimaryClip(ClipData.newPlainText(
-                "Morphe Download Helper diagnostics", report.resultBlock()));
-        Toast.makeText(this, "Diagnostics copied.", Toast.LENGTH_SHORT).show();
+                getString(R.string.download_diagnostics_clip_label), report.resultBlock()));
+        Toast.makeText(this, R.string.download_diagnostics_copied,
+                Toast.LENGTH_SHORT).show();
     }
 
     /** Cancels background work and returns RESULT_CANCELED to Morphe. */
@@ -1588,8 +1596,8 @@ public class DownloadActivity extends Activity {
     public void onBackPressed() {
         if (scanInProgress) {
             skipScanRequested = true;
-            setStatus("Skipping VirusTotal scan and continuing...");
-            Toast.makeText(this, "Skipping VirusTotal scan.",
+            setStatus(R.string.virustotal_skip_status);
+            Toast.makeText(this, R.string.virustotal_skip_toast,
                     Toast.LENGTH_SHORT).show();
             return;
         }
@@ -1699,7 +1707,7 @@ public class DownloadActivity extends Activity {
                          String fileType, String[] abis) throws IOException {
         long[] codes = versionCodes;
         if (codes == null || codes.length == 0) {
-            setStatus("Checking installed version...");
+            setStatus(R.string.download_checking_version);
             String installedName = installedVersionName(pkg);
             long installed = installedVersionCode(pkg);
             if (installed > 0 && (TextUtils.isEmpty(version)
@@ -1723,8 +1731,8 @@ public class DownloadActivity extends Activity {
         }
         if (hasCodes && sourceAllowed(SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
-            setSourceLabel("APKPure direct");
-            setStatus("Trying APKPure direct...");
+            setSourceLabel(R.string.source_label_apkpure_direct);
+            setStatus(R.string.download_trying_apkpure_direct);
             try {
                 File file = downloadFromApkPure(pkg, version, codes, fileType);
                 markSource(SourceSettings.APKPURE, true, "direct");
@@ -1735,8 +1743,8 @@ public class DownloadActivity extends Activity {
                 HelperLog.error("APKPure fast direct failed", directError);
             }
 
-            setSourceLabel("APKPure API");
-            setStatus("Resolving APKPure API...");
+            setSourceLabel(R.string.source_label_apkpure_api);
+            setStatus(R.string.download_resolving_apkpure_api);
             try {
                 File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
                 markSource(SourceSettings.APKPURE, true, "API");
@@ -1754,9 +1762,9 @@ public class DownloadActivity extends Activity {
             String morpheUrl = ResolverCache.get(this, resolverKey);
             if (morpheUrl != null) {
                 HelperLog.info("Using cached Morphe resolver link: " + morpheUrl);
-                setStatus("Using cached resolver...");
+                setStatus(R.string.download_using_cached_resolver);
             } else {
-                setStatus("Checking Morphe resolver...");
+                setStatus(R.string.download_checking_resolver);
                 morpheUrl = resolveMorpheUrl(pkg, version, abis);
                 if (morpheUrl != null && !isHost(hostOf(morpheUrl), "google.com")) {
                     ResolverCache.put(this, resolverKey, morpheUrl);
@@ -1766,13 +1774,13 @@ public class DownloadActivity extends Activity {
             if (resolvedUrl != null) {
                 String host = hostOf(resolvedUrl);
                 HelperLog.info("Morphe resolver returned: " + resolvedUrl);
-                setStatus("Resolver found " + host + "...");
+                setStatus(getString(R.string.download_resolver_found, host));
                 if (isHost(host, "uptodown.com")) {
                     if (pathOf(morpheUrl).trim().endsWith("-x")
                             && sourceAllowed(SourceSettings.UPTODOWN)) {
-                        markSource(SourceSettings.FALLBACK, true, "Opened Uptodown");
+                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_opened_uptodown));
                         main.post(() -> {
-                            setStatus("Opening Uptodown...");
+                            setStatus(R.string.download_opening_uptodown);
                             progress.setIndeterminate(true);
                             startUptodownWebFlow(resolvedUrl, pkg, version, fileType);
                         });
@@ -1782,7 +1790,7 @@ public class DownloadActivity extends Activity {
                         && sourceAllowed(SourceSettings.APKPURE)) {
                     try {
                         File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                        markSource(SourceSettings.FALLBACK, true, "Resolver APKPure");
+                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_apkpure));
                         return file;
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver APKPure link failed", ignored);
@@ -1795,8 +1803,8 @@ public class DownloadActivity extends Activity {
                         HelperLog.info("Morphe resolver points to GitHub repo " + repo
                                 + "; using the release for this patch source");
                         GitHubAppStore.put(this, pkg, repo, requestedAppName);
-                        setSourceLabel("GitHub");
-                        setStatus("Checking GitHub release...");
+                        setSourceLabel(R.string.source_label_github);
+                        setStatus(R.string.download_checking_github_release);
                         try {
                             GitHubAppStore.Entry entry = new GitHubAppStore.Entry(
                                     pkg, repo, requestedAppName,
@@ -1812,10 +1820,10 @@ public class DownloadActivity extends Activity {
                     }
                 } else if (isHost(host, "apkmirror.com")
                         && sourceAllowed(SourceSettings.APKMIRROR)) {
-                    setSourceLabel("Morphe resolver");
+                    setSourceLabel(R.string.source_label_morphe_resolver);
                     try {
                         File file = downloadFromFallback(morpheUrl, pkg, version, fileType, abis);
-                        markSource(SourceSettings.FALLBACK, true, "Resolver APKMirror");
+                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_apkmirror));
                         return file;
                     } catch (UptodownHandoffException handoff) {
                         throw handoff;
@@ -1825,15 +1833,15 @@ public class DownloadActivity extends Activity {
                 } else if (isDirectFile(morpheUrl)) {
                     try {
                         File file = downloadFile(morpheUrl, null, pkg, version, fileType);
-                        markSource(SourceSettings.FALLBACK, true, "Resolver direct file");
+                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_direct));
                         return file;
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver direct file failed", ignored);
                     }
                 }
-                markSource(SourceSettings.FALLBACK, false, "Resolver did not produce a file");
+                markSource(SourceSettings.FALLBACK, false, getString(R.string.source_detail_resolver_no_file));
             } else {
-                markSource(SourceSettings.FALLBACK, false, "No resolver result");
+                markSource(SourceSettings.FALLBACK, false, getString(R.string.source_detail_no_resolver_result));
             }
         }
 
@@ -1857,12 +1865,12 @@ public class DownloadActivity extends Activity {
                             || (isHost(fallbackHost, "uptodown.com")
                             && !sourceAllowed(SourceSettings.UPTODOWN));
             if (!hostDisabled) {
-                setSourceLabel("Morphe fallback");
-                setStatus("Trying fallback URL...");
+                setSourceLabel(R.string.source_label_morphe_fallback);
+                setStatus(R.string.download_trying_fallback);
                 HelperLog.info("Trying fallback URL: " + fallbackUrl);
                 try {
                     File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
-                    markSource(SourceSettings.FALLBACK, true, "fallback link");
+                    markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_fallback_link));
                     return file;
                 } catch (UptodownHandoffException handoff) {
                     throw handoff;
@@ -1877,12 +1885,12 @@ public class DownloadActivity extends Activity {
 
         // 2. APKMirror.
         if (sourceAllowed(SourceSettings.APKMIRROR)) {
-            setSourceLabel("APKMirror");
-            setStatus("Searching APKMirror...");
+            setSourceLabel(R.string.source_label_apkmirror);
+            setStatus(R.string.download_searching_apkmirror);
             HelperLog.info("Trying APKMirror search for " + pkg);
             try {
                 File file = downloadFromApkMirrorSearch(pkg, version, fileType, abis);
-                markSource(SourceSettings.APKMIRROR, true, "search");
+                markSource(SourceSettings.APKMIRROR, true, getString(R.string.source_detail_search));
                 return file;
             } catch (UptodownHandoffException handoff) {
                 throw handoff;
@@ -1898,11 +1906,11 @@ public class DownloadActivity extends Activity {
                 && allowSplitArchive && isSplitType(fileType)
                 && !apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
-            setSourceLabel("APKPure XAPK");
-            setStatus("Trying APKPure XAPK fallback...");
+            setSourceLabel(R.string.source_label_apkpure_xapk);
+            setStatus(R.string.download_trying_xapk);
             try {
                 File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                markSource(SourceSettings.APKPURE, true, "XAPK fallback");
+                markSource(SourceSettings.APKPURE, true, getString(R.string.source_detail_xapk_fallback));
                 return file;
             } catch (Exception failed) {
                 HelperLog.error("APKPure XAPK fallback failed", failed);
@@ -1915,8 +1923,8 @@ public class DownloadActivity extends Activity {
         if (!hasCodes && sourceAllowed(SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure fallback for " + pkg);
-            setSourceLabel("APKPure API");
-            setStatus("Resolving APKPure API...");
+            setSourceLabel(R.string.source_label_apkpure_api);
+            setStatus(R.string.download_resolving_apkpure_api);
             try {
                 File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
                 markSource(SourceSettings.APKPURE, true, "API");
@@ -1924,8 +1932,8 @@ public class DownloadActivity extends Activity {
             } catch (Exception apiError) {
                 markSource(SourceSettings.APKPURE, false, "API: " + apiError.getMessage());
                 HelperLog.error("APKPure API failed", apiError);
-                setSourceLabel("APKPure direct");
-                setStatus("Trying APKPure direct...");
+                setSourceLabel(R.string.source_label_apkpure_direct);
+                setStatus(R.string.download_trying_apkpure_direct);
                 try {
                     File file = downloadFromApkPure(pkg, version, codes, fileType);
                     markSource(SourceSettings.APKPURE, true, "direct");
@@ -1939,12 +1947,12 @@ public class DownloadActivity extends Activity {
 
         // 4. F-Droid.
         if (sourceAllowed(SourceSettings.FDROID)) {
-            setSourceLabel("F-Droid");
-            setStatus("Checking F-Droid...");
+            setSourceLabel(R.string.source_label_fdroid);
+            setStatus(R.string.download_checking_fdroid);
             HelperLog.info("Trying F-Droid for " + pkg);
             try {
                 File file = downloadFromFdroid(pkg, version, codes, fileType);
-                markSource(SourceSettings.FDROID, true, "package API");
+                markSource(SourceSettings.FDROID, true, getString(R.string.source_detail_package_api));
                 return file;
             } catch (Exception failed) {
                 HelperLog.error("F-Droid failed", failed);
@@ -1954,12 +1962,12 @@ public class DownloadActivity extends Activity {
 
         // 5. Aptoide.
         if (sourceAllowed(SourceSettings.APTOIDE)) {
-            setSourceLabel("Aptoide");
-            setStatus("Searching Aptoide...");
+            setSourceLabel(R.string.source_label_aptoide);
+            setStatus(R.string.download_searching_aptoide);
             HelperLog.info("Trying Aptoide for " + pkg);
             try {
                 File file = downloadFromAptoide(pkg, version, codes, fileType);
-                markSource(SourceSettings.APTOIDE, true, "TRUSTED upload");
+                markSource(SourceSettings.APTOIDE, true, getString(R.string.source_detail_trusted_upload));
                 return file;
             } catch (Exception failed) {
                 HelperLog.error("Aptoide failed", failed);
@@ -1970,12 +1978,12 @@ public class DownloadActivity extends Activity {
         if (sourceAllowed(SourceSettings.APPTEKA)
                 && !isSplitType(fileType)
                 && AppSettings.apptekaAllowed(this, pkg)) {
-            setSourceLabel("Appteka");
-            setStatus("Searching Appteka...");
+            setSourceLabel(R.string.source_label_appteka);
+            setStatus(R.string.download_searching_appteka);
             HelperLog.info("Trying Appteka for " + pkg);
             try {
                 File file = downloadFromAppteka(pkg, version, codes);
-                markSource(SourceSettings.APPTEKA, true, "catalog");
+                markSource(SourceSettings.APPTEKA, true, getString(R.string.source_detail_catalog));
                 return file;
             } catch (Exception failed) {
                 HelperLog.error("Appteka failed", failed);
@@ -1988,8 +1996,8 @@ public class DownloadActivity extends Activity {
         GitHubAppStore.Entry remembered = GitHubAppStore.get(this, pkg);
         if (remembered != null
                 && (retrySources == null || retrySources.contains(SourceSettings.GITHUB))) {
-            setSourceLabel("GitHub");
-            setStatus("Checking GitHub releases...");
+            setSourceLabel(R.string.source_label_github);
+            setStatus(R.string.download_checking_github_releases);
             HelperLog.info("Trying remembered GitHub repo as last resort "
                     + remembered.repo);
             try {
@@ -2009,12 +2017,12 @@ public class DownloadActivity extends Activity {
                 && !"any".equalsIgnoreCase(version.trim());
         if (hasRequestedVersion
                 && (retrySources == null || retrySources.contains(SourceSettings.GITHUB))) {
-            setSourceLabel("GitHub");
-            setStatus("Searching GitHub...");
+            setSourceLabel(R.string.source_label_github);
+            setStatus(R.string.download_searching_github);
             HelperLog.info("Searching GitHub releases as last resort");
             try {
                 File file = downloadFromGitHubSearch(pkg, version, fileType, abis);
-                markSource(SourceSettings.GITHUB, true, "automatic search");
+                markSource(SourceSettings.GITHUB, true, getString(R.string.source_detail_automatic_search));
                 return file;
             } catch (Exception error) {
                 HelperLog.error("Automatic GitHub search failed", error);
@@ -2027,7 +2035,7 @@ public class DownloadActivity extends Activity {
         if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
             main.post(() -> {
-                setStatus("Opening APKPure page...");
+                setStatus(R.string.download_opening_apkpure);
                 progress.setIndeterminate(true);
                 startApkPureWebFlow(pkg, version, fileType);
             });
@@ -2094,11 +2102,11 @@ public class DownloadActivity extends Activity {
                 && allowSplitArchive && isSplitType(fileType)
                 && !apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
-            setSourceLabel("APKPure XAPK");
-            setStatus("Trying APKPure XAPK fallback...");
+            setSourceLabel(R.string.source_label_apkpure_xapk);
+            setStatus(R.string.download_trying_xapk);
             try {
                 File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                markSource(SourceSettings.APKPURE, true, "XAPK fallback");
+                markSource(SourceSettings.APKPURE, true, getString(R.string.source_detail_xapk_fallback));
                 return file;
             } catch (Exception failed) {
                 HelperLog.error("APKPure XAPK fallback failed", failed);
@@ -2109,8 +2117,8 @@ public class DownloadActivity extends Activity {
         if (!hasCodes && sourceAllowed(SourceSettings.APKPURE)
                 && apkPureCanServe(fileType)) {
             HelperLog.info("Trying APKPure fallback for " + pkg);
-            setSourceLabel("APKPure API");
-            setStatus("Resolving APKPure API...");
+            setSourceLabel(R.string.source_label_apkpure_api);
+            setStatus(R.string.download_resolving_apkpure_api);
             try {
                 File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
                 markSource(SourceSettings.APKPURE, true, "API");
@@ -2118,8 +2126,8 @@ public class DownloadActivity extends Activity {
             } catch (Exception apiError) {
                 markSource(SourceSettings.APKPURE, false, "API: " + apiError.getMessage());
                 HelperLog.error("APKPure API failed", apiError);
-                setSourceLabel("APKPure direct");
-                setStatus("Trying APKPure direct...");
+                setSourceLabel(R.string.source_label_apkpure_direct);
+                setStatus(R.string.download_trying_apkpure_direct);
                 try {
                     File file = downloadFromApkPure(pkg, version, codes, fileType);
                     markSource(SourceSettings.APKPURE, true, "direct");
@@ -2134,7 +2142,7 @@ public class DownloadActivity extends Activity {
         if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
                 && (apkPureCanServe(fileType) || isSplitType(fileType))) {
             main.post(() -> {
-                setStatus("Opening APKPure page...");
+                setStatus(R.string.download_opening_apkpure);
                 progress.setIndeterminate(true);
                 startApkPureWebFlow(pkg, version, fileType);
             });
@@ -2148,8 +2156,8 @@ public class DownloadActivity extends Activity {
         if (!hasCodes || !apkPureCanServe(fileType)) {
             return null;
         }
-        setSourceLabel("APKPure direct");
-        setStatus("Trying APKPure direct...");
+        setSourceLabel(R.string.source_label_apkpure_direct);
+        setStatus(R.string.download_trying_apkpure_direct);
         try {
             File file = downloadFromApkPure(pkg, version, codes, fileType);
             markSource(SourceSettings.APKPURE, true, "direct");
@@ -2159,8 +2167,8 @@ public class DownloadActivity extends Activity {
                     "direct: " + directError.getMessage());
             HelperLog.error("APKPure fast direct failed", directError);
         }
-        setSourceLabel("APKPure API");
-        setStatus("Resolving APKPure API...");
+        setSourceLabel(R.string.source_label_apkpure_api);
+        setStatus(R.string.download_resolving_apkpure_api);
         try {
             File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
             markSource(SourceSettings.APKPURE, true, "API");
@@ -2178,9 +2186,9 @@ public class DownloadActivity extends Activity {
         String key = pkg + "|" + version + "|" + abi;
         String url = ResolverCache.get(this, key);
         if (url != null) {
-            setStatus("Using cached resolver...");
+            setStatus(R.string.download_using_cached_resolver);
         } else {
-            setStatus("Checking Morphe resolver...");
+            setStatus(R.string.download_checking_resolver);
             url = resolveMorpheUrl(pkg, version, abis);
             if (url != null && !isHost(hostOf(url), "google.com")) {
                 ResolverCache.put(this, key, url);
@@ -2188,13 +2196,13 @@ public class DownloadActivity extends Activity {
         }
         if (url != null) {
             String host = hostOf(url);
-            setStatus("Resolver found " + host + "...");
+            setStatus(getString(R.string.download_resolver_found, host));
             if (isHost(host, "uptodown.com") && pathOf(url).trim().endsWith("-x")
                     && sourceAllowed(SourceSettings.UPTODOWN)) {
-                markSource(SourceSettings.FALLBACK, true, "Opened Uptodown");
+                markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_opened_uptodown));
                 final String resolved = url;
                 main.post(() -> {
-                    setStatus("Opening Uptodown...");
+                    setStatus(R.string.download_opening_uptodown);
                     progress.setIndeterminate(true);
                     startUptodownWebFlow(resolved, pkg, version, fileType);
                 });
@@ -2204,7 +2212,7 @@ public class DownloadActivity extends Activity {
                     && sourceAllowed(SourceSettings.APKPURE)) {
                 try {
                     File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                    markSource(SourceSettings.FALLBACK, true, "Resolver APKPure");
+                    markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_apkpure));
                     return file;
                 } catch (Exception failed) {
                     HelperLog.error("Morphe resolver APKPure link failed", failed);
@@ -2213,7 +2221,7 @@ public class DownloadActivity extends Activity {
                     && sourceAllowed(SourceSettings.APKMIRROR)) {
                 try {
                     File file = downloadFromFallback(url, pkg, version, fileType, abis);
-                    markSource(SourceSettings.FALLBACK, true, "Resolver APKMirror");
+                    markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_apkmirror));
                     return file;
                 } catch (UptodownHandoffException handoff) {
                     throw handoff;
@@ -2223,15 +2231,15 @@ public class DownloadActivity extends Activity {
             } else if (isDirectFile(url)) {
                 try {
                     File file = downloadFile(url, null, pkg, version, fileType);
-                    markSource(SourceSettings.FALLBACK, true, "Resolver direct file");
+                    markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_direct));
                     return file;
                 } catch (Exception failed) {
                     HelperLog.error("Morphe resolver direct file failed", failed);
                 }
             }
-            markSource(SourceSettings.FALLBACK, false, "Resolver did not produce a file");
+            markSource(SourceSettings.FALLBACK, false, getString(R.string.source_detail_resolver_no_file));
         } else {
-            markSource(SourceSettings.FALLBACK, false, "No resolver result");
+            markSource(SourceSettings.FALLBACK, false, getString(R.string.source_detail_no_resolver_result));
         }
 
         if (!TextUtils.isEmpty(fallbackUrl)) {
@@ -2243,10 +2251,10 @@ public class DownloadActivity extends Activity {
                     || (isHost(host, "uptodown.com")
                     && !sourceAllowed(SourceSettings.UPTODOWN));
             if (!disabled) {
-                setStatus("Trying fallback URL...");
+                setStatus(R.string.download_trying_fallback);
                 try {
                     File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
-                    markSource(SourceSettings.FALLBACK, true, "fallback link");
+                    markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_fallback_link));
                     return file;
                 } catch (UptodownHandoffException handoff) {
                     throw handoff;
@@ -2261,11 +2269,11 @@ public class DownloadActivity extends Activity {
 
     private File customApkMirror(String pkg, String version, String fileType, String[] abis)
             throws IOException {
-        setSourceLabel("APKMirror");
-        setStatus("Searching APKMirror...");
+        setSourceLabel(R.string.source_label_apkmirror);
+        setStatus(R.string.download_searching_apkmirror);
         try {
             File file = downloadFromApkMirrorSearch(pkg, version, fileType, abis);
-            markSource(SourceSettings.APKMIRROR, true, "search");
+            markSource(SourceSettings.APKMIRROR, true, getString(R.string.source_detail_search));
             return file;
         } catch (UptodownHandoffException handoff) {
             throw handoff;
@@ -2277,11 +2285,11 @@ public class DownloadActivity extends Activity {
     }
 
     private File customFdroid(String pkg, String version, long[] codes, String fileType) {
-        setSourceLabel("F-Droid");
-        setStatus("Checking F-Droid...");
+        setSourceLabel(R.string.source_label_fdroid);
+        setStatus(R.string.download_checking_fdroid);
         try {
             File file = downloadFromFdroid(pkg, version, codes, fileType);
-            markSource(SourceSettings.FDROID, true, "package API");
+            markSource(SourceSettings.FDROID, true, getString(R.string.source_detail_package_api));
             return file;
         } catch (Exception failed) {
             HelperLog.error("F-Droid failed", failed);
@@ -2291,11 +2299,11 @@ public class DownloadActivity extends Activity {
     }
 
     private File customAptoide(String pkg, String version, long[] codes, String fileType) {
-        setSourceLabel("Aptoide");
-        setStatus("Searching Aptoide...");
+        setSourceLabel(R.string.source_label_aptoide);
+        setStatus(R.string.download_searching_aptoide);
         try {
             File file = downloadFromAptoide(pkg, version, codes, fileType);
-            markSource(SourceSettings.APTOIDE, true, "TRUSTED upload");
+            markSource(SourceSettings.APTOIDE, true, getString(R.string.source_detail_trusted_upload));
             return file;
         } catch (Exception failed) {
             HelperLog.error("Aptoide failed", failed);
@@ -2308,11 +2316,11 @@ public class DownloadActivity extends Activity {
         if (isSplitType(fileType) || !AppSettings.apptekaAllowed(this, pkg)) {
             return null;
         }
-        setSourceLabel("Appteka");
-        setStatus("Searching Appteka...");
+        setSourceLabel(R.string.source_label_appteka);
+        setStatus(R.string.download_searching_appteka);
         try {
             File file = downloadFromAppteka(pkg, version, codes);
-            markSource(SourceSettings.APPTEKA, true, "catalog");
+            markSource(SourceSettings.APPTEKA, true, getString(R.string.source_detail_catalog));
             return file;
         } catch (Exception failed) {
             HelperLog.error("Appteka failed", failed);
@@ -2594,7 +2602,7 @@ public class DownloadActivity extends Activity {
     private File downloadFromVariantPage(String variantUrl, String pkg, String version,
                                          String fileType) throws IOException {
         HelperLog.info("APKMirror variant page: " + variantUrl);
-        setStatus("Checking APKMirror page...");
+        setStatus(R.string.download_checking_apkmirror_page);
         String html;
         try {
             html = httpGet(variantUrl, null);
@@ -2625,7 +2633,7 @@ public class DownloadActivity extends Activity {
     private File downloadFromKeyPage(String keyUrl, String pkg, String version,
                                      String fileType) throws IOException {
         HelperLog.info("APKMirror key page: " + keyUrl);
-        setStatus("Fetching APKMirror download key...");
+        setStatus(R.string.download_fetching_key);
         String html;
         try {
             html = httpGet(keyUrl, null);
@@ -2648,7 +2656,7 @@ public class DownloadActivity extends Activity {
         if (fileUrl == null) {
             throw new IOException("APKMirror final download link not found");
         }
-        setStatus("Starting APKMirror download...");
+        setStatus(R.string.download_starting_apkmirror);
         return downloadFile(absolute(decodeHtml(fileUrl)), keyUrl, pkg, version, fileType);
     }
 
@@ -3249,7 +3257,7 @@ public class DownloadActivity extends Activity {
             }
 
             setPauseVisible(true);
-            setStatus("Starting download...");
+            setStatus(R.string.download_starting);
             String filename = filenameFrom(
                     response.header("Content-Disposition"),
                     response.request().url().toString(),
@@ -3300,8 +3308,10 @@ public class DownloadActivity extends Activity {
                         long left = speed > 0 ? (long) ((total - readTotal) / speed) : -1;
                         String speedText = String.format(Locale.US, "%.1f MB/s",
                                 speed / (1024 * 1024));
-                        String text = "Downloading... " + p + "% \u2022 " + speedText
-                                + (left > 0 ? " \u2022 " + left + "s left" : "");
+                        String text = left > 0
+                                ? getString(R.string.download_progress_eta,
+                                        p, speedText, left)
+                                : getString(R.string.download_progress, p, speedText);
                         final int progressValue = p;
                         main.post(() -> {
                             progress.setProgress(progressValue);

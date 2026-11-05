@@ -29,8 +29,9 @@ public class DownloadService extends Service {
         super.onCreate();
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(
-                    CHANNEL, "Downloads", NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("APK download progress");
+                    CHANNEL, getString(R.string.notif_channel_downloads),
+                    NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription(getString(R.string.notif_channel_downloads_desc));
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
     }
@@ -59,8 +60,9 @@ public class DownloadService extends Service {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_logo_mark)
-                .setContentTitle("Morphe Download Helper")
-                .setContentText(text == null ? "Downloading..." : text)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(text == null
+                        ? getString(R.string.download_notification_default) : text)
                 .setContentIntent(pending)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)

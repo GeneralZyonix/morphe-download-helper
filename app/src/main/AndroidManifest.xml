@@ -38,6 +38,7 @@
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
@@ -57,18 +58,18 @@
         <activity
             android:name=".GuideActivity"
             android:exported="false"
-            android:label="Visual guide" />
+            android:label="@string/main_visual_guide" />
 
         <activity
             android:name=".UpdateActivity"
             android:exported="false"
-            android:label="Update" />
+            android:label="@string/common_update" />
 
         <!-- Source settings: choose which APK sources the helper may use. -->
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:label="Settings" />
+            android:label="@string/common_settings" />
 
         <!--
             Helper contract: Morphe sends this action when the user taps

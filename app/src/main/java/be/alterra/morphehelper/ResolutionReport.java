@@ -1,5 +1,7 @@
 package be.alterra.morphehelper;
 
+import android.content.Context;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -25,6 +27,7 @@ final class ResolutionReport {
         }
     }
 
+    private final Context context;
     private final String appName;
     private final String pkg;
     private final String version;
@@ -39,7 +42,9 @@ final class ResolutionReport {
     private String failureReason;
     private File file;
 
-    ResolutionReport(String appName, String pkg, String version, String fileType, String abi) {
+    ResolutionReport(Context context, String appName, String pkg, String version,
+                     String fileType, String abi) {
+        this.context = context.getApplicationContext();
         this.appName = appName;
         this.pkg = pkg;
         this.version = version;
@@ -48,7 +53,7 @@ final class ResolutionReport {
     }
 
     synchronized void record(String key, boolean ok, String detail) {
-        attempts.add(new Attempt(key, AppSettings.sourceLabel(key), ok,
+        attempts.add(new Attempt(key, AppSettings.sourceLabel(context, key), ok,
                 friendly(detail), System.currentTimeMillis()));
         if (ok) {
             failedKeys.remove(key);
@@ -102,18 +107,23 @@ final class ResolutionReport {
 
     synchronized String resultBlock() {
         StringBuilder text = new StringBuilder();
-        text.append("========== DOWNLOAD RESULT ==========\n");
-        text.append("Request: ").append(value(pkg)).append(" ").append(value(version)).append('\n');
-        text.append("Result: ").append(success ? "SUCCESS" : "FAILED").append('\n');
-        text.append("Duration: ").append(durationText()).append('\n');
-        text.append("Sources tried:\n");
+        text.append(context.getString(R.string.report_result_title)).append('\n');
+        text.append(context.getString(
+                R.string.report_request, value(pkg), value(version))).append('\n');
+        text.append(context.getString(R.string.report_result, context.getString(
+                success ? R.string.report_success : R.string.report_failed))).append('\n');
+        text.append(context.getString(
+                R.string.report_duration, durationText())).append('\n');
+        text.append(context.getString(R.string.report_sources_tried)).append('\n');
         if (attempts.isEmpty()) {
-            text.append("  None\n");
+            text.append(context.getString(R.string.report_none)).append('\n');
         } else {
             for (int i = 0; i < attempts.size(); i++) {
                 Attempt attempt = attempts.get(i);
-                text.append("  ").append(i + 1).append(". ").append(attempt.label)
-                        .append(" - ").append(attempt.success ? "OK" : "FAILED");
+                String status = context.getString(
+                        attempt.success ? R.string.common_ok : R.string.common_failed);
+                text.append(context.getString(
+                        R.string.report_source_line, i + 1, attempt.label, status));
                 if (attempt.detail != null && !attempt.detail.isEmpty()) {
                     text.append(" - ").append(attempt.detail);
                 }
@@ -121,16 +131,21 @@ final class ResolutionReport {
             }
         }
         if (success && file != null) {
-            text.append("File: ").append(file.getName()).append('\n');
-            text.append("Size: ").append(sizeText(file.length())).append('\n');
+            text.append(context.getString(
+                    R.string.report_file, file.getName())).append('\n');
+            text.append(context.getString(
+                    R.string.report_size, sizeText(file.length()))).append('\n');
         } else {
-            text.append("Reason: ").append(value(failureReason)).append('\n');
-            text.append("What you can do:\n");
-            text.append("  - Tap Retry failed sources.\n");
-            text.append("  - Check that this version is available.\n");
-            text.append("  - Change the source order in Settings.\n");
+            text.append(context.getString(
+                    R.string.report_reason, value(failureReason))).append('\n');
+            text.append(context.getString(R.string.report_what_you_can_do)).append('\n');
+            text.append(context.getString(R.string.report_action_retry)).append('\n');
+            text.append(context.getString(
+                    R.string.report_action_check_version)).append('\n');
+            text.append(context.getString(
+                    R.string.report_action_change_order)).append('\n');
         }
-        text.append("========== END REQUEST ==========\n");
+        text.append(context.getString(R.string.report_end)).append('\n');
         return text.toString();
     }
 
@@ -152,44 +167,60 @@ final class ResolutionReport {
         return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0));
     }
 
-    static String friendly(String raw) {
+    private String friendly(String raw) {
         if (raw == null || raw.trim().isEmpty()) {
-            return "Unknown error";
+            return context.getString(R.string.error_unknown);
         }
         String value = raw.replaceAll("https?://\\S+", "link").trim();
         String lower = value.toLowerCase(Locale.US);
         String prefix = "";
         if (lower.startsWith("direct:")) {
-            prefix = "Direct: ";
+            prefix = context.getString(R.string.error_prefix_direct);
             value = value.substring(7).trim();
             lower = lower.substring(7).trim();
         } else if (lower.startsWith("api:")) {
-            prefix = "API: ";
+            prefix = context.getString(R.string.error_prefix_api);
             value = value.substring(4).trim();
             lower = lower.substring(4).trim();
         }
-        if (lower.contains("http 404")) return prefix + "Not found (HTTP 404)";
-        if (lower.contains("http 403")) return prefix + "Access blocked (HTTP 403)";
-        if (lower.contains("http 429")) return prefix + "Rate limited (HTTP 429)";
+        if (lower.contains("http 404")) {
+            return prefix + context.getString(R.string.error_http_404);
+        }
+        if (lower.contains("http 403")) {
+            return prefix + context.getString(R.string.error_http_403);
+        }
+        if (lower.contains("http 429")) {
+            return prefix + context.getString(R.string.error_http_429);
+        }
         if (lower.contains("timeout") || lower.contains("timed out")) {
-            return prefix + "Connection timed out";
+            return prefix + context.getString(R.string.error_timeout);
         }
-        if (lower.contains("html")) return prefix + "Source returned a web page instead of a file";
+        if (lower.contains("html")) {
+            return prefix + context.getString(R.string.error_html);
+        }
         if (lower.contains("requested version") && lower.contains("not found")) {
-            return prefix + "Requested version not found";
+            return prefix + context.getString(R.string.error_version_not_found);
         }
-        if (lower.contains("no matching")) return prefix + "No matching version found";
-        if (lower.contains("search returned no app")) return prefix + "No matching app found";
-        if (lower.contains("no enabled download source")) return prefix + "No source found a matching APK";
-        if (lower.contains("cancelled")) return prefix + "Cancelled";
+        if (lower.contains("no matching")) {
+            return prefix + context.getString(R.string.error_no_matching_version);
+        }
+        if (lower.contains("search returned no app")) {
+            return prefix + context.getString(R.string.error_no_matching_app);
+        }
+        if (lower.contains("no enabled download source")) {
+            return prefix + context.getString(R.string.error_no_source);
+        }
+        if (lower.contains("cancelled")) {
+            return prefix + context.getString(R.string.error_cancelled);
+        }
         if (value.length() > 140) {
             return prefix + value.substring(0, 137) + "...";
         }
         return prefix + value;
     }
 
-    private static String value(String value) {
-        return value == null || value.trim().isEmpty() ? "unknown" : value;
+    private String value(String value) {
+        return value == null || value.trim().isEmpty()
+                ? context.getString(R.string.report_unknown) : value;
     }
 }
-

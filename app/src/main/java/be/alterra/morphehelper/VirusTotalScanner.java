@@ -122,7 +122,7 @@ final class VirusTotalScanner {
                     "No VirusTotal API key configured.");
         }
 
-        progress(callback, "Checking VirusTotal...", -1);
+        progress(callback, context.getString(R.string.virustotal_checking), -1);
         String hash;
         try {
             hash = sha256(file);
@@ -203,7 +203,7 @@ final class VirusTotalScanner {
 
         String uploadUrl = API + "files";
         if (file.length() > DIRECT_UPLOAD_LIMIT) {
-            progress(callback, "Preparing VirusTotal upload...", -1);
+            progress(callback, context.getString(R.string.virustotal_preparing_upload), -1);
             Result urlResult = uploadUrl(apiKey);
             if (urlResult != null) {
                 return urlResult;
@@ -216,8 +216,8 @@ final class VirusTotalScanner {
             return cancelled(hash);
         }
 
-        progress(callback, "Uploading to VirusTotal... 0%", 0);
-        RequestBody fileBody = new ProgressRequestBody(file,
+        progress(callback, context.getString(R.string.virustotal_uploading, 0), 0);
+        RequestBody fileBody = new ProgressRequestBody(context, file,
                 RequestBody.create(OCTET_STREAM, file), file.length(), callback, cancel);
         MultipartBody body = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
@@ -248,7 +248,7 @@ final class VirusTotalScanner {
                 return new Result(Status.UPLOAD_PENDING, hash, 0, 0,
                         "APK uploaded, but VirusTotal returned no analysis ID.");
             }
-            return waitForAnalysis(hash, analysisId, apiKey, callback, cancel);
+            return waitForAnalysis(context, hash, analysisId, apiKey, callback, cancel);
         } catch (Exception error) {
             if (isCancelled(cancel)) {
                 return cancelled(hash);
@@ -298,9 +298,10 @@ final class VirusTotalScanner {
         }
     }
 
-    private static Result waitForAnalysis(String hash, String analysisId, String apiKey,
-                                          ProgressCallback callback, CancelCheck cancel) {
-        progress(callback, "Waiting for VirusTotal analysis...", -1);
+    private static Result waitForAnalysis(Context context, String hash, String analysisId,
+                                          String apiKey, ProgressCallback callback,
+                                          CancelCheck cancel) {
+        progress(callback, context.getString(R.string.virustotal_waiting_analysis), -1);
         for (int attempt = 0; attempt < 5; attempt++) {
             if (isCancelled(cancel)) {
                 return cancelled(hash);
@@ -458,14 +459,16 @@ final class VirusTotalScanner {
     }
 
     private static final class ProgressRequestBody extends RequestBody {
+        private final Context context;
         private final File file;
         private final RequestBody delegate;
         private final long length;
         private final ProgressCallback callback;
         private final CancelCheck cancel;
 
-        ProgressRequestBody(File file, RequestBody delegate, long length,
+        ProgressRequestBody(Context context, File file, RequestBody delegate, long length,
                             ProgressCallback callback, CancelCheck cancel) {
+            this.context = context;
             this.file = file;
             this.delegate = delegate;
             this.length = length;
@@ -501,13 +504,13 @@ final class VirusTotalScanner {
                     if (percent != lastPercent) {
                         lastPercent = percent;
                         progress(callback,
-                                "Uploading to VirusTotal... " + percent + "%",
+                                context.getString(R.string.virustotal_uploading, percent),
                                 percent);
                     }
                 }
             }
             sink.flush();
-            progress(callback, "Uploading to VirusTotal... 100%", 100);
+            progress(callback, context.getString(R.string.virustotal_uploading, 100), 100);
         }
     }
 
