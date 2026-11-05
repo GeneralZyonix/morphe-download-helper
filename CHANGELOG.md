@@ -19,7 +19,9 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   open and allow the download.
 - VirusTotal public API quota guidance in Settings: about 4 lookups/minute, 500/day, and
   15,500/month. If the API reports a quota limit or denied key, the message is shown to the
-  user and the download continues unscanned.
+  user.
+- **Quota exceeded** setting: choose **Continue unscanned** (default) or abort the handoff
+  to Morphe when VirusTotal reports that the API quota has been exceeded.
 
 ## [1.5.2] - 2026-11-04
 

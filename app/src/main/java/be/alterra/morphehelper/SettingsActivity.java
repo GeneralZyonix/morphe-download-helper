@@ -430,6 +430,22 @@ public class SettingsActivity extends Activity {
         blockRow.addView(blockSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(blockRow);
 
+        boolean abortOnQuota = AppSettings.virusTotalAbortOnQuota(this);
+        LinearLayout quotaRow = settingRow("Quota exceeded",
+                abortOnQuota ? "Abort handoff" : "Continue unscanned");
+        quotaRow.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("When the VirusTotal quota is exceeded")
+                .setSingleChoiceItems(new String[]{
+                        "Continue unscanned",
+                        "Abort handoff to Morphe"
+                }, AppSettings.virusTotalAbortOnQuota(this) ? 1 : 0, (dialog, which) -> {
+                    AppSettings.setVirusTotalAbortOnQuota(this, which == 1);
+                    dialog.dismiss();
+                    recreate();
+                })
+                .show());
+        card.addView(quotaRow);
+
         TextView quota = text(
                 "VirusTotal public API limits: about 4 lookups/minute, 500/day, and "
                         + "15,500/month. Premium API keys may have higher limits.",
@@ -442,8 +458,8 @@ public class SettingsActivity extends Activity {
                 "Hash lookup only. The APK is never uploaded. A VirusTotal API key is "
                         + "required; results are advisory and may miss new malware. "
                         + "Unknown files, denied keys, quota errors, or lookup failures "
-                        + "do not block the download; the user is warned when the scan "
-                        + "cannot run.",
+                        + "do not block the download unless the quota-exceeded setting "
+                        + "is set to abort; the user is warned when the scan cannot run.",
                 11, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(6), 0, 0);

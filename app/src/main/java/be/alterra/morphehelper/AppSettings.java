@@ -44,6 +44,7 @@ final class AppSettings {
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
     private static final String KEY_VT_API_KEY = "virustotal_api_key";
     private static final String KEY_VT_BLOCK = "virustotal_block_detections";
+    private static final String KEY_VT_QUOTA_ABORT = "virustotal_quota_abort";
 
     private static final List<String> DEFAULT_ORDER = Arrays.asList(
             SourceSettings.APKPURE,
@@ -106,6 +107,14 @@ final class AppSettings {
 
     static void setVirusTotalBlockDetections(Context context, boolean block) {
         prefs(context).edit().putBoolean(KEY_VT_BLOCK, block).apply();
+    }
+
+    static boolean virusTotalAbortOnQuota(Context context) {
+        return prefs(context).getBoolean(KEY_VT_QUOTA_ABORT, false);
+    }
+
+    static void setVirusTotalAbortOnQuota(Context context, boolean abort) {
+        prefs(context).edit().putBoolean(KEY_VT_QUOTA_ABORT, abort).apply();
     }
 
     static String locationLabel(Context context) {

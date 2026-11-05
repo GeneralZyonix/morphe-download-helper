@@ -506,11 +506,14 @@ public class DownloadActivity extends Activity {
         VirusTotalScanner.Result result = VirusTotalScanner.scan(this, file);
         if (result.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
                 || result.status == VirusTotalScanner.Status.DENIED) {
+            boolean abort = result.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
+                    && AppSettings.virusTotalAbortOnQuota(this);
             HelperLog.info("VirusTotal could not scan the file: " + result.message);
             runOnUiThread(() -> {
                 setStatus(result.message);
                 Toast.makeText(this, result.message
-                                + " Continuing without a scan.",
+                                + (abort ? " Aborting handoff."
+                                : " Continuing without a scan."),
                         Toast.LENGTH_LONG).show();
             });
         } else if (result.status == VirusTotalScanner.Status.DETECTED
@@ -533,8 +536,13 @@ public class DownloadActivity extends Activity {
     private void deliverFile(File file) {
         try {
             VirusTotalScanner.Result scan = scanWithVirusTotal(file);
-            if (scan.isDetection() && AppSettings.virusTotalBlockDetections(this)) {
-                String reason = "VirusTotal blocked this file: " + scan.message;
+            boolean blockedByQuota = scan.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
+                    && AppSettings.virusTotalAbortOnQuota(this);
+            if ((scan.isDetection() && AppSettings.virusTotalBlockDetections(this))
+                    || blockedByQuota) {
+                String reason = blockedByQuota
+                        ? "VirusTotal quota exceeded, handoff aborted: " + scan.message
+                        : "VirusTotal blocked this file: " + scan.message;
                 //noinspection ResultOfMethodCallIgnored
                 file.delete();
                 if (report != null) {
