@@ -6,6 +6,10 @@ The English source strings are in
 A French example is available in
 [app/src/main/res/values-fr/strings.xml](app/src/main/res/values-fr/strings.xml).
 
+New strings are added in English only. Translations are community-maintained: missing
+translations fall back to English until a contributor submits them. Please do not
+auto-translate new strings in pull requests.
+
 ## Add a language
 
 1. Fork the repository and create a branch.
