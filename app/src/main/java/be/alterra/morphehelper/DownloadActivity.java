@@ -2558,7 +2558,15 @@ public class DownloadActivity extends Activity {
         String searchUrl = APKMIRROR + "/?post_type=app_release&searchtype=apk&s="
                 + URLEncoder.encode(pkg, "UTF-8");
         HelperLog.info("APKMirror search URL: " + searchUrl);
-        String searchHtml = httpGet(searchUrl, null);
+        String searchHtml;
+        try {
+            searchHtml = httpGet(searchUrl, null);
+        } catch (IOException error) {
+            if (isCloudflareBlock(error)) {
+                handoffToApkMirrorWeb(searchUrl, pkg, version, fileType);
+            }
+            throw error;
+        }
         String firstVersion = findFirstVersionUrl(searchHtml, requestedAppName, pkg);
         HelperLog.info("APKMirror first version URL: " + firstVersion);
         if (firstVersion == null) {
@@ -2569,7 +2577,15 @@ public class DownloadActivity extends Activity {
         // version segment to get the app page.
         String appUrl = firstVersion.replaceAll("/[^/]+/$", "/");
         HelperLog.info("APKMirror app URL: " + appUrl);
-        String appHtml = httpGet(absolute(appUrl), searchUrl);
+        String appHtml;
+        try {
+            appHtml = httpGet(absolute(appUrl), searchUrl);
+        } catch (IOException error) {
+            if (isCloudflareBlock(error)) {
+                handoffToApkMirrorWeb(absolute(appUrl), pkg, version, fileType);
+            }
+            throw error;
+        }
         HelperLog.info("APKMirror app HTML length=" + appHtml.length()
                 + " fontBlack=" + appHtml.contains("fontBlack")
                 + " release=" + appHtml.contains("-release/"));
