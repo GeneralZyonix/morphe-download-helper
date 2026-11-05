@@ -20,9 +20,9 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - **Block detected files** toggle. When enabled, files with VirusTotal detections are
   deleted instead of being returned. Unknown hashes, missing keys, and lookup errors fail
   open and allow the download.
-- VirusTotal public API quota guidance in Settings: about 4 lookups/minute, 500/day, and
-  15,500/month. If the API reports a quota limit or denied key, the message is shown to the
-  user.
+- VirusTotal public API quota guidance in Settings: about 4 requests/minute and 500/day,
+  with 32 MB direct uploads or 650 MB through VirusTotal's upload URL. If the API reports a
+  quota limit or denied key, the message is shown to the user.
 - **Quota exceeded** setting: choose **Continue unscanned** (default) or abort the handoff
   to Morphe when VirusTotal reports that the API quota has been exceeded.
 

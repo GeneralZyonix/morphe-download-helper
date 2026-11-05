@@ -476,8 +476,10 @@ public class SettingsActivity extends Activity {
         card.addView(quotaRow);
 
         TextView quota = text(
-                "VirusTotal public API limits: about 4 lookups/minute, 500/day, and "
-                        + "15,500/month. Premium API keys may have higher limits.",
+                "VirusTotal public API limits: about 4 requests/minute and 500/day. "
+                        + "Uploads are limited to 32 MB directly, or 650 MB through "
+                        + "VirusTotal's upload URL. New-file uploads do not consume "
+                        + "lookup quota; premium API limits depend on the license.",
                 11, MUTED, false);
         quota.setLineSpacing(dp(3), 1f);
         quota.setPadding(0, dp(8), 0, 0);
