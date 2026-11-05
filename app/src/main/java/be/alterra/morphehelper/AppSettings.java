@@ -83,7 +83,7 @@ final class AppSettings {
     static String locationLabel(Context context) {
         String location = location(context);
         if (LOCATION_EXTERNAL.equals(location)) {
-            return "App external storage";
+            return context.getString(R.string.location_external);
         }
         if (LOCATION_PUBLIC.equals(location)) {
             return "Downloads/Morphe Helper";
@@ -95,14 +95,14 @@ final class AppSettings {
                     DocumentFile folder = DocumentFile.fromTreeUri(
                             context, Uri.parse(uri));
                     if (folder != null && folder.getName() != null) {
-                        return "Custom: " + folder.getName();
+                        return context.getString(R.string.location_custom, folder.getName());
                     }
                 } catch (Exception ignored) {
                 }
             }
-            return "Custom folder";
+            return context.getString(R.string.location_custom_folder);
         }
-        return "Internal app cache";
+        return context.getString(R.string.location_internal);
     }
 
     static String retention(Context context) {
@@ -401,24 +401,24 @@ final class AppSettings {
         setSourceOrder(context, order);
     }
 
-    static String sourceLabel(String key) {
+    static String sourceLabel(Context context, String key) {
         switch (key) {
             case SourceSettings.APKPURE:
-                return "APKPure";
+                return context.getString(R.string.source_apkpure);
             case SourceSettings.FALLBACK:
-                return "Morphe link";
+                return context.getString(R.string.source_morphe_link);
             case SourceSettings.APKMIRROR:
-                return "APKMirror";
+                return context.getString(R.string.source_apkmirror);
             case SourceSettings.FDROID:
-                return "F-Droid";
+                return context.getString(R.string.source_fdroid);
             case SourceSettings.APTOIDE:
-                return "Aptoide";
+                return context.getString(R.string.source_aptoide);
             case SourceSettings.UPTODOWN:
-                return "Uptodown";
+                return context.getString(R.string.source_uptodown);
             case SourceSettings.APPTEKA:
-                return "Appteka";
+                return context.getString(R.string.source_appteka);
             case SourceSettings.GITHUB:
-                return "GitHub releases";
+                return context.getString(R.string.source_github_releases);
             default:
                 return key;
         }

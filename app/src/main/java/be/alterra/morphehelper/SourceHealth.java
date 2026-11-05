@@ -24,11 +24,11 @@ final class SourceHealth {
         SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String raw = prefs.getString(key, null);
         if (TextUtils.isEmpty(raw)) {
-            return "Not tested yet";
+            return context.getString(R.string.source_health_not_tested);
         }
         String[] parts = raw.split("\\|", 3);
         if (parts.length < 2) {
-            return "Not tested yet";
+            return context.getString(R.string.source_health_not_tested);
         }
         boolean ok = "1".equals(parts[0]);
         long when;
@@ -40,7 +40,9 @@ final class SourceHealth {
         String ago = DateUtils.getRelativeTimeSpanString(
                 when, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString();
         String detail = parts.length > 2 ? parts[2] : "";
-        return (ok ? "OK" : "Failed") + (TextUtils.isEmpty(detail) ? "" : " (" + detail + ")")
+        return (ok ? context.getString(R.string.common_ok)
+                : context.getString(R.string.source_health_failed))
+                + (TextUtils.isEmpty(detail) ? "" : " (" + detail + ")")
                 + " \u2022 " + ago;
     }
 }

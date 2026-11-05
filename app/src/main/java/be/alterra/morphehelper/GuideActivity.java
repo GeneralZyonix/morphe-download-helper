@@ -50,30 +50,28 @@ public class GuideActivity extends Activity {
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text("Visual setup guide", 24, TEXT, true);
+        TextView title = text(getString(R.string.guide_title), 24, TEXT, true);
         root.addView(title);
 
-        TextView intro = text(
-                "Enable the helper in Morphe and optionally let Morphe open it automatically.",
-                13, MUTED, false);
+        TextView intro = text(getString(R.string.guide_intro), 13, MUTED, false);
         intro.setLineSpacing(dp(3), 1f);
         intro.setPadding(0, dp(8), 0, dp(20));
         root.addView(intro);
 
-        addStep(root, "1", "Open Morphe Settings",
-                "Tap Settings in the bottom bar, scroll to Files, then tap APK download helper.");
+        addStep(root, "1", getString(R.string.guide_step1_title),
+                getString(R.string.guide_step1_body));
         addImage(root, R.drawable.guide_step1);
 
-        addStep(root, "2", "Trust the helper",
-                "Find Morphe Download Helper and turn on its toggle. Confirm the Trust prompt.");
-        addStep(root, "3", "Optional: open it right away",
-                "Turn on Open helper right away to skip Morphe's download instructions.");
+        addStep(root, "2", getString(R.string.guide_step2_title),
+                getString(R.string.guide_step2_body));
+        addStep(root, "3", getString(R.string.guide_step3_title),
+                getString(R.string.guide_step3_body));
         addImage(root, R.drawable.guide_step2);
 
-        addStep(root, "4", "Use it while patching",
-                "Patch an app and choose Use a helper app. Wait for the download; the helper returns the APK automatically.");
+        addStep(root, "4", getString(R.string.guide_step4_title),
+                getString(R.string.guide_step4_body));
 
-        TextView close = primaryButton("Back");
+        TextView close = primaryButton(getString(R.string.common_back));
         close.setOnClickListener(v -> finish());
         LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
