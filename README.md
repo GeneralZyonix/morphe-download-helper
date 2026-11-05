@@ -200,13 +200,17 @@ and test changes against a real Morphe request before opening a PR.
 
 ## Translations
 
-Want to add a language? See [TRANSLATING.md](TRANSLATING.md) for the English strings,
-placeholder rules, and import instructions.
+Currently supported languages:
 
-The in-app strings are in
-[app/src/main/res/values/strings.xml](app/src/main/res/values/strings.xml); the French
-example is in
-[app/src/main/res/values-fr/strings.xml](app/src/main/res/values-fr/strings.xml).
+| Language | Code | Strings |
+| --- | --- | --- |
+| English | `en` | [values/strings.xml](app/src/main/res/values/strings.xml) |
+| French | `fr` | [values-fr/strings.xml](app/src/main/res/values-fr/strings.xml) |
+
+Want to add a language? See [TRANSLATING.md](TRANSLATING.md) for the English strings,
+placeholder rules, and import instructions. New languages appear automatically in
+**Settings → App language** after their locale is added to
+[locales_config.xml](app/src/main/res/xml/locales_config.xml).
 
 ## Changelog
 
