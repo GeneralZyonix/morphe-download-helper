@@ -524,35 +524,13 @@ public class DownloadActivity extends Activity {
             scanInProgress = false;
             skipScanRequested = false;
         }
-        boolean uploadConfigured = AppSettings.virusTotalUploadUnknown(this)
-                || AppSettings.virusTotalAlwaysUpload(this)
-                || AppSettings.virusTotalUploadOnQuota(this);
-        boolean uploadAttempt = uploadConfigured
-                && (result.status == VirusTotalScanner.Status.UNKNOWN
-                || result.status == VirusTotalScanner.Status.ERROR);
-        if (result.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
-                || result.status == VirusTotalScanner.Status.DENIED
-                || result.status == VirusTotalScanner.Status.UPLOAD_PENDING
-                || uploadAttempt) {
-            boolean abort = result.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
-                    && AppSettings.virusTotalAbortOnQuota(this);
-            boolean uploaded = result.status == VirusTotalScanner.Status.UPLOAD_PENDING;
-            HelperLog.info("VirusTotal could not complete the scan: " + result.message);
-            runOnUiThread(() -> {
-                setStatus(result.message);
-                Toast.makeText(this, result.message
-                                + (abort ? " Aborting handoff."
-                                : uploaded ? " Continuing without a final result."
-                                : " Continuing without a scan."),
-                        Toast.LENGTH_LONG).show();
-            });
-        } else if (result.status == VirusTotalScanner.Status.DETECTED
-                && !AppSettings.virusTotalBlockDetections(this)) {
-            HelperLog.info("VirusTotal detections ignored by setting: " + result.message);
-        } else if (result.status == VirusTotalScanner.Status.DETECTED) {
-            HelperLog.error("VirusTotal blocked download: " + result.message, null);
-        } else if (result.status != VirusTotalScanner.Status.CLEAN) {
-            HelperLog.info("VirusTotal did not return a clean result: " + result.message);
+        if (result.status == VirusTotalScanner.Status.DETECTED) {
+            HelperLog.info("VirusTotal result: " + result.message);
+        } else if (result.status == VirusTotalScanner.Status.CANCELLED) {
+            HelperLog.info("VirusTotal scan skipped by user");
+        } else if (result.status != VirusTotalScanner.Status.CLEAN
+                && result.status != VirusTotalScanner.Status.DISABLED) {
+            HelperLog.info("VirusTotal result: " + result.message);
         }
         return result;
     }
@@ -566,26 +544,59 @@ public class DownloadActivity extends Activity {
     private void deliverFile(File file) {
         try {
             VirusTotalScanner.Result scan = scanWithVirusTotal(file);
-            boolean blockedByQuota = scan.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
-                    && AppSettings.virusTotalAbortOnQuota(this);
-            if ((scan.isDetection() && AppSettings.virusTotalBlockDetections(this))
-                    || blockedByQuota) {
-                String reason = blockedByQuota
-                        ? "VirusTotal quota exceeded, handoff aborted: " + scan.message
-                        : "VirusTotal blocked this file: " + scan.message;
+            if (cancelled) {
                 //noinspection ResultOfMethodCallIgnored
                 file.delete();
-                if (report != null) {
-                    report.finishFailure(reason);
-                    HelperLog.info(report.resultBlock());
+                return;
+            }
+
+            if (scan.status == VirusTotalScanner.Status.UPLOAD_PENDING) {
+                showScanOutcomeForFiveSeconds(
+                        "VirusTotal analysis is still pending. Handoff aborted.");
+                if (!cancelled) {
+                    abortHandoff(file,
+                            "VirusTotal analysis still pending; handoff aborted",
+                            "VirusTotal analysis still pending.");
                 }
-                HelperLog.error(reason, null);
-                stopDownloadService();
-                setPauseVisible(false);
-                runOnUiThread(() -> {
-                    setStatus("Download blocked by VirusTotal.");
-                    showFailure();
-                });
+                return;
+            }
+
+            if (scan.isDetection()) {
+                boolean block = AppSettings.virusTotalBlockDetections(this);
+                showScanOutcomeForFiveSeconds("VirusTotal: " + scan.message
+                        + (block ? " Blocking handoff." : " Continuing anyway."));
+                if (cancelled) {
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                    return;
+                }
+                if (block) {
+                    abortHandoff(file, "VirusTotal blocked this file: " + scan.message,
+                            "VirusTotal found malware signatures.");
+                    return;
+                }
+            } else if (scan.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
+                    && AppSettings.virusTotalAbortOnQuota(this)) {
+                showScanOutcomeForFiveSeconds(
+                        "VirusTotal quota exceeded. Aborting handoff.");
+                if (!cancelled) {
+                    abortHandoff(file,
+                            "VirusTotal quota exceeded; handoff aborted: " + scan.message,
+                            "VirusTotal quota exceeded.");
+                }
+                return;
+            } else if (scan.status == VirusTotalScanner.Status.CLEAN) {
+                showScanOutcomeForFiveSeconds(
+                        "VirusTotal: no detections found. Continuing...");
+            } else if (scan.status != VirusTotalScanner.Status.CANCELLED
+                    && scan.status != VirusTotalScanner.Status.DISABLED) {
+                showScanOutcomeForFiveSeconds("VirusTotal: " + scan.message
+                        + " Continuing unscanned.");
+            }
+
+            if (cancelled) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
                 return;
             }
 
@@ -627,6 +638,35 @@ public class DownloadActivity extends Activity {
                 showFailure();
             });
         }
+    }
+
+    private void showScanOutcomeForFiveSeconds(String message) {
+        runOnUiThread(() -> {
+            setStatus(message);
+            progress.setVisibility(View.VISIBLE);
+            progress.setIndeterminate(true);
+        });
+        try {
+            Thread.sleep(5000L);
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void abortHandoff(File file, String reason, String status) {
+        //noinspection ResultOfMethodCallIgnored
+        file.delete();
+        if (report != null) {
+            report.finishFailure(reason);
+            HelperLog.info(report.resultBlock());
+        }
+        HelperLog.error(reason, null);
+        stopDownloadService();
+        setPauseVisible(false);
+        runOnUiThread(() -> {
+            setStatus(status);
+            showFailure();
+        });
     }
 
     /** Opens Uptodown in the source WebView and auto-clicks its download button. */

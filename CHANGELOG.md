@@ -27,6 +27,8 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   status, so large uploads no longer look stuck.
 - Pressing Back during a VirusTotal upload now skips the scan and continues the handoff to
   Morphe instead of cancelling the entire download.
+- VirusTotal results now remain on screen for five seconds before the handoff continues.
+  A still-pending analysis aborts the handoff rather than passing on an unscanned file.
 - **Block detected files** toggle. When enabled, files with VirusTotal detections are
   deleted instead of being returned. Unknown hashes, missing keys, and lookup errors fail
   open and allow the download.
