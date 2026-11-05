@@ -504,15 +504,22 @@ public class DownloadActivity extends Activity {
             progress.setIndeterminate(true);
         });
         VirusTotalScanner.Result result = VirusTotalScanner.scan(this, file);
+        boolean uploadAttempt = AppSettings.virusTotalUploadUnknown(this)
+                && (result.status == VirusTotalScanner.Status.UNKNOWN
+                || result.status == VirusTotalScanner.Status.ERROR);
         if (result.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
-                || result.status == VirusTotalScanner.Status.DENIED) {
+                || result.status == VirusTotalScanner.Status.DENIED
+                || result.status == VirusTotalScanner.Status.UPLOAD_PENDING
+                || uploadAttempt) {
             boolean abort = result.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
                     && AppSettings.virusTotalAbortOnQuota(this);
-            HelperLog.info("VirusTotal could not scan the file: " + result.message);
+            boolean uploaded = result.status == VirusTotalScanner.Status.UPLOAD_PENDING;
+            HelperLog.info("VirusTotal could not complete the scan: " + result.message);
             runOnUiThread(() -> {
                 setStatus(result.message);
                 Toast.makeText(this, result.message
                                 + (abort ? " Aborting handoff."
+                                : uploaded ? " Continuing without a final result."
                                 : " Continuing without a scan."),
                         Toast.LENGTH_LONG).show();
             });

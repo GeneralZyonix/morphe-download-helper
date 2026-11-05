@@ -12,8 +12,11 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - Optional **VirusTotal hash check** in Settings. When enabled, the helper calculates the
   downloaded file's SHA-256 hash and looks it up through the VirusTotal API before handing
   the APK to Morphe.
-- A user-supplied VirusTotal API key setting. The APK is never uploaded; only the hash is
-  sent, and the key stays on the device.
+- A user-supplied VirusTotal API key setting. By default only the SHA-256 hash is sent,
+  and the key stays on the device.
+- **Upload unknown files** setting, off by default. If VirusTotal has no report for the
+  hash, the APK can be uploaded for analysis. This shares the file with VirusTotal and
+  security vendors and is limited to files up to 650 MB.
 - **Block detected files** toggle. When enabled, files with VirusTotal detections are
   deleted instead of being returned. Unknown hashes, missing keys, and lookup errors fail
   open and allow the download.

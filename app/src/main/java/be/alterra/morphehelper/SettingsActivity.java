@@ -430,6 +430,35 @@ public class SettingsActivity extends Activity {
         blockRow.addView(blockSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(blockRow);
 
+        LinearLayout uploadRow = new LinearLayout(this);
+        uploadRow.setOrientation(LinearLayout.HORIZONTAL);
+        uploadRow.setGravity(Gravity.CENTER_VERTICAL);
+        uploadRow.setPadding(0, dp(8), 0, dp(8));
+        LinearLayout uploadLabels = new LinearLayout(this);
+        uploadLabels.setOrientation(LinearLayout.VERTICAL);
+        uploadLabels.addView(text("Upload unknown files", 14, TEXT, true));
+        TextView uploadDetail = text(
+                "If no hash is found, send the APK for analysis", 12, MUTED, false);
+        uploadDetail.setPadding(0, dp(3), 0, 0);
+        uploadLabels.addView(uploadDetail);
+        uploadRow.addView(uploadLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch uploadSwitch = new Switch(this);
+        uploadSwitch.setChecked(AppSettings.virusTotalUploadUnknown(this));
+        uploadSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        uploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        uploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setVirusTotalUploadUnknown(this, isChecked);
+            if (isChecked) {
+                Toast.makeText(this,
+                        "Unknown APKs will be uploaded to VirusTotal when a hash is not found.",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+        uploadRow.addView(uploadSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(uploadRow);
+
         boolean abortOnQuota = AppSettings.virusTotalAbortOnQuota(this);
         LinearLayout quotaRow = settingRow("Quota exceeded",
                 abortOnQuota ? "Abort handoff" : "Continue unscanned");
@@ -455,8 +484,11 @@ public class SettingsActivity extends Activity {
         card.addView(quota);
 
         TextView note = text(
-                "Hash lookup only. The APK is never uploaded. A VirusTotal API key is "
-                        + "required; results are advisory and may miss new malware. "
+                "Hash lookup is the default and the APK is never uploaded unless "
+                        + "Upload unknown files is enabled. Uploads share the APK with "
+                        + "VirusTotal and security vendors and are limited to 650 MB. "
+                        + "A VirusTotal API key is required; results are advisory and "
+                        + "may miss new malware. "
                         + "Unknown files, denied keys, quota errors, or lookup failures "
                         + "do not block the download unless the quota-exceeded setting "
                         + "is set to abort; the user is warned when the scan cannot run.",
