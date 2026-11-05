@@ -278,6 +278,10 @@ public class DownloadActivity extends Activity {
     /** Set while the user has paused an active download. */
     private volatile boolean paused = false;
 
+    /** Set while a downloaded file is being checked by VirusTotal. */
+    private volatile boolean scanInProgress = false;
+    private volatile boolean skipScanRequested = false;
+
     /** Fallback URL supplied by Morphe, if any. */
     private String fallbackUrl;
 
@@ -499,11 +503,27 @@ public class DownloadActivity extends Activity {
         if (!AppSettings.virusTotalEnabled(this)) {
             return VirusTotalScanner.scan(this, file);
         }
-        runOnUiThread(() -> {
-            setStatus("Checking VirusTotal...");
-            progress.setIndeterminate(true);
-        });
-        VirusTotalScanner.Result result = VirusTotalScanner.scan(this, file);
+        setPauseVisible(false);
+        scanInProgress = true;
+        skipScanRequested = false;
+        VirusTotalScanner.Result result;
+        try {
+            result = VirusTotalScanner.scan(this, file,
+                    (message, percent) -> runOnUiThread(() -> {
+                        setStatus(message);
+                        progress.setVisibility(View.VISIBLE);
+                        if (percent < 0) {
+                            progress.setIndeterminate(true);
+                        } else {
+                            progress.setIndeterminate(false);
+                            progress.setProgress(percent);
+                        }
+                    }),
+                    () -> skipScanRequested);
+        } finally {
+            scanInProgress = false;
+            skipScanRequested = false;
+        }
         boolean uploadConfigured = AppSettings.virusTotalUploadUnknown(this)
                 || AppSettings.virusTotalAlwaysUpload(this)
                 || AppSettings.virusTotalUploadOnQuota(this);
@@ -1526,6 +1546,13 @@ public class DownloadActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        if (scanInProgress) {
+            skipScanRequested = true;
+            setStatus("Skipping VirusTotal scan and continuing...");
+            Toast.makeText(this, "Skipping VirusTotal scan.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
         // Back behaves exactly like Cancel: no partial file is returned to Morphe.
         cancel();
     }

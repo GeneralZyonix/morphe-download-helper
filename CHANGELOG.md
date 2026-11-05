@@ -23,6 +23,10 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   and may be rate-limited.
 - **Upload if quota exceeded** setting, off by default. When a hash lookup hits the API
   quota, the helper can try the upload path instead of aborting or continuing unscanned.
+- VirusTotal uploads now show a percentage while sending, followed by an analysis-waiting
+  status, so large uploads no longer look stuck.
+- Pressing Back during a VirusTotal upload now skips the scan and continues the handoff to
+  Morphe instead of cancelling the entire download.
 - **Block detected files** toggle. When enabled, files with VirusTotal detections are
   deleted instead of being returned. Unknown hashes, missing keys, and lookup errors fail
   open and allow the download.

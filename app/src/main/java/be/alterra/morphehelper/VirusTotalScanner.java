@@ -18,6 +18,10 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import okio.Buffer;
+import okio.BufferedSink;
+import okio.Okio;
+import okio.Source;
 
 /**
  * Optional VirusTotal SHA-256 lookup, with opt-in upload when a hash is unknown.
@@ -34,7 +38,17 @@ final class VirusTotalScanner {
         UPLOAD_PENDING,
         QUOTA_EXCEEDED,
         DENIED,
+        CANCELLED,
         ERROR
+    }
+
+    interface ProgressCallback {
+        /** Percent is -1 for an indeterminate step. */
+        void onProgress(String message, int percent);
+    }
+
+    interface CancelCheck {
+        boolean isCancelled();
     }
 
     static final class Result {
@@ -87,8 +101,20 @@ final class VirusTotalScanner {
     }
 
     static Result scan(Context context, File file) {
+        return scan(context, file, null, null);
+    }
+
+    static Result scan(Context context, File file, ProgressCallback callback) {
+        return scan(context, file, callback, null);
+    }
+
+    static Result scan(Context context, File file, ProgressCallback callback,
+                       CancelCheck cancel) {
         if (!AppSettings.virusTotalEnabled(context)) {
             return new Result(Status.DISABLED, "", 0, 0, "Scanning is off.");
+        }
+        if (isCancelled(cancel)) {
+            return cancelled("");
         }
         String apiKey = AppSettings.virusTotalApiKey(context).trim();
         if (apiKey.isEmpty()) {
@@ -96,6 +122,7 @@ final class VirusTotalScanner {
                     "No VirusTotal API key configured.");
         }
 
+        progress(callback, "Checking VirusTotal...", -1);
         String hash;
         try {
             hash = sha256(file);
@@ -105,21 +132,27 @@ final class VirusTotalScanner {
                     "Could not calculate the file hash.");
         }
 
+        if (isCancelled(cancel)) {
+            return cancelled(hash);
+        }
         if (AppSettings.virusTotalAlwaysUpload(context)) {
             HelperLog.info("VirusTotal always-upload setting is enabled");
-            return uploadAndAnalyze(context, file, hash, apiKey);
+            return uploadAndAnalyze(context, file, hash, apiKey, callback, cancel);
         }
 
         Result lookup = lookup(hash, apiKey);
+        if (isCancelled(cancel)) {
+            return cancelled(hash);
+        }
         if (lookup.status == Status.QUOTA_EXCEEDED
                 && AppSettings.virusTotalUploadOnQuota(context)) {
             HelperLog.info("VirusTotal quota exceeded; using upload fallback");
-            return uploadAndAnalyze(context, file, hash, apiKey);
+            return uploadAndAnalyze(context, file, hash, apiKey, callback, cancel);
         }
         if (lookup.status != Status.UNKNOWN || !AppSettings.virusTotalUploadUnknown(context)) {
             return lookup;
         }
-        return uploadAndAnalyze(context, file, hash, apiKey);
+        return uploadAndAnalyze(context, file, hash, apiKey, callback, cancel);
     }
 
     private static Result lookup(String hash, String apiKey) {
@@ -156,7 +189,11 @@ final class VirusTotalScanner {
     }
 
     private static Result uploadAndAnalyze(Context context, File file, String hash,
-                                           String apiKey) {
+                                           String apiKey, ProgressCallback callback,
+                                           CancelCheck cancel) {
+        if (isCancelled(cancel)) {
+            return cancelled(hash);
+        }
         if (file.length() > MAX_UPLOAD_LIMIT) {
             return new Result(Status.UNKNOWN, hash, 0, 0,
                     "The APK is too large for VirusTotal's 650 MB upload limit.");
@@ -166,6 +203,7 @@ final class VirusTotalScanner {
 
         String uploadUrl = API + "files";
         if (file.length() > DIRECT_UPLOAD_LIMIT) {
+            progress(callback, "Preparing VirusTotal upload...", -1);
             Result urlResult = uploadUrl(apiKey);
             if (urlResult != null) {
                 return urlResult;
@@ -174,8 +212,13 @@ final class VirusTotalScanner {
             // result types simple. If it succeeded, it is stored below.
             uploadUrl = largeUploadUrl;
         }
+        if (isCancelled(cancel)) {
+            return cancelled(hash);
+        }
 
-        RequestBody fileBody = RequestBody.create(OCTET_STREAM, file);
+        progress(callback, "Uploading to VirusTotal... 0%", 0);
+        RequestBody fileBody = new ProgressRequestBody(file,
+                RequestBody.create(OCTET_STREAM, file), file.length(), callback, cancel);
         MultipartBody body = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("file", file.getName(), fileBody)
@@ -205,8 +248,11 @@ final class VirusTotalScanner {
                 return new Result(Status.UPLOAD_PENDING, hash, 0, 0,
                         "APK uploaded, but VirusTotal returned no analysis ID.");
             }
-            return waitForAnalysis(hash, analysisId, apiKey);
+            return waitForAnalysis(hash, analysisId, apiKey, callback, cancel);
         } catch (Exception error) {
+            if (isCancelled(cancel)) {
+                return cancelled(hash);
+            }
             HelperLog.error("VirusTotal upload failed", error);
             return new Result(Status.ERROR, hash, 0, 0,
                     "VirusTotal upload failed: " + error.getMessage());
@@ -252,13 +298,21 @@ final class VirusTotalScanner {
         }
     }
 
-    private static Result waitForAnalysis(String hash, String analysisId, String apiKey) {
+    private static Result waitForAnalysis(String hash, String analysisId, String apiKey,
+                                          ProgressCallback callback, CancelCheck cancel) {
+        progress(callback, "Waiting for VirusTotal analysis...", -1);
         for (int attempt = 0; attempt < 5; attempt++) {
+            if (isCancelled(cancel)) {
+                return cancelled(hash);
+            }
             try {
                 Thread.sleep(attempt == 0 ? 2000L : 3000L);
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
                 break;
+            }
+            if (isCancelled(cancel)) {
+                return cancelled(hash);
             }
             Request request = new Request.Builder()
                     .url(API + "analyses/" + analysisId)
@@ -386,6 +440,75 @@ final class VirusTotalScanner {
     private static String bodyString(Response response) throws Exception {
         ResponseBody body = response.body();
         return body == null ? "" : body.string();
+    }
+
+    private static boolean isCancelled(CancelCheck cancel) {
+        return cancel != null && cancel.isCancelled();
+    }
+
+    private static Result cancelled(String hash) {
+        return new Result(Status.CANCELLED, hash, 0, 0,
+                "VirusTotal scan skipped.");
+    }
+
+    private static void progress(ProgressCallback callback, String message, int percent) {
+        if (callback != null) {
+            callback.onProgress(message, percent);
+        }
+    }
+
+    private static final class ProgressRequestBody extends RequestBody {
+        private final File file;
+        private final RequestBody delegate;
+        private final long length;
+        private final ProgressCallback callback;
+        private final CancelCheck cancel;
+
+        ProgressRequestBody(File file, RequestBody delegate, long length,
+                            ProgressCallback callback, CancelCheck cancel) {
+            this.file = file;
+            this.delegate = delegate;
+            this.length = length;
+            this.callback = callback;
+            this.cancel = cancel;
+        }
+
+        @Override
+        public MediaType contentType() {
+            return delegate.contentType();
+        }
+
+        @Override
+        public long contentLength() {
+            return length;
+        }
+
+        @Override
+        public void writeTo(BufferedSink sink) throws java.io.IOException {
+            int lastPercent = -1;
+            long uploaded = 0;
+            try (Source source = Okio.source(file)) {
+                Buffer buffer = new Buffer();
+                long read;
+                while ((read = source.read(buffer, 16 * 1024)) != -1) {
+                    if (isCancelled(cancel)) {
+                        throw new java.io.IOException("VirusTotal scan cancelled");
+                    }
+                    sink.write(buffer, read);
+                    uploaded += read;
+                    int percent = length <= 0 ? 0
+                            : (int) Math.min(100, uploaded * 100 / length);
+                    if (percent != lastPercent) {
+                        lastPercent = percent;
+                        progress(callback,
+                                "Uploading to VirusTotal... " + percent + "%",
+                                percent);
+                    }
+                }
+            }
+            sink.flush();
+            progress(callback, "Uploading to VirusTotal... 100%", 100);
+        }
     }
 
     private static String sha256(File file) throws Exception {
