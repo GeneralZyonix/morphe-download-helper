@@ -257,6 +257,12 @@ public class DownloadActivity extends Activity {
     /** Current status line shown inside the card. */
     private TextView status;
 
+    /** Extra explanation shown while VirusTotal is scanning. */
+    private TextView scanNote;
+
+    /** Visible skip control shown while VirusTotal is scanning. */
+    private TextView skipScanButton;
+
     /** Download progress bar. Indeterminate while resolving, determinate while downloading. */
     private ProgressBar progress;
 
@@ -508,6 +514,10 @@ public class DownloadActivity extends Activity {
         setPauseVisible(false);
         scanInProgress = true;
         skipScanRequested = false;
+        runOnUiThread(() -> {
+            scanNote.setVisibility(View.VISIBLE);
+            skipScanButton.setVisibility(View.VISIBLE);
+        });
         VirusTotalScanner.Result result;
         try {
             result = VirusTotalScanner.scan(this, file,
@@ -525,6 +535,10 @@ public class DownloadActivity extends Activity {
         } finally {
             scanInProgress = false;
             skipScanRequested = false;
+            runOnUiThread(() -> {
+                scanNote.setVisibility(View.GONE);
+                skipScanButton.setVisibility(View.GONE);
+            });
         }
         if (result.status == VirusTotalScanner.Status.DETECTED) {
             HelperLog.info("VirusTotal result: " + result.message);
@@ -1344,6 +1358,20 @@ public class DownloadActivity extends Activity {
         progressParams.topMargin = dp(18);
         card.addView(progress, progressParams);
 
+        scanNote = text(getString(R.string.virustotal_scan_note), 12, MUTED, false);
+        scanNote.setGravity(Gravity.CENTER);
+        scanNote.setLineSpacing(dp(3), 1f);
+        scanNote.setPadding(dp(6), dp(10), dp(6), 0);
+        scanNote.setVisibility(View.GONE);
+        card.addView(scanNote);
+
+        skipScanButton = text(getString(R.string.virustotal_skip_scan), 14, PRIMARY_START, true);
+        skipScanButton.setGravity(Gravity.CENTER);
+        skipScanButton.setPadding(0, dp(12), 0, 0);
+        skipScanButton.setVisibility(View.GONE);
+        skipScanButton.setOnClickListener(v -> skipVirusTotalScan());
+        card.addView(skipScanButton);
+
         diagnosticsCard = new LinearLayout(this);
         diagnosticsCard.setOrientation(LinearLayout.VERTICAL);
         diagnosticsCard.setPadding(dp(18), dp(16), dp(18), dp(16));
@@ -1745,13 +1773,21 @@ public class DownloadActivity extends Activity {
         finish();
     }
 
+    /** Skips the VirusTotal wait and continues the handoff unscanned. */
+    private void skipVirusTotalScan() {
+        if (!scanInProgress) {
+            return;
+        }
+        skipScanRequested = true;
+        setStatus(R.string.virustotal_skip_status);
+        Toast.makeText(this, R.string.virustotal_skip_toast,
+                Toast.LENGTH_SHORT).show();
+    }
+
     @Override
     public void onBackPressed() {
         if (scanInProgress) {
-            skipScanRequested = true;
-            setStatus(R.string.virustotal_skip_status);
-            Toast.makeText(this, R.string.virustotal_skip_toast,
-                    Toast.LENGTH_SHORT).show();
+            skipVirusTotalScan();
             return;
         }
         // Back behaves exactly like Cancel: no partial file is returned to Morphe.

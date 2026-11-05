@@ -394,6 +394,9 @@
     <string name="virustotal_preparing_upload">Preparing VirusTotal upload...</string>
     <string name="virustotal_uploading">Uploading to VirusTotal... %1$d%%</string>
     <string name="virustotal_waiting_analysis">Waiting for VirusTotal analysis...</string>
+    <string name="virustotal_waiting_analysis_seconds">Waiting for VirusTotal analysis... %1$d s</string>
+    <string name="virustotal_scan_note">VirusTotal can take several minutes to analyze a new upload. The helper waits up to 5 minutes and continues automatically when the result is ready. Tap Skip scan to continue without waiting.</string>
+    <string name="virustotal_skip_scan">Skip scan</string>
     <string name="virustotal_pending_abort">VirusTotal analysis is still pending. Handoff aborted.</string>
     <string name="virustotal_pending_reason">VirusTotal analysis still pending; handoff aborted</string>
     <string name="virustotal_pending_status">VirusTotal analysis still pending.</string>

@@ -77,6 +77,10 @@ final class VirusTotalScanner {
     private static final String UPLOAD_URL_API = API + "files/upload_url";
     private static final long DIRECT_UPLOAD_LIMIT = 32L * 1024L * 1024L;
     private static final long MAX_UPLOAD_LIMIT = 650L * 1024L * 1024L;
+    private static final long ANALYSIS_TIMEOUT_MS = 5L * 60L * 1000L;
+    private static final long ANALYSIS_FIRST_POLL_MS = 5_000L;
+    private static final long ANALYSIS_POLL_MS = 15_000L;
+    private static final long ANALYSIS_FILE_REPORT_GRACE_MS = 60_000L;
     private static final MediaType OCTET_STREAM =
             MediaType.parse("application/octet-stream");
 
@@ -229,6 +233,7 @@ final class VirusTotalScanner {
                 .header("Accept", "application/json")
                 .post(body)
                 .build();
+        long uploadStartedAt = System.currentTimeMillis();
         try (Response response = UPLOAD_HTTP.newCall(request).execute()) {
             String content = bodyString(response);
             int code = response.code();
@@ -237,6 +242,11 @@ final class VirusTotalScanner {
             }
             if (code == 429) {
                 return quota(hash, content);
+            }
+            if (code == 409) {
+                HelperLog.info("VirusTotal already has this file queued; waiting for its report");
+                return waitForAnalysis(context, hash, "", apiKey, uploadStartedAt,
+                        callback, cancel);
             }
             if (!response.isSuccessful()) {
                 HelperLog.error("VirusTotal upload HTTP " + code, null);
@@ -248,7 +258,8 @@ final class VirusTotalScanner {
                 return new Result(Status.UPLOAD_PENDING, hash, 0, 0,
                         "APK uploaded, but VirusTotal returned no analysis ID.");
             }
-            return waitForAnalysis(context, hash, analysisId, apiKey, callback, cancel);
+            return waitForAnalysis(context, hash, analysisId, apiKey, uploadStartedAt,
+                    callback, cancel);
         } catch (Exception error) {
             if (isCancelled(cancel)) {
                 return cancelled(hash);
@@ -299,59 +310,171 @@ final class VirusTotalScanner {
     }
 
     private static Result waitForAnalysis(Context context, String hash, String analysisId,
-                                          String apiKey, ProgressCallback callback,
-                                          CancelCheck cancel) {
+                                          String apiKey, long uploadStartedAt,
+                                          ProgressCallback callback, CancelCheck cancel) {
         progress(callback, context.getString(R.string.virustotal_waiting_analysis), -1);
-        for (int attempt = 0; attempt < 5; attempt++) {
+        long startedAt = System.currentTimeMillis();
+        long deadline = startedAt + ANALYSIS_TIMEOUT_MS;
+        int attempt = 0;
+        boolean checkFileReport = true;
+
+        // VirusTotal's analysis endpoint can lag behind the file report. Check
+        // both, alternating so the public API limit of 4 requests/minute is
+        // respected. A file report older than this upload is ignored until the
+        // grace period ends.
+        while (System.currentTimeMillis() < deadline) {
             if (isCancelled(cancel)) {
                 return cancelled(hash);
             }
-            try {
-                Thread.sleep(attempt == 0 ? 2000L : 3000L);
-            } catch (InterruptedException error) {
-                Thread.currentThread().interrupt();
+            long waitMs = attempt == 0 ? ANALYSIS_FIRST_POLL_MS : ANALYSIS_POLL_MS;
+            if (!waitWithProgress(context, callback, cancel, waitMs, startedAt)) {
+                if (isCancelled(cancel)) {
+                    return cancelled(hash);
+                }
                 break;
             }
-            if (isCancelled(cancel)) {
-                return cancelled(hash);
+            attempt++;
+
+            long elapsed = System.currentTimeMillis() - startedAt;
+            Result result;
+            if (checkFileReport) {
+                result = fileReport(hash, apiKey, uploadStartedAt,
+                        elapsed >= ANALYSIS_FILE_REPORT_GRACE_MS);
+            } else if (analysisId != null && !analysisId.isEmpty()) {
+                result = analysisStatus(hash, analysisId, apiKey);
+            } else {
+                result = null;
             }
-            Request request = new Request.Builder()
-                    .url(API + "analyses/" + analysisId)
-                    .header("x-apikey", apiKey)
-                    .header("Accept", "application/json")
-                    .build();
-            try (Response response = LOOKUP_HTTP.newCall(request).execute()) {
-                String content = bodyString(response);
-                int code = response.code();
-                if (code == 401 || code == 403) {
-                    return denied(hash, content, code);
-                }
-                if (code == 429) {
-                    return quota(hash, content);
-                }
-                if (!response.isSuccessful()) {
-                    continue;
-                }
-                JSONObject root = new JSONObject(content);
-                JSONObject data = root.optJSONObject("data");
-                JSONObject attributes = data == null
-                        ? null : data.optJSONObject("attributes");
-                if (attributes == null) {
-                    continue;
-                }
-                String state = attributes.optString("status", "");
-                if ("completed".equalsIgnoreCase(state)) {
-                    JSONObject stats = attributes.optJSONObject("stats");
-                    if (stats != null) {
-                        return statsResult(hash, stats);
-                    }
-                }
-            } catch (Exception error) {
-                HelperLog.error("VirusTotal analysis poll failed", error);
+            checkFileReport = !checkFileReport;
+
+            if (result != null) {
+                return result;
             }
         }
         return new Result(Status.UPLOAD_PENDING, hash, 0, 0,
                 "APK uploaded; VirusTotal analysis is still pending.");
+    }
+
+    /**
+     * Sleeps in one-second slices and refreshes the elapsed-time counter each
+     * second. Returns false when the scan was cancelled or the thread was
+     * interrupted.
+     */
+    private static boolean waitWithProgress(Context context, ProgressCallback callback,
+                                            CancelCheck cancel, long durationMs,
+                                            long startedAt) {
+        long end = System.currentTimeMillis() + durationMs;
+        while (System.currentTimeMillis() < end) {
+            if (isCancelled(cancel)) {
+                return false;
+            }
+            long remaining = end - System.currentTimeMillis();
+            try {
+                Thread.sleep(Math.min(1000L, Math.max(1L, remaining)));
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            if (isCancelled(cancel)) {
+                return false;
+            }
+            long elapsed = (System.currentTimeMillis() - startedAt) / 1000L;
+            progress(callback, context.getString(
+                    R.string.virustotal_waiting_analysis_seconds, elapsed), -1);
+        }
+        return true;
+    }
+
+    /**
+     * Reads an existing file report. Returns null while the report is not
+     * available yet, and a result when it contains analysis statistics.
+     */
+    private static Result fileReport(String hash, String apiKey, long uploadStartedAt,
+                                     boolean allowStale) {
+        Request request = new Request.Builder()
+                .url(FILES_API + hash)
+                .header("x-apikey", apiKey)
+                .header("Accept", "application/json")
+                .build();
+        try (Response response = LOOKUP_HTTP.newCall(request).execute()) {
+            int code = response.code();
+            String content = bodyString(response);
+            if (code == 404) {
+                return null;
+            }
+            if (code == 401 || code == 403) {
+                return denied(hash, content, code);
+            }
+            if (code == 429) {
+                return quota(hash, content);
+            }
+            if (!response.isSuccessful()) {
+                return null;
+            }
+            JSONObject root = new JSONObject(content);
+            JSONObject data = root.optJSONObject("data");
+            JSONObject attributes = data == null
+                    ? null : data.optJSONObject("attributes");
+            JSONObject stats = attributes == null
+                    ? null : attributes.optJSONObject("last_analysis_stats");
+            if (stats == null) {
+                return null;
+            }
+            long lastAnalysis = attributes.optLong("last_analysis_date", 0L) * 1000L;
+            if (!allowStale && lastAnalysis > 0L
+                    && lastAnalysis + 5_000L < uploadStartedAt) {
+                HelperLog.info("VirusTotal file report is older than this upload");
+                return null;
+            }
+            return statsResult(hash, stats);
+        } catch (Exception error) {
+            HelperLog.error("VirusTotal file report poll failed", error);
+            return null;
+        }
+    }
+
+    /**
+     * Reads the upload's analysis object. Returns null while it is queued or
+     * still running, and a result once it completes.
+     */
+    private static Result analysisStatus(String hash, String analysisId, String apiKey) {
+        Request request = new Request.Builder()
+                .url(API + "analyses/" + analysisId)
+                .header("x-apikey", apiKey)
+                .header("Accept", "application/json")
+                .build();
+        try (Response response = LOOKUP_HTTP.newCall(request).execute()) {
+            int code = response.code();
+            String content = bodyString(response);
+            if (code == 401 || code == 403) {
+                return denied(hash, content, code);
+            }
+            if (code == 429) {
+                return quota(hash, content);
+            }
+            if (!response.isSuccessful()) {
+                return null;
+            }
+            JSONObject root = new JSONObject(content);
+            JSONObject data = root.optJSONObject("data");
+            JSONObject attributes = data == null
+                    ? null : data.optJSONObject("attributes");
+            if (attributes == null) {
+                return null;
+            }
+            String state = attributes.optString("status", "");
+            HelperLog.info("VirusTotal analysis status: " + state);
+            if ("completed".equalsIgnoreCase(state)) {
+                JSONObject stats = attributes.optJSONObject("stats");
+                if (stats != null) {
+                    return statsResult(hash, stats);
+                }
+            }
+            return null;
+        } catch (Exception error) {
+            HelperLog.error("VirusTotal analysis poll failed", error);
+            return null;
+        }
     }
 
     private static Result statsResult(String hash, String content) {
