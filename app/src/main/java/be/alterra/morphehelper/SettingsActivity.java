@@ -62,6 +62,8 @@ public class SettingsActivity extends Activity {
     private static final int SHIZUKU_REQUEST_CODE = 71;
     private static final int FOLDER_REQUEST_CODE = 72;
     private static final int STORAGE_PERMISSION_CODE = 73;
+    private static final String STATE_SCROLL_Y = "settings_scroll_y";
+    private ScrollView scrollView;
     private boolean batteryIgnoring;
     private String pendingLocation;
 
@@ -92,6 +94,7 @@ public class SettingsActivity extends Activity {
         getWindow().setNavigationBarColor(BG_TOP);
 
         ScrollView scroll = new ScrollView(this);
+        scrollView = scroll;
         scroll.setFillViewport(true);
         scroll.setBackground(gradient(BG_TOP, BG_BOTTOM));
 
@@ -184,6 +187,18 @@ public class SettingsActivity extends Activity {
         root.addView(done, doneParams);
 
         setContentView(scroll);
+        if (savedInstanceState != null) {
+            int scrollY = savedInstanceState.getInt(STATE_SCROLL_Y, 0);
+            scroll.post(() -> scroll.scrollTo(0, scrollY));
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        if (scrollView != null) {
+            outState.putInt(STATE_SCROLL_Y, scrollView.getScrollY());
+        }
+        super.onSaveInstanceState(outState);
     }
 
     @Override
