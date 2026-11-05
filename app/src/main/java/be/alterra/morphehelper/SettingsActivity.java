@@ -452,8 +452,8 @@ public class SettingsActivity extends Activity {
             AppSettings.setVirusTotalUploadUnknown(this, isChecked);
             if (isChecked) {
                 Toast.makeText(this,
-                        "Unknown APKs will be uploaded to VirusTotal when a hash is not found.",
-                        Toast.LENGTH_LONG).show();
+                        "Unknown APKs will be uploaded to VirusTotal.",
+                        Toast.LENGTH_SHORT).show();
             }
         });
         uploadRow.addView(uploadSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
@@ -481,8 +481,7 @@ public class SettingsActivity extends Activity {
             AppSettings.setVirusTotalAlwaysUpload(this, isChecked);
             if (isChecked) {
                 Toast.makeText(this,
-                        "Every download will now wait for a VirusTotal upload. "
-                                + "New-file uploads do not consume lookup quota.",
+                        "Always upload enabled. Downloads may take longer.",
                         Toast.LENGTH_LONG).show();
             }
         });
