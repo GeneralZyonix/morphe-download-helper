@@ -3,11 +3,13 @@ package be.alterra.morphehelper;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.LocaleManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.os.Build;
+import android.os.LocaleList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -29,6 +31,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.List;
+import java.util.Locale;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -114,6 +117,7 @@ public class SettingsActivity extends Activity {
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         root.addView(header);
 
+        addLanguageRow(root);
         addUpdatesCard(root);
         addBatteryCard(root);
         addSecurityCard(root);
@@ -190,6 +194,72 @@ public class SettingsActivity extends Activity {
     protected void onDestroy() {
         Shizuku.removeRequestPermissionResultListener(shizukuListener);
         super.onDestroy();
+    }
+
+    private void addLanguageRow(LinearLayout root) {
+        LinearLayout row = settingRow(getString(R.string.settings_language),
+                currentLanguageLabel());
+        row.setOnClickListener(v -> showLanguageDialog());
+        root.addView(row);
+    }
+
+    private String currentLanguageLabel() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            LocaleManager manager = getSystemService(LocaleManager.class);
+            if (manager != null) {
+                LocaleList locales = manager.getApplicationLocales();
+                if (!locales.isEmpty()) {
+                    return languageLabel(locales.get(0));
+                }
+            }
+        }
+        return getString(R.string.settings_language_system);
+    }
+
+    private String languageLabel(Locale locale) {
+        String code = locale == null ? "" : locale.getLanguage();
+        if ("fr".equals(code)) {
+            return getString(R.string.settings_language_french);
+        }
+        if ("en".equals(code)) {
+            return getString(R.string.settings_language_english);
+        }
+        return locale == null ? getString(R.string.settings_language_system)
+                : locale.getDisplayLanguage(locale);
+    }
+
+    private void showLanguageDialog() {
+        if (Build.VERSION.SDK_INT < 33) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.settings_language)
+                    .setMessage(R.string.settings_language_android13)
+                    .setPositiveButton(R.string.common_ok, null)
+                    .show();
+            return;
+        }
+
+        LocaleManager manager = getSystemService(LocaleManager.class);
+        if (manager == null) {
+            return;
+        }
+        LocaleList current = manager.getApplicationLocales();
+        int selected = current.isEmpty() ? 0
+                : ("fr".equals(current.get(0).getLanguage()) ? 2 : 1);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.settings_language)
+                .setSingleChoiceItems(new String[]{
+                        getString(R.string.settings_language_system),
+                        getString(R.string.settings_language_english),
+                        getString(R.string.settings_language_french)
+                }, selected, (dialog, which) -> {
+                    LocaleList locales = which == 0
+                            ? LocaleList.getEmptyLocaleList()
+                            : LocaleList.forLanguageTags(which == 1 ? "en" : "fr");
+                    manager.setApplicationLocales(locales);
+                    dialog.dismiss();
+                    recreate();
+                })
+                .show();
     }
 
     private void addUpdatesCard(LinearLayout root) {

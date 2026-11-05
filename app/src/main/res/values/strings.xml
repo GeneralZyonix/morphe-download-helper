@@ -349,4 +349,11 @@
     <string name="report_action_change_order">  - Change the source order in Settings.</string>
     <string name="report_end">========== END REQUEST ==========</string>
     <string name="report_unknown">unknown</string>
+
+    <!-- In-app language selector. -->
+    <string name="settings_language">App language</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_french">Français</string>
+    <string name="settings_language_android13">In-app language selection requires Android 13 or newer.</string>
 </resources>

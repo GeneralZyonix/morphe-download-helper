@@ -349,4 +349,11 @@
     <string name="report_action_change_order">  - Modifiez l’ordre des sources dans les paramètres.</string>
     <string name="report_end">========== FIN DE LA REQUÊTE ==========</string>
     <string name="report_unknown">inconnu</string>
+
+    <!-- Sélecteur de langue dans l'application. -->
+    <string name="settings_language">Langue de l’application</string>
+    <string name="settings_language_system">Langue du système</string>
+    <string name="settings_language_english">Anglais</string>
+    <string name="settings_language_french">Français</string>
+    <string name="settings_language_android13">La sélection de la langue dans l’application nécessite Android 13 ou une version ultérieure.</string>
 </resources>
