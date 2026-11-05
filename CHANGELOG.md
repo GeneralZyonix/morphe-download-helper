@@ -5,6 +5,15 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.3] - 2026-11-05
+
+### Fixed
+
+- APKMirror search and app pages that return an HTTP 403 now open in the in-app WebView
+  instead of failing immediately, allowing the Cloudflare check to be completed.
+- Improved the changelog page: its loading bar now stops after loading, and a version
+  selector can show notes for recent releases.
+
 ## [1.6.2] - 2026-11-05
 
 ### Fixed
