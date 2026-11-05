@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -44,6 +45,10 @@ final class UpdateManager {
 
     interface InfoCallback {
         void done(UpdateInfo info, String error);
+    }
+
+    interface ReleasesCallback {
+        void done(List<UpdateInfo> releases, String error);
     }
 
     private static final String PREFS = "update_settings";
@@ -212,6 +217,18 @@ final class UpdateManager {
         } catch (Exception error) {
             HelperLog.error("Could not clear staged updates", error);
         }
+    }
+
+    static void fetchReleasesAsync(ReleasesCallback callback) {
+        new Thread(() -> {
+            try {
+                List<UpdateInfo> releases = UpdateChecker.releases();
+                MAIN.post(() -> callback.done(releases, null));
+            } catch (Exception error) {
+                HelperLog.error("Could not load release history", error);
+                MAIN.post(() -> callback.done(null, error.getMessage()));
+            }
+        }).start();
     }
 
     static void maybeCheckOnLaunch(Context context) {

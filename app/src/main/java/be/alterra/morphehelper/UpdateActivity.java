@@ -1,6 +1,7 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.graphics.Color;
@@ -22,6 +23,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import java.io.File;
+import java.util.List;
 
 public class UpdateActivity extends Activity {
 
@@ -31,14 +33,17 @@ public class UpdateActivity extends Activity {
     public static final String METHOD_SHIZUKU = "shizuku";
 
     private TextView version;
+    private TextView releasePicker;
     private TextView status;
     private TextView notesTitle;
     private TextView notes;
     private ProgressBar progress;
     private LinearLayout actions;
     private UpdateInfo info;
+    private List<UpdateInfo> releases;
     private boolean changelogOnly;
     private boolean loaded;
+    private boolean releaseHistoryLoading;
     private boolean started;
 
     @Override
@@ -77,6 +82,13 @@ public class UpdateActivity extends Activity {
         version.setGravity(Gravity.CENTER);
         version.setPadding(0, dp(8), 0, 0);
         root.addView(version);
+
+        releasePicker = text("", 13, Color.parseColor("#818CF8"), true);
+        releasePicker.setGravity(Gravity.CENTER);
+        releasePicker.setPadding(0, dp(8), 0, 0);
+        releasePicker.setVisibility(View.GONE);
+        releasePicker.setOnClickListener(v -> showVersionPicker());
+        root.addView(releasePicker);
 
         status = text(getString(R.string.update_loading), 15,
                 Color.parseColor("#CBD5E1"), false);
@@ -123,6 +135,9 @@ public class UpdateActivity extends Activity {
         } else {
             showInfo();
         }
+        if (changelogOnly) {
+            loadReleaseHistory();
+        }
     }
 
     private void loadLatest() {
@@ -145,22 +160,91 @@ public class UpdateActivity extends Activity {
         });
     }
 
+    private void loadReleaseHistory() {
+        if (releaseHistoryLoading || releases != null) {
+            updateReleasePicker();
+            return;
+        }
+        releaseHistoryLoading = true;
+        releasePicker.setVisibility(View.VISIBLE);
+        releasePicker.setText(R.string.update_loading_versions);
+        releasePicker.setEnabled(false);
+        UpdateManager.fetchReleasesAsync((list, error) -> {
+            releaseHistoryLoading = false;
+            if (list == null || list.isEmpty()) {
+                releasePicker.setText(R.string.update_versions_unavailable);
+                releasePicker.setEnabled(false);
+                return;
+            }
+            releases = list;
+            updateReleasePicker();
+        });
+    }
+
+    private void updateReleasePicker() {
+        if (!changelogOnly) {
+            releasePicker.setVisibility(View.GONE);
+            return;
+        }
+        releasePicker.setVisibility(View.VISIBLE);
+        if (releases == null || releases.isEmpty()) {
+            if (!releaseHistoryLoading) {
+                releasePicker.setText(R.string.update_versions_unavailable);
+                releasePicker.setEnabled(false);
+            }
+            return;
+        }
+        releasePicker.setText(getString(R.string.update_change_version)
+                + "  \u203A");
+        releasePicker.setEnabled(true);
+    }
+
+    private void showVersionPicker() {
+        if (releases == null || releases.isEmpty()) {
+            loadReleaseHistory();
+            return;
+        }
+        String[] labels = new String[releases.size()];
+        int selected = 0;
+        for (int i = 0; i < releases.size(); i++) {
+            labels[i] = "v" + releases.get(i).version;
+            if (info != null && releases.get(i).version.equals(info.version)) {
+                selected = i;
+            }
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.update_choose_version)
+                .setSingleChoiceItems(labels, selected, (dialog, which) -> {
+                    info = releases.get(which);
+                    dialog.dismiss();
+                    showInfo();
+                })
+                .show();
+    }
+
     private void showInfo() {
         if (info == null) {
             loadLatest();
             return;
         }
+        progress.setVisibility(View.GONE);
         String current = UpdateChecker.installedVersion(this);
         boolean newer = info.isNewerThan(current);
-        version.setText(getString(R.string.update_versions, current, info.version));
+        if (changelogOnly) {
+            version.setText(getString(R.string.update_viewing_versions,
+                    current, info.version));
+        } else {
+            version.setText(getString(R.string.update_versions, current, info.version));
+        }
 
         if (newer) {
             status.setText(getString(R.string.update_available, info.version));
         } else if (changelogOnly) {
-            status.setText(R.string.update_up_to_date);
+            status.setText(getString(R.string.update_release_notes_for, info.version));
         } else {
             status.setText(R.string.update_already_up_to_date);
         }
+        updateReleasePicker();
 
         if (!info.notes.isEmpty()) {
             notesTitle.setText(changelogOnly || !newer

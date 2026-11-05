@@ -406,4 +406,12 @@
     <string name="virustotal_blocked_reason">VirusTotal blocked this file: %1$s</string>
     <string name="virustotal_quota_reason">VirusTotal quota exceeded; handoff aborted: %1$s</string>
     <string name="virustotal_quota_status">VirusTotal quota exceeded.</string>
+
+    <!-- Release history picker. -->
+    <string name="update_change_version">Change version</string>
+    <string name="update_loading_versions">Loading versions...</string>
+    <string name="update_versions_unavailable">Version history unavailable</string>
+    <string name="update_choose_version">Choose a version</string>
+    <string name="update_release_notes_for">Release notes for v%1$s.</string>
+    <string name="update_viewing_versions">Current v%1$s  •  Viewing v%2$s</string>
 </resources>
