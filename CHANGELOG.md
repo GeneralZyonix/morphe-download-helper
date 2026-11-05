@@ -5,6 +5,17 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.1] - 2026-11-05
+
+### Fixed
+
+- Clarified that **VirusTotal checks** is the master switch. Its subtitle and help text now
+  explicitly say that turning it off disables all VirusTotal lookups, uploads, quota
+  handling, and blocking.
+- The language selector now discovers supported languages from `locales_config.xml`, so a
+  newly merged translation appears automatically under **Settings → App language**.
+- Updated the translation documentation and current language list.
+
 ## [1.6] - 2026-11-05
 
 ### Added
