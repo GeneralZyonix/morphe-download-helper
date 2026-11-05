@@ -5,6 +5,23 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.5] - 2026-11-05
+
+### Fixed
+
+- VirusTotal uploads no longer abort after a few seconds while the analysis is still
+  queued. The helper now waits up to 5 minutes and checks both the analysis and the
+  existing file report before continuing.
+- Re-uploading a file that VirusTotal is still processing no longer fails with HTTP 409;
+  the helper waits for the existing report instead.
+
+### Changed
+
+- The VirusTotal scanning screen now explains that analysis can take several minutes,
+  shows a live elapsed-time counter, and offers a visible **Skip scan** button.
+- VirusTotal polling now updates once per second and stays within the public
+  four-requests-per-minute API limit.
+
 ## [1.6.4] - 2026-11-05
 
 ### Fixed
