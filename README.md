@@ -198,6 +198,16 @@ GUIDE.md                 Step-by-step Morphe setup guide
 Issues and pull requests are welcome. Please keep source parsers small and well commented,
 and test changes against a real Morphe request before opening a PR.
 
+## Translations
+
+Want to add a language? See [TRANSLATING.md](TRANSLATING.md) for the English strings,
+placeholder rules, and import instructions.
+
+The in-app strings are in
+[app/src/main/res/values/strings.xml](app/src/main/res/values/strings.xml); the French
+example is in
+[app/src/main/res/values-fr/strings.xml](app/src/main/res/values-fr/strings.xml).
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
