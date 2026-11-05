@@ -5,6 +5,14 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.2] - 2026-11-05
+
+### Fixed
+
+- Settings no longer jump back to the top after saving the VirusTotal API key or changing
+  another setting that recreates the screen. The current scroll position is saved and
+  restored.
+
 ## [1.6.1] - 2026-11-05
 
 ### Fixed
