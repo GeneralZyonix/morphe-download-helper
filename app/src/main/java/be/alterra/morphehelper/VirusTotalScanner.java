@@ -27,6 +27,8 @@ final class VirusTotalScanner {
         CLEAN,
         DETECTED,
         UNKNOWN,
+        QUOTA_EXCEEDED,
+        DENIED,
         ERROR
     }
 
@@ -97,14 +99,18 @@ final class VirusTotalScanner {
                         "This APK is not known to VirusTotal.");
             }
             if (code == 401 || code == 403) {
+                String detail = apiError(content);
                 HelperLog.error("VirusTotal rejected the API key (HTTP " + code + ")", null);
-                return new Result(Status.ERROR, hash, 0, 0,
-                        "VirusTotal rejected the API key.");
+                return new Result(Status.DENIED, hash, 0, 0,
+                        "VirusTotal denied the API key"
+                                + (detail.isEmpty() ? "." : ": " + detail));
             }
             if (code == 429) {
-                HelperLog.error("VirusTotal rate limit reached", null);
-                return new Result(Status.ERROR, hash, 0, 0,
-                        "VirusTotal rate limit reached.");
+                String detail = apiError(content);
+                HelperLog.error("VirusTotal quota or rate limit reached", null);
+                return new Result(Status.QUOTA_EXCEEDED, hash, 0, 0,
+                        "VirusTotal quota exceeded"
+                                + (detail.isEmpty() ? "." : ": " + detail));
             }
             if (!response.isSuccessful()) {
                 HelperLog.error("VirusTotal HTTP " + code, null);
@@ -138,6 +144,30 @@ final class VirusTotalScanner {
             HelperLog.error("VirusTotal lookup failed", error);
             return new Result(Status.ERROR, hash, 0, 0,
                     "VirusTotal lookup failed: " + error.getMessage());
+        }
+    }
+
+    private static String apiError(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            return "";
+        }
+        try {
+            JSONObject root = new JSONObject(content);
+            JSONObject error = root.optJSONObject("error");
+            if (error == null) {
+                return "";
+            }
+            String code = error.optString("code", "");
+            String message = error.optString("message", "");
+            if (code.isEmpty()) {
+                return message;
+            }
+            if (message.isEmpty()) {
+                return code;
+            }
+            return code + ": " + message;
+        } catch (Exception ignored) {
+            return "";
         }
     }
 

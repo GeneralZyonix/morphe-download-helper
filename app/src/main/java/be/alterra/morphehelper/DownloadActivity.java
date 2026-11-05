@@ -504,7 +504,16 @@ public class DownloadActivity extends Activity {
             progress.setIndeterminate(true);
         });
         VirusTotalScanner.Result result = VirusTotalScanner.scan(this, file);
-        if (result.status == VirusTotalScanner.Status.DETECTED
+        if (result.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
+                || result.status == VirusTotalScanner.Status.DENIED) {
+            HelperLog.info("VirusTotal could not scan the file: " + result.message);
+            runOnUiThread(() -> {
+                setStatus(result.message);
+                Toast.makeText(this, result.message
+                                + " Continuing without a scan.",
+                        Toast.LENGTH_LONG).show();
+            });
+        } else if (result.status == VirusTotalScanner.Status.DETECTED
                 && !AppSettings.virusTotalBlockDetections(this)) {
             HelperLog.info("VirusTotal detections ignored by setting: " + result.message);
         } else if (result.status == VirusTotalScanner.Status.DETECTED) {

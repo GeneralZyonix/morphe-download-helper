@@ -430,13 +430,23 @@ public class SettingsActivity extends Activity {
         blockRow.addView(blockSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(blockRow);
 
+        TextView quota = text(
+                "VirusTotal public API limits: about 4 lookups/minute, 500/day, and "
+                        + "15,500/month. Premium API keys may have higher limits.",
+                11, MUTED, false);
+        quota.setLineSpacing(dp(3), 1f);
+        quota.setPadding(0, dp(8), 0, 0);
+        card.addView(quota);
+
         TextView note = text(
                 "Hash lookup only. The APK is never uploaded. A VirusTotal API key is "
                         + "required; results are advisory and may miss new malware. "
-                        + "Unknown files or lookup errors do not block the download.",
+                        + "Unknown files, denied keys, quota errors, or lookup failures "
+                        + "do not block the download; the user is warned when the scan "
+                        + "cannot run.",
                 11, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
-        note.setPadding(0, dp(8), 0, 0);
+        note.setPadding(0, dp(6), 0, 0);
         card.addView(note);
     }
 

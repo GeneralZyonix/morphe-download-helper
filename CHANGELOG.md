@@ -17,6 +17,9 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - **Block detected files** toggle. When enabled, files with VirusTotal detections are
   deleted instead of being returned. Unknown hashes, missing keys, and lookup errors fail
   open and allow the download.
+- VirusTotal public API quota guidance in Settings: about 4 lookups/minute, 500/day, and
+  15,500/month. If the API reports a quota limit or denied key, the message is shown to the
+  user and the download continues unscanned.
 
 ## [1.5.2] - 2026-11-04
 
