@@ -5,10 +5,17 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [1.6] - 2026-11-05
 
 ### Added
 
+- Complete French translation and Android string-resource extraction, contributed by
+  [@foXaCe](https://github.com/foXaCe) in
+  [PR #4](https://github.com/GeneralZyonix/morphe-download-helper/pull/4).
+- In-app **App language** selector in Settings for English, French, or the system default
+  on Android 13+.
+- Translation guide at [TRANSLATING.md](TRANSLATING.md), linked from the README, with the
+  English source strings, placeholder rules, and pull-request instructions.
 - Optional **VirusTotal hash check** in Settings. When enabled, the helper calculates the
   downloaded file's SHA-256 hash and looks it up through the VirusTotal API before handing
   the APK to Morphe.
@@ -37,6 +44,14 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   quota limit or denied key, the message is shown to the user.
 - **Quota exceeded** setting: choose **Continue unscanned** (default) or abort the handoff
   to Morphe when VirusTotal reports that the API quota has been exceeded.
+
+### Contributors
+
+Huge thanks to [@foXaCe](https://github.com/foXaCe) for the excellent localization work in
+[PR #4](https://github.com/GeneralZyonix/morphe-download-helper/pull/4): extracting the UI
+strings, adding the French translation, and making the diagnostics, source names, Shizuku
+states, and error messages translatable. This release would not have its language support
+without that contribution.
 
 ## [1.5.2] - 2026-11-04
 

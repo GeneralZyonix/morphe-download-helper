@@ -554,46 +554,49 @@ public class DownloadActivity extends Activity {
 
             if (scan.status == VirusTotalScanner.Status.UPLOAD_PENDING) {
                 showScanOutcomeForFiveSeconds(
-                        "VirusTotal analysis is still pending. Handoff aborted.");
+                        getString(R.string.virustotal_pending_abort));
                 if (!cancelled) {
                     abortHandoff(file,
-                            "VirusTotal analysis still pending; handoff aborted",
-                            "VirusTotal analysis still pending.");
+                            getString(R.string.virustotal_pending_reason),
+                            getString(R.string.virustotal_pending_status));
                 }
                 return;
             }
 
             if (scan.isDetection()) {
                 boolean block = AppSettings.virusTotalBlockDetections(this);
-                showScanOutcomeForFiveSeconds("VirusTotal: " + scan.message
-                        + (block ? " Blocking handoff." : " Continuing anyway."));
+                showScanOutcomeForFiveSeconds(getString(
+                        block ? R.string.virustotal_detected_block
+                                : R.string.virustotal_detected_continue,
+                        scan.message));
                 if (cancelled) {
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
                     return;
                 }
                 if (block) {
-                    abortHandoff(file, "VirusTotal blocked this file: " + scan.message,
-                            "VirusTotal found malware signatures.");
+                    abortHandoff(file,
+                            getString(R.string.virustotal_blocked_reason, scan.message),
+                            getString(R.string.virustotal_blocked_signatures));
                     return;
                 }
             } else if (scan.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
                     && AppSettings.virusTotalAbortOnQuota(this)) {
                 showScanOutcomeForFiveSeconds(
-                        "VirusTotal quota exceeded. Aborting handoff.");
+                        getString(R.string.virustotal_quota_aborting));
                 if (!cancelled) {
                     abortHandoff(file,
-                            "VirusTotal quota exceeded; handoff aborted: " + scan.message,
-                            "VirusTotal quota exceeded.");
+                            getString(R.string.virustotal_quota_reason, scan.message),
+                            getString(R.string.virustotal_quota_status));
                 }
                 return;
             } else if (scan.status == VirusTotalScanner.Status.CLEAN) {
                 showScanOutcomeForFiveSeconds(
-                        "VirusTotal: no detections found. Continuing...");
+                        getString(R.string.virustotal_clean_continue));
             } else if (scan.status != VirusTotalScanner.Status.CANCELLED
                     && scan.status != VirusTotalScanner.Status.DISABLED) {
-                showScanOutcomeForFiveSeconds("VirusTotal: " + scan.message
-                        + " Continuing unscanned.");
+                showScanOutcomeForFiveSeconds(
+                        getString(R.string.virustotal_unscanned_continue, scan.message));
             }
 
             if (cancelled) {
@@ -1593,8 +1596,8 @@ public class DownloadActivity extends Activity {
     public void onBackPressed() {
         if (scanInProgress) {
             skipScanRequested = true;
-            setStatus("Skipping VirusTotal scan and continuing...");
-            Toast.makeText(this, "Skipping VirusTotal scan.",
+            setStatus(R.string.virustotal_skip_status);
+            Toast.makeText(this, R.string.virustotal_skip_toast,
                     Toast.LENGTH_SHORT).show();
             return;
         }

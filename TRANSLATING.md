@@ -43,5 +43,4 @@ Please verify that:
 | English | `values/strings.xml` | Source |
 | French | `values-fr/strings.xml` | Test translation in PR #4 |
 
-The French translation currently covers the existing UI. The newer VirusTotal settings
-and upload-progress messages are not translated yet.
+The French translation now covers the VirusTotal settings and upload-progress messages.

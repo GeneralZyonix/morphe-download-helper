@@ -441,7 +441,7 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text("Security", 16, TEXT, true));
+        card.addView(text(getString(R.string.virustotal_security), 16, TEXT, true));
 
         LinearLayout scanRow = new LinearLayout(this);
         scanRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -449,8 +449,9 @@ public class SettingsActivity extends Activity {
         scanRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout scanLabels = new LinearLayout(this);
         scanLabels.setOrientation(LinearLayout.VERTICAL);
-        scanLabels.addView(text("VirusTotal hash check", 14, TEXT, true));
-        TextView scanDetail = text("Check downloaded files by SHA-256", 12, MUTED, false);
+        scanLabels.addView(text(getString(R.string.virustotal_hash_check), 14, TEXT, true));
+        TextView scanDetail = text(getString(R.string.virustotal_hash_check_detail),
+                12, MUTED, false);
         scanDetail.setPadding(0, dp(3), 0, 0);
         scanLabels.addView(scanDetail);
         scanRow.addView(scanLabels, new LinearLayout.LayoutParams(
@@ -463,8 +464,7 @@ public class SettingsActivity extends Activity {
         scanSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalEnabled(this, isChecked);
             if (isChecked && AppSettings.virusTotalApiKey(this).isEmpty()) {
-                Toast.makeText(this,
-                        "Add a VirusTotal API key to start scanning.",
+                Toast.makeText(this, R.string.virustotal_add_key_toast,
                         Toast.LENGTH_LONG).show();
             }
         });
@@ -472,8 +472,9 @@ public class SettingsActivity extends Activity {
         card.addView(scanRow);
 
         boolean hasKey = !AppSettings.virusTotalApiKey(this).isEmpty();
-        LinearLayout keyRow = settingRow("VirusTotal API key",
-                hasKey ? "Configured" : "Not set");
+        LinearLayout keyRow = settingRow(getString(R.string.virustotal_api_key),
+                getString(hasKey ? R.string.virustotal_configured
+                        : R.string.virustotal_not_set));
         keyRow.setOnClickListener(v -> showVirusTotalKeyDialog());
         card.addView(keyRow);
 
@@ -483,8 +484,10 @@ public class SettingsActivity extends Activity {
         blockRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout blockLabels = new LinearLayout(this);
         blockLabels.setOrientation(LinearLayout.VERTICAL);
-        blockLabels.addView(text("Block detected files", 14, TEXT, true));
-        TextView blockDetail = text("Stop handing the APK to Morphe", 12, MUTED, false);
+        blockLabels.addView(text(getString(R.string.virustotal_block_detected),
+                14, TEXT, true));
+        TextView blockDetail = text(getString(R.string.virustotal_block_detail),
+                12, MUTED, false);
         blockDetail.setPadding(0, dp(3), 0, 0);
         blockLabels.addView(blockDetail);
         blockRow.addView(blockLabels, new LinearLayout.LayoutParams(
@@ -505,9 +508,10 @@ public class SettingsActivity extends Activity {
         uploadRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout uploadLabels = new LinearLayout(this);
         uploadLabels.setOrientation(LinearLayout.VERTICAL);
-        uploadLabels.addView(text("Upload unknown files", 14, TEXT, true));
+        uploadLabels.addView(text(getString(R.string.virustotal_upload_unknown),
+                14, TEXT, true));
         TextView uploadDetail = text(
-                "If no hash is found, send the APK for analysis", 12, MUTED, false);
+                getString(R.string.virustotal_upload_unknown_detail), 12, MUTED, false);
         uploadDetail.setPadding(0, dp(3), 0, 0);
         uploadLabels.addView(uploadDetail);
         uploadRow.addView(uploadLabels, new LinearLayout.LayoutParams(
@@ -520,8 +524,7 @@ public class SettingsActivity extends Activity {
         uploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalUploadUnknown(this, isChecked);
             if (isChecked) {
-                Toast.makeText(this,
-                        "Unknown APKs will be uploaded to VirusTotal.",
+                Toast.makeText(this, R.string.virustotal_unknown_upload_toast,
                         Toast.LENGTH_SHORT).show();
             }
         });
@@ -534,9 +537,11 @@ public class SettingsActivity extends Activity {
         alwaysUploadRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout alwaysUploadLabels = new LinearLayout(this);
         alwaysUploadLabels.setOrientation(LinearLayout.VERTICAL);
-        alwaysUploadLabels.addView(text("Always upload to VirusTotal", 14, TEXT, true));
+        alwaysUploadLabels.addView(text(getString(R.string.virustotal_always_upload),
+                14, TEXT, true));
         TextView alwaysUploadDetail = text(
-                "Skip hash lookup and upload every downloaded APK", 12, MUTED, false);
+                getString(R.string.virustotal_always_upload_detail),
+                12, MUTED, false);
         alwaysUploadDetail.setPadding(0, dp(3), 0, 0);
         alwaysUploadLabels.addView(alwaysUploadDetail);
         alwaysUploadRow.addView(alwaysUploadLabels, new LinearLayout.LayoutParams(
@@ -549,8 +554,7 @@ public class SettingsActivity extends Activity {
         alwaysUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalAlwaysUpload(this, isChecked);
             if (isChecked) {
-                Toast.makeText(this,
-                        "Always upload enabled. Downloads may take longer.",
+                Toast.makeText(this, R.string.virustotal_always_upload_toast,
                         Toast.LENGTH_LONG).show();
             }
         });
@@ -564,9 +568,11 @@ public class SettingsActivity extends Activity {
         quotaUploadRow.setPadding(0, dp(8), 0, dp(8));
         LinearLayout quotaUploadLabels = new LinearLayout(this);
         quotaUploadLabels.setOrientation(LinearLayout.VERTICAL);
-        quotaUploadLabels.addView(text("Upload if quota exceeded", 14, TEXT, true));
+        quotaUploadLabels.addView(text(getString(R.string.virustotal_upload_on_quota),
+                14, TEXT, true));
         TextView quotaUploadDetail = text(
-                "Use upload instead when a hash lookup hits the quota", 12, MUTED, false);
+                getString(R.string.virustotal_upload_on_quota_detail),
+                12, MUTED, false);
         quotaUploadDetail.setPadding(0, dp(3), 0, 0);
         quotaUploadLabels.addView(quotaUploadDetail);
         quotaUploadRow.addView(quotaUploadLabels, new LinearLayout.LayoutParams(
@@ -582,24 +588,21 @@ public class SettingsActivity extends Activity {
                 new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(quotaUploadRow);
 
-        TextView uploadInfo = text(
-                "Always upload makes every download take longer. VirusTotal documents "
-                        + "new-file uploads as not consuming API lookup quota, but uploads "
-                        + "still share the APK and may be rate-limited. If both upload "
-                        + "fallbacks are enabled, upload is tried before aborting.",
+        TextView uploadInfo = text(getString(R.string.virustotal_upload_info),
                 11, MUTED, false);
         uploadInfo.setLineSpacing(dp(3), 1f);
         uploadInfo.setPadding(0, dp(4), 0, 0);
         card.addView(uploadInfo);
 
         boolean abortOnQuota = AppSettings.virusTotalAbortOnQuota(this);
-        LinearLayout quotaRow = settingRow("Quota exceeded",
-                abortOnQuota ? "Abort handoff" : "Continue unscanned");
+        LinearLayout quotaRow = settingRow(getString(R.string.virustotal_quota_exceeded),
+                getString(abortOnQuota ? R.string.virustotal_quota_abort
+                        : R.string.virustotal_quota_continue));
         quotaRow.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("When the VirusTotal quota is exceeded")
+                .setTitle(R.string.virustotal_quota_dialog_title)
                 .setSingleChoiceItems(new String[]{
-                        "Continue unscanned",
-                        "Abort handoff to Morphe"
+                        getString(R.string.virustotal_quota_continue),
+                        getString(R.string.virustotal_quota_dialog_abort)
                 }, AppSettings.virusTotalAbortOnQuota(this) ? 1 : 0, (dialog, which) -> {
                     AppSettings.setVirusTotalAbortOnQuota(this, which == 1);
                     dialog.dismiss();
@@ -608,25 +611,13 @@ public class SettingsActivity extends Activity {
                 .show());
         card.addView(quotaRow);
 
-        TextView quota = text(
-                "VirusTotal public API limits: about 4 requests/minute and 500/day. "
-                        + "Uploads are limited to 32 MB directly, or 650 MB through "
-                        + "VirusTotal's upload URL. New-file uploads do not consume "
-                        + "lookup quota; premium API limits depend on the license.",
+        TextView quota = text(getString(R.string.virustotal_api_limits),
                 11, MUTED, false);
         quota.setLineSpacing(dp(3), 1f);
         quota.setPadding(0, dp(8), 0, 0);
         card.addView(quota);
 
-        TextView note = text(
-                "Hash lookup is the default and the APK is never uploaded unless "
-                        + "Upload unknown files is enabled. Uploads share the APK with "
-                        + "VirusTotal and security vendors and are limited to 650 MB. "
-                        + "A VirusTotal API key is required; results are advisory and "
-                        + "may miss new malware. "
-                        + "Unknown files, denied keys, quota errors, or lookup failures "
-                        + "do not block the download unless the quota-exceeded setting "
-                        + "is set to abort; the user is warned when the scan cannot run.",
+        TextView note = text(getString(R.string.virustotal_note),
                 11, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(6), 0, 0);
@@ -644,15 +635,15 @@ public class SettingsActivity extends Activity {
         input.setPadding(padding, padding, padding, padding);
 
         new AlertDialog.Builder(this)
-                .setTitle("VirusTotal API key")
-                .setMessage("Stored only on this device. The APK itself is never uploaded.")
+                .setTitle(R.string.virustotal_api_key_dialog_title)
+                .setMessage(R.string.virustotal_api_key_dialog_message)
                 .setView(input)
-                .setNegativeButton("Cancel", null)
-                .setNeutralButton("Clear", (dialog, which) -> {
+                .setNegativeButton(R.string.common_cancel, null)
+                .setNeutralButton(R.string.virustotal_api_key_clear, (dialog, which) -> {
                     AppSettings.setVirusTotalApiKey(this, "");
                     recreate();
                 })
-                .setPositiveButton("Save", (dialog, which) -> {
+                .setPositiveButton(R.string.virustotal_api_key_save, (dialog, which) -> {
                     AppSettings.setVirusTotalApiKey(this, input.getText().toString());
                     recreate();
                 })
