@@ -198,7 +198,7 @@
     <string name="download_apkpure_title">APKPure download</string>
     <string name="download_apkpure_explanation">APKPure uses Cloudflare protection. If a search page appears, tap the app result first. On the app page, tap Download APK (not the APKPure app button). The helper will capture the XAPK or APK and return it to Morphe.</string>
     <string name="download_apkmirror_title">APKMirror verification</string>
-    <string name="download_apkmirror_explanation">APKMirror needs a quick Cloudflare check. The exact download page is shown below. The helper will press the download button automatically once the page is ready.</string>
+    <string name="download_apkmirror_explanation">APKMirror needs a quick Cloudflare check. The helper will navigate to the download page and press the download button automatically once the page is ready.</string>
     <string name="download_error_page_timeout">The download page took too long to respond.</string>
     <string name="download_error_page_timeout_detail">Timed out waiting for the download page</string>
     <string name="download_downloading_from">Downloading from %1$s…</string>

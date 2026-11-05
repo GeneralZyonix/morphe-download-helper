@@ -786,39 +786,7 @@ public class DownloadActivity extends Activity {
                                     + "if(n>60)clearInterval(t);},500);})();",
                             null);
                 } else if ("apkmirror".equals(webSource)) {
-                    view.evaluateJavascript(
-                            "(function(){var n=0;var t=setInterval(function(){n++;"
-                                    + "var cs=['#accept-btn','.accept-btn',"
-                                    + "'#onetrust-accept-btn-handler','.fc-cta-consent',"
-                                    + "'.cky-btn-accept','.osano-cm-accept-all',"
-                                    + "'#didomi-notice-agree-button',"
-                                    + "'button[data-testid=\"uc-accept-all-button\"]'];"
-                                    + "for(var c=0;c<cs.length;c++){var el=document.querySelector(cs[c]);"
-                                    + "if(el){el.click();}}"
-                                    + "var all=document.querySelectorAll('button,a');"
-                                    + "for(var i=0;i<all.length;i++){var ct=(all[i].innerText||'')"
-                                    + ".trim().toLowerCase();"
-                                    + "if(ct==='accept'||ct==='accept all'||ct==='accept cookies'"
-                                    + "||ct==='i agree'||ct==='agree'||ct==='consent'"
-                                    + "||ct==='allow all'||ct.indexOf('akkoord')>=0"
-                                    + "||ct.indexOf('accept')>=0){all[i].click();}}"
-                                    + "var a=document.querySelector('a#download-link,"
-                                    + "a[href*=\"download.php\"]');"
-                                    + "if(a){clearInterval(t);a.scrollIntoView({block:'center'});"
-                                    + "setTimeout(function(){a.click();},500);return;}"
-                                    + "var b=document.querySelector('a.downloadButton,"
-                                    + "a[href*=\"/download/?key=\"]');"
-                                    + "if(b){clearInterval(t);b.scrollIntoView({block:'center'});"
-                                    + "setTimeout(function(){b.click();},500);return;}"
-                                    + "var bs=document.querySelectorAll('a,button');"
-                                    + "for(var j=0;j<bs.length;j++){"
-                                    + "var txt=(bs[j].innerText||'').toLowerCase();"
-                                    + "if(txt.indexOf('download apk bundle')>=0"
-                                    + "||txt.indexOf('download apk')>=0&&txt.indexOf('apkmirror app')<0){"
-                                    + "clearInterval(t);bs[j].scrollIntoView({block:'center'});"
-                                    + "setTimeout(function(){bs[j].click();},500);return;}}"
-                                    + "if(n>600)clearInterval(t);},100);})();",
-                            null);
+                    view.evaluateJavascript(apkMirrorWebScript(), null);
                 } else {
                     String pkgJson = JSONObject.quote(uptodownPkg);
                     String versionJson = JSONObject.quote(
@@ -896,6 +864,191 @@ public class DownloadActivity extends Activity {
         scrollView.post(() -> scrollView.smoothScrollTo(0, uptodownSection.getTop()));
         scheduleWebFlowTimeout(web);
         web.loadUrl(url);
+    }
+
+    /**
+     * Builds the APKMirror WebView navigator. APKMirror may serve a Cloudflare
+     * challenge to the HTTP client while letting the WebView through, so the
+     * WebView follows the same chain as the HTTP resolver: search result,
+     * release page, variant page, and finally the download link.
+     */
+    private String apkMirrorWebScript() {
+        String pkg = JSONObject.quote(uptodownPkg == null ? "" : uptodownPkg);
+        String version = JSONObject.quote(uptodownVersion == null ? "" : uptodownVersion);
+        String name = JSONObject.quote(requestedAppName == null ? "" : requestedAppName);
+        String type = JSONObject.quote(uptodownFileType == null ? "" : uptodownFileType);
+        String abi = JSONObject.quote(
+                requestAbis != null && requestAbis.length > 0 ? requestAbis[0] : "");
+        return """
+                (function(){
+                if(window.__mhApkMirrorStarted)return;
+                window.__mhApkMirrorStarted=true;
+                var pkg=__MH_PKG__,ver=__MH_VER__,name=__MH_NAME__,fileType=__MH_TYPE__,abi=__MH_ABI__;
+                var nameLower=(name||'').toLowerCase();
+                var nameSlug=nameLower.replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+                var pkgParts=(pkg||'').toLowerCase().split('.').filter(function(p){
+                    return p.length>2&&p!=='com'&&p!=='org'&&p!=='net'&&p!=='android';
+                });
+                var verSlug=(ver||'').toLowerCase().split('.').join('-');
+                function txt(el){return (el&&el.innerText||'').trim();}
+                function digits(s){return (s||'').replace(/[^0-9]/g,'');}
+                function hasVer(s){return ver&&digits(s).indexOf(digits(ver))>=0;}
+                function pathOf(href){
+                    try{return new URL(href,location.href).pathname.toLowerCase();}
+                    catch(e){return (href||'').toLowerCase();}
+                }
+                function isRelease(p){return p.endsWith('-release/');}
+                function isVariant(p){
+                    return p.endsWith('-android-apk-download/')
+                        || p.endsWith('-android-apkm-download/')
+                        || p.endsWith('-android-apks-download/');
+                }
+                function segments(p){
+                    return p.split('/').filter(function(s){return s.length>0;});
+                }
+                function isApkPath(p){
+                    var s=segments(p);return s.length>=3&&s[0]==='apk';
+                }
+                function isAppPage(p){
+                    var s=segments(p);return s.length===3&&s[0]==='apk';
+                }
+                function consent(){
+                    var cs=['#accept-btn','.accept-btn','#onetrust-accept-btn-handler',
+                        '.fc-cta-consent','.cky-btn-accept','.osano-cm-accept-all',
+                        '#didomi-notice-agree-button','button[data-testid=uc-accept-all-button]'];
+                    for(var i=0;i<cs.length;i++){
+                        var el=document.querySelector(cs[i]);
+                        if(el){try{el.click();}catch(e){}}
+                    }
+                    var bs=document.querySelectorAll('button,a');
+                    for(var j=0;j<bs.length;j++){
+                        var t=txt(bs[j]).toLowerCase();
+                        if(t==='accept'||t==='accept all'||t==='accept cookies'
+                            ||t==='i agree'||t==='agree'||t==='consent'
+                            ||t==='allow all'||t==='akkoord'){
+                            try{bs[j].click();}catch(e){}
+                        }
+                    }
+                }
+                function pick(){
+                    var p=location.pathname.toLowerCase();
+                    var q=location.search.toLowerCase();
+                    if(q.indexOf('searchtype=')>=0){
+                        var best=null,bestScore=-1,ls=document.querySelectorAll('a');
+                        for(var i=0;i<ls.length;i++){
+                            var a=ls[i],h=a.href||'';
+                            if(!h||h.indexOf('#')>=0)continue;
+                            var hp=pathOf(h);
+                            if(!isApkPath(hp))continue;
+                            var t=txt(a).toLowerCase();
+                            if(!t)continue;
+                            var seg=segments(hp);
+                            var app=seg.length>2?seg[2]:'';
+                            var score=0;
+                            if(nameSlug&&app===nameSlug)score+=120;
+                            else if(nameSlug&&app.indexOf(nameSlug)>=0)score+=60;
+                            for(var j=0;j<pkgParts.length;j++){
+                                if(app===pkgParts[j])score+=80;
+                                else if(app.indexOf(pkgParts[j])>=0)score+=30;
+                            }
+                            if(nameLower&&t.indexOf(nameLower)>=0)score+=60;
+                            if(isRelease(hp))score+=20;
+                            if(/(alpha|beta)/.test(app)&&!/(alpha|beta)/.test(nameLower))score-=20;
+                            if(score>bestScore){bestScore=score;best=a;}
+                        }
+                        if(best&&bestScore>=60)return best;
+                        return null;
+                    }
+                    if(isRelease(p)){
+                        var vs=document.querySelectorAll('a');
+                        var fallback=null,plain=null,plainUniversal=null,bundle=null,bundleAbi=null;
+                        for(var v=0;v<vs.length;v++){
+                            var va=vs[v],vh=va.href||'';
+                            if(!vh||vh.indexOf('#')>=0)continue;
+                            var vp=pathOf(vh);
+                            if(!isVariant(vp))continue;
+                            var row=va.closest('.table-row'),rt=txt(row).toLowerCase();
+                            if(!rt){
+                                var par=va.parentElement;
+                                for(var u=0;u<4&&par;u++){
+                                    rt=txt(par).toLowerCase();
+                                    if(rt.indexOf('apk')>=0||rt.indexOf('bundle')>=0)break;
+                                    par=par.parentElement;
+                                }
+                            }
+                            var isBundle=rt.indexOf('bundle')>=0||rt.indexOf('apkm')>=0
+                                ||rt.indexOf('apks')>=0;
+                            var isPlain=!isBundle;
+                            var universal=rt.indexOf('universal')>=0||rt.indexOf('nodpi')>=0;
+                            var hasAbi=abi&&rt.indexOf(abi.toLowerCase())>=0;
+                            if(!fallback)fallback=va;
+                            if(isPlain&&universal&&!plainUniversal)plainUniversal=va;
+                            if(isPlain&&!plain)plain=va;
+                            if(isBundle&&hasAbi&&!bundleAbi)bundleAbi=va;
+                            if(isBundle&&!bundle)bundle=va;
+                        }
+                        var wantBundle=fileType&&fileType.toLowerCase()!=='apk';
+                        if(wantBundle)return bundleAbi||bundle||plain||fallback;
+                        return plainUniversal||plain||fallback;
+                    }
+                    if(isAppPage(p)){
+                        var rs=document.querySelectorAll('a'),picked=null,first=null;
+                        for(var r=0;r<rs.length;r++){
+                            var ra=rs[r],rh=ra.href||'';
+                            if(!rh||rh.indexOf('#')>=0)continue;
+                            if(!isRelease(pathOf(rh)))continue;
+                            if(!first)first=ra;
+                            if(ver&&(rh.toLowerCase().indexOf(verSlug)>=0||hasVer(txt(ra)))){
+                                picked=ra;break;
+                            }
+                        }
+                        return picked||first;
+                    }
+                    if(isVariant(p)){
+                        var ds=document.querySelectorAll('a,button');
+                        for(var d=0;d<ds.length;d++){
+                            var dh=ds[d].href||'';
+                            if(dh.indexOf('download.php')>=0||dh.indexOf('/download/?key=')>=0){
+                                return ds[d];
+                            }
+                            var dt=txt(ds[d]).toLowerCase();
+                            if(dt.indexOf('download apk')>=0){
+                                return ds[d];
+                            }
+                        }
+                        return null;
+                    }
+                    var ls2=document.querySelectorAll('a,button');
+                    for(var l=0;l<ls2.length;l++){
+                        var lh=ls2[l].href||'';
+                        if(lh.indexOf('download.php')>=0||lh.indexOf('/download/?key=')>=0){
+                            return ls2[l];
+                        }
+                        var lt=txt(ls2[l]).toLowerCase();
+                        if(lt.indexOf('download apk')>=0){
+                            return ls2[l];
+                        }
+                    }
+                    return null;
+                }
+                var n=0,t=setInterval(function(){
+                    n++;
+                    if(n%10===1)consent();
+                    var target=pick();
+                    if(target){
+                        clearInterval(t);
+                        try{target.scrollIntoView({block:'center'});}catch(e){}
+                        setTimeout(function(){try{target.click();}catch(e){}},300);
+                        return;
+                    }
+                    if(n>900)clearInterval(t);
+                },200);
+                })();
+                """.replace("__MH_PKG__", pkg)
+                .replace("__MH_VER__", version)
+                .replace("__MH_NAME__", name)
+                .replace("__MH_TYPE__", type)
+                .replace("__MH_ABI__", abi);
     }
 
     private void scheduleWebFlowTimeout(WebView web) {
