@@ -359,8 +359,8 @@
 
     <!-- VirusTotal security settings and download status. -->
     <string name="virustotal_security">Security</string>
-    <string name="virustotal_hash_check">VirusTotal hash check</string>
-    <string name="virustotal_hash_check_detail">Check downloaded files by SHA-256</string>
+    <string name="virustotal_hash_check">VirusTotal checks</string>
+    <string name="virustotal_hash_check_detail">Master switch: turn off to disable all VirusTotal lookups and uploads</string>
     <string name="virustotal_api_key">VirusTotal API key</string>
     <string name="virustotal_configured">Configured</string>
     <string name="virustotal_not_set">Not set</string>
@@ -379,7 +379,7 @@
     <string name="virustotal_quota_dialog_title">When the VirusTotal quota is exceeded</string>
     <string name="virustotal_quota_dialog_abort">Abort handoff to Morphe</string>
     <string name="virustotal_api_limits">VirusTotal public API limits: about 4 requests/minute and 500/day. Uploads are limited to 32 MB directly, or 650 MB through VirusTotal\'s upload URL. New-file uploads do not consume lookup quota; premium API limits depend on the license.</string>
-    <string name="virustotal_note">Hash lookup is the default and the APK is never uploaded unless Upload unknown files is enabled. Uploads share the APK with VirusTotal and security vendors and are limited to 650 MB. A VirusTotal API key is required; results are advisory and may miss new malware. Unknown files, denied keys, quota errors, or lookup failures do not block the download unless the quota-exceeded setting is set to abort; the user is warned when the scan cannot run.</string>
+    <string name="virustotal_note">Turn off VirusTotal checks to completely disable all lookups, uploads, and quota handling. Hash lookup is the default and the APK is never uploaded unless Upload unknown files is enabled. Uploads share the APK with VirusTotal and security vendors and are limited to 650 MB. A VirusTotal API key is required; results are advisory and may miss new malware. Unknown files, denied keys, quota errors, or lookup failures do not block the download unless the quota-exceeded setting is set to abort; the user is warned when the scan cannot run.</string>
     <string name="virustotal_api_key_dialog_title">VirusTotal API key</string>
     <string name="virustotal_api_key_dialog_message">Stored only on this device. The APK itself is never uploaded.</string>
     <string name="virustotal_api_key_clear">Clear</string>

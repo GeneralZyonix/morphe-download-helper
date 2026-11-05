@@ -359,8 +359,8 @@
 
     <!-- Sécurité et état de VirusTotal. -->
     <string name="virustotal_security">Sécurité</string>
-    <string name="virustotal_hash_check">Vérification VirusTotal</string>
-    <string name="virustotal_hash_check_detail">Vérifie les fichiers téléchargés par SHA-256</string>
+    <string name="virustotal_hash_check">Vérifications VirusTotal</string>
+    <string name="virustotal_hash_check_detail">Interrupteur principal&#160;: désactivez pour arrêter toutes les recherches et tous les envois VirusTotal</string>
     <string name="virustotal_api_key">Clé API VirusTotal</string>
     <string name="virustotal_configured">Configurée</string>
     <string name="virustotal_not_set">Non configurée</string>
@@ -379,7 +379,7 @@
     <string name="virustotal_quota_dialog_title">Quand le quota VirusTotal est dépassé</string>
     <string name="virustotal_quota_dialog_abort">Abandonner la transmission à Morphe</string>
     <string name="virustotal_api_limits">Limites publiques de l’API VirusTotal&#160;: environ 4 requêtes/minute et 500/jour. Les envois sont limités à 32 Mo directement, ou 650 Mo via l’URL d’envoi de VirusTotal. Les nouveaux fichiers envoyés ne consomment pas le quota de recherche&#160;; les limites premium dépendent de la licence.</string>
-    <string name="virustotal_note">La recherche de hash est utilisée par défaut et l’APK n’est jamais envoyé sauf si «&#160;Envoyer les fichiers inconnus&#160;» est activé. Les envois partagent l’APK avec VirusTotal et les éditeurs de sécurité et sont limités à 650 Mo. Une clé API VirusTotal est requise&#160;; les résultats sont indicatifs et peuvent manquer de nouveaux malwares. Les fichiers inconnus, les clés refusées, les erreurs de quota ou les échecs de recherche ne bloquent pas le téléchargement, sauf si l’option de quota est réglée sur «&#160;Abandonner&#160;»&#160;; l’utilisateur est averti quand l’analyse ne peut pas être effectuée.</string>
+    <string name="virustotal_note">Désactivez «&#160;Vérifications VirusTotal&#160;» pour arrêter complètement toutes les recherches, tous les envois et la gestion du quota. La recherche de hash est utilisée par défaut et l’APK n’est jamais envoyé sauf si «&#160;Envoyer les fichiers inconnus&#160;» est activé. Les envois partagent l’APK avec VirusTotal et les éditeurs de sécurité et sont limités à 650 Mo. Une clé API VirusTotal est requise&#160;; les résultats sont indicatifs et peuvent manquer de nouveaux malwares. Les fichiers inconnus, les clés refusées, les erreurs de quota ou les échecs de recherche ne bloquent pas le téléchargement, sauf si l’option de quota est réglée sur «&#160;Abandonner&#160;»&#160;; l’utilisateur est averti quand l’analyse ne peut pas être effectuée.</string>
     <string name="virustotal_api_key_dialog_title">Clé API VirusTotal</string>
     <string name="virustotal_api_key_dialog_message">Stockée uniquement sur cet appareil. L’APK lui-même n’est jamais envoyé.</string>
     <string name="virustotal_api_key_clear">Effacer</string>
