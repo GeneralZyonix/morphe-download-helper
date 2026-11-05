@@ -495,6 +495,26 @@ public class DownloadActivity extends Activity {
         });
     }
 
+    private VirusTotalScanner.Result scanWithVirusTotal(File file) {
+        if (!AppSettings.virusTotalEnabled(this)) {
+            return VirusTotalScanner.scan(this, file);
+        }
+        runOnUiThread(() -> {
+            setStatus("Checking VirusTotal...");
+            progress.setIndeterminate(true);
+        });
+        VirusTotalScanner.Result result = VirusTotalScanner.scan(this, file);
+        if (result.status == VirusTotalScanner.Status.DETECTED
+                && !AppSettings.virusTotalBlockDetections(this)) {
+            HelperLog.info("VirusTotal detections ignored by setting: " + result.message);
+        } else if (result.status == VirusTotalScanner.Status.DETECTED) {
+            HelperLog.error("VirusTotal blocked download: " + result.message, null);
+        } else if (result.status != VirusTotalScanner.Status.CLEAN) {
+            HelperLog.info("VirusTotal did not return a clean result: " + result.message);
+        }
+        return result;
+    }
+
     /**
      * Returns a downloaded file to Morphe through FileProvider.
      *
@@ -503,6 +523,25 @@ public class DownloadActivity extends Activity {
      */
     private void deliverFile(File file) {
         try {
+            VirusTotalScanner.Result scan = scanWithVirusTotal(file);
+            if (scan.isDetection() && AppSettings.virusTotalBlockDetections(this)) {
+                String reason = "VirusTotal blocked this file: " + scan.message;
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+                if (report != null) {
+                    report.finishFailure(reason);
+                    HelperLog.info(report.resultBlock());
+                }
+                HelperLog.error(reason, null);
+                stopDownloadService();
+                setPauseVisible(false);
+                runOnUiThread(() -> {
+                    setStatus("Download blocked by VirusTotal.");
+                    showFailure();
+                });
+                return;
+            }
+
             Uri uri = FileProvider.getUriForFile(
                     DownloadActivity.this,
                     getPackageName() + ".fileprovider",

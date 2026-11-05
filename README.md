@@ -51,6 +51,8 @@ Please include:
 - Keeps a structured, human-readable diagnostic log that can be shared from the app.
 - Built-in update checker with a changelog screen: notify me, or install silently through
   Shizuku with an optional battery-optimization exemption.
+- Optional **VirusTotal hash check** before handing an APK to Morphe. Only the SHA-256 hash
+  is sent; downloaded files are never uploaded.
 - Settings for the download folder, retention, source order, and individual sources.
 - Saves downloaded APKs to `Downloads/Morphe Helper` by default on Android 10+, with
   internal, external, and custom-folder options.

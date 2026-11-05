@@ -15,10 +15,12 @@ import android.graphics.drawable.RippleDrawable;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -114,6 +116,7 @@ public class SettingsActivity extends Activity {
 
         addUpdatesCard(root);
         addBatteryCard(root);
+        addSecurityCard(root);
         addStorageCard(root);
         addOrderCard(root);
 
@@ -355,6 +358,110 @@ public class SettingsActivity extends Activity {
                         } catch (Exception ignored) {
                         }
                     }
+                })
+                .show();
+    }
+
+    private void addSecurityCard(LinearLayout root) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(cardBackground());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text("Security", 16, TEXT, true));
+
+        LinearLayout scanRow = new LinearLayout(this);
+        scanRow.setOrientation(LinearLayout.HORIZONTAL);
+        scanRow.setGravity(Gravity.CENTER_VERTICAL);
+        scanRow.setPadding(0, dp(8), 0, dp(8));
+        LinearLayout scanLabels = new LinearLayout(this);
+        scanLabels.setOrientation(LinearLayout.VERTICAL);
+        scanLabels.addView(text("VirusTotal hash check", 14, TEXT, true));
+        TextView scanDetail = text("Check downloaded files by SHA-256", 12, MUTED, false);
+        scanDetail.setPadding(0, dp(3), 0, 0);
+        scanLabels.addView(scanDetail);
+        scanRow.addView(scanLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch scanSwitch = new Switch(this);
+        scanSwitch.setChecked(AppSettings.virusTotalEnabled(this));
+        scanSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        scanSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        scanSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setVirusTotalEnabled(this, isChecked);
+            if (isChecked && AppSettings.virusTotalApiKey(this).isEmpty()) {
+                Toast.makeText(this,
+                        "Add a VirusTotal API key to start scanning.",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+        scanRow.addView(scanSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(scanRow);
+
+        boolean hasKey = !AppSettings.virusTotalApiKey(this).isEmpty();
+        LinearLayout keyRow = settingRow("VirusTotal API key",
+                hasKey ? "Configured" : "Not set");
+        keyRow.setOnClickListener(v -> showVirusTotalKeyDialog());
+        card.addView(keyRow);
+
+        LinearLayout blockRow = new LinearLayout(this);
+        blockRow.setOrientation(LinearLayout.HORIZONTAL);
+        blockRow.setGravity(Gravity.CENTER_VERTICAL);
+        blockRow.setPadding(0, dp(8), 0, dp(8));
+        LinearLayout blockLabels = new LinearLayout(this);
+        blockLabels.setOrientation(LinearLayout.VERTICAL);
+        blockLabels.addView(text("Block detected files", 14, TEXT, true));
+        TextView blockDetail = text("Stop handing the APK to Morphe", 12, MUTED, false);
+        blockDetail.setPadding(0, dp(3), 0, 0);
+        blockLabels.addView(blockDetail);
+        blockRow.addView(blockLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch blockSwitch = new Switch(this);
+        blockSwitch.setChecked(AppSettings.virusTotalBlockDetections(this));
+        blockSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        blockSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        blockSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
+                AppSettings.setVirusTotalBlockDetections(this, isChecked));
+        blockRow.addView(blockSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(blockRow);
+
+        TextView note = text(
+                "Hash lookup only. The APK is never uploaded. A VirusTotal API key is "
+                        + "required; results are advisory and may miss new malware. "
+                        + "Unknown files or lookup errors do not block the download.",
+                11, MUTED, false);
+        note.setLineSpacing(dp(3), 1f);
+        note.setPadding(0, dp(8), 0, 0);
+        card.addView(note);
+    }
+
+    private void showVirusTotalKeyDialog() {
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        input.setSingleLine(true);
+        input.setText(AppSettings.virusTotalApiKey(this));
+        input.setSelection(input.getText().length());
+        int padding = dp(16);
+        input.setPadding(padding, padding, padding, padding);
+
+        new AlertDialog.Builder(this)
+                .setTitle("VirusTotal API key")
+                .setMessage("Stored only on this device. The APK itself is never uploaded.")
+                .setView(input)
+                .setNegativeButton("Cancel", null)
+                .setNeutralButton("Clear", (dialog, which) -> {
+                    AppSettings.setVirusTotalApiKey(this, "");
+                    recreate();
+                })
+                .setPositiveButton("Save", (dialog, which) -> {
+                    AppSettings.setVirusTotalApiKey(this, input.getText().toString());
+                    recreate();
                 })
                 .show();
     }

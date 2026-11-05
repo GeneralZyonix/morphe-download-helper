@@ -5,6 +5,19 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Added
+
+- Optional **VirusTotal hash check** in Settings. When enabled, the helper calculates the
+  downloaded file's SHA-256 hash and looks it up through the VirusTotal API before handing
+  the APK to Morphe.
+- A user-supplied VirusTotal API key setting. The APK is never uploaded; only the hash is
+  sent, and the key stays on the device.
+- **Block detected files** toggle. When enabled, files with VirusTotal detections are
+  deleted instead of being returned. Unknown hashes, missing keys, and lookup errors fail
+  open and allow the download.
+
 ## [1.5.2] - 2026-11-04
 
 ### Fixed

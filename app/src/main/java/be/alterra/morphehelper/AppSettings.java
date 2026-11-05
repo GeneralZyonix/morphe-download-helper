@@ -41,6 +41,9 @@ final class AppSettings {
     private static final String KEY_RETENTION = "download_retention";
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
+    private static final String KEY_VT_ENABLED = "virustotal_enabled";
+    private static final String KEY_VT_API_KEY = "virustotal_api_key";
+    private static final String KEY_VT_BLOCK = "virustotal_block_detections";
 
     private static final List<String> DEFAULT_ORDER = Arrays.asList(
             SourceSettings.APKPURE,
@@ -78,6 +81,31 @@ final class AppSettings {
 
     static void setCustomTreeUri(Context context, String uri) {
         prefs(context).edit().putString(KEY_CUSTOM_TREE, uri == null ? "" : uri).apply();
+    }
+
+    static boolean virusTotalEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_VT_ENABLED, false);
+    }
+
+    static void setVirusTotalEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_VT_ENABLED, enabled).apply();
+    }
+
+    static String virusTotalApiKey(Context context) {
+        return prefs(context).getString(KEY_VT_API_KEY, "");
+    }
+
+    static void setVirusTotalApiKey(Context context, String apiKey) {
+        prefs(context).edit().putString(KEY_VT_API_KEY,
+                apiKey == null ? "" : apiKey.trim()).apply();
+    }
+
+    static boolean virusTotalBlockDetections(Context context) {
+        return prefs(context).getBoolean(KEY_VT_BLOCK, true);
+    }
+
+    static void setVirusTotalBlockDetections(Context context, boolean block) {
+        prefs(context).edit().putBoolean(KEY_VT_BLOCK, block).apply();
     }
 
     static String locationLabel(Context context) {
