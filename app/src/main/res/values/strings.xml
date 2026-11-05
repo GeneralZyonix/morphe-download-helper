@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Language: English (en) -->
 <resources>
     <!-- Launcher label and the title used by the in-app screens. -->
     <string name="app_name">Morphe Download Helper</string>

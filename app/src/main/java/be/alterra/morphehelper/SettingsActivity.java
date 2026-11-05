@@ -7,6 +7,7 @@ import android.app.LocaleManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.content.res.XmlResourceParser;
 import android.net.Uri;
 import android.os.Build;
 import android.os.LocaleList;
@@ -30,8 +31,11 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+
+import org.xmlpull.v1.XmlPullParser;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -217,15 +221,34 @@ public class SettingsActivity extends Activity {
     }
 
     private String languageLabel(Locale locale) {
-        String code = locale == null ? "" : locale.getLanguage();
-        if ("fr".equals(code)) {
-            return getString(R.string.settings_language_french);
-        }
-        if ("en".equals(code)) {
-            return getString(R.string.settings_language_english);
-        }
         return locale == null ? getString(R.string.settings_language_system)
                 : locale.getDisplayLanguage(locale);
+    }
+
+    private List<String> supportedLanguageTags() {
+        List<String> tags = new ArrayList<>();
+        try (XmlResourceParser parser = getResources().getXml(R.xml.locales_config)) {
+            int event;
+            while ((event = parser.next()) != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG && "locale".equals(parser.getName())) {
+                    String tag = parser.getAttributeValue(
+                            "http://schemas.android.com/apk/res/android", "name");
+                    if (tag == null) {
+                        tag = parser.getAttributeValue(null, "name");
+                    }
+                    if (tag != null && !tag.isEmpty() && !tags.contains(tag)) {
+                        tags.add(tag);
+                    }
+                }
+            }
+        } catch (Exception error) {
+            HelperLog.error("Could not read locales_config.xml", error);
+        }
+        if (tags.isEmpty()) {
+            tags.add("en");
+            tags.add("fr");
+        }
+        return tags;
     }
 
     private void showLanguageDialog() {
@@ -242,19 +265,28 @@ public class SettingsActivity extends Activity {
         if (manager == null) {
             return;
         }
+        List<String> tags = supportedLanguageTags();
+        String[] labels = new String[tags.size() + 1];
+        labels[0] = getString(R.string.settings_language_system);
+        int selected = 0;
         LocaleList current = manager.getApplicationLocales();
-        int selected = current.isEmpty() ? 0
-                : ("fr".equals(current.get(0).getLanguage()) ? 2 : 1);
+        String currentLanguage = current.isEmpty()
+                ? "" : current.get(0).getLanguage();
+        for (int i = 0; i < tags.size(); i++) {
+            Locale locale = Locale.forLanguageTag(tags.get(i));
+            labels[i + 1] = languageLabel(locale);
+            if (!currentLanguage.isEmpty()
+                    && currentLanguage.equals(locale.getLanguage())) {
+                selected = i + 1;
+            }
+        }
+
         new AlertDialog.Builder(this)
                 .setTitle(R.string.settings_language)
-                .setSingleChoiceItems(new String[]{
-                        getString(R.string.settings_language_system),
-                        getString(R.string.settings_language_english),
-                        getString(R.string.settings_language_french)
-                }, selected, (dialog, which) -> {
+                .setSingleChoiceItems(labels, selected, (dialog, which) -> {
                     LocaleList locales = which == 0
                             ? LocaleList.getEmptyLocaleList()
-                            : LocaleList.forLanguageTags(which == 1 ? "en" : "fr");
+                            : LocaleList.forLanguageTags(tags.get(which - 1));
                     manager.setApplicationLocales(locales);
                     dialog.dismiss();
                     recreate();
