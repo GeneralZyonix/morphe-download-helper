@@ -22,7 +22,7 @@ final class UpdateChecker {
             "https://api.github.com/repos/GeneralZyonix/morphe-download-helper/releases/latest";
     private static final String RELEASES =
             "https://api.github.com/repos/GeneralZyonix/morphe-download-helper/releases?per_page=30";
-    static final String USER_AGENT = "Morphe-Download-Helper/1.6.8";
+    static final String USER_AGENT = "Morphe-Download-Helper/1.6.9";
 
     private static final OkHttpClient HTTP = new OkHttpClient.Builder()
             .followRedirects(true)

@@ -5,6 +5,14 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.9] - 2026-11-06
+
+### Fixed
+
+- The **In-app update popup** setting is now hidden and inactive when **Automatic via
+  Shizuku** update mode is selected. Switching back to notification mode restores the
+  setting with its saved value.
+
 ## [1.6.8] - 2026-11-06
 
 ### Added
