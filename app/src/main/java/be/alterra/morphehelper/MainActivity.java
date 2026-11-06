@@ -74,6 +74,12 @@ public class MainActivity extends Activity {
     private static final int WARN_TEXT = Color.parseColor("#FDE68A");
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        UpdateManager.showInAppUpdatePopupIfAvailable(this);
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
@@ -397,7 +403,8 @@ public class MainActivity extends Activity {
         root.addView(footer, footerParams);
 
         setContentView(scroll);
-        UpdateManager.maybeCheckOnLaunch(this);
+        UpdateManager.maybeCheckOnLaunch(this,
+                () -> UpdateManager.showInAppUpdatePopupIfAvailable(this));
     }
 
     /**

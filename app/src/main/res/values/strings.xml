@@ -108,6 +108,10 @@
     <string name="settings_update_mode">Update mode</string>
     <string name="settings_mode_notify_option">Notify me when available</string>
     <string name="settings_mode_shizuku_option">Automatically update via Shizuku</string>
+    <string name="settings_update_popup">In-app update popup</string>
+    <string name="settings_update_popup_desc">Show a popup when opening the app if an update is available</string>
+    <string name="settings_update_popup_enabled">In-app update popup enabled.</string>
+    <string name="settings_update_popup_disabled">In-app update popup disabled.</string>
     <string name="settings_check_now">Check now</string>
     <string name="settings_checking">Checking for updates…</string>
     <string name="settings_changelog">Changelog</string>
@@ -287,6 +291,11 @@
     <string name="update_msg_found_installing">Update v%1$s found. Installing with Shizuku…</string>
     <string name="update_msg_available">Update v%1$s available.</string>
     <string name="update_msg_failed">Update check failed: %1$s</string>
+    <string name="update_popup_title">Update available</string>
+    <string name="update_popup_message">Morphe Download Helper v%1$s is available. You have v%2$s.</string>
+    <string name="update_popup_now">Update</string>
+    <string name="update_popup_later">Later</string>
+    <string name="update_popup_skip">Skip this version</string>
     <string name="notif_updated_title">Morphe Download Helper updated</string>
     <string name="notif_updated_text">Morphe Download Helper was updated to version %1$s.</string>
     <string name="notif_update_title">Update available</string>

@@ -1,6 +1,8 @@
 package be.alterra.morphehelper;
 
+import android.app.Activity;
 import android.app.AlarmManager;
+import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -54,6 +56,7 @@ final class UpdateManager {
     private static final String PREFS = "update_settings";
     private static final String KEY_MODE = "mode";
     private static final String KEY_ENABLED = "enabled";
+    private static final String KEY_IN_APP_POPUP = "in_app_popup";
     private static final String KEY_SNOOZE_UNTIL = "snooze_until";
     private static final String KEY_SKIPPED_VERSION = "skipped_version";
     private static final String KEY_LAST_CHECK = "last_check";
@@ -77,6 +80,7 @@ final class UpdateManager {
 
     private static final AtomicBoolean checking = new AtomicBoolean(false);
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
+    private static String popupVersionShown;
 
     private UpdateManager() {
     }
@@ -91,6 +95,14 @@ final class UpdateManager {
 
     static void setMode(Context context, String mode) {
         prefs(context).edit().putString(KEY_MODE, mode).apply();
+    }
+
+    static boolean isInAppPopupEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_IN_APP_POPUP, false);
+    }
+
+    static void setInAppPopupEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_IN_APP_POPUP, enabled).apply();
     }
 
     static boolean isEnabled(Context context) {
@@ -232,17 +244,79 @@ final class UpdateManager {
     }
 
     static void maybeCheckOnLaunch(Context context) {
+        maybeCheckOnLaunch(context, null);
+    }
+
+    static void maybeCheckOnLaunch(Context context, Runnable after) {
         if (!isEnabled(context)) {
+            runAfter(after);
             return;
         }
         long now = System.currentTimeMillis();
         if (now < prefs(context).getLong(KEY_SNOOZE_UNTIL, 0)) {
+            runAfter(after);
             return;
         }
         if (now - lastCheck(context) < CHECK_INTERVAL) {
+            runAfter(after);
             return;
         }
-        checkAsync(context, false, null);
+        checkAsync(context, false, message -> runAfter(after));
+    }
+
+    /**
+     * Shows an in-app update dialog when the user opted in and an update is
+     * available. This complements the system notification, which can be missed.
+     */
+    static void showInAppUpdatePopupIfAvailable(Activity activity) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+        if (!isEnabled(activity) || !isInAppPopupEnabled(activity)) {
+            return;
+        }
+        UpdateInfo info = cachedLatest(activity);
+        if (info == null || !info.isNewerThan(UpdateChecker.installedVersion(activity))) {
+            return;
+        }
+        if (info.version.equals(prefs(activity).getString(KEY_SKIPPED_VERSION, ""))) {
+            return;
+        }
+        if (System.currentTimeMillis()
+                < prefs(activity).getLong(KEY_SNOOZE_UNTIL, 0)) {
+            return;
+        }
+        if (MODE_SHIZUKU.equals(mode(activity))
+                && ShizukuHelper.status(activity) == ShizukuHelper.READY
+                && !info.assetUrl.isEmpty()) {
+            // The automatic Shizuku update flow is already handling this one.
+            return;
+        }
+        if (info.version.equals(popupVersionShown)) {
+            return;
+        }
+        popupVersionShown = info.version;
+        String current = UpdateChecker.installedVersion(activity);
+        new AlertDialog.Builder(activity)
+                .setTitle(R.string.update_popup_title)
+                .setMessage(activity.getString(
+                        R.string.update_popup_message, info.version, current))
+                .setPositiveButton(R.string.update_popup_now, (dialog, which) -> {
+                    cancelNotification(activity);
+                    activity.startActivity(new Intent(activity, UpdateActivity.class));
+                })
+                .setNeutralButton(R.string.update_popup_later,
+                        (dialog, which) -> remindLater(activity))
+                .setNegativeButton(R.string.update_popup_skip,
+                        (dialog, which) -> skipVersion(activity))
+                .setOnCancelListener(dialog -> remindLater(activity))
+                .show();
+    }
+
+    private static void runAfter(Runnable after) {
+        if (after != null) {
+            MAIN.post(after);
+        }
     }
 
     static void checkAsync(Context context, boolean manual, Callback callback) {

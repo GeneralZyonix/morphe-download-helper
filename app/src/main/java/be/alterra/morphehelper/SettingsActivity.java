@@ -389,6 +389,34 @@ public class SettingsActivity extends Activity {
                 .show());
         card.addView(modeRow);
 
+        LinearLayout popupRow = new LinearLayout(this);
+        popupRow.setOrientation(LinearLayout.HORIZONTAL);
+        popupRow.setGravity(Gravity.CENTER_VERTICAL);
+        popupRow.setPadding(0, dp(6), 0, dp(6));
+        LinearLayout popupLabels = new LinearLayout(this);
+        popupLabels.setOrientation(LinearLayout.VERTICAL);
+        popupLabels.addView(text(getString(R.string.settings_update_popup), 14, TEXT, true));
+        TextView popupDetail = text(
+                getString(R.string.settings_update_popup_desc), 12, MUTED, false);
+        popupDetail.setPadding(0, dp(3), 0, 0);
+        popupLabels.addView(popupDetail);
+        popupRow.addView(popupLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch popupSwitch = new Switch(this);
+        popupSwitch.setChecked(UpdateManager.isInAppPopupEnabled(this));
+        popupSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        popupSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        popupSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            UpdateManager.setInAppPopupEnabled(this, isChecked);
+            Toast.makeText(this,
+                    isChecked ? R.string.settings_update_popup_enabled
+                            : R.string.settings_update_popup_disabled,
+                    Toast.LENGTH_SHORT).show();
+        });
+        popupRow.addView(popupSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(popupRow);
+
         int shizukuStatus = ShizukuHelper.status(this);
         LinearLayout shizukuRow = settingRow("Shizuku",
                 ShizukuHelper.statusLabel(this, shizukuStatus));
