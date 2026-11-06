@@ -1984,27 +1984,23 @@ public class DownloadActivity extends Activity {
                     } catch (Exception ignored) {
                         HelperLog.error("Morphe resolver APKPure link failed", ignored);
                     }
-                } else if (isHost(host, "github.com")
-                        && sourceAllowed(SourceSettings.GITHUB)) {
+                } else if (isHost(host, "github.com")) {
                     String repo = githubRepoFromUrl(resolvedUrl);
                     if (repo != null) {
-                        githubResolverHint = true;
-                        HelperLog.info("Morphe resolver points to GitHub repo " + repo
-                                + "; using the release for this patch source");
-                        GitHubAppStore.put(this, pkg, repo, requestedAppName);
-                        setSourceLabel(R.string.source_label_github);
-                        setStatus(R.string.download_checking_github_release);
+                        File file = tryResolverGitHub(repo, pkg, version, fileType, abis);
+                        if (file != null) {
+                            return file;
+                        }
+                    }
+                    if (isDirectFile(resolvedUrl)) {
                         try {
-                            GitHubAppStore.Entry entry = new GitHubAppStore.Entry(
-                                    pkg, repo, requestedAppName,
-                                    System.currentTimeMillis());
-                            File file = downloadFromRememberedGitHub(
-                                    entry, pkg, version, fileType, abis);
-                            markSource(SourceSettings.GITHUB, true, repo);
+                            File file = downloadGitHubFile(
+                                    resolvedUrl, null, pkg, version, fileType);
+                            markSource(SourceSettings.FALLBACK, true,
+                                    getString(R.string.source_detail_resolver_direct));
                             return file;
                         } catch (Exception failed) {
-                            HelperLog.error("GitHub resolver release failed", failed);
-                            markSource(SourceSettings.GITHUB, false, failed.getMessage());
+                            HelperLog.error("Morphe resolver GitHub file failed", failed);
                         }
                     }
                 } else if (isHost(host, "apkmirror.com")
@@ -2040,35 +2036,47 @@ public class DownloadActivity extends Activity {
             String fallbackHost = hostOf(fallbackUrl);
             String fallbackRepo = githubRepoFromUrl(fallbackUrl);
             if (fallbackRepo != null) {
-                githubResolverHint = true;
-                HelperLog.info("Remembering fallback GitHub repo " + fallbackRepo
-                        + "; it will be tried after normal APK sources");
-                GitHubAppStore.put(this, pkg, fallbackRepo, requestedAppName);
-            }
-            boolean hostDisabled =
-                    fallbackRepo != null
-                            || (isHost(fallbackHost, "apkmirror.com")
-                            && !sourceAllowed(SourceSettings.APKMIRROR))
-                            || (isHost(fallbackHost, "apkpure.com")
-                            && !sourceAllowed(SourceSettings.APKPURE))
-                            || (isHost(fallbackHost, "uptodown.com")
-                            && !sourceAllowed(SourceSettings.UPTODOWN));
-            if (!hostDisabled) {
-                setSourceLabel(R.string.source_label_morphe_fallback);
-                setStatus(R.string.download_trying_fallback);
-                HelperLog.info("Trying fallback URL: " + fallbackUrl);
-                try {
-                    File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
-                    markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_fallback_link));
+                File file = tryResolverGitHub(
+                        fallbackRepo, pkg, version, fileType, abis);
+                if (file != null) {
                     return file;
-                } catch (UptodownHandoffException handoff) {
-                    throw handoff;
-                } catch (Exception failed) {
-                    HelperLog.error("Fallback failed", failed);
-                    markSource(SourceSettings.FALLBACK, false, failed.getMessage());
+                }
+                if (isDirectFile(fallbackUrl)) {
+                    try {
+                        File direct = downloadGitHubFile(
+                                fallbackUrl, null, pkg, version, fileType);
+                        markSource(SourceSettings.FALLBACK, true,
+                                getString(R.string.source_detail_resolver_direct));
+                        return direct;
+                    } catch (Exception failed) {
+                        HelperLog.error("Fallback GitHub file failed", failed);
+                    }
                 }
             } else {
-                HelperLog.info("Skipping fallback from disabled source: " + fallbackHost);
+                boolean hostDisabled =
+                        (isHost(fallbackHost, "apkmirror.com")
+                        && !sourceAllowed(SourceSettings.APKMIRROR))
+                        || (isHost(fallbackHost, "apkpure.com")
+                        && !sourceAllowed(SourceSettings.APKPURE))
+                        || (isHost(fallbackHost, "uptodown.com")
+                        && !sourceAllowed(SourceSettings.UPTODOWN));
+                if (!hostDisabled) {
+                    setSourceLabel(R.string.source_label_morphe_fallback);
+                    setStatus(R.string.download_trying_fallback);
+                    HelperLog.info("Trying fallback URL: " + fallbackUrl);
+                    try {
+                        File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
+                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_fallback_link));
+                        return file;
+                    } catch (UptodownHandoffException handoff) {
+                        throw handoff;
+                    } catch (Exception failed) {
+                        HelperLog.error("Fallback failed", failed);
+                        markSource(SourceSettings.FALLBACK, false, failed.getMessage());
+                    }
+                } else {
+                    HelperLog.info("Skipping fallback from disabled source: " + fallbackHost);
+                }
             }
         }
 
@@ -2219,6 +2227,33 @@ public class DownloadActivity extends Activity {
             throw error;
         }
         return file;
+    }
+
+    /**
+     * Uses a GitHub repository supplied by Morphe's resolver. This is part of
+     * the Morphe fallback source and remains available even when the automatic
+     * GitHub source is disabled.
+     */
+    private File tryResolverGitHub(String repo, String pkg, String version,
+                                   String fileType, String[] abis) {
+        githubResolverHint = true;
+        HelperLog.info("Morphe resolver/fallback points to GitHub repo " + repo
+                + "; using the release for this patch source");
+        GitHubAppStore.put(this, pkg, repo, requestedAppName);
+        setSourceLabel(R.string.source_label_morphe_resolver);
+        setStatus(R.string.download_checking_github_release);
+        try {
+            GitHubAppStore.Entry entry = new GitHubAppStore.Entry(
+                    pkg, repo, requestedAppName, System.currentTimeMillis());
+            File file = downloadFromRememberedGitHub(entry, pkg, version, fileType, abis);
+            markSource(SourceSettings.FALLBACK, true,
+                    getString(R.string.source_detail_resolver_github));
+            return file;
+        } catch (Exception failed) {
+            HelperLog.error("GitHub resolver release failed", failed);
+            markSource(SourceSettings.FALLBACK, false, failed.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -2423,6 +2458,7 @@ public class DownloadActivity extends Activity {
         }
         if (url != null) {
             String host = hostOf(url);
+            String githubRepo = githubRepoFromUrl(url);
             setStatus(getString(R.string.download_resolver_found, host));
             if (isHost(host, "uptodown.com") && pathOf(url).trim().endsWith("-x")
                     && sourceAllowed(SourceSettings.UPTODOWN)) {
@@ -2455,9 +2491,28 @@ public class DownloadActivity extends Activity {
                 } catch (Exception failed) {
                     HelperLog.error("Morphe resolver APKMirror link failed", failed);
                 }
+            } else if (githubRepo != null) {
+                File file = tryResolverGitHub(
+                        githubRepo, pkg, version, fileType, abis);
+                if (file != null) {
+                    return file;
+                }
+                if (isDirectFile(url)) {
+                    try {
+                        File direct = downloadGitHubFile(
+                                url, null, pkg, version, fileType);
+                        markSource(SourceSettings.FALLBACK, true,
+                                getString(R.string.source_detail_resolver_direct));
+                        return direct;
+                    } catch (Exception failed) {
+                        HelperLog.error("Morphe resolver GitHub file failed", failed);
+                    }
+                }
             } else if (isDirectFile(url)) {
                 try {
-                    File file = downloadFile(url, null, pkg, version, fileType);
+                    File file = isHost(host, "github.com")
+                            ? downloadGitHubFile(url, null, pkg, version, fileType)
+                            : downloadFile(url, null, pkg, version, fileType);
                     markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_direct));
                     return file;
                 } catch (Exception failed) {
@@ -2470,24 +2525,44 @@ public class DownloadActivity extends Activity {
         }
 
         if (!TextUtils.isEmpty(fallbackUrl)) {
-            String host = hostOf(fallbackUrl);
-            boolean disabled = (isHost(host, "apkmirror.com")
-                    && !sourceAllowed(SourceSettings.APKMIRROR))
-                    || (isHost(host, "apkpure.com")
-                    && !sourceAllowed(SourceSettings.APKPURE))
-                    || (isHost(host, "uptodown.com")
-                    && !sourceAllowed(SourceSettings.UPTODOWN));
-            if (!disabled) {
-                setStatus(R.string.download_trying_fallback);
-                try {
-                    File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
-                    markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_fallback_link));
+            String fallbackRepo = githubRepoFromUrl(fallbackUrl);
+            if (fallbackRepo != null) {
+                File file = tryResolverGitHub(
+                        fallbackRepo, pkg, version, fileType, abis);
+                if (file != null) {
                     return file;
-                } catch (UptodownHandoffException handoff) {
-                    throw handoff;
-                } catch (Exception failed) {
-                    HelperLog.error("Fallback failed", failed);
-                    markSource(SourceSettings.FALLBACK, false, failed.getMessage());
+                }
+                if (isDirectFile(fallbackUrl)) {
+                    try {
+                        File direct = downloadGitHubFile(
+                                fallbackUrl, null, pkg, version, fileType);
+                        markSource(SourceSettings.FALLBACK, true,
+                                getString(R.string.source_detail_resolver_direct));
+                        return direct;
+                    } catch (Exception failed) {
+                        HelperLog.error("Fallback GitHub file failed", failed);
+                    }
+                }
+            } else {
+                String host = hostOf(fallbackUrl);
+                boolean disabled = (isHost(host, "apkmirror.com")
+                        && !sourceAllowed(SourceSettings.APKMIRROR))
+                        || (isHost(host, "apkpure.com")
+                        && !sourceAllowed(SourceSettings.APKPURE))
+                        || (isHost(host, "uptodown.com")
+                        && !sourceAllowed(SourceSettings.UPTODOWN));
+                if (!disabled) {
+                    setStatus(R.string.download_trying_fallback);
+                    try {
+                        File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
+                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_fallback_link));
+                        return file;
+                    } catch (UptodownHandoffException handoff) {
+                        throw handoff;
+                    } catch (Exception failed) {
+                        HelperLog.error("Fallback failed", failed);
+                        markSource(SourceSettings.FALLBACK, false, failed.getMessage());
+                    }
                 }
             }
         }

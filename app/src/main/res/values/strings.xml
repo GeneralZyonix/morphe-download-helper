@@ -94,7 +94,7 @@
     <string name="settings_source_appteka_title">\u26A0 Appteka</string>
     <string name="settings_source_appteka_desc">Modded APK catalog; not recommended for apps other than SnapTube</string>
     <string name="settings_source_github_title">GitHub releases</string>
-    <string name="settings_source_github_desc">Automatic release search; verifies package, version, and the installed app signature when available</string>
+    <string name="settings_source_github_desc">Automatic search fallback; resolver-supplied GitHub links still work when this is off. Signature checked when the app is installed.</string>
     <string name="settings_updates">Updates</string>
     <string name="settings_status_not_checked">Current v%1$s • Not checked yet</string>
     <string name="settings_status_available">Current v%1$s • v%2$s available</string>
@@ -256,6 +256,7 @@
     <string name="source_detail_resolver_apkpure">Resolver APKPure</string>
     <string name="source_detail_resolver_apkmirror">Resolver APKMirror</string>
     <string name="source_detail_resolver_direct">Resolver direct file</string>
+    <string name="source_detail_resolver_github">Resolver GitHub release</string>
     <string name="source_detail_resolver_no_file">Resolver did not produce a file</string>
     <string name="source_detail_no_resolver_result">No resolver result</string>
     <string name="source_detail_fallback_link">fallback link</string>
