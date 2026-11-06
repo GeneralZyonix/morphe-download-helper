@@ -46,6 +46,10 @@ dependencies {
     // HTTP client with cookie/redirect support for APK sites.
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
+    // Reads AndroidManifest.xml from split APKs that Android's package parser
+    // cannot inspect directly (notably Uptodown XAPKs).
+    implementation 'net.dongliu:apk-parser:2.6.10'
+
     implementation 'dev.rikka.shizuku:api:13.1.5'
     implementation 'dev.rikka.shizuku:provider:13.1.5'
 }

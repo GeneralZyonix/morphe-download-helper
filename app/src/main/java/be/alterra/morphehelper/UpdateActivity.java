@@ -50,6 +50,7 @@ public class UpdateActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         PublicSettings.apply(this);
+        AppSettings.ensureLauncherIconState(this);
         getWindow().setStatusBarColor(Color.parseColor("#0B1220"));
         getWindow().setNavigationBarColor(Color.parseColor("#0B1220"));
 

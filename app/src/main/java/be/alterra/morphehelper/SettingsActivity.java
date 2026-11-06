@@ -92,6 +92,7 @@ public class SettingsActivity extends Activity {
         super.onCreate(savedInstanceState);
         SourceSettings.ensureInitialized(this);
         PublicSettings.apply(this);
+        AppSettings.ensureLauncherIconState(this);
         Shizuku.addRequestPermissionResultListener(shizukuListener);
         getWindow().setStatusBarColor(BG_TOP);
         getWindow().setNavigationBarColor(BG_TOP);
@@ -328,12 +329,6 @@ public class SettingsActivity extends Activity {
 
         card.addView(text(getString(R.string.settings_launcher_icon), 16, TEXT, true));
 
-        TextView description = text(
-                getString(R.string.settings_hide_launcher_icon_desc), 12, WARN_TEXT, false);
-        description.setLineSpacing(dp(3), 1f);
-        description.setPadding(0, dp(6), 0, dp(8));
-        card.addView(description);
-
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -349,7 +344,7 @@ public class SettingsActivity extends Activity {
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         Switch toggle = new Switch(this);
-        toggle.setChecked(AppSettings.isLauncherIconHidden(this));
+        toggle.setChecked(AppSettings.isLauncherIconShown(this));
         toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
         toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
         final boolean[] updating = {false};
@@ -357,15 +352,15 @@ public class SettingsActivity extends Activity {
             if (updating[0]) {
                 return;
             }
-            if (!isChecked) {
-                AppSettings.setLauncherIconHidden(this, false);
+            if (isChecked) {
+                AppSettings.setLauncherIconShown(this, true);
                 PublicSettings.write(this);
                 Toast.makeText(this, R.string.settings_hide_launcher_icon_shown,
                         Toast.LENGTH_SHORT).show();
                 return;
             }
             updating[0] = true;
-            buttonView.setChecked(false);
+            buttonView.setChecked(true);
             updating[0] = false;
             new AlertDialog.Builder(this)
                     .setTitle(R.string.settings_hide_launcher_icon_confirm_title)
@@ -373,10 +368,10 @@ public class SettingsActivity extends Activity {
                     .setNegativeButton(R.string.common_cancel, null)
                     .setPositiveButton(R.string.settings_hide_launcher_icon_confirm,
                             (dialog, which) -> {
-                                AppSettings.setLauncherIconHidden(this, true);
+                                AppSettings.setLauncherIconShown(this, false);
                                 PublicSettings.write(this);
                                 updating[0] = true;
-                                buttonView.setChecked(true);
+                                buttonView.setChecked(false);
                                 updating[0] = false;
                                 Toast.makeText(this,
                                         R.string.settings_hide_launcher_icon_hidden,
@@ -386,12 +381,6 @@ public class SettingsActivity extends Activity {
         });
         row.addView(toggle, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(row);
-
-        TextView note = text(
-                getString(R.string.settings_hide_launcher_icon_note), 11, MUTED, false);
-        note.setLineSpacing(dp(3), 1f);
-        note.setPadding(0, dp(6), 0, 0);
-        card.addView(note);
     }
 
     private void addUpdatesCard(LinearLayout root) {

@@ -49,6 +49,7 @@ final class AppSettings {
     private static final String KEY_RETENTION = "download_retention";
     private static final String KEY_PENDING_HANDOFF = "pending_handoff_cleanup";
     private static final String KEY_ORDER = "source_order";
+    private static final String KEY_SHOW_LAUNCHER_ICON = "show_launcher_icon";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
     private static final String KEY_VT_API_KEY = "virustotal_api_key";
@@ -109,20 +110,43 @@ final class AppSettings {
         prefs(context).edit().putString(KEY_LOCATION, location).apply();
     }
 
+    static boolean isLauncherIconShown(Context context) {
+        return prefs(context).getBoolean(KEY_SHOW_LAUNCHER_ICON, true);
+    }
+
     static boolean isLauncherIconHidden(Context context) {
-        return context.getPackageManager().getComponentEnabledSetting(
-                launcherAlias(context)) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+        return !isLauncherIconShown(context);
     }
 
     static void setLauncherIconHidden(Context context, boolean hidden) {
-        context.getPackageManager().setComponentEnabledSetting(
-                launcherAlias(context),
-                hidden ? PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-                        : PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP);
-        int state = context.getPackageManager().getComponentEnabledSetting(
-                launcherAlias(context));
-        HelperLog.info((hidden ? "Launcher icon hidden" : "Launcher icon restored")
+        setLauncherIconShown(context, !hidden);
+    }
+
+    static void setLauncherIconShown(Context context, boolean shown) {
+        prefs(context).edit().putBoolean(KEY_SHOW_LAUNCHER_ICON, shown).apply();
+        applyLauncherAlias(context, shown);
+    }
+
+    /**
+     * Applies the saved choice at startup, after updates, and after a reboot.
+     * The launcher alias starts disabled in the manifest so a hidden icon does
+     * not leave a synthetic launcher entry behind on Android 10+.
+     */
+    static void ensureLauncherIconState(Context context) {
+        applyLauncherAlias(context, isLauncherIconShown(context));
+    }
+
+    private static void applyLauncherAlias(Context context, boolean shown) {
+        int desired = shown
+                ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+        PackageManager manager = context.getPackageManager();
+        if (manager.getComponentEnabledSetting(launcherAlias(context)) != desired) {
+            manager.setComponentEnabledSetting(
+                    launcherAlias(context), desired, PackageManager.DONT_KILL_APP);
+        }
+        int state = manager.getComponentEnabledSetting(launcherAlias(context));
+        HelperLog.info((shown ? "Launcher icon shown" : "Launcher icon hidden")
                 + " (componentState=" + state + ")");
     }
 

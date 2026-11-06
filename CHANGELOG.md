@@ -5,6 +5,24 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Fixed
+
+- Uptodown **APKS/XAPK** downloads now read the split APKs' binary
+  `AndroidManifest.xml` directly when Android's package parser cannot read the base
+  split. This fixes Gboard's 44.33 MB package being rejected on Android 12, including
+  the split-set format used by Uptodown. Reported in
+  [#15](https://github.com/GeneralZyonix/morphe-download-helper/issues/15).
+
+### Changed
+
+- The launcher setting is now **Show app icon**. The launcher alias starts disabled so
+  Android does not leave a synthetic icon behind, and the helper can still be opened
+  from **Android Settings → Apps → Morphe Download Helper → Open** when the icon is
+  hidden. The saved state is restored after updates and reboots. Reported in
+  [#14](https://github.com/GeneralZyonix/morphe-download-helper/issues/14).
+
 ## [1.6.13] - 2026-11-06
 
 ### Fixed

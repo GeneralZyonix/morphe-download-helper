@@ -92,6 +92,7 @@ public class MainActivity extends Activity {
         HelperLog.init(getApplicationContext());
         SourceSettings.ensureInitialized(this);
         PublicSettings.apply(this);
+        AppSettings.ensureLauncherIconState(this);
         new Thread(() -> AppSettings.cleanup(this)).start();
         new Thread(() -> UpdateManager.cleanupStagedUpdates(this)).start();
         if (Build.VERSION.SDK_INT >= 33

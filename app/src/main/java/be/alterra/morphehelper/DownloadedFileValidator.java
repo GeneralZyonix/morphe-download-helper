@@ -7,10 +7,20 @@ import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.os.Build;
 
+import net.dongliu.apk.parser.parser.BinaryXmlParser;
+import net.dongliu.apk.parser.parser.XmlStreamer;
+import net.dongliu.apk.parser.struct.xml.Attributes;
+import net.dongliu.apk.parser.struct.xml.XmlCData;
+import net.dongliu.apk.parser.struct.xml.XmlNamespaceEndTag;
+import net.dongliu.apk.parser.struct.xml.XmlNamespaceStartTag;
+import net.dongliu.apk.parser.struct.xml.XmlNodeEndTag;
+import net.dongliu.apk.parser.struct.xml.XmlNodeStartTag;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,6 +38,52 @@ final class DownloadedFileValidator {
     static final class VersionMismatchException extends IOException {
         VersionMismatchException(String message) {
             super(message);
+        }
+    }
+
+    /** Collects the attributes of the root {@code <manifest>} element. */
+    private static final class ManifestStreamer implements XmlStreamer {
+        String packageName;
+        String versionName;
+        long versionCode = -1;
+
+        @Override
+        public void onStartTag(XmlNodeStartTag tag) {
+            if (packageName != null || !"manifest".equals(tag.getName())) {
+                return;
+            }
+            Attributes attributes = tag.getAttributes();
+            if (attributes == null) {
+                return;
+            }
+            packageName = attributes.getString("package");
+            versionName = attributes.getString("versionName");
+            String code = attributes.getString("versionCode");
+            if (code != null) {
+                try {
+                    versionCode = Long.parseLong(code);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            if (versionName != null && versionName.startsWith("resourceId:")) {
+                versionName = null;
+            }
+        }
+
+        @Override
+        public void onEndTag(XmlNodeEndTag xmlNodeEndTag) {
+        }
+
+        @Override
+        public void onCData(XmlCData xmlCData) {
+        }
+
+        @Override
+        public void onNamespaceStart(XmlNamespaceStartTag tag) {
+        }
+
+        @Override
+        public void onNamespaceEnd(XmlNamespaceEndTag tag) {
         }
     }
 
@@ -259,11 +315,65 @@ final class DownloadedFileValidator {
                     output.write(buffer, 0, read);
                 }
             }
-            return context.getPackageManager().getPackageArchiveInfo(
+            PackageInfo info = context.getPackageManager().getPackageArchiveInfo(
                     temp.getAbsolutePath(), flags);
+            if (info != null || flags != 0) {
+                return info;
+            }
+            // Android's package parser refuses split APKs that are not the
+            // standalone base. Uptodown XAPKs can contain only randomly named
+            // splits, so read AndroidManifest.xml directly as a fallback.
+            PackageInfo fallback = readSplitMeta(temp);
+            if (fallback == null) {
+                return null;
+            }
+            long fallbackCode = Build.VERSION.SDK_INT >= 28
+                    ? fallback.getLongVersionCode() : fallback.versionCode;
+            HelperLog.info("Parsed split APK manifest package="
+                    + fallback.packageName + " version=" + fallback.versionName
+                    + " code=" + fallbackCode + " entry=" + entry.getName());
+            return fallback;
         } finally {
             //noinspection ResultOfMethodCallIgnored
             temp.delete();
+        }
+    }
+
+    private static PackageInfo readSplitMeta(File file) {
+        try (ZipFile apk = new ZipFile(file)) {
+            ZipEntry entry = apk.getEntry("AndroidManifest.xml");
+            if (entry == null) {
+                return null;
+            }
+            byte[] manifest;
+            try (InputStream input = apk.getInputStream(entry);
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[16 * 1024];
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                }
+                manifest = output.toByteArray();
+            }
+            ManifestStreamer streamer = new ManifestStreamer();
+            BinaryXmlParser parser = new BinaryXmlParser(ByteBuffer.wrap(manifest), null);
+            parser.setXmlStreamer(streamer);
+            parser.parse();
+            if (streamer.packageName == null || streamer.packageName.isEmpty()) {
+                return null;
+            }
+            PackageInfo info = new PackageInfo();
+            info.packageName = streamer.packageName;
+            info.versionName = streamer.versionName;
+            info.versionCode = (int) streamer.versionCode;
+            if (Build.VERSION.SDK_INT >= 28) {
+                info.setLongVersionCode(streamer.versionCode);
+            }
+            return info;
+        } catch (Exception error) {
+            HelperLog.error("Could not parse split APK metadata: " + file.getName(),
+                    error);
+            return null;
         }
     }
 
