@@ -222,12 +222,6 @@ public class SettingsActivity extends Activity {
         super.onDestroy();
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        PublicSettings.write(this);
-    }
-
     private void addLanguageRow(LinearLayout root) {
         LinearLayout row = settingRow(getString(R.string.settings_language),
                 currentLanguageLabel());

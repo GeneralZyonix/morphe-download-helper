@@ -297,23 +297,40 @@ final class PublicSettings {
 
     private static Uri findFile(Context context) throws IOException {
         ContentResolver resolver = context.getContentResolver();
-        String selection = MediaStore.MediaColumns.DISPLAY_NAME + "=? AND "
-                + MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?";
-        String[] args = {FILE_NAME, RELATIVE_PATH + "%"};
+        // Search by display name only. Some file managers rewrite the relative
+        // path or MediaStore lags behind after an edit, which previously caused
+        // the helper to create a duplicate "helper-settings.conf (1)" file.
         try (Cursor cursor = resolver.query(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                new String[]{MediaStore.MediaColumns._ID},
-                selection,
-                args,
+                new String[]{
+                        MediaStore.MediaColumns._ID,
+                        MediaStore.MediaColumns.RELATIVE_PATH
+                },
+                MediaStore.MediaColumns.DISPLAY_NAME + "=?",
+                new String[]{FILE_NAME},
                 MediaStore.MediaColumns.DATE_MODIFIED + " DESC")) {
-            if (cursor != null && cursor.moveToFirst()) {
-                return ContentUris.withAppendedId(
-                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(0));
+            Uri fallback = null;
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    Uri uri = ContentUris.withAppendedId(
+                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(0));
+                    String relativePath = cursor.getString(1);
+                    if (relativePath != null
+                            && relativePath.toLowerCase(Locale.US)
+                                    .contains("morphe helper")) {
+                        HelperLog.info("Public settings file found at "
+                                + relativePath + FILE_NAME);
+                        return uri;
+                    }
+                    if (fallback == null) {
+                        fallback = uri;
+                    }
+                }
             }
+            return fallback;
         } catch (Exception error) {
             throw new IOException("Could not query public settings file", error);
         }
-        return null;
     }
 
     private static File legacyFile() {
