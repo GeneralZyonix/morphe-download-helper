@@ -7,6 +7,10 @@ import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.os.Build;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -24,6 +28,19 @@ final class DownloadedFileValidator {
     static final class VersionMismatchException extends IOException {
         VersionMismatchException(String message) {
             super(message);
+        }
+    }
+
+    /** Package/version metadata from an XAPK's manifest.json. */
+    private static final class XapkManifest {
+        final String packageName;
+        final String versionName;
+        final long versionCode;
+
+        XapkManifest(String packageName, String versionName, long versionCode) {
+            this.packageName = packageName;
+            this.versionName = versionName;
+            this.versionCode = versionCode;
         }
     }
 
@@ -62,7 +79,24 @@ final class DownloadedFileValidator {
 
         HelperLog.info("Validating split archive " + file.getName());
         PackageInfo wrongVersion = null;
+        XapkManifest wrongManifest = null;
         try (ZipFile zip = new ZipFile(file)) {
+            XapkManifest manifest = readXapkManifest(zip);
+            if (manifest != null) {
+                if (!pkg.equals(manifest.packageName)) {
+                    throw new VersionMismatchException("Downloaded XAPK is for "
+                            + manifest.packageName + " instead of " + pkg);
+                }
+                if (matchesVersion(manifest.versionName, manifest.versionCode,
+                        versionName, versionCodes)) {
+                    HelperLog.info("Validated XAPK manifest package="
+                            + manifest.packageName + " version=" + manifest.versionName
+                            + " code=" + manifest.versionCode);
+                    return;
+                }
+                wrongManifest = manifest;
+            }
+
             // Base APKs are usually named base*.apk. Check those first so we do not
             // extract every split in a large bundle unnecessarily.
             Enumeration<? extends ZipEntry> first = zip.entries();
@@ -79,6 +113,9 @@ final class DownloadedFileValidator {
                         if (pkg.equals(info.packageName)) {
                             wrongVersion = info;
                         }
+                    } else {
+                        HelperLog.info("Archive APK entry could not be parsed: "
+                                + entry.getName());
                     }
                 }
             }
@@ -99,6 +136,9 @@ final class DownloadedFileValidator {
                     if (pkg.equals(info.packageName)) {
                         wrongVersion = info;
                     }
+                } else {
+                    HelperLog.info("Archive APK entry could not be parsed: "
+                            + entry.getName());
                 }
             }
         } catch (IOException error) {
@@ -116,8 +156,89 @@ final class DownloadedFileValidator {
             throw new VersionMismatchException("Downloaded archive contains version "
                     + actual + " (" + actualCode + "), expected " + versionName);
         }
+        if (wrongManifest != null) {
+            throw new VersionMismatchException("Downloaded XAPK manifest contains version "
+                    + wrongManifest.versionName + " (" + wrongManifest.versionCode
+                    + "), expected " + versionName);
+        }
         throw new VersionMismatchException(
                 "Downloaded archive does not contain the requested package " + pkg);
+    }
+
+    /**
+     * Reads package metadata from an XAPK's manifest.json. Some XAPK producers
+     * use split-base APKs that Android's package parser cannot read on older
+     * devices, but the manifest still identifies the package and version.
+     */
+    private static XapkManifest readXapkManifest(ZipFile zip) {
+        ZipEntry entry = zip.getEntry("manifest.json");
+        if (entry == null) {
+            return null;
+        }
+        try {
+            String text = readEntryText(zip, entry, 512 * 1024);
+            if (text.isEmpty()) {
+                return null;
+            }
+            JSONObject root = new JSONObject(text);
+            String packageName = root.optString("package_name", "").trim();
+            if (packageName.isEmpty()) {
+                return null;
+            }
+            String versionName = root.optString("version_name", "").trim();
+            long versionCode = parseVersionCode(root.opt("version_code"));
+            return new XapkManifest(packageName, versionName, versionCode);
+        } catch (Exception error) {
+            HelperLog.error("Could not read XAPK manifest", error);
+            return null;
+        }
+    }
+
+    private static String readEntryText(ZipFile zip, ZipEntry entry, int maxBytes)
+            throws IOException {
+        try (InputStream input = zip.getInputStream(entry);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8 * 1024];
+            int total = 0;
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                total += read;
+                if (total > maxBytes) {
+                    break;
+                }
+                output.write(buffer, 0, read);
+            }
+            return new String(output.toByteArray(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        }
+    }
+
+    private static long parseVersionCode(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        if (value != null) {
+            try {
+                return Long.parseLong(String.valueOf(value).trim());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return -1;
+    }
+
+    private static boolean matchesVersion(String actualName, long actualCode,
+                                          String requestedName, long[] requestedCodes) {
+        boolean wantsVersion = (requestedName != null && !requestedName.trim().isEmpty())
+                || (requestedCodes != null && requestedCodes.length > 0);
+        if (!wantsVersion) {
+            return true;
+        }
+        if (contains(requestedCodes, actualCode)) {
+            return true;
+        }
+        return requestedName != null && !requestedName.trim().isEmpty()
+                && actualName != null && !actualName.trim().isEmpty()
+                && sameVersion(actualName, requestedName);
     }
 
     private static PackageInfo readEntry(Context context, ZipFile zip, ZipEntry entry)
