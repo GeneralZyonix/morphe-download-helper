@@ -12,7 +12,9 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - Optional **Hide launcher icon** setting under **Settings → Launcher icon**. It removes
   the app from the launcher without disabling the helper. The setting and confirmation
   warn that Settings and the changelog cannot be reopened afterwards; restoring requires
-  uninstalling and reinstalling the APK, or using ADB.
+  uninstalling and reinstalling the APK, or using ADB. Requested by
+  [@thegodfather-hub](https://github.com/thegodfather-hub) in
+  [#8](https://github.com/GeneralZyonix/morphe-download-helper/issues/8).
 
 ## [1.6.9] - 2026-11-06
 
