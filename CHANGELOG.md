@@ -5,6 +5,15 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Fixed
+
+- Uptodown XAPK downloads now fall back to `manifest.json` for package and version
+  validation when the embedded split base APK cannot be parsed by the device. This
+  covers Gboard's 44.33 MB XAPK on Android 12. Reported in
+  [#13](https://github.com/GeneralZyonix/morphe-download-helper/issues/13).
+
 ## [1.6.12] - 2026-11-06
 
 ### Fixed
