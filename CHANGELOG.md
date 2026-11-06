@@ -5,6 +5,16 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Fixed
+
+- GitHub release versions written with a leading `v` (for example `v1.0.14`) are now
+  treated as the same version as the APK manifest's `1.0.14`.
+- When a GitHub APK is rejected because its version or signing certificate does not match
+  the installed app, the helper now shows that reason instead of opening the APKPure
+  WebView as a last resort.
+
 ## [1.6.11] - 2026-11-06
 
 ### Added
