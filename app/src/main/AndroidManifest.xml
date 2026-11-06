@@ -47,12 +47,22 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name">
+            android:label="@string/app_name" />
+
+        <!--
+            Launcher entry point. The "Hide launcher icon" setting disables this
+            alias, which removes the app from the launcher without disabling the
+            activity itself.
+        -->
+        <activity-alias
+            android:name=".Launcher"
+            android:targetActivity=".MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
 
         <!-- In-app visual setup guide. -->
         <activity

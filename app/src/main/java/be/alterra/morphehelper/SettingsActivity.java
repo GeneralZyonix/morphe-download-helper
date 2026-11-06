@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.LocaleManager;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -125,6 +126,7 @@ public class SettingsActivity extends Activity {
         root.addView(header);
 
         addLanguageRow(root);
+        addLauncherIconCard(root);
         addUpdatesCard(root);
         addBatteryCard(root);
         addSecurityCard(root);
@@ -310,6 +312,100 @@ public class SettingsActivity extends Activity {
                     recreate();
                 })
                 .show();
+    }
+
+    private void addLauncherIconCard(LinearLayout root) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(cardBackground());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text(getString(R.string.settings_launcher_icon), 16, TEXT, true));
+
+        TextView description = text(
+                getString(R.string.settings_hide_launcher_icon_desc), 12, WARN_TEXT, false);
+        description.setLineSpacing(dp(3), 1f);
+        description.setPadding(0, dp(6), 0, dp(8));
+        card.addView(description);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(4), 0, dp(4));
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text(getString(R.string.settings_hide_launcher_icon), 14, TEXT, true));
+        TextView detail = text(
+                getString(R.string.settings_hide_launcher_icon_detail), 12, MUTED, false);
+        detail.setPadding(0, dp(3), 0, 0);
+        labels.addView(detail);
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch toggle = new Switch(this);
+        toggle.setChecked(isLauncherIconHidden());
+        toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        final boolean[] updating = {false};
+        toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (updating[0]) {
+                return;
+            }
+            if (!isChecked) {
+                setLauncherIconHidden(false);
+                Toast.makeText(this, R.string.settings_hide_launcher_icon_shown,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            updating[0] = true;
+            buttonView.setChecked(false);
+            updating[0] = false;
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.settings_hide_launcher_icon_confirm_title)
+                    .setMessage(R.string.settings_hide_launcher_icon_confirm_message)
+                    .setNegativeButton(R.string.common_cancel, null)
+                    .setPositiveButton(R.string.settings_hide_launcher_icon_confirm,
+                            (dialog, which) -> {
+                                setLauncherIconHidden(true);
+                                updating[0] = true;
+                                buttonView.setChecked(true);
+                                updating[0] = false;
+                                Toast.makeText(this,
+                                        R.string.settings_hide_launcher_icon_hidden,
+                                        Toast.LENGTH_LONG).show();
+                            })
+                    .show();
+        });
+        row.addView(toggle, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(row);
+
+        TextView note = text(
+                getString(R.string.settings_hide_launcher_icon_note), 11, MUTED, false);
+        note.setLineSpacing(dp(3), 1f);
+        note.setPadding(0, dp(6), 0, 0);
+        card.addView(note);
+    }
+
+    private boolean isLauncherIconHidden() {
+        return getPackageManager().getComponentEnabledSetting(launcherAlias())
+                == PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+    }
+
+    private void setLauncherIconHidden(boolean hidden) {
+        getPackageManager().setComponentEnabledSetting(
+                launcherAlias(),
+                hidden ? PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                        : PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP);
+        HelperLog.info(hidden ? "Launcher icon hidden" : "Launcher icon restored");
+    }
+
+    private ComponentName launcherAlias() {
+        return new ComponentName(getPackageName(), getPackageName() + ".Launcher");
     }
 
     private void addUpdatesCard(LinearLayout root) {

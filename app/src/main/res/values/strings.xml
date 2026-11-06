@@ -95,6 +95,16 @@
     <string name="settings_source_appteka_desc">Modded APK catalog; not recommended for apps other than SnapTube</string>
     <string name="settings_source_github_title">GitHub releases</string>
     <string name="settings_source_github_desc">Automatic search fallback; resolver-supplied GitHub links still work when this is off. Signature checked when the app is installed.</string>
+    <string name="settings_launcher_icon">Launcher icon</string>
+    <string name="settings_hide_launcher_icon">Hide launcher icon</string>
+    <string name="settings_hide_launcher_icon_detail">Removes the app from your launcher</string>
+    <string name="settings_hide_launcher_icon_desc">Only enable this after configuring the helper. Once hidden, you cannot reopen Settings or the changelog from the app. To restore the icon, uninstall and reinstall the APK (this clears app data), or use ADB.</string>
+    <string name="settings_hide_launcher_icon_note">Morphe can still launch the helper for downloads, and update notifications or Shizuku updates continue to work. Some launchers may need a restart before the icon disappears.</string>
+    <string name="settings_hide_launcher_icon_confirm_title">Hide launcher icon?</string>
+    <string name="settings_hide_launcher_icon_confirm_message">The app will disappear from your launcher. You will not be able to open Settings or the changelog afterwards. To restore the icon, uninstall and reinstall the APK (this clears app data), or use ADB. Continue?</string>
+    <string name="settings_hide_launcher_icon_confirm">Hide icon</string>
+    <string name="settings_hide_launcher_icon_hidden">Launcher icon hidden.</string>
+    <string name="settings_hide_launcher_icon_shown">Launcher icon restored.</string>
     <string name="settings_updates">Updates</string>
     <string name="settings_status_not_checked">Current v%1$s • Not checked yet</string>
     <string name="settings_status_available">Current v%1$s • v%2$s available</string>
