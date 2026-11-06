@@ -1340,9 +1340,19 @@ public class DownloadActivity extends Activity {
         subtitleParams.topMargin = dp(6);
         root.addView(subtitle, subtitleParams);
 
-        // Static source order; the live status line below shows which one is active.
-        TextView sources = text(getString(R.string.download_sources_summary),
-                12, MUTED, false);
+        // Use the same saved order as the resolver and the main screen, so this
+        // summary cannot contradict the actual fallback path.
+        List<String> sourceNames = new ArrayList<>();
+        for (String key : AppSettings.sourceOrder(this)) {
+            if (SourceSettings.isEnabled(this, key)) {
+                sourceNames.add(AppSettings.sourceLabel(this, key));
+            }
+        }
+        String sourceSummary = sourceNames.isEmpty()
+                ? getString(R.string.download_sources_none)
+                : getString(R.string.download_sources_summary,
+                        TextUtils.join(" \u2192 ", sourceNames));
+        TextView sources = text(sourceSummary, 12, MUTED, false);
         sources.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams sourcesParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1942,306 +1952,14 @@ public class DownloadActivity extends Activity {
             }
         }
 
-        // Fast start: with a numeric code, APKPure can often begin immediately.
-        // The resolver and the other sources remain available as fallbacks.
-        // Fast start only applies to codes Morphe actually supplied. If Morphe omits
-        // them, follow its resolver link first even if an installed code is available.
         boolean hasCodes = versionCodes != null && versionCodes.length > 0;
-        if (!AppSettings.sourceOrder(this).equals(AppSettings.defaultOrder())) {
-            return resolveCustom(pkg, version, codes, hasCodes, fileType, abis);
-        }
-        if (hasCodes && sourceAllowed(SourceSettings.APKPURE)
-                && apkPureCanServe(fileType)) {
-            setSourceLabel(R.string.source_label_apkpure_direct);
-            setStatus(R.string.download_trying_apkpure_direct);
-            try {
-                File file = downloadFromApkPure(pkg, version, codes, fileType);
-                markSource(SourceSettings.APKPURE, true, "direct");
-                return file;
-            } catch (Exception directError) {
-                markSource(SourceSettings.APKPURE, false,
-                        "direct: " + directError.getMessage());
-                HelperLog.error("APKPure fast direct failed", directError);
-            }
 
-            setSourceLabel(R.string.source_label_apkpure_api);
-            setStatus(R.string.download_resolving_apkpure_api);
-            try {
-                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                markSource(SourceSettings.APKPURE, true, "API");
-                return file;
-            } catch (Exception apiError) {
-                HelperLog.error("APKPure fast API failed", apiError);
-                markSource(SourceSettings.APKPURE, false, apiError.getMessage());
-            }
-        }
-
-        // 0. Ask Morphe's resolver for the page it would show in its own dialog.
-        if (sourceAllowed(SourceSettings.FALLBACK)) {
-            String abi = (abis != null && abis.length > 0) ? abis[0] : "arm64-v8a";
-            String resolverKey = pkg + "|" + version + "|" + abi;
-            String morpheUrl = ResolverCache.get(this, resolverKey);
-            if (morpheUrl != null) {
-                HelperLog.info("Using cached Morphe resolver link: " + morpheUrl);
-                setStatus(R.string.download_using_cached_resolver);
-            } else {
-                setStatus(R.string.download_checking_resolver);
-                morpheUrl = resolveMorpheUrl(pkg, version, abis);
-                if (morpheUrl != null && !isHost(hostOf(morpheUrl), "google.com")) {
-                    ResolverCache.put(this, resolverKey, morpheUrl);
-                }
-            }
-            final String resolvedUrl = morpheUrl;
-            if (resolvedUrl != null) {
-                String host = hostOf(resolvedUrl);
-                HelperLog.info("Morphe resolver returned: " + resolvedUrl);
-                setStatus(getString(R.string.download_resolver_found, host));
-                if (isHost(host, "uptodown.com")) {
-                    if (pathOf(morpheUrl).trim().endsWith("-x")
-                            && sourceAllowed(SourceSettings.UPTODOWN)) {
-                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_opened_uptodown));
-                        main.post(() -> {
-                            setStatus(R.string.download_opening_uptodown);
-                            progress.setIndeterminate(true);
-                            startUptodownWebFlow(resolvedUrl, pkg, version, fileType);
-                        });
-                        throw new UptodownHandoffException();
-                    }
-                } else if (isHost(host, "apkpure.com")
-                        && sourceAllowed(SourceSettings.APKPURE)) {
-                    try {
-                        File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_apkpure));
-                        return file;
-                    } catch (Exception ignored) {
-                        HelperLog.error("Morphe resolver APKPure link failed", ignored);
-                    }
-                } else if (isHost(host, "github.com")) {
-                    String repo = githubRepoFromUrl(resolvedUrl);
-                    if (repo != null) {
-                        File file = tryResolverGitHub(repo, pkg, version, fileType, abis);
-                        if (file != null) {
-                            return file;
-                        }
-                    }
-                    if (isDirectFile(resolvedUrl)) {
-                        try {
-                            File file = downloadGitHubFile(
-                                    resolvedUrl, null, pkg, version, fileType);
-                            markSource(SourceSettings.FALLBACK, true,
-                                    getString(R.string.source_detail_resolver_direct));
-                            return file;
-                        } catch (Exception failed) {
-                            HelperLog.error("Morphe resolver GitHub file failed", failed);
-                        }
-                    }
-                } else if (isHost(host, "apkmirror.com")
-                        && sourceAllowed(SourceSettings.APKMIRROR)) {
-                    setSourceLabel(R.string.source_label_morphe_resolver);
-                    try {
-                        File file = downloadFromFallback(morpheUrl, pkg, version, fileType, abis);
-                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_apkmirror));
-                        return file;
-                    } catch (UptodownHandoffException handoff) {
-                        throw handoff;
-                    } catch (Exception ignored) {
-                        HelperLog.error("Morphe resolver APKMirror link failed", ignored);
-                    }
-                } else if (isDirectFile(morpheUrl)) {
-                    try {
-                        File file = downloadFile(morpheUrl, null, pkg, version, fileType);
-                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_direct));
-                        return file;
-                    } catch (Exception ignored) {
-                        HelperLog.error("Morphe resolver direct file failed", ignored);
-                    }
-                }
-                markSource(SourceSettings.FALLBACK, false, getString(R.string.source_detail_resolver_no_file));
-            } else {
-                markSource(SourceSettings.FALLBACK, false, getString(R.string.source_detail_no_resolver_result));
-            }
-        }
-
-        // 1. Fallback URL from the patch bundle first.
-        if (sourceAllowed(SourceSettings.FALLBACK)
-                && !TextUtils.isEmpty(fallbackUrl)) {
-            String fallbackHost = hostOf(fallbackUrl);
-            String fallbackRepo = githubRepoFromUrl(fallbackUrl);
-            if (fallbackRepo != null) {
-                File file = tryResolverGitHub(
-                        fallbackRepo, pkg, version, fileType, abis);
-                if (file != null) {
-                    return file;
-                }
-                if (isDirectFile(fallbackUrl)) {
-                    try {
-                        File direct = downloadGitHubFile(
-                                fallbackUrl, null, pkg, version, fileType);
-                        markSource(SourceSettings.FALLBACK, true,
-                                getString(R.string.source_detail_resolver_direct));
-                        return direct;
-                    } catch (Exception failed) {
-                        HelperLog.error("Fallback GitHub file failed", failed);
-                    }
-                }
-            } else {
-                boolean hostDisabled =
-                        (isHost(fallbackHost, "apkmirror.com")
-                        && !sourceAllowed(SourceSettings.APKMIRROR))
-                        || (isHost(fallbackHost, "apkpure.com")
-                        && !sourceAllowed(SourceSettings.APKPURE))
-                        || (isHost(fallbackHost, "uptodown.com")
-                        && !sourceAllowed(SourceSettings.UPTODOWN));
-                if (!hostDisabled) {
-                    setSourceLabel(R.string.source_label_morphe_fallback);
-                    setStatus(R.string.download_trying_fallback);
-                    HelperLog.info("Trying fallback URL: " + fallbackUrl);
-                    try {
-                        File file = downloadFromFallback(fallbackUrl, pkg, version, fileType, abis);
-                        markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_fallback_link));
-                        return file;
-                    } catch (UptodownHandoffException handoff) {
-                        throw handoff;
-                    } catch (Exception failed) {
-                        HelperLog.error("Fallback failed", failed);
-                        markSource(SourceSettings.FALLBACK, false, failed.getMessage());
-                    }
-                } else {
-                    HelperLog.info("Skipping fallback from disabled source: " + fallbackHost);
-                }
-            }
-        }
-
-        // 2. APKMirror.
-        if (sourceAllowed(SourceSettings.APKMIRROR)) {
-            setSourceLabel(R.string.source_label_apkmirror);
-            setStatus(R.string.download_searching_apkmirror);
-            HelperLog.info("Trying APKMirror search for " + pkg);
-            try {
-                File file = downloadFromApkMirrorSearch(pkg, version, fileType, abis);
-                markSource(SourceSettings.APKMIRROR, true, getString(R.string.source_detail_search));
-                return file;
-            } catch (UptodownHandoffException handoff) {
-                throw handoff;
-            } catch (Exception failed) {
-                HelperLog.error("APKMirror failed", failed);
-                markSource(SourceSettings.APKMIRROR, false, failed.getMessage());
-            }
-        }
-
-        // Bundle requests need an APK/XAPK split archive. APKPure cannot serve APKM
-        // directly, but its XAPK asset is a useful fallback if APKMirror is blocked.
-        if (sourceAllowed(SourceSettings.APKPURE)
-                && allowSplitArchive && isSplitType(fileType)
-                && !apkPureCanServe(fileType)) {
-            HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
-            setSourceLabel(R.string.source_label_apkpure_xapk);
-            setStatus(R.string.download_trying_xapk);
-            try {
-                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                markSource(SourceSettings.APKPURE, true, getString(R.string.source_detail_xapk_fallback));
-                return file;
-            } catch (Exception failed) {
-                HelperLog.error("APKPure XAPK fallback failed", failed);
-                markSource(SourceSettings.APKPURE, false, failed.getMessage());
-            }
-        }
-
-        // 3. APKPure fallback for requests without a numeric versionCode.
-        // When a code exists it was already tried before the resolver.
-        if (!hasCodes && sourceAllowed(SourceSettings.APKPURE)
-                && apkPureCanServe(fileType)) {
-            HelperLog.info("Trying APKPure fallback for " + pkg);
-            setSourceLabel(R.string.source_label_apkpure_api);
-            setStatus(R.string.download_resolving_apkpure_api);
-            try {
-                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                markSource(SourceSettings.APKPURE, true, "API");
-                return file;
-            } catch (Exception apiError) {
-                markSource(SourceSettings.APKPURE, false, "API: " + apiError.getMessage());
-                HelperLog.error("APKPure API failed", apiError);
-                setSourceLabel(R.string.source_label_apkpure_direct);
-                setStatus(R.string.download_trying_apkpure_direct);
-                try {
-                    File file = downloadFromApkPure(pkg, version, codes, fileType);
-                    markSource(SourceSettings.APKPURE, true, "direct");
-                    return file;
-                } catch (Exception directError) {
-                    HelperLog.error("APKPure direct failed", directError);
-                    markSource(SourceSettings.APKPURE, false, "direct: " + directError.getMessage());
-                }
-            }
-        }
-
-        // 4. F-Droid.
-        if (sourceAllowed(SourceSettings.FDROID)) {
-            setSourceLabel(R.string.source_label_fdroid);
-            setStatus(R.string.download_checking_fdroid);
-            HelperLog.info("Trying F-Droid for " + pkg);
-            try {
-                File file = downloadFromFdroid(pkg, version, codes, fileType);
-                markSource(SourceSettings.FDROID, true, getString(R.string.source_detail_package_api));
-                return file;
-            } catch (Exception failed) {
-                HelperLog.error("F-Droid failed", failed);
-                markSource(SourceSettings.FDROID, false, failed.getMessage());
-            }
-        }
-
-        // 5. Aptoide.
-        if (sourceAllowed(SourceSettings.APTOIDE)) {
-            setSourceLabel(R.string.source_label_aptoide);
-            setStatus(R.string.download_searching_aptoide);
-            HelperLog.info("Trying Aptoide for " + pkg);
-            try {
-                File file = downloadFromAptoide(pkg, version, codes, fileType);
-                markSource(SourceSettings.APTOIDE, true, getString(R.string.source_detail_trusted_upload));
-                return file;
-            } catch (Exception failed) {
-                HelperLog.error("Aptoide failed", failed);
-                markSource(SourceSettings.APTOIDE, false, failed.getMessage());
-            }
-        }
-
-        if (sourceAllowed(SourceSettings.APPTEKA)
-                && !isSplitType(fileType)
-                && AppSettings.apptekaAllowed(this, pkg)) {
-            setSourceLabel(R.string.source_label_appteka);
-            setStatus(R.string.download_searching_appteka);
-            HelperLog.info("Trying Appteka for " + pkg);
-            try {
-                File file = downloadFromAppteka(pkg, version, codes);
-                markSource(SourceSettings.APPTEKA, true, getString(R.string.source_detail_catalog));
-                return file;
-            } catch (Exception failed) {
-                HelperLog.error("Appteka failed", failed);
-                markSource(SourceSettings.APPTEKA, false, failed.getMessage());
-            }
-        }
-
-        // GitHub is opt-out and can be moved in the source order. In the default
-        // order it remains the final automatic APK source.
-        if (sourceAllowed(SourceSettings.GITHUB)) {
-            File github = tryGitHubFallback(pkg, version, fileType, abis);
-            if (github != null) {
-                return github;
-            }
-        }
-
-        // APKPure browser fallback is the last resort so a broken page does not block
-        // the resolver or APKMirror from being tried.
-        if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
-                && apkPureCanServe(fileType)) {
-            main.post(() -> {
-                setStatus(R.string.download_opening_apkpure);
-                progress.setIndeterminate(true);
-                startApkPureWebFlow(pkg, version, fileType);
-            });
-            throw new UptodownHandoffException();
-        }
-
-        throw new IOException("No enabled download source found an APK");
+        // A single ordered resolver keeps the list shown in the UI and the
+        // actual fallback path identical. Default order: Morphe link, APKMirror,
+        // APKPure, then the remaining enabled sources.
+        List<String> order = AppSettings.sourceOrder(this);
+        HelperLog.info("Source order: " + TextUtils.join(" -> ", order));
+        return resolveCustom(pkg, version, codes, hasCodes, fileType, abis);
     }
 
     /**
@@ -2392,47 +2110,6 @@ public class DownloadActivity extends Activity {
             }
         }
 
-        if (sourceAllowed(SourceSettings.APKPURE)
-                && allowSplitArchive && isSplitType(fileType)
-                && !apkPureCanServe(fileType)) {
-            HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
-            setSourceLabel(R.string.source_label_apkpure_xapk);
-            setStatus(R.string.download_trying_xapk);
-            try {
-                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                markSource(SourceSettings.APKPURE, true, getString(R.string.source_detail_xapk_fallback));
-                return file;
-            } catch (Exception failed) {
-                HelperLog.error("APKPure XAPK fallback failed", failed);
-                markSource(SourceSettings.APKPURE, false, failed.getMessage());
-            }
-        }
-
-        if (!hasCodes && sourceAllowed(SourceSettings.APKPURE)
-                && apkPureCanServe(fileType)) {
-            HelperLog.info("Trying APKPure fallback for " + pkg);
-            setSourceLabel(R.string.source_label_apkpure_api);
-            setStatus(R.string.download_resolving_apkpure_api);
-            try {
-                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                markSource(SourceSettings.APKPURE, true, "API");
-                return file;
-            } catch (Exception apiError) {
-                markSource(SourceSettings.APKPURE, false, "API: " + apiError.getMessage());
-                HelperLog.error("APKPure API failed", apiError);
-                setSourceLabel(R.string.source_label_apkpure_direct);
-                setStatus(R.string.download_trying_apkpure_direct);
-                try {
-                    File file = downloadFromApkPure(pkg, version, codes, fileType);
-                    markSource(SourceSettings.APKPURE, true, "direct");
-                    return file;
-                } catch (Exception directError) {
-                    HelperLog.error("APKPure direct failed", directError);
-                    markSource(SourceSettings.APKPURE, false, "direct: " + directError.getMessage());
-                }
-            }
-        }
-
         if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
                 && (apkPureCanServe(fileType) || isSplitType(fileType))) {
             main.post(() -> {
@@ -2447,8 +2124,51 @@ public class DownloadActivity extends Activity {
 
     private File customApkPure(String pkg, String version, long[] codes, boolean hasCodes,
                                String fileType, String[] abis) {
-        if (!hasCodes || !apkPureCanServe(fileType)) {
-            return null;
+        if (!apkPureCanServe(fileType)) {
+            // APKM/APKS requests can still use APKPure's XAPK asset. Keep this
+            // at APKPure's configured position instead of retrying at the end.
+            if (!allowSplitArchive || !isSplitType(fileType)) {
+                return null;
+            }
+            HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
+            setSourceLabel(R.string.source_label_apkpure_xapk);
+            setStatus(R.string.download_trying_xapk);
+            try {
+                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                markSource(SourceSettings.APKPURE, true,
+                        getString(R.string.source_detail_xapk_fallback));
+                return file;
+            } catch (Exception failed) {
+                HelperLog.error("APKPure XAPK fallback failed", failed);
+                markSource(SourceSettings.APKPURE, false, failed.getMessage());
+                return null;
+            }
+        }
+        if (!hasCodes) {
+            // Without a versionCode, resolve through the API first. This still
+            // runs at APKPure's configured position instead of after GitHub.
+            setSourceLabel(R.string.source_label_apkpure_api);
+            setStatus(R.string.download_resolving_apkpure_api);
+            try {
+                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+                markSource(SourceSettings.APKPURE, true, "API");
+                return file;
+            } catch (Exception apiError) {
+                markSource(SourceSettings.APKPURE, false, "API: " + apiError.getMessage());
+                HelperLog.error("APKPure API failed", apiError);
+            }
+            setSourceLabel(R.string.source_label_apkpure_direct);
+            setStatus(R.string.download_trying_apkpure_direct);
+            try {
+                File file = downloadFromApkPure(pkg, version, codes, fileType);
+                markSource(SourceSettings.APKPURE, true, "direct");
+                return file;
+            } catch (Exception directError) {
+                HelperLog.error("APKPure direct failed", directError);
+                markSource(SourceSettings.APKPURE, false,
+                        "direct: " + directError.getMessage());
+                return null;
+            }
         }
         setSourceLabel(R.string.source_label_apkpure_direct);
         setStatus(R.string.download_trying_apkpure_direct);

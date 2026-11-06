@@ -921,6 +921,7 @@ public class SettingsActivity extends Activity {
         String retention = AppSettings.retention(this);
         String retentionLabel;
         switch (retention) {
+            case AppSettings.AFTER_HANDOFF: retentionLabel = getString(R.string.settings_retention_handoff); break;
             case AppSettings.HOUR_1: retentionLabel = getString(R.string.settings_retention_1h); break;
             case AppSettings.HOUR_24: retentionLabel = getString(R.string.settings_retention_24h); break;
             case AppSettings.DAY_7: retentionLabel = getString(R.string.settings_retention_7d); break;
@@ -931,12 +932,13 @@ public class SettingsActivity extends Activity {
                 .setTitle(R.string.settings_keep_downloads)
                 .setSingleChoiceItems(new String[]{
                         getString(R.string.settings_keep_forever),
+                        getString(R.string.settings_retention_handoff),
                         getString(R.string.settings_retention_1h),
                         getString(R.string.settings_retention_24h),
                         getString(R.string.settings_retention_7d)
                 }, retentionIndex(retention), (dialog, which) -> {
-                    String[] values = {AppSettings.KEEP, AppSettings.HOUR_1,
-                            AppSettings.HOUR_24, AppSettings.DAY_7};
+                    String[] values = {AppSettings.KEEP, AppSettings.AFTER_HANDOFF,
+                            AppSettings.HOUR_1, AppSettings.HOUR_24, AppSettings.DAY_7};
                     AppSettings.setRetention(this, values[which]);
                     dialog.dismiss();
                     recreate();
@@ -1040,9 +1042,10 @@ public class SettingsActivity extends Activity {
     }
 
     private int retentionIndex(String retention) {
-        if (AppSettings.HOUR_1.equals(retention)) return 1;
-        if (AppSettings.HOUR_24.equals(retention)) return 2;
-        if (AppSettings.DAY_7.equals(retention)) return 3;
+        if (AppSettings.AFTER_HANDOFF.equals(retention)) return 1;
+        if (AppSettings.HOUR_1.equals(retention)) return 2;
+        if (AppSettings.HOUR_24.equals(retention)) return 3;
+        if (AppSettings.DAY_7.equals(retention)) return 4;
         return 0;
     }
 

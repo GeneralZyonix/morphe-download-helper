@@ -5,6 +5,34 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Added
+
+- **After hand-off** cleanup option under **Settings → Keep downloads**. It skips the
+  public Downloads copy, keeps the temporary cache file for a short grace period, and
+  removes it on a later launch. Requested by
+  [@thegodfather-hub](https://github.com/thegodfather-hub) in
+  [#10](https://github.com/GeneralZyonix/morphe-download-helper/issues/10).
+
+### Changed
+
+- The default source order is now **Morphe link → APKMirror → APKPure → F-Droid →
+  Aptoide → Appteka → GitHub releases**. The APKPure fast path now runs in its configured
+  position instead of before the Morphe resolver.
+
+### Fixed
+
+- The **Download sources** list on the main screen is now generated from the same saved
+  order used by the resolver, so it cannot drift from **Settings → Source order**.
+  Reported by [@IkoMosiEntertainmentHub](https://github.com/IkoMosiEntertainmentHub) in
+  [#11](https://github.com/GeneralZyonix/morphe-download-helper/issues/11).
+- Retention cleanup now also removes expired `Downloads/Morphe Helper` and custom-folder
+  copies, not only the internal cache.
+- The public settings file is found under its actual `.txt`/`.conf.txt` names, and the
+  helper no longer creates a new `helper-settings ... (1).txt` duplicate.
+- The settings file is preserved by cleanup and **Delete all downloaded APKs**.
+
 ## [1.6.10] - 2026-11-06
 
 ### Added

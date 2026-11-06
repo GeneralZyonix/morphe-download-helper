@@ -18,7 +18,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -31,9 +33,13 @@ final class AppSettings {
     static final String LOCATION_CUSTOM = "custom";
 
     static final String KEEP = "keep";
+    static final String AFTER_HANDOFF = "handoff";
     static final String HOUR_1 = "1h";
     static final String HOUR_24 = "24h";
     static final String DAY_7 = "7d";
+
+    /** How long a hand-off cache file stays readable before cleanup may remove it. */
+    private static final long HANDOFF_GRACE_MILLIS = 10L * 60L * 1000L;
 
     static final String SNAPTUBE_PACKAGE = "com.snaptube.premium";
 
@@ -41,6 +47,7 @@ final class AppSettings {
     private static final String KEY_LOCATION = "download_location";
     private static final String KEY_CUSTOM_TREE = "custom_tree_uri";
     private static final String KEY_RETENTION = "download_retention";
+    private static final String KEY_PENDING_HANDOFF = "pending_handoff_cleanup";
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
@@ -51,7 +58,27 @@ final class AppSettings {
     private static final String KEY_VT_ALWAYS_UPLOAD = "virustotal_always_upload";
     private static final String KEY_VT_UPLOAD_ON_QUOTA = "virustotal_upload_on_quota";
 
+    /**
+     * The order shown on the main screen and in Settings. It is also the exact
+     * order used by the resolver; there is no separate hard-coded fast path.
+     * Morphe's link comes first because it is curated by the patch bundle.
+     */
     private static final List<String> DEFAULT_ORDER = Arrays.asList(
+            SourceSettings.FALLBACK,
+            SourceSettings.APKMIRROR,
+            SourceSettings.APKPURE,
+            SourceSettings.FDROID,
+            SourceSettings.APTOIDE,
+            SourceSettings.APPTEKA,
+            SourceSettings.GITHUB
+    );
+
+    /**
+     * The old auto-generated order. It was written into public settings files
+     * even when the user never changed the order, so treat it as "default" and
+     * migrate it instead of pinning those users to APKPure-first forever.
+     */
+    private static final List<String> LEGACY_DEFAULT_ORDER = Arrays.asList(
             SourceSettings.APKPURE,
             SourceSettings.FALLBACK,
             SourceSettings.APKMIRROR,
@@ -231,12 +258,33 @@ final class AppSettings {
         if (file == null || !file.isFile()) {
             return;
         }
+        if (AFTER_HANDOFF.equals(retention(context))) {
+            // Morphe reads the FileProvider cache URI, not the public copy.
+            // Skip the copy entirely and remove the cache file after a short
+            // grace period so a slow Morphe read cannot break the hand-off.
+            markHandoffCleanup(context, file);
+            HelperLog.info("After hand-off: keeping only the temporary cache copy");
+            return;
+        }
         String location = location(context);
         if (LOCATION_PUBLIC.equals(location)) {
             publishPublic(context, file);
         } else if (LOCATION_CUSTOM.equals(location)) {
             publishCustom(context, file);
         }
+    }
+
+    /** Records a cache file to delete after the hand-off grace period. */
+    private static void markHandoffCleanup(Context context, File file) {
+        long now = System.currentTimeMillis();
+        // Refresh the timestamp so the generic age sweep cannot delete the file
+        // before the hand-off grace period has passed.
+        //noinspection ResultOfMethodCallIgnored
+        file.setLastModified(now);
+        Set<String> pending = new HashSet<>(prefs(context).getStringSet(
+                KEY_PENDING_HANDOFF, new HashSet<>()));
+        pending.add(file.getAbsolutePath() + "|" + now);
+        prefs(context).edit().putStringSet(KEY_PENDING_HANDOFF, pending).apply();
     }
 
     private static void publishPublic(Context context, File file) {
@@ -363,54 +411,127 @@ final class AppSettings {
     }
 
     static void cleanup(Context context) {
-        long retention = retentionMillis(context);
-        if (retention <= 0) {
+        // Pending hand-off files are always removed, even if the user later
+        // switches back to Keep. They were promised to be temporary.
+        cleanupPendingHandoffs(context);
+
+        String retention = retention(context);
+        if (KEEP.equals(retention)) {
             return;
         }
-        File dir = downloadDir(context);
-        File[] files = dir.listFiles();
-        if (files == null) {
+        long now = System.currentTimeMillis();
+        if (AFTER_HANDOFF.equals(retention)) {
+            // Remove the public/custom copies immediately on the next launch.
+            // Cache files get a short grace period so Morphe can finish reading
+            // the URI even if it is slow.
+            long graceCutoff = now - HANDOFF_GRACE_MILLIS;
+            int cache = deleteCacheFiles(context, graceCutoff);
+            int publicCopies = deletePublicDownloads(context, 0L);
+            int customCopies = deleteCustomDownloads(context, 0L);
+            HelperLog.info("After hand-off cleanup: cache=" + cache
+                    + " public=" + publicCopies + " custom=" + customCopies);
             return;
         }
-        long cutoff = System.currentTimeMillis() - retention;
-        for (File file : files) {
-            if (file.isFile() && file.lastModified() < cutoff) {
-                //noinspection ResultOfMethodCallIgnored
-                file.delete();
-            }
+
+        long retentionMs = retentionMillis(context);
+        if (retentionMs <= 0) {
+            return;
+        }
+        long cutoff = now - retentionMs;
+        int cache = deleteCacheFiles(context, cutoff);
+        int publicCopies = deletePublicDownloads(context, cutoff);
+        int customCopies = deleteCustomDownloads(context, cutoff);
+        if (cache + publicCopies + customCopies > 0) {
+            HelperLog.info("Retention cleanup: cache=" + cache
+                    + " public=" + publicCopies + " custom=" + customCopies);
         }
     }
 
-    static int deleteAllDownloads(Context context) {
-        int deleted = 0;
-        File dir = downloadDir(context);
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile() && file.delete()) {
-                    deleted++;
-                }
-            }
+    private static int deleteCacheFiles(Context context, long cutoff) {
+        File[] files = downloadDir(context).listFiles();
+        if (files == null) {
+            return 0;
         }
-        if (LOCATION_PUBLIC.equals(location(context))) {
-            deleted += deletePublicDownloads(context);
-        } else if (LOCATION_CUSTOM.equals(location(context))) {
-            deleted += deleteCustomDownloads(context);
+        int deleted = 0;
+        for (File file : files) {
+            if (file.isFile()
+                    && (cutoff <= 0 || file.lastModified() < cutoff)
+                    && file.delete()) {
+                deleted++;
+            }
         }
         return deleted;
     }
 
-    private static int deletePublicDownloads(Context context) {
+    private static void cleanupPendingHandoffs(Context context) {
+        SharedPreferences prefs = prefs(context);
+        Set<String> pending = prefs.getStringSet(KEY_PENDING_HANDOFF, null);
+        if (pending == null || pending.isEmpty()) {
+            return;
+        }
+        long cutoff = System.currentTimeMillis() - HANDOFF_GRACE_MILLIS;
+        Set<String> keep = new HashSet<>();
+        for (String entry : pending) {
+            int separator = entry.lastIndexOf('|');
+            if (separator <= 0) {
+                continue;
+            }
+            long marked;
+            try {
+                marked = Long.parseLong(entry.substring(separator + 1));
+            } catch (NumberFormatException ignored) {
+                continue;
+            }
+            File file = new File(entry.substring(0, separator));
+            if (!isCacheFile(context, file)) {
+                continue;
+            }
+            if (!file.exists()) {
+                continue;
+            }
+            if (marked > cutoff) {
+                keep.add(entry);
+            } else if (file.delete()) {
+                HelperLog.info("Deleted hand-off cache file " + file.getName());
+            } else {
+                keep.add(entry);
+            }
+        }
+        prefs.edit().putStringSet(KEY_PENDING_HANDOFF, keep).apply();
+    }
+
+    private static boolean isCacheFile(Context context, File file) {
+        try {
+            String dir = downloadDir(context).getCanonicalPath() + File.separator;
+            return file.getCanonicalPath().startsWith(dir);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    static int deleteAllDownloads(Context context) {
+        int deleted = deleteCacheFiles(context, 0L);
+        deleted += deletePublicDownloads(context, 0L);
+        deleted += deleteCustomDownloads(context, 0L);
+        return deleted;
+    }
+
+    private static int deletePublicDownloads(Context context, long cutoff) {
         try {
             if (Build.VERSION.SDK_INT >= 29) {
+                String selection = MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ? AND "
+                        + MediaStore.MediaColumns.DISPLAY_NAME + " NOT LIKE ?";
+                List<String> args = new ArrayList<>();
+                args.add("%Morphe Helper/%");
+                args.add("helper-settings%");
+                if (cutoff > 0) {
+                    selection += " AND " + MediaStore.MediaColumns.DATE_MODIFIED + " < ?";
+                    args.add(String.valueOf(cutoff / 1000L));
+                }
                 return context.getContentResolver().delete(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ? AND "
-                                + MediaStore.MediaColumns.DISPLAY_NAME + " != ?",
-                        new String[]{
-                                Environment.DIRECTORY_DOWNLOADS + "/Morphe Helper/%",
-                                PublicSettings.FILE_NAME
-                        });
+                        selection,
+                        args.toArray(new String[0]));
             }
             File dir = new File(
                     Environment.getExternalStoragePublicDirectory(
@@ -422,7 +543,9 @@ final class AppSettings {
             }
             int deleted = 0;
             for (File file : files) {
-                if (file.isFile() && !PublicSettings.FILE_NAME.equals(file.getName())
+                if (file.isFile()
+                        && !PublicSettings.isSettingsFileName(file.getName())
+                        && (cutoff == 0 || file.lastModified() < cutoff)
                         && file.delete()) {
                     deleted++;
                 }
@@ -434,7 +557,7 @@ final class AppSettings {
         }
     }
 
-    private static int deleteCustomDownloads(Context context) {
+    private static int deleteCustomDownloads(Context context, long cutoff) {
         String tree = customTreeUri(context);
         if (tree.isEmpty()) {
             return 0;
@@ -446,7 +569,13 @@ final class AppSettings {
             }
             int deleted = 0;
             for (DocumentFile child : root.listFiles()) {
-                if (child.isFile() && child.delete()) {
+                if (!child.isFile()
+                        || PublicSettings.isSettingsFileName(child.getName())) {
+                    continue;
+                }
+                long modified = child.lastModified();
+                if ((cutoff == 0 || (modified > 0 && modified < cutoff))
+                        && child.delete()) {
                     deleted++;
                 }
             }
@@ -459,20 +588,29 @@ final class AppSettings {
 
     static List<String> sourceOrder(Context context) {
         String raw = prefs(context).getString(KEY_ORDER, "");
-        List<String> order = new ArrayList<>();
+        List<String> saved = new ArrayList<>();
         if (raw != null && !raw.isEmpty()) {
             for (String key : raw.split(",")) {
-                if (DEFAULT_ORDER.contains(key) && !order.contains(key)) {
-                    order.add(key);
+                if (DEFAULT_ORDER.contains(key) && !saved.contains(key)) {
+                    saved.add(key);
                 }
             }
         }
+        // Older builds wrote the default order to the public file as if it were
+        // a custom choice. Ignore that value so the new default applies.
+        if (saved.equals(LEGACY_DEFAULT_ORDER)) {
+            saved.clear();
+        }
         for (String key : DEFAULT_ORDER) {
-            if (!order.contains(key)) {
-                order.add(key);
+            if (!saved.contains(key)) {
+                saved.add(key);
             }
         }
-        return order;
+        return saved;
+    }
+
+    static boolean isLegacyDefaultOrder(List<String> order) {
+        return order != null && order.equals(LEGACY_DEFAULT_ORDER);
     }
 
     static void setSourceOrder(Context context, List<String> order) {

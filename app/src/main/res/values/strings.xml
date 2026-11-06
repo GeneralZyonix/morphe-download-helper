@@ -25,7 +25,9 @@
     <string name="main_sources_title">Download sources</string>
     <string name="main_source_morphe_link">Morphe link</string>
     <string name="main_source_appteka">\u26A0 Appteka</string>
-    <string name="main_sources_note">Tries in this order. Appteka is limited to SnapTube by default; source details and browser fallbacks are in Settings.</string>
+    <string name="main_source_rank">%1$d. %2$s</string>
+    <string name="main_no_sources">No sources are enabled. Open Settings to enable at least one.</string>
+    <string name="main_sources_note">Enabled sources are tried top to bottom. This matches Settings → Source order. Uptodown is used only when a Morphe link opens its WebView fallback. Appteka is limited to SnapTube by default.</string>
     <string name="main_open_morphe">Open Morphe</string>
     <string name="main_share_log">Share log</string>
     <string name="main_clear_log">Clear log</string>
@@ -98,10 +100,10 @@
     <string name="settings_launcher_icon">Launcher icon</string>
     <string name="settings_hide_launcher_icon">Hide launcher icon</string>
     <string name="settings_hide_launcher_icon_detail">Removes the app from your launcher</string>
-    <string name="settings_hide_launcher_icon_desc">Only enable this after configuring the helper. Once hidden, you cannot reopen Settings or the changelog from the app. To restore the icon, set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.conf, then start a download from Morphe. You can also uninstall and reinstall the APK, or use ADB.</string>
-    <string name="settings_hide_launcher_icon_note">Morphe can still launch the helper for downloads, and update notifications or Shizuku updates continue to work. Non-secret settings are mirrored to Downloads/Morphe Helper/helper-settings.conf; the VirusTotal API key is never written there. Some launchers may need a restart before the icon changes.</string>
+    <string name="settings_hide_launcher_icon_desc">Only enable this after configuring the helper. Once hidden, you cannot reopen Settings or the changelog from the app. To restore the icon, set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.txt, then start a download from Morphe. Older helper-settings.conf and helper-settings.conf.txt files are also read. You can also uninstall and reinstall the APK, or use ADB.</string>
+    <string name="settings_hide_launcher_icon_note">Morphe can still launch the helper for downloads, and update notifications or Shizuku updates continue to work. Non-secret settings are mirrored to Downloads/Morphe Helper/helper-settings.txt; older helper-settings.conf and helper-settings.conf.txt files are still read. The VirusTotal API key is never written there. Some launchers may need a restart before the icon changes.</string>
     <string name="settings_hide_launcher_icon_confirm_title">Hide launcher icon?</string>
-    <string name="settings_hide_launcher_icon_confirm_message">The app will disappear from your launcher. You will not be able to open Settings or the changelog afterwards. To restore the icon, set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.conf, then start a download from Morphe. You can also uninstall and reinstall the APK, or use ADB. Continue?</string>
+    <string name="settings_hide_launcher_icon_confirm_message">The app will disappear from your launcher. You will not be able to open Settings or the changelog afterwards. To restore the icon, set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.txt, then start a download from Morphe. Older helper-settings.conf and helper-settings.conf.txt files are also read. You can also uninstall and reinstall the APK, or use ADB. Continue?</string>
     <string name="settings_hide_launcher_icon_confirm">Hide icon</string>
     <string name="settings_hide_launcher_icon_hidden">Launcher icon hidden.</string>
     <string name="settings_hide_launcher_icon_shown">Launcher icon restored.</string>
@@ -157,14 +159,15 @@
     <string name="settings_folder_external">App external storage</string>
     <string name="settings_folder_custom">Choose another folder…</string>
     <string name="settings_keep_downloads">Keep downloads</string>
+    <string name="settings_retention_handoff">After hand-off</string>
     <string name="settings_retention_1h">Delete after 1 hour</string>
     <string name="settings_retention_24h">Delete after 24 hours</string>
     <string name="settings_retention_7d">Delete after 7 days</string>
     <string name="settings_keep_forever">Keep downloads</string>
-    <string name="settings_cleanup_note">Cleanup runs when the helper opens, so downloads are not slowed down.</string>
+    <string name="settings_cleanup_note">Cleanup runs when the helper opens. Retention covers both the temporary cache and Downloads/Morphe Helper copies. After hand-off skips the public copy and removes the temporary file after a short grace period.</string>
     <string name="settings_delete_all">Delete all downloaded APKs</string>
     <string name="settings_delete_dialog_title">Delete downloaded APKs?</string>
-    <string name="settings_delete_dialog_message">This removes every file in the selected download folder.</string>
+    <string name="settings_delete_dialog_message">This removes every downloaded APK, including copies in Downloads/Morphe Helper and the custom folder. The settings file is kept.</string>
     <string name="settings_no_folder_picker">No folder picker available.</string>
     <string name="settings_storage_denied">Storage permission denied. Keeping the current folder.</string>
     <string name="settings_appteka_title">\u26A0 Appteka warning</string>
@@ -179,7 +182,7 @@
     <string name="settings_remove_github_app">Remove GitHub app %1$s</string>
     <string name="settings_github_app_removed">%1$s removed from GitHub apps.</string>
     <string name="settings_source_order">Source order</string>
-    <string name="settings_source_order_note">Use the arrows to change which source is tried first.</string>
+    <string name="settings_source_order_note">Use the arrows to change which source is tried first. This is the same order shown on the main screen. Disabled sources are skipped. Uptodown follows a Morphe link and is not part of the ordered list.</string>
     <string name="settings_reset_order">Reset to default order</string>
     <string name="settings_test">Test</string>
     <string name="settings_testing">…</string>
@@ -194,7 +197,8 @@
 
     <!-- Download screen. -->
     <string name="download_subtitle">Fetching the original APK</string>
-    <string name="download_sources_summary">Sources: APKPure → Morphe → APKMirror → F-Droid → Aptoide → Appteka (SnapTube)</string>
+    <string name="download_sources_summary">Sources: %1$s</string>
+    <string name="download_sources_none">No download sources are enabled.</string>
     <string name="download_tried_title">What was tried</string>
     <string name="download_retry_failed">Retry failed sources</string>
     <string name="download_copy_details">Copy details</string>

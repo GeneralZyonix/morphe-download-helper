@@ -179,7 +179,7 @@
 
     <!-- Écran de téléchargement. -->
     <string name="download_subtitle">Récupération de l’APK d’origine</string>
-    <string name="download_sources_summary">Sources&#160;: APKPure → Morphe → APKMirror → F-Droid → Aptoide → Appteka (SnapTube)</string>
+    <string name="download_sources_summary">Sources&#160;: %1$s</string>
     <string name="download_tried_title">Ce qui a été essayé</string>
     <string name="download_retry_failed">Réessayer les sources en échec</string>
     <string name="download_copy_details">Copier les détails</string>

@@ -24,6 +24,7 @@ import android.widget.Toast;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
+import java.util.List;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -73,9 +74,13 @@ public class MainActivity extends Activity {
     private static final int WARN_TITLE = Color.parseColor("#FBBF24");
     private static final int WARN_TEXT = Color.parseColor("#FDE68A");
 
+    /** Container rebuilt in onResume so it always matches the saved order. */
+    private LinearLayout sourcesList;
+
     @Override
     protected void onResume() {
         super.onResume();
+        renderSources();
         UpdateManager.showInAppUpdatePopupIfAvailable(this);
     }
 
@@ -211,84 +216,16 @@ public class MainActivity extends Activity {
 
         sourcesCard.addView(text(getString(R.string.main_sources_title), 16, TEXT, true));
 
-        // Chips are laid out left-to-right; they are short enough for normal phones.
-        LinearLayout sourcesRow = new LinearLayout(this);
-        sourcesRow.setOrientation(LinearLayout.HORIZONTAL);
-        sourcesRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams sourcesRowParams = new LinearLayout.LayoutParams(
+        // The chips are rebuilt from AppSettings.sourceOrder(). This is the same
+        // list and order used by DownloadActivity, so the screen cannot drift
+        // from the real fallback behaviour again.
+        sourcesList = new LinearLayout(this);
+        sourcesList.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams sourcesListParams = new LinearLayout.LayoutParams(
                 MATCH_PARENT, WRAP_CONTENT);
-        sourcesRowParams.topMargin = dp(12);
-        sourcesCard.addView(sourcesRow, sourcesRowParams);
-
-        // 1. APKPure fast path when a versionCode is available.
-        TextView pureChip = sourceChip(
-                getString(R.string.source_apkpure),
-                Color.parseColor("#064E3B"),
-                Color.parseColor("#A7F3D0"));
-        LinearLayout.LayoutParams pureChipParams = new LinearLayout.LayoutParams(
-                WRAP_CONTENT, WRAP_CONTENT);
-        pureChipParams.setMarginEnd(dp(8));
-        sourcesRow.addView(pureChip, pureChipParams);
-
-        // 2. Morphe resolver/fallback link.
-        TextView morpheChip = sourceChip(
-                getString(R.string.main_source_morphe_link),
-                Color.parseColor("#312E81"),
-                Color.parseColor("#C7D2FE"));
-        LinearLayout.LayoutParams morpheChipParams = new LinearLayout.LayoutParams(
-                WRAP_CONTENT, WRAP_CONTENT);
-        morpheChipParams.setMarginEnd(dp(8));
-        sourcesRow.addView(morpheChip, morpheChipParams);
-
-        // 3. APKMirror search by package name and requested version.
-        TextView mirrorChip = sourceChip(
-                getString(R.string.source_apkmirror),
-                Color.parseColor("#1E3A8A"),
-                Color.parseColor("#BFDBFE"));
-        sourcesRow.addView(mirrorChip, new LinearLayout.LayoutParams(
-                WRAP_CONTENT, WRAP_CONTENT));
-
-        LinearLayout sourcesRow2 = new LinearLayout(this);
-        sourcesRow2.setOrientation(LinearLayout.HORIZONTAL);
-        sourcesRow2.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams sourcesRow2Params = new LinearLayout.LayoutParams(
-                MATCH_PARENT, WRAP_CONTENT);
-        sourcesRow2Params.topMargin = dp(8);
-        sourcesCard.addView(sourcesRow2, sourcesRow2Params);
-
-        TextView fdroidChip = sourceChip(
-                getString(R.string.source_fdroid),
-                Color.parseColor("#0F766E"),
-                Color.parseColor("#CCFBF1"));
-        LinearLayout.LayoutParams fdroidChipParams = new LinearLayout.LayoutParams(
-                WRAP_CONTENT, WRAP_CONTENT);
-        fdroidChipParams.setMarginEnd(dp(8));
-        sourcesRow2.addView(fdroidChip, fdroidChipParams);
-
-        TextView aptoideChip = sourceChip(
-                getString(R.string.source_aptoide),
-                Color.parseColor("#7C2D12"),
-                Color.parseColor("#FED7AA"));
-        LinearLayout.LayoutParams aptoideChipParams = new LinearLayout.LayoutParams(
-                WRAP_CONTENT, WRAP_CONTENT);
-        aptoideChipParams.setMarginEnd(dp(8));
-        sourcesRow2.addView(aptoideChip, aptoideChipParams);
-
-        TextView apptekaChip = sourceChip(
-                getString(R.string.main_source_appteka),
-                Color.parseColor("#7F1D1D"),
-                Color.parseColor("#FECACA"));
-        LinearLayout.LayoutParams apptekaChipParams = new LinearLayout.LayoutParams(
-                WRAP_CONTENT, WRAP_CONTENT);
-        apptekaChipParams.setMarginEnd(dp(8));
-        sourcesRow2.addView(apptekaChip, apptekaChipParams);
-
-        TextView uptodownChip = sourceChip(
-                getString(R.string.source_uptodown),
-                Color.parseColor("#4C1D95"),
-                Color.parseColor("#DDD6FE"));
-        sourcesRow2.addView(uptodownChip, new LinearLayout.LayoutParams(
-                WRAP_CONTENT, WRAP_CONTENT));
+        sourcesListParams.topMargin = dp(12);
+        sourcesCard.addView(sourcesList, sourcesListParams);
+        renderSources();
 
         TextView disabledSource = text(
                 getString(R.string.main_sources_note), 12, MUTED, false);
@@ -489,6 +426,75 @@ public class MainActivity extends Activity {
                 bold ? Typeface.BOLD : Typeface.NORMAL
         ));
         return view;
+    }
+
+    /**
+     * Rebuilds the source chips in the persisted order, skipping disabled
+     * sources. Called on resume so changes made in Settings show immediately.
+     */
+    private void renderSources() {
+        if (sourcesList == null) {
+            return;
+        }
+        sourcesList.removeAllViews();
+        List<String> order = AppSettings.sourceOrder(this);
+        int position = 0;
+        int column = 0;
+        LinearLayout row = null;
+        for (String key : order) {
+            if (!SourceSettings.isEnabled(this, key)) {
+                continue;
+            }
+            if (row == null || column == 2) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                        MATCH_PARENT, WRAP_CONTENT);
+                if (position > 0) {
+                    rowParams.topMargin = dp(8);
+                }
+                sourcesList.addView(row, rowParams);
+                column = 0;
+            }
+            position++;
+            String sourceName = SourceSettings.APPTEKA.equals(key)
+                    ? getString(R.string.main_source_appteka)
+                    : AppSettings.sourceLabel(this, key);
+            String label = getString(R.string.main_source_rank, position, sourceName);
+            int[] colors = sourceChipColors(key);
+            TextView chip = sourceChip(label, colors[0], colors[1]);
+            LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(
+                    WRAP_CONTENT, WRAP_CONTENT);
+            chipParams.setMarginEnd(dp(8));
+            row.addView(chip, chipParams);
+            column++;
+        }
+        if (position == 0) {
+            sourcesList.addView(text(
+                    getString(R.string.main_no_sources), 13, MUTED, false));
+        }
+    }
+
+    private int[] sourceChipColors(String key) {
+        switch (key) {
+            case SourceSettings.FALLBACK:
+                return new int[]{Color.parseColor("#312E81"), Color.parseColor("#C7D2FE")};
+            case SourceSettings.APKMIRROR:
+                return new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#BFDBFE")};
+            case SourceSettings.APKPURE:
+                return new int[]{Color.parseColor("#064E3B"), Color.parseColor("#A7F3D0")};
+            case SourceSettings.FDROID:
+                return new int[]{Color.parseColor("#0F766E"), Color.parseColor("#CCFBF1")};
+            case SourceSettings.APTOIDE:
+                return new int[]{Color.parseColor("#7C2D12"), Color.parseColor("#FED7AA")};
+            case SourceSettings.APPTEKA:
+                return new int[]{Color.parseColor("#7F1D1D"), Color.parseColor("#FECACA")};
+            case SourceSettings.GITHUB:
+                return new int[]{Color.parseColor("#1F2937"), Color.parseColor("#E5E7EB")};
+            default:
+                return new int[]{Color.parseColor("#4C1D95"), Color.parseColor("#DDD6FE")};
+        }
     }
 
     /** Creates a small rounded pill used for the source list. */

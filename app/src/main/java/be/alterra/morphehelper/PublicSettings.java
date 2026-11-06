@@ -35,7 +35,17 @@ import java.util.Map;
  */
 final class PublicSettings {
 
-    static final String FILE_NAME = "helper-settings.conf";
+    /**
+     * Canonical name for new files. Android's MediaStore appends {@code .txt} to
+     * {@code text/plain} files whose name does not already match the MIME type,
+     * which is how earlier builds ended up with {@code helper-settings.conf.txt}.
+     */
+    static final String FILE_NAME = "helper-settings.txt";
+    private static final String LEGACY_CONF = "helper-settings.conf";
+    private static final String LEGACY_CONF_TXT = "helper-settings.conf.txt";
+    private static final String[] FILE_NAMES = {
+            FILE_NAME, LEGACY_CONF_TXT, LEGACY_CONF
+    };
     private static final String FOLDER = "Morphe Helper";
     private static final String RELATIVE_PATH =
             Environment.DIRECTORY_DOWNLOADS + "/" + FOLDER;
@@ -126,13 +136,22 @@ final class PublicSettings {
                     parsed.add(candidate);
                 }
             }
-            for (String key : AppSettings.defaultOrder()) {
-                if (!parsed.contains(key)) {
-                    parsed.add(key);
+            if (parsed.isEmpty()
+                    || AppSettings.isLegacyDefaultOrder(parsed)
+                    || parsed.equals(AppSettings.defaultOrder())) {
+                // An auto-generated default is not a user choice. Reset it so a
+                // future default-order change can migrate again.
+                HelperLog.info("Public settings: using default source order");
+                AppSettings.resetSourceOrder(context);
+            } else {
+                for (String key : AppSettings.defaultOrder()) {
+                    if (!parsed.contains(key)) {
+                        parsed.add(key);
+                    }
                 }
-            }
-            if (!parsed.isEmpty()) {
-                AppSettings.setSourceOrder(context, parsed);
+                if (!parsed.isEmpty()) {
+                    AppSettings.setSourceOrder(context, parsed);
+                }
             }
         }
 
@@ -234,10 +253,10 @@ final class PublicSettings {
             HelperLog.error("Cannot create public settings folder", null);
             return;
         }
-        try (FileOutputStream output = new FileOutputStream(
-                new File(dir, FILE_NAME), false)) {
+        File target = legacyFile();
+        try (FileOutputStream output = new FileOutputStream(target, false)) {
             output.write(text.getBytes(StandardCharsets.UTF_8));
-            HelperLog.info("Wrote public settings file");
+            HelperLog.info("Wrote public settings file " + target.getName());
         } catch (Exception error) {
             HelperLog.error("Could not write public settings", error);
         }
@@ -297,47 +316,140 @@ final class PublicSettings {
 
     private static Uri findFile(Context context) throws IOException {
         ContentResolver resolver = context.getContentResolver();
-        // Search by display name only. Some file managers rewrite the relative
-        // path or MediaStore lags behind after an edit, which previously caused
-        // the helper to create a duplicate "helper-settings.conf (1)" file.
-        try (Cursor cursor = resolver.query(
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                new String[]{
-                        MediaStore.MediaColumns._ID,
-                        MediaStore.MediaColumns.RELATIVE_PATH
-                },
-                MediaStore.MediaColumns.DISPLAY_NAME + "=?",
-                new String[]{FILE_NAME},
-                MediaStore.MediaColumns.DATE_MODIFIED + " DESC")) {
-            Uri fallback = null;
-            if (cursor != null) {
-                while (cursor.moveToNext()) {
-                    Uri uri = ContentUris.withAppendedId(
-                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(0));
-                    String relativePath = cursor.getString(1);
-                    if (relativePath != null
-                            && relativePath.toLowerCase(Locale.US)
-                                    .contains("morphe helper")) {
-                        HelperLog.info("Public settings file found at "
-                                + relativePath + FILE_NAME);
-                        return uri;
-                    }
-                    if (fallback == null) {
-                        fallback = uri;
-                    }
-                }
+        // MediaStore turns a text/plain name of "helper-settings.conf" into
+        // "helper-settings.conf.txt", so earlier builds never found the file
+        // they had just created and inserted "helper-settings.conf (1).txt".
+        // Accept every name we have shipped and prefer the newest copy in the
+        // Morphe Helper folder.
+        try {
+            Uri newest = findNewest(resolver, FILE_NAMES, true);
+            if (newest != null) {
+                return newest;
             }
-            return fallback;
+            Uri outsideFolder = findNewest(resolver, FILE_NAMES, false);
+            if (outsideFolder != null) {
+                HelperLog.info("Public settings file found outside Morphe Helper");
+                return outsideFolder;
+            }
+            // If only a renamed duplicate such as "helper-settings.conf (1).txt"
+            // exists, use it instead of creating yet another file.
+            Uri duplicate = findDuplicate(resolver);
+            if (duplicate != null) {
+                HelperLog.info("Using duplicate public settings file; please delete"
+                        + " extra helper-settings copies");
+            }
+            return duplicate;
         } catch (Exception error) {
             throw new IOException("Could not query public settings file", error);
         }
     }
 
+    private static Uri findNewest(ContentResolver resolver, String[] names,
+                                  boolean inFolder) throws Exception {
+        String selection = MediaStore.MediaColumns.DISPLAY_NAME + " IN ("
+                + TextUtils.join(",", java.util.Collections.nCopies(names.length, "?"))
+                + ")";
+        Uri best = null;
+        long bestModified = -1;
+        try (Cursor cursor = resolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                new String[]{
+                        MediaStore.MediaColumns._ID,
+                        MediaStore.MediaColumns.DISPLAY_NAME,
+                        MediaStore.MediaColumns.RELATIVE_PATH,
+                        MediaStore.MediaColumns.DATE_MODIFIED
+                },
+                selection,
+                names,
+                MediaStore.MediaColumns.DATE_MODIFIED + " DESC")) {
+            if (cursor == null) {
+                return null;
+            }
+            while (cursor.moveToNext()) {
+                String relativePath = cursor.getString(2);
+                boolean isInFolder = relativePath != null
+                        && relativePath.toLowerCase(Locale.US).contains("morphe helper");
+                if (isInFolder != inFolder) {
+                    continue;
+                }
+                long modified = cursor.getLong(3);
+                if (modified > bestModified) {
+                    bestModified = modified;
+                    best = ContentUris.withAppendedId(
+                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(0));
+                    HelperLog.info("Public settings file found: "
+                            + (relativePath == null ? "" : relativePath)
+                            + cursor.getString(1));
+                }
+            }
+        }
+        return best;
+    }
+
+    private static Uri findDuplicate(ContentResolver resolver) throws Exception {
+        Uri best = null;
+        long bestModified = -1;
+        try (Cursor cursor = resolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                new String[]{
+                        MediaStore.MediaColumns._ID,
+                        MediaStore.MediaColumns.DISPLAY_NAME,
+                        MediaStore.MediaColumns.RELATIVE_PATH,
+                        MediaStore.MediaColumns.DATE_MODIFIED
+                },
+                MediaStore.MediaColumns.DISPLAY_NAME + " LIKE ?",
+                new String[]{"helper-settings%"},
+                MediaStore.MediaColumns.DATE_MODIFIED + " DESC")) {
+            if (cursor == null) {
+                return null;
+            }
+            while (cursor.moveToNext()) {
+                String name = cursor.getString(1);
+                if (!isSettingsFileName(name)) {
+                    continue;
+                }
+                long modified = cursor.getLong(3);
+                if (modified > bestModified) {
+                    bestModified = modified;
+                    best = ContentUris.withAppendedId(
+                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(0));
+                }
+            }
+        }
+        return best;
+    }
+
+    /** True for the canonical file, legacy names, and MediaStore duplicates. */
+    static boolean isSettingsFileName(String name) {
+        if (name == null) {
+            return false;
+        }
+        String lower = name.toLowerCase(Locale.US);
+        if (!lower.endsWith(".txt") && !lower.endsWith(".conf")) {
+            return false;
+        }
+        int dot = lower.lastIndexOf('.');
+        String base = dot > 0 ? lower.substring(0, dot) : lower;
+        return base.equals("helper-settings")
+                || base.equals("helper-settings.conf")
+                || base.matches("helper-settings(\\.conf)? \\(\\d+\\)");
+    }
+
     private static File legacyFile() {
-        return new File(
+        File dir = new File(
                 Environment.getExternalStoragePublicDirectory(
                         Environment.DIRECTORY_DOWNLOADS),
-                FOLDER + "/" + FILE_NAME);
+                FOLDER);
+        File newest = null;
+        for (String name : FILE_NAMES) {
+            File candidate = new File(dir, name);
+            if (candidate.isFile()
+                    && (newest == null
+                    || candidate.lastModified() > newest.lastModified())) {
+                newest = candidate;
+            }
+        }
+        return newest != null ? newest : new File(dir, FILE_NAME);
     }
 
     private static String readAll(InputStream input) throws IOException {
