@@ -5,6 +5,16 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.7] - 2026-11-06
+
+### Fixed
+
+- Disabling **GitHub releases** now only blocks the automatic GitHub search and remembered
+  repositories. GitHub links supplied by Morphe's resolver remain available as part of the
+  Morphe fallback source.
+- Resolver-supplied GitHub downloads still receive the package, version, and installed-app
+  signature checks.
+
 ## [1.6.6] - 2026-11-06
 
 ### Added
