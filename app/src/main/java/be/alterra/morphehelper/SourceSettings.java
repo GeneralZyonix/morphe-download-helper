@@ -39,6 +39,7 @@ final class SourceSettings {
                 .putBoolean(FDROID, true)
                 .putBoolean(APTOIDE, true)
                 .putBoolean(APPTEKA, true)
+                .putBoolean(GITHUB, true)
                 .apply();
     }
 
@@ -52,7 +53,7 @@ final class SourceSettings {
 
     static int enabledCount(Context context) {
         int count = 0;
-        for (String key : new String[]{FALLBACK, APKMIRROR, APKPURE, UPTODOWN, FDROID, APTOIDE, APPTEKA}) {
+        for (String key : new String[]{FALLBACK, APKMIRROR, APKPURE, UPTODOWN, FDROID, APTOIDE, APPTEKA, GITHUB}) {
             if (isEnabled(context, key)) {
                 count++;
             }

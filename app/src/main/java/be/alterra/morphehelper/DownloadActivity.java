@@ -1726,7 +1726,7 @@ public class DownloadActivity extends Activity {
             try {
                 HelperLog.info("Trying GitHub " + candidate.repo + " "
                         + candidate.tag + " (" + candidate.assetName + ")");
-                File file = downloadFile(
+                File file = downloadGitHubFile(
                         candidate.assetUrl,
                         "https://github.com/" + candidate.repo
                                 + "/releases/tag/" + candidate.tag,
@@ -2180,42 +2180,12 @@ public class DownloadActivity extends Activity {
             }
         }
 
-        // GitHub is deliberately the final APK source. Remembered repositories are
-        // only used after the normal sources have failed.
-        GitHubAppStore.Entry remembered = GitHubAppStore.get(this, pkg);
-        if (remembered != null
-                && (retrySources == null || retrySources.contains(SourceSettings.GITHUB))) {
-            setSourceLabel(R.string.source_label_github);
-            setStatus(R.string.download_checking_github_releases);
-            HelperLog.info("Trying remembered GitHub repo as last resort "
-                    + remembered.repo);
-            try {
-                File file = downloadFromRememberedGitHub(
-                        remembered, pkg, version, fileType, abis);
-                markSource(SourceSettings.GITHUB, true, remembered.repo);
-                return file;
-            } catch (Exception error) {
-                HelperLog.error("Remembered GitHub repo failed", error);
-                markSource(SourceSettings.GITHUB, false, error.getMessage());
-            }
-        }
-
-        // If no repository was remembered, search GitHub automatically as the final
-        // APK source. The manual GitHub button is intentionally gone.
-        boolean hasRequestedVersion = !TextUtils.isEmpty(version)
-                && !"any".equalsIgnoreCase(version.trim());
-        if (hasRequestedVersion
-                && (retrySources == null || retrySources.contains(SourceSettings.GITHUB))) {
-            setSourceLabel(R.string.source_label_github);
-            setStatus(R.string.download_searching_github);
-            HelperLog.info("Searching GitHub releases as last resort");
-            try {
-                File file = downloadFromGitHubSearch(pkg, version, fileType, abis);
-                markSource(SourceSettings.GITHUB, true, getString(R.string.source_detail_automatic_search));
-                return file;
-            } catch (Exception error) {
-                HelperLog.error("Automatic GitHub search failed", error);
-                markSource(SourceSettings.GITHUB, false, error.getMessage());
+        // GitHub is opt-out and can be moved in the source order. In the default
+        // order it remains the final automatic APK source.
+        if (sourceAllowed(SourceSettings.GITHUB)) {
+            File github = tryGitHubFallback(pkg, version, fileType, abis);
+            if (github != null) {
+                return github;
             }
         }
 
@@ -2234,6 +2204,65 @@ public class DownloadActivity extends Activity {
         throw new IOException("No enabled download source found an APK");
     }
 
+    /**
+     * Downloads a GitHub asset and additionally verifies that its signing
+     * certificate matches the installed app when that app is available.
+     */
+    private File downloadGitHubFile(String url, String referer, String pkg, String version,
+                                    String fileType) throws IOException {
+        File file = downloadFile(url, referer, pkg, version, fileType);
+        try {
+            DownloadedFileValidator.verifyInstalledSignature(this, file, pkg);
+        } catch (IOException error) {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+            throw error;
+        }
+        return file;
+    }
+
+    /**
+     * Tries the remembered GitHub repository first, then an automatic GitHub
+     * release search. Returns null when GitHub is not a viable source for this
+     * request. The caller must check that GitHub is enabled.
+     */
+    private File tryGitHubFallback(String pkg, String version, String fileType,
+                                   String[] abis) {
+        GitHubAppStore.Entry remembered = GitHubAppStore.get(this, pkg);
+        if (remembered != null) {
+            setSourceLabel(R.string.source_label_github);
+            setStatus(R.string.download_checking_github_releases);
+            HelperLog.info("Trying remembered GitHub repo " + remembered.repo);
+            try {
+                File file = downloadFromRememberedGitHub(
+                        remembered, pkg, version, fileType, abis);
+                markSource(SourceSettings.GITHUB, true, remembered.repo);
+                return file;
+            } catch (Exception error) {
+                HelperLog.error("Remembered GitHub repo failed", error);
+                markSource(SourceSettings.GITHUB, false, error.getMessage());
+            }
+        }
+
+        boolean hasRequestedVersion = !TextUtils.isEmpty(version)
+                && !"any".equalsIgnoreCase(version.trim());
+        if (hasRequestedVersion) {
+            setSourceLabel(R.string.source_label_github);
+            setStatus(R.string.download_searching_github);
+            HelperLog.info("Searching GitHub releases");
+            try {
+                File file = downloadFromGitHubSearch(pkg, version, fileType, abis);
+                markSource(SourceSettings.GITHUB, true,
+                        getString(R.string.source_detail_automatic_search));
+                return file;
+            } catch (Exception error) {
+                HelperLog.error("Automatic GitHub search failed", error);
+                markSource(SourceSettings.GITHUB, false, error.getMessage());
+            }
+        }
+        return null;
+    }
+
     private File downloadFromRememberedGitHub(GitHubAppStore.Entry entry, String pkg,
                                                String version, String fileType,
                                                String[] abis) throws IOException {
@@ -2245,7 +2274,7 @@ public class DownloadActivity extends Activity {
         IOException last = null;
         for (GitHubReleaseResolver.Candidate candidate : candidates) {
             try {
-                return downloadFile(
+                return downloadGitHubFile(
                         candidate.assetUrl,
                         "https://github.com/" + candidate.repo
                                 + "/releases/tag/" + candidate.tag,
@@ -2264,6 +2293,13 @@ public class DownloadActivity extends Activity {
 
     private File resolveCustom(String pkg, String version, long[] codes, boolean hasCodes,
                                String fileType, String[] abis) throws IOException {
+        String fallbackRepo = githubRepoFromUrl(fallbackUrl);
+        if (fallbackRepo != null) {
+            githubResolverHint = true;
+            HelperLog.info("Remembering fallback GitHub repo " + fallbackRepo
+                    + " for custom source order");
+            GitHubAppStore.put(this, pkg, fallbackRepo, requestedAppName);
+        }
         for (String source : AppSettings.sourceOrder(this)) {
             if (!sourceAllowed(source)) {
                 continue;
@@ -2281,6 +2317,8 @@ public class DownloadActivity extends Activity {
                 file = customAptoide(pkg, version, codes, fileType);
             } else if (SourceSettings.APPTEKA.equals(source)) {
                 file = customAppteka(pkg, version, codes, fileType);
+            } else if (SourceSettings.GITHUB.equals(source)) {
+                file = tryGitHubFallback(pkg, version, fileType, abis);
             }
             if (file != null) {
                 return file;

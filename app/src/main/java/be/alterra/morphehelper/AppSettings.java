@@ -55,7 +55,8 @@ final class AppSettings {
             SourceSettings.APKMIRROR,
             SourceSettings.FDROID,
             SourceSettings.APTOIDE,
-            SourceSettings.APPTEKA
+            SourceSettings.APPTEKA,
+            SourceSettings.GITHUB
     );
 
     private AppSettings() {

@@ -174,6 +174,9 @@ public class SettingsActivity extends Activity {
         addSourceRow(card, SourceSettings.APPTEKA,
                 getString(R.string.settings_source_appteka_title),
                 getString(R.string.settings_source_appteka_desc));
+        addSourceRow(card, SourceSettings.GITHUB,
+                getString(R.string.settings_source_github_title),
+                getString(R.string.settings_source_github_desc));
 
         addApptekaWarningCard(root);
         addGitHubAppsCard(root);
@@ -1173,7 +1176,8 @@ public class SettingsActivity extends Activity {
         labels.addView(text(title, 15, TEXT, true));
         int descColor = SourceSettings.APPTEKA.equals(key) ? RED
                 : (SourceSettings.APKPURE.equals(key)
-                || SourceSettings.UPTODOWN.equals(key)) ? WARN_TEXT : MUTED;
+                || SourceSettings.UPTODOWN.equals(key)
+                || SourceSettings.GITHUB.equals(key)) ? WARN_TEXT : MUTED;
         TextView desc = text(description, 12, descColor, false);
         desc.setPadding(0, dp(3), 0, 0);
         labels.addView(desc);

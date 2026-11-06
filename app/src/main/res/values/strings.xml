@@ -93,6 +93,8 @@
     <string name="settings_source_aptoide_desc">API search; only uploads marked TRUSTED</string>
     <string name="settings_source_appteka_title">\u26A0 Appteka</string>
     <string name="settings_source_appteka_desc">Modded APK catalog; not recommended for apps other than SnapTube</string>
+    <string name="settings_source_github_title">GitHub releases</string>
+    <string name="settings_source_github_desc">Automatic release search; verifies package, version, and the installed app signature when available</string>
     <string name="settings_updates">Updates</string>
     <string name="settings_status_not_checked">Current v%1$s • Not checked yet</string>
     <string name="settings_status_available">Current v%1$s • v%2$s available</string>
