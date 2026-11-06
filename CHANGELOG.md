@@ -5,6 +5,17 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.15-beta.2] - 2026-11-06
+
+### Fixed
+
+- Update checks now follow the installed channel. Stable installs still see
+  only stable releases; a pre-release install is compared with newer
+  pre-releases instead of being told the older stable release is the latest.
+  The up-to-date message now shows the installed version.
+- Added the complete French translations from
+  [#17](https://github.com/GeneralZyonix/morphe-download-helper/pull/17).
+
 ## [1.6.15-beta.1] - 2026-11-06
 
 ### Added

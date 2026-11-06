@@ -196,7 +196,8 @@ final class UpdateManager {
         Context app = context.getApplicationContext();
         new Thread(() -> {
             try {
-                UpdateInfo info = UpdateChecker.check();
+                UpdateInfo info = UpdateChecker.check(
+                        UpdateChecker.installedVersion(app));
                 cacheInfo(app, info);
                 MAIN.post(() -> callback.done(info, null));
             } catch (Exception error) {
@@ -330,13 +331,14 @@ final class UpdateManager {
         new Thread(() -> {
             String message;
             try {
-                UpdateInfo info = UpdateChecker.check();
+                String current = UpdateChecker.installedVersion(app);
+                UpdateInfo info = UpdateChecker.check(current);
                 cacheInfo(app, info);
 
                 String skipped = prefs(app).getString(KEY_SKIPPED_VERSION, "");
-                if (!info.isNewerThan(UpdateChecker.installedVersion(app))) {
+                if (!info.isNewerThan(current)) {
                     cancelNotification(app);
-                    message = app.getString(R.string.update_msg_up_to_date, info.version);
+                    message = app.getString(R.string.update_msg_up_to_date, current);
                 } else if (info.version.equals(skipped)) {
                     cancelNotification(app);
                     message = app.getString(R.string.update_msg_skipped, info.version);

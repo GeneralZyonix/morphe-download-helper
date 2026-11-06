@@ -23,6 +23,11 @@ final class UpdateInfo {
         return compareVersions(version, currentVersion) > 0;
     }
 
+    /** True for versions such as {@code 1.6.15-beta.1}. */
+    static boolean isPrerelease(String version) {
+        return clean(version).contains("-");
+    }
+
     static int compareVersions(String left, String right) {
         String[] leftParts = clean(left).split("-", 2);
         String[] rightParts = clean(right).split("-", 2);

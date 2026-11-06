@@ -35,6 +35,32 @@ final class UpdateChecker {
     private UpdateChecker() {
     }
 
+    /**
+     * Returns the newest release for the installed channel. Stable installs
+     * only see stable releases; an installed pre-release may also be compared
+     * with newer pre-releases, so testers are not told an older stable build
+     * is the latest version.
+     */
+    static UpdateInfo check(String currentVersion) throws IOException {
+        UpdateInfo stable = check();
+        if (!UpdateInfo.isPrerelease(currentVersion)) {
+            return stable;
+        }
+        try {
+            UpdateInfo best = stable;
+            for (UpdateInfo candidate : releases(true)) {
+                if (candidate.isNewerThan(best.version)) {
+                    best = candidate;
+                }
+            }
+            return best;
+        } catch (IOException error) {
+            HelperLog.error("Could not check the pre-release channel; "
+                    + "using the stable release", error);
+            return stable;
+        }
+    }
+
     static UpdateInfo check() throws IOException {
         Request request = new Request.Builder()
                 .url(LATEST_RELEASE)
@@ -60,6 +86,10 @@ final class UpdateChecker {
     }
 
     static List<UpdateInfo> releases() throws IOException {
+        return releases(false);
+    }
+
+    static List<UpdateInfo> releases(boolean includePrereleases) throws IOException {
         Request request = new Request.Builder()
                 .url(RELEASES)
                 .header("User-Agent", USER_AGENT)
@@ -81,7 +111,8 @@ final class UpdateChecker {
             for (int i = 0; i < array.length(); i++) {
                 JSONObject release = array.optJSONObject(i);
                 if (release == null || release.optBoolean("draft", false)
-                        || release.optBoolean("prerelease", false)) {
+                        || (!includePrereleases
+                        && release.optBoolean("prerelease", false))) {
                     continue;
                 }
                 result.add(parseRelease(release));
