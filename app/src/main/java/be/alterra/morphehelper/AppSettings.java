@@ -448,7 +448,20 @@ final class AppSettings {
     }
 
     private static int deleteCacheFiles(Context context, long cutoff) {
-        File[] files = downloadDir(context).listFiles();
+        // Clean both possible cache locations, even if the user switched the
+        // download folder after the files were created.
+        int deleted = deleteCacheFilesIn(
+                new File(context.getCacheDir(), "downloads"), cutoff);
+        File externalRoot = context.getExternalFilesDir(null);
+        if (externalRoot != null) {
+            deleted += deleteCacheFilesIn(
+                    new File(externalRoot, "downloads"), cutoff);
+        }
+        return deleted;
+    }
+
+    private static int deleteCacheFilesIn(File dir, long cutoff) {
+        File[] files = dir.listFiles();
         if (files == null) {
             return 0;
         }
@@ -502,8 +515,15 @@ final class AppSettings {
 
     private static boolean isCacheFile(Context context, File file) {
         try {
-            String dir = downloadDir(context).getCanonicalPath() + File.separator;
-            return file.getCanonicalPath().startsWith(dir);
+            String path = file.getCanonicalPath();
+            File internal = new File(context.getCacheDir(), "downloads");
+            if (path.startsWith(internal.getCanonicalPath() + File.separator)) {
+                return true;
+            }
+            File externalRoot = context.getExternalFilesDir(null);
+            return externalRoot != null
+                    && path.startsWith(new File(externalRoot, "downloads")
+                    .getCanonicalPath() + File.separator);
         } catch (Exception ignored) {
             return false;
         }
