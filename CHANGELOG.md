@@ -5,7 +5,7 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [1.6.12] - 2026-11-06
 
 ### Fixed
 
