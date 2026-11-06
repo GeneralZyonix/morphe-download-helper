@@ -26,6 +26,8 @@
     <string name="main_sources_title">Sources de téléchargement</string>
     <string name="main_source_morphe_link">Lien Morphe</string>
     <string name="main_source_appteka">\u26A0 Appteka</string>
+    <string name="main_source_rank">%1$d. %2$s</string>
+    <string name="main_no_sources">Aucune source n’est activée. Ouvrez les paramètres pour en activer au moins une.</string>
     <string name="main_sources_note">Les sources sont essayées dans cet ordre. Appteka est limité à SnapTube par défaut&#160;; les détails des sources et les solutions de repli via navigateur se trouvent dans les paramètres.</string>
     <string name="main_open_morphe">Ouvrir Morphe</string>
     <string name="main_share_log">Partager le journal</string>
@@ -78,6 +80,17 @@
     <string name="update_error_shizuku">Échec de Shizuku&#160;: %1$s. Ouverture de l’installateur Android…</string>
     <string name="update_installer_opened">Installateur Android ouvert. Suivez les instructions.</string>
     <string name="update_error_installer">Impossible d’ouvrir l’installateur&#160;: %1$s</string>
+    <string name="update_change_version">Changer de version</string>
+    <string name="update_loading_versions">Chargement des versions…</string>
+    <string name="update_versions_unavailable">Historique des versions indisponible</string>
+    <string name="update_choose_version">Choisir une version</string>
+    <string name="update_release_notes_for">Notes de version de la v%1$s.</string>
+    <string name="update_viewing_versions">Actuelle&#160;: v%1$s  •  Consultation&#160;: v%2$s</string>
+    <string name="update_popup_title">Mise à jour disponible</string>
+    <string name="update_popup_message">Morphe Download Helper v%1$s est disponible. Vous avez la v%2$s.</string>
+    <string name="update_popup_now">Mettre à jour</string>
+    <string name="update_popup_later">Plus tard</string>
+    <string name="update_popup_skip">Ignorer cette version</string>
 
     <!-- Écran des paramètres. -->
     <string name="settings_subtitle">Sources, stockage et ordre de téléchargement</string>
@@ -98,12 +111,26 @@
     <string name="settings_source_aptoide_desc">Recherche API&#160;; uniquement les envois marqués TRUSTED</string>
     <string name="settings_source_appteka_title">\u26A0 Appteka</string>
     <string name="settings_source_appteka_desc">Catalogue d’APK modifiés&#160;; déconseillé pour les applis autres que SnapTube</string>
+    <string name="settings_source_github_title">Versions GitHub</string>
+    <string name="settings_source_github_desc">Solution de repli par recherche automatique&#160;; les liens GitHub fournis par le résolveur fonctionnent encore quand cette option est désactivée. Signature vérifiée à l’installation de l’appli.</string>
+    <string name="settings_launcher_icon">Icône de l’appli</string>
+    <string name="settings_hide_launcher_icon">Afficher l’icône de l’appli</string>
+    <string name="settings_hide_launcher_icon_detail">Garder l’appli visible dans votre lanceur</string>
+    <string name="settings_hide_launcher_icon_confirm_title">Masquer l’icône de l’appli&#160;?</string>
+    <string name="settings_hide_launcher_icon_confirm_message">L’appli disparaîtra de votre lanceur. Vous pouvez toujours l’ouvrir depuis Paramètres Android → Applis → Morphe Download Helper → Ouvrir, ou lorsque Morphe lance un téléchargement. Vous pouvez aussi définir show_launcher_icon=true dans Downloads/Morphe Helper/helper-settings.txt. Continuer&#160;?</string>
+    <string name="settings_hide_launcher_icon_confirm">Masquer l’icône</string>
+    <string name="settings_hide_launcher_icon_hidden">Icône de l’appli masquée.</string>
+    <string name="settings_hide_launcher_icon_shown">Icône de l’appli affichée.</string>
     <string name="settings_updates">Mises à jour</string>
     <string name="settings_status_not_checked">Actuelle&#160;: v%1$s • Pas encore vérifié</string>
     <string name="settings_status_available">Actuelle&#160;: v%1$s • v%2$s disponible</string>
     <string name="settings_status_up_to_date">Actuelle&#160;: v%1$s • À jour</string>
     <string name="settings_check_updates">Rechercher les mises à jour</string>
     <string name="settings_check_updates_detail">Me notifier lorsqu’une nouvelle version existe</string>
+    <string name="settings_update_popup">Fenêtre de mise à jour</string>
+    <string name="settings_update_popup_desc">Afficher une fenêtre à l’ouverture de l’appli si une mise à jour est disponible</string>
+    <string name="settings_update_popup_enabled">Fenêtre de mise à jour activée.</string>
+    <string name="settings_update_popup_disabled">Fenêtre de mise à jour désactivée.</string>
     <string name="settings_checks_enabled">Recherche de mises à jour activée.</string>
     <string name="settings_checks_disabled">Recherche de mises à jour désactivée.</string>
     <string name="settings_mode_shizuku">Automatique via Shizuku</string>
@@ -149,6 +176,7 @@
     <string name="settings_retention_1h">Supprimer après 1 heure</string>
     <string name="settings_retention_24h">Supprimer après 24 heures</string>
     <string name="settings_retention_7d">Supprimer après 7 jours</string>
+    <string name="settings_retention_handoff">Après le transfert</string>
     <string name="settings_keep_forever">Conserver les téléchargements</string>
     <string name="settings_cleanup_note">Le nettoyage s’exécute à l’ouverture de l’assistant, pour ne pas ralentir les téléchargements.</string>
     <string name="settings_delete_all">Supprimer tous les APK téléchargés</string>
@@ -184,6 +212,7 @@
     <!-- Écran de téléchargement. -->
     <string name="download_subtitle">Récupération de l’APK d’origine</string>
     <string name="download_sources_summary">Sources&#160;: %1$s</string>
+    <string name="download_sources_none">Aucune source de téléchargement n’est activée.</string>
     <string name="download_tried_title">Ce qui a été essayé</string>
     <string name="download_retry_failed">Réessayer les sources en échec</string>
     <string name="download_copy_details">Copier les détails</string>
@@ -258,6 +287,7 @@
     <string name="source_detail_opened_uptodown">Uptodown ouvert</string>
     <string name="source_detail_resolver_apkpure">Résolveur APKPure</string>
     <string name="source_detail_resolver_apkmirror">Résolveur APKMirror</string>
+    <string name="source_detail_resolver_github">Version GitHub du résolveur</string>
     <string name="source_detail_resolver_direct">Résolveur&#160;: fichier direct</string>
     <string name="source_detail_resolver_no_file">Le résolveur n’a produit aucun fichier</string>
     <string name="source_detail_no_resolver_result">Aucun résultat du résolveur</string>
@@ -399,6 +429,9 @@
     <string name="virustotal_preparing_upload">Préparation de l’envoi à VirusTotal...</string>
     <string name="virustotal_uploading">Envoi à VirusTotal... %1$d%%</string>
     <string name="virustotal_waiting_analysis">Attente de l’analyse VirusTotal...</string>
+    <string name="virustotal_waiting_analysis_seconds">En attente de l’analyse VirusTotal… %1$d s</string>
+    <string name="virustotal_scan_note">VirusTotal peut mettre plusieurs minutes à analyser un nouvel envoi. L’assistant attend jusqu’à 5 minutes et poursuit automatiquement dès que le résultat est prêt. Touchez Ignorer l’analyse pour continuer sans attendre.</string>
+    <string name="virustotal_skip_scan">Ignorer l’analyse</string>
     <string name="virustotal_pending_abort">L’analyse VirusTotal est encore en attente. Transmission abandonnée.</string>
     <string name="virustotal_pending_reason">L’analyse VirusTotal est encore en attente&#160;; transmission abandonnée</string>
     <string name="virustotal_pending_status">L’analyse VirusTotal est encore en attente.</string>
