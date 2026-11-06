@@ -286,10 +286,8 @@ final class UpdateManager {
                 < prefs(activity).getLong(KEY_SNOOZE_UNTIL, 0)) {
             return;
         }
-        if (MODE_SHIZUKU.equals(mode(activity))
-                && ShizukuHelper.status(activity) == ShizukuHelper.READY
-                && !info.assetUrl.isEmpty()) {
-            // The automatic Shizuku update flow is already handling this one.
+        if (MODE_SHIZUKU.equals(mode(activity))) {
+            // Automatic Shizuku updates replace the notification and popup flow.
             return;
         }
         if (info.version.equals(popupVersionShown)) {
