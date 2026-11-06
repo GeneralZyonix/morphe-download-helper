@@ -5,7 +5,7 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [1.6.11] - 2026-11-06
 
 ### Added
 
@@ -14,23 +14,36 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   removes it on a later launch. Requested by
   [@thegodfather-hub](https://github.com/thegodfather-hub) in
   [#10](https://github.com/GeneralZyonix/morphe-download-helper/issues/10).
+- More detailed download diagnostics: device, Android version, ABIs, free storage,
+  network type and link speed, final URL, HTTP protocol, CDN headers, TLS details, and
+  DNS/connect/TLS/header/body timings. This is intended to isolate the slow-download
+  reports in [#7](https://github.com/GeneralZyonix/morphe-download-helper/issues/7).
 
 ### Changed
 
 - The default source order is now **Morphe link → APKMirror → APKPure → F-Droid →
   Aptoide → Appteka → GitHub releases**. The APKPure fast path now runs in its configured
   position instead of before the Morphe resolver.
+- The APKMirror WebView now hides the fixed **APKMirror Premium** banner. Requested by
+  [@thegodfather-hub](https://github.com/thegodfather-hub) in
+  [#9](https://github.com/GeneralZyonix/morphe-download-helper/issues/9).
 
 ### Fixed
 
-- The **Download sources** list on the main screen is now generated from the same saved
-  order used by the resolver, so it cannot drift from **Settings → Source order**.
-  Reported by [@IkoMosiEntertainmentHub](https://github.com/IkoMosiEntertainmentHub) in
+- The **Download sources** list on the main screen and the download screen now use the
+  same saved order as the resolver, so they cannot drift from **Settings → Source order**.
+  Existing custom orders are preserved, and the old auto-generated APKPure-first order is
+  migrated to the new default. Reported by
+  [@IkoMosiEntertainmentHub](https://github.com/IkoMosiEntertainmentHub) in
   [#11](https://github.com/GeneralZyonix/morphe-download-helper/issues/11).
 - Retention cleanup now also removes expired `Downloads/Morphe Helper` and custom-folder
   copies, not only the internal cache.
 - The public settings file is found under its actual `.txt`/`.conf.txt` names, and the
   helper no longer creates a new `helper-settings ... (1).txt` duplicate.
+- Restoring the hidden launcher icon with `show_launcher_icon=true` now works with the
+  existing `helper-settings.conf.txt` file. Public settings are no longer overwritten or
+  deleted when the helper cannot read or update them, and the log records the file found
+  and the launcher component state.
 - The settings file is preserved by cleanup and **Delete all downloaded APKs**.
 
 ## [1.6.10] - 2026-11-06

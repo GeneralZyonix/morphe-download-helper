@@ -16,8 +16,8 @@ android {
         targetSdk 35
 
         // Bump both values for every public release.
-        versionCode 19
-        versionName "1.6.10"
+        versionCode 20
+        versionName "1.6.11"
     }
 
     buildFeatures {
