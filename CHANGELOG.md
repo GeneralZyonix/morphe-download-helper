@@ -22,6 +22,8 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   from **Android Settings → Apps → Morphe Download Helper → Open** when the icon is
   hidden. The saved state is restored after updates and reboots. Reported in
   [#14](https://github.com/GeneralZyonix/morphe-download-helper/issues/14).
+- Turning off the VirusTotal master switch now hides the API-key, block, upload, quota,
+  and help rows, leaving a compact Security card.
 
 ## [1.6.13] - 2026-11-06
 

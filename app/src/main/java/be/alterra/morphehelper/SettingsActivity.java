@@ -618,6 +618,7 @@ public class SettingsActivity extends Activity {
         scanSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalEnabled(this, isChecked);
             PublicSettings.write(this);
+            setVirusTotalDetailsVisible(card, isChecked);
             if (isChecked && AppSettings.virusTotalApiKey(this).isEmpty()) {
                 Toast.makeText(this, R.string.virustotal_add_key_toast,
                         Toast.LENGTH_LONG).show();
@@ -784,6 +785,16 @@ public class SettingsActivity extends Activity {
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(6), 0, 0);
         card.addView(note);
+
+        setVirusTotalDetailsVisible(card, AppSettings.virusTotalEnabled(this));
+    }
+
+    /** Keeps the master switch visible and hides its dependent rows when off. */
+    private void setVirusTotalDetailsVisible(LinearLayout card, boolean visible) {
+        int state = visible ? View.VISIBLE : View.GONE;
+        for (int i = 2; i < card.getChildCount(); i++) {
+            card.getChildAt(i).setVisibility(state);
+        }
     }
 
     private void showVirusTotalKeyDialog() {
