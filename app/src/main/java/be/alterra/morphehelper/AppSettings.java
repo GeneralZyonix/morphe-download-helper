@@ -93,7 +93,10 @@ final class AppSettings {
                 hidden ? PackageManager.COMPONENT_ENABLED_STATE_DISABLED
                         : PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP);
-        HelperLog.info(hidden ? "Launcher icon hidden" : "Launcher icon restored");
+        int state = context.getPackageManager().getComponentEnabledSetting(
+                launcherAlias(context));
+        HelperLog.info((hidden ? "Launcher icon hidden" : "Launcher icon restored")
+                + " (componentState=" + state + ")");
     }
 
     private static ComponentName launcherAlias(Context context) {

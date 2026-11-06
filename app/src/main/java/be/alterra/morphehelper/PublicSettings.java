@@ -60,19 +60,39 @@ final class PublicSettings {
      */
     static void apply(Context context) {
         SourceSettings.ensureInitialized(context);
-        String text = read(context);
+        String text;
+        try {
+            text = read(context);
+        } catch (Exception error) {
+            HelperLog.error("Could not read public settings; leaving the file unchanged", error);
+            return;
+        }
         if (text == null) {
+            HelperLog.info("Public settings file not found; creating it");
             write(context);
             return;
         }
         Map<String, String> values = parse(text);
         if (values.isEmpty()) {
+            HelperLog.info("Public settings file is empty");
             return;
         }
+        HelperLog.info("Public settings: applying " + values.size() + " values");
 
         Boolean showLauncher = bool(values, "show_launcher_icon");
+        if (showLauncher == null) {
+            showLauncher = bool(values, "show_launcher");
+        }
+        Boolean hideLauncher = bool(values, "hide_launcher_icon");
+        if (hideLauncher != null) {
+            showLauncher = !hideLauncher;
+        }
         if (showLauncher != null) {
+            HelperLog.info("Public settings: show_launcher_icon=" + showLauncher
+                    + ", currently hidden=" + AppSettings.isLauncherIconHidden(context));
             AppSettings.setLauncherIconHidden(context, !showLauncher);
+        } else {
+            HelperLog.info("Public settings: show_launcher_icon not set");
         }
 
         Boolean updateChecks = bool(values, "update_checks");
@@ -177,7 +197,7 @@ final class PublicSettings {
         writeText(context, text.toString());
     }
 
-    private static String read(Context context) {
+    private static String read(Context context) throws IOException {
         if (Build.VERSION.SDK_INT >= 29) {
             Uri uri = findFile(context);
             if (uri == null) {
@@ -185,9 +205,6 @@ final class PublicSettings {
             }
             try (InputStream input = context.getContentResolver().openInputStream(uri)) {
                 return readAll(input);
-            } catch (Exception error) {
-                HelperLog.error("Could not read public settings", error);
-                return null;
             }
         }
         File file = legacyFile();
@@ -196,9 +213,6 @@ final class PublicSettings {
         }
         try (InputStream input = new FileInputStream(file)) {
             return readAll(input);
-        } catch (Exception error) {
-            HelperLog.error("Could not read public settings", error);
-            return null;
         }
     }
 
@@ -223,6 +237,7 @@ final class PublicSettings {
         try (FileOutputStream output = new FileOutputStream(
                 new File(dir, FILE_NAME), false)) {
             output.write(text.getBytes(StandardCharsets.UTF_8));
+            HelperLog.info("Wrote public settings file");
         } catch (Exception error) {
             HelperLog.error("Could not write public settings", error);
         }
@@ -230,20 +245,25 @@ final class PublicSettings {
 
     private static void writeMediaStore(Context context, String text) {
         ContentResolver resolver = context.getContentResolver();
-        Uri existing = findFile(context);
+        Uri existing;
+        try {
+            existing = findFile(context);
+        } catch (IOException error) {
+            HelperLog.error("Could not locate public settings file", error);
+            return;
+        }
         if (existing != null) {
             try (OutputStream output = resolver.openOutputStream(existing, "wt")) {
-                if (output != null) {
-                    output.write(text.getBytes(StandardCharsets.UTF_8));
-                    return;
+                if (output == null) {
+                    throw new IOException("Could not open public settings file");
                 }
+                output.write(text.getBytes(StandardCharsets.UTF_8));
+                HelperLog.info("Updated public settings file");
+                return;
             } catch (Exception error) {
-                HelperLog.error("Could not update public settings", error);
-            }
-            try {
-                resolver.delete(existing, null, null);
-            } catch (Exception ignored) {
-                // Recreate below if the provider allows it.
+                HelperLog.error("Could not update public settings; leaving the file unchanged",
+                        error);
+                return;
             }
         }
 
@@ -265,6 +285,7 @@ final class PublicSettings {
             ContentValues done = new ContentValues();
             done.put(MediaStore.MediaColumns.IS_PENDING, 0);
             resolver.update(uri, done, null, null);
+            HelperLog.info("Created public settings file");
         } catch (Exception error) {
             try {
                 resolver.delete(uri, null, null);
@@ -274,7 +295,7 @@ final class PublicSettings {
         }
     }
 
-    private static Uri findFile(Context context) {
+    private static Uri findFile(Context context) throws IOException {
         ContentResolver resolver = context.getContentResolver();
         String selection = MediaStore.MediaColumns.DISPLAY_NAME + "=? AND "
                 + MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?";
@@ -290,7 +311,7 @@ final class PublicSettings {
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(0));
             }
         } catch (Exception error) {
-            HelperLog.error("Could not find public settings file", error);
+            throw new IOException("Could not query public settings file", error);
         }
         return null;
     }
