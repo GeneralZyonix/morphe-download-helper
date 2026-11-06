@@ -133,6 +133,7 @@ public class SettingsActivity extends Activity {
         addUpdatesCard(root);
         addBatteryCard(root);
         addSecurityCard(root);
+        addWebPagesCard(root);
         addStorageCard(root);
         addOrderCard(root);
 
@@ -787,6 +788,56 @@ public class SettingsActivity extends Activity {
         card.addView(note);
 
         setVirusTotalDetailsVisible(card, AppSettings.virusTotalEnabled(this));
+    }
+
+    /**
+     * Ad/tracker blocking for the source WebViews. This is deliberately a
+     * content filter, not a DNS/VPN: it adds no permission prompt and only
+     * affects the pages the helper opens itself.
+     */
+    private void addWebPagesCard(LinearLayout root) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(cardBackground());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text(getString(R.string.settings_web_pages), 16, TEXT, true));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(12), 0, dp(12));
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text(getString(R.string.settings_block_ads), 14, TEXT, true));
+        TextView detail = text(
+                getString(R.string.settings_block_ads_detail), 12, MUTED, false);
+        detail.setLineSpacing(dp(2), 1f);
+        detail.setPadding(0, dp(3), 0, 0);
+        labels.addView(detail);
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch toggle = new Switch(this);
+        toggle.setChecked(AppSettings.blockWebAds(this));
+        toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setBlockWebAds(this, isChecked);
+            PublicSettings.write(this);
+        });
+        row.addView(toggle, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(row);
+
+        TextView note = text(getString(R.string.settings_block_ads_note), 11, MUTED, false);
+        note.setLineSpacing(dp(3), 1f);
+        note.setPadding(0, dp(4), 0, 0);
+        card.addView(note);
     }
 
     /** Keeps the master switch visible and hides its dependent rows when off. */

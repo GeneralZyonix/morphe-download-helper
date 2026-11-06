@@ -5,6 +5,20 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.15-beta.1] - 2026-11-06
+
+### Added
+
+- Optional ad and tracker blocking for the in-app source pages. A small bundled
+  host list stops known ad/tracker requests in the Uptodown, APKMirror, and
+  APKPure WebViews, and the overlay hider now runs on all of them. Cloudflare
+  Turnstile, reCAPTCHA/hCaptcha, and the download/CDN hosts are allowlisted.
+  The setting is under **Settings → Download pages**, enabled by default, and
+  can be turned off if a verification page ever misbehaves. This is a content
+  filter, not a DNS/VPN: it needs no extra permissions or notification and adds
+  no network round trip. Requested in
+  [#18](https://github.com/GeneralZyonix/morphe-download-helper/issues/18).
+
 ## [1.6.14-beta.2] - 2026-11-06
 
 ### Fixed

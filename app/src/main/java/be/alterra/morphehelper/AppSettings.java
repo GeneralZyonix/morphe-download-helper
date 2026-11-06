@@ -50,6 +50,7 @@ final class AppSettings {
     private static final String KEY_PENDING_HANDOFF = "pending_handoff_cleanup";
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_SHOW_LAUNCHER_ICON = "show_launcher_icon";
+    private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
     private static final String KEY_VT_API_KEY = "virustotal_api_key";
@@ -161,6 +162,15 @@ final class AppSettings {
 
     static void setCustomTreeUri(Context context, String uri) {
         prefs(context).edit().putString(KEY_CUSTOM_TREE, uri == null ? "" : uri).apply();
+    }
+
+    /** True when the in-app source WebViews may block known ad/tracker hosts. */
+    static boolean blockWebAds(Context context) {
+        return prefs(context).getBoolean(KEY_BLOCK_WEB_ADS, true);
+    }
+
+    static void setBlockWebAds(Context context, boolean block) {
+        prefs(context).edit().putBoolean(KEY_BLOCK_WEB_ADS, block).apply();
     }
 
     static boolean virusTotalEnabled(Context context) {

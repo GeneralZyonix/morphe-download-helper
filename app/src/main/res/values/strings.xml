@@ -85,6 +85,10 @@
     <string name="settings_sources">Sources</string>
     <string name="settings_sources_hint">Disabled sources are skipped completely. At least one source must stay enabled.</string>
     <string name="settings_webview_hint">APKPure may use an in-app WebView. Uptodown uses an in-app verification page.</string>
+    <string name="settings_web_pages">Download pages</string>
+    <string name="settings_block_ads">Block ads and trackers</string>
+    <string name="settings_block_ads_detail">Blocks known ad and tracker hosts in the Uptodown, APKMirror, and APKPure pages. Cloudflare and captcha hosts stay allowed.</string>
+    <string name="settings_block_ads_note">If a verification page stops working, turn this off and retry. It only affects pages opened inside the helper.</string>
     <string name="settings_source_apkpure_desc">Fast direct/API path, then WebView fallback</string>
     <string name="settings_source_fallback_title">Morphe fallback link</string>
     <string name="settings_source_fallback_desc">Resolver link supplied by Morphe</string>

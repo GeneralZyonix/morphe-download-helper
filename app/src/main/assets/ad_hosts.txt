@@ -1,0 +1,130 @@
+# High-confidence ad and tracker hosts for the in-app download WebViews.
+#
+# Keep this list deliberately small. These entries block a host and all of its
+# subdomains. Do not add first-party download, CDN, Cloudflare, captcha, or
+# Google API hosts here; the allow-list in WebAdBlocker protects the critical
+# paths even if an entry is added by mistake.
+
+# Uptodown's own ad host (the site itself stays allowed)
+ads.uptodown.dev
+
+# Google / DoubleClick advertising
+2mdn.net
+adservice.google.com
+doubleclick.net
+googleadservices.com
+googlesyndication.com
+googletagservices.com
+
+# Major ad exchanges and networks
+3lift.com
+adform.net
+adnxs.com
+adnxs-simple.com
+adsrvr.org
+advertising.com
+bidswitch.net
+casalemedia.com
+contextweb.com
+criteo.com
+criteo.net
+districtm.io
+gumgum.com
+improvedigital.com
+indexexchange.com
+indexww.com
+lijit.com
+media.net
+openx.net
+pubmatic.com
+rubiconproject.com
+sharethrough.com
+smartadserver.com
+sovrn.com
+spotxchange.com
+springserve.com
+teads.tv
+telaria.com
+tremorhub.com
+triplelift.com
+turn.com
+undertone.com
+yieldlab.net
+yieldmanager.com
+yieldmo.com
+zedo.com
+
+# Native/content recommendation widgets
+adskeeper.com
+mgid.com
+outbrain.com
+revcontent.com
+taboola.com
+zergnet.com
+
+# Pop-under, adult, and low-quality networks
+adcash.com
+adsterra.com
+bidvertiser.com
+clickadu.com
+exoclick.com
+exosrv.com
+hilltopads.net
+infolinks.com
+juicyads.com
+onclickads.net
+popads.net
+popcash.net
+propellerads.com
+trafficjunky.com
+
+# Verification, viewability, and ad delivery
+adsafeprotected.com
+doubleverify.com
+flashtalking.com
+freewheel.tv
+iasds01.com
+innovid.com
+moatads.com
+serving-sys.com
+sizmek.com
+stickyadstv.com
+
+# Data brokers and cross-site tracking
+adsymptotic.com
+agkn.com
+bluekai.com
+crwdcntrl.net
+demdex.net
+everesttech.net
+exelator.com
+krxd.net
+mathtag.com
+ml314.com
+narrative.io
+omtrdc.net
+rlcdn.com
+tapad.com
+
+# Analytics and session recording
+amplitude.com
+api.amplitude.com
+api.mixpanel.com
+api.segment.io
+bat.bing.com
+cdn.segment.com
+clarity.ms
+connect.facebook.net
+fullstory.com
+google-analytics.com
+googletagmanager.com
+heapanalytics.com
+hotjar.com
+mixpanel.com
+quantserve.com
+quantcount.com
+scorecardresearch.com
+script.hotjar.com
+segment.com
+segment.io
+static.hotjar.com

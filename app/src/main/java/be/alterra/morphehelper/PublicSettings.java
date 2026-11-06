@@ -155,6 +155,8 @@ final class PublicSettings {
             }
         }
 
+        applyBoolean(context, values, "block_web_ads",
+                AppSettings::setBlockWebAds);
         applyBoolean(context, values, "virustotal_enabled",
                 AppSettings::setVirusTotalEnabled);
         applyBoolean(context, values, "virustotal_block_detections",
@@ -197,6 +199,8 @@ final class PublicSettings {
                 .append(TextUtils.join(",", AppSettings.sourceOrder(context)))
                 .append("\n\n");
 
+        text.append("block_web_ads=")
+                .append(AppSettings.blockWebAds(context)).append('\n');
         text.append("virustotal_enabled=")
                 .append(AppSettings.virusTotalEnabled(context)).append('\n');
         text.append("virustotal_block_detections=")

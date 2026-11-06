@@ -28,6 +28,7 @@ import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -62,6 +63,7 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -331,6 +333,14 @@ public class DownloadActivity extends Activity {
     /** Active WebView source: "uptodown" or "apkpure". */
     private String webSource;
 
+    /** True when the current WebView may block known ad/tracker hosts. */
+    private volatile boolean blockWebAds;
+
+    /** Blocked request diagnostics for the current WebView flow. */
+    private final Object adBlockLock = new Object();
+    private final Set<String> blockedAdHosts = new HashSet<>();
+    private int blockedAdRequests;
+
     /** App name used to pick the right APKPure search result. */
     private String requestedAppName;
 
@@ -357,6 +367,7 @@ public class DownloadActivity extends Activity {
     private int uptodownReloads;
 
     private Runnable webFlowTimeout;
+    private Runnable adBlockRetry;
 
     private LinearLayout diagnosticsCard;
     private LinearLayout diagnosticsRows;
@@ -764,6 +775,12 @@ public class DownloadActivity extends Activity {
         webOriginalUrl = url;
         uptodownHandled = false;
         uptodownReloads = 0;
+        cancelAdBlockRetry();
+        blockWebAds = AppSettings.blockWebAds(this);
+        synchronized (adBlockLock) {
+            blockedAdRequests = 0;
+            blockedAdHosts.clear();
+        }
 
         if ("apkpure".equals(source)) {
             uptodownTitle.setText(R.string.download_apkpure_title);
@@ -801,17 +818,50 @@ public class DownloadActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (blockWebAds && WebAdBlocker.shouldBlock(DownloadActivity.this,
+                        request.getUrl().getHost())) {
+                    recordBlockedAd(request.getUrl().getHost());
+                    HelperLog.info(webSource + " blocked ad navigation: " + request.getUrl());
+                    return true;
+                }
                 return handleUptodownUrl(request.getUrl().toString());
             }
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                String host = Uri.parse(url).getHost();
+                if (blockWebAds && WebAdBlocker.shouldBlock(DownloadActivity.this, host)) {
+                    recordBlockedAd(host);
+                    HelperLog.info(webSource + " blocked ad navigation: " + url);
+                    return true;
+                }
                 return handleUptodownUrl(url);
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(
+                    WebView view, WebResourceRequest request) {
+                if (!blockWebAds || request.isForMainFrame()) {
+                    return null;
+                }
+                String host = request.getUrl().getHost();
+                if (WebAdBlocker.shouldBlock(DownloadActivity.this, host)) {
+                    recordBlockedAd(host);
+                    return WebAdBlocker.emptyResponse();
+                }
+                return null;
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 HelperLog.info(webSource + " page finished: " + url);
+                if (blockWebAds) {
+                    view.evaluateJavascript(WebAdBlocker.cosmeticScript(), null);
+                    String summary = adBlockerSummary();
+                    if (!summary.isEmpty()) {
+                        HelperLog.info(webSource + " ad blocker: " + summary);
+                    }
+                }
                 scheduleWebFlowTimeout(view);
                 uptodownReferer = url;
                 if ("uptodown".equals(webSource)) {
@@ -903,6 +953,7 @@ public class DownloadActivity extends Activity {
         scrollView.post(() -> scrollView.smoothScrollTo(0, uptodownSection.getTop()));
         scheduleWebFlowTimeout(web);
         web.loadUrl(url);
+        scheduleAdBlockRetry(web);
     }
 
     /**
@@ -1143,6 +1194,38 @@ public class DownloadActivity extends Activity {
     }
 
     /**
+     * If a page is still busy after a minute, retry it once with the ad
+     * blocker off. This keeps a conservative block-list from turning into a
+     * dead end on a site that depends on a blocked script. The normal
+     * Uptodown/Cloudflare flow usually finishes well before this.
+     */
+    private void scheduleAdBlockRetry(WebView web) {
+        cancelAdBlockRetry();
+        if (!blockWebAds) {
+            return;
+        }
+        adBlockRetry = () -> {
+            if (uptodownHandled || uptodownWebView != web || !blockWebAds
+                    || !hasBlockedAds()) {
+                return;
+            }
+            blockWebAds = false;
+            HelperLog.info(webSource
+                    + " still busy; retrying once without ad blocking");
+            web.loadUrl(webOriginalUrl);
+            scheduleWebFlowTimeout(web);
+        };
+        main.postDelayed(adBlockRetry, 60_000);
+    }
+
+    private void cancelAdBlockRetry() {
+        if (adBlockRetry != null) {
+            main.removeCallbacks(adBlockRetry);
+            adBlockRetry = null;
+        }
+    }
+
+    /**
      * If the Uptodown button is still loading after ten seconds, refresh the page.
      * A refresh often clears a stuck Turnstile state. Limit it to two attempts.
      */
@@ -1215,12 +1298,39 @@ public class DownloadActivity extends Activity {
         return "Uptodown";
     }
 
+    private void recordBlockedAd(String host) {
+        synchronized (adBlockLock) {
+            blockedAdRequests++;
+            if (host != null && blockedAdHosts.size() < 12) {
+                blockedAdHosts.add(host);
+            }
+        }
+    }
+
+    private boolean hasBlockedAds() {
+        synchronized (adBlockLock) {
+            return blockedAdRequests > 0;
+        }
+    }
+
+    private String adBlockerSummary() {
+        synchronized (adBlockLock) {
+            if (blockedAdRequests == 0) {
+                return "";
+            }
+            return blockedAdRequests + " request(s) blocked"
+                    + (blockedAdHosts.isEmpty() ? ""
+                    : " (" + TextUtils.join(", ", blockedAdHosts) + ")");
+        }
+    }
+
     /** Downloads the URL captured from the source WebView and returns it to Morphe. */
     private void handleUptodownDownload(String url) {
         if (uptodownHandled) {
             return;
         }
         cancelWebFlowTimeout();
+        cancelAdBlockRetry();
         uptodownHandled = true;
         HelperLog.info(webSource + " download URL: " + url);
 
@@ -1726,6 +1836,7 @@ public class DownloadActivity extends Activity {
     }
 
     private void showFailure() {
+        cancelAdBlockRetry();
         main.post(() -> {
             progress.setVisibility(View.GONE);
             sourceLabel.setVisibility(View.GONE);
@@ -1841,6 +1952,8 @@ public class DownloadActivity extends Activity {
     private void cancel() {
         cancelled = true;
         setPauseVisible(false);
+        cancelWebFlowTimeout();
+        cancelAdBlockRetry();
         stopDownloadService();
         executor.shutdownNow();
         setResult(RESULT_CANCELED);
@@ -1873,6 +1986,7 @@ public class DownloadActivity extends Activity {
         // Stop network work and release the WebView if it is still open.
         cancelled = true;
         cancelWebFlowTimeout();
+        cancelAdBlockRetry();
         executor.shutdownNow();
         if (uptodownWebView != null) {
             uptodownWebContainer.removeView(uptodownWebView);
