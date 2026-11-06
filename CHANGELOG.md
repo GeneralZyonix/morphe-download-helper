@@ -5,6 +5,17 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.15-beta.3] - 2026-11-06
+
+### Fixed
+
+- APKMirror now prefers the requested CPU ABI for plain APK downloads. A
+  multi-ABI version page could previously select the first plain APK (for
+  example `armeabi-v7a` for an `arm64-v8a` request), download the whole file,
+  and only then fail version validation.
+- The universal-APK detection no longer treats every `nodpi` row as universal;
+  only an explicitly labelled universal build is preferred.
+
 ## [1.6.15-beta.2] - 2026-11-06
 
 ### Fixed

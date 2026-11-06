@@ -3347,9 +3347,10 @@ public class DownloadActivity extends Activity {
      *
      * <p>Preference order:</p>
      * <ul>
-     *   <li>APK request: universal APK, then any APK, then fallback.</li>
+     *   <li>APK request: universal APK, then an APK matching the first supported ABI,
+     *       then any APK, then fallback.</li>
      *   <li>Bundle request: bundle matching the first supported ABI, then any bundle,
-     *       then any APK.</li>
+     *       then an APK matching the ABI, then any APK.</li>
      * </ul>
      */
     private String chooseVariant(String versionHtml, String fileType, String[] abis) {
@@ -3357,6 +3358,7 @@ public class DownloadActivity extends Activity {
         String[] rows = versionHtml.split("<div class=\"table-row");
         String fallback = null;
         String plainApk = null;
+        String plainApkAbi = null;
         String plainApkUniversal = null;
         String bundle = null;
         String bundleAbi = null;
@@ -3374,10 +3376,13 @@ public class DownloadActivity extends Activity {
             // Badge text and row classes identify bundles and plain APKs.
             boolean isBundle = row.contains("BUNDLE") || row.contains("apkm-badge success");
             boolean isPlainApk = row.contains(">APK<") || row.contains("apkm-badge\">APK");
-            boolean universal = row.contains("universal") || row.contains("nodpi");
+            // "nodpi" is the density cell shown on every APK row, so it does not
+            // mean the file is a universal APK. Only the explicit label does.
+            boolean universal = row.contains("universal");
             boolean hasAbi = preferredAbi != null && row.contains(preferredAbi);
 
             if (isPlainApk && universal && plainApkUniversal == null) plainApkUniversal = href;
+            if (isPlainApk && hasAbi && plainApkAbi == null) plainApkAbi = href;
             if (isPlainApk && plainApk == null) plainApk = href;
             if (isBundle && hasAbi && bundleAbi == null) bundleAbi = href;
             if (isBundle && bundle == null) bundle = href;
@@ -3385,10 +3390,15 @@ public class DownloadActivity extends Activity {
 
         if ("apk".equalsIgnoreCase(fileType) || TextUtils.isEmpty(fileType)) {
             if (plainApkUniversal != null) return plainApkUniversal;
+            // APKMirror publishes one row per CPU variant. Picking the first plain
+            // APK can download a different ABI with a different versionCode, which
+            // then fails validation after the whole file has been transferred.
+            if (plainApkAbi != null) return plainApkAbi;
             if (plainApk != null) return plainApk;
         } else {
             if (bundleAbi != null) return bundleAbi;
             if (bundle != null) return bundle;
+            if (plainApkAbi != null) return plainApkAbi;
             if (plainApk != null) return plainApk;
         }
         return fallback;
