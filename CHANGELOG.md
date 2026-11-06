@@ -5,6 +5,16 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.8] - 2026-11-06
+
+### Added
+
+- Opt-in **In-app update popup** under **Settings → Updates**. When enabled, the helper
+  shows a dialog on app launch when an update is available, with **Update**, **Later**,
+  and **Skip this version** actions.
+- The popup respects the update-check master switch, snooze and skipped-version state,
+  and Shizuku automatic-update mode.
+
 ## [1.6.7] - 2026-11-06
 
 ### Fixed
