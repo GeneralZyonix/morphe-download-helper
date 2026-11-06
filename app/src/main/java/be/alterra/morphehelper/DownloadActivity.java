@@ -10,11 +10,15 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.content.pm.PackageInfo;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.StatFs;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -49,6 +53,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -65,10 +72,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import okhttp3.Call;
+import okhttp3.Connection;
 import okhttp3.Cookie;
 import okhttp3.CookieJar;
+import okhttp3.EventListener;
+import okhttp3.Handshake;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
@@ -945,6 +957,23 @@ public class DownloadActivity extends Activity {
                         }
                     }
                 }
+                function hidePremiumBanner(){
+                    var nodes=document.querySelectorAll('div,section,aside,iframe');
+                    for(var i=0;i<nodes.length;i++){
+                        var el=nodes[i];
+                        var style=getComputedStyle(el);
+                        if(style.position!=='fixed'&&style.position!=='sticky')continue;
+                        var rect=el.getBoundingClientRect();
+                        if(rect.width<innerWidth*0.55||rect.height<70)continue;
+                        if(rect.bottom<innerHeight*0.55)continue;
+                        var label=(el.id+' '+el.className+' '+(el.innerText||'')).toLowerCase();
+                        if(label.indexOf('premium')>=0||label.indexOf('no ads, dark mode')>=0
+                            ||label.indexOf('$10/quarter')>=0||label.indexOf('advert')>=0){
+                            el.style.setProperty('display','none','important');
+                            el.style.setProperty('visibility','hidden','important');
+                        }
+                    }
+                }
                 function pick(){
                     var p=location.pathname.toLowerCase();
                     var q=location.search.toLowerCase();
@@ -1046,9 +1075,11 @@ public class DownloadActivity extends Activity {
                     }
                     return null;
                 }
+                hidePremiumBanner();
                 var n=0,t=setInterval(function(){
                     n++;
                     if(n%10===1)consent();
+                    if(n%5===1)hidePremiumBanner();
                     var target=pick();
                     if(target){
                         clearInterval(t);
@@ -3517,6 +3548,205 @@ public class DownloadActivity extends Activity {
     }
 
     /**
+     * Records device, network, and storage information for download diagnostics.
+     */
+    private void logDownloadContext(File dir) {
+        String freeMb = "?";
+        try {
+            StatFs stat = new StatFs(dir.getAbsolutePath());
+            freeMb = String.valueOf(stat.getAvailableBytes() / (1024L * 1024L));
+        } catch (Exception error) {
+            HelperLog.error("Could not read free storage", error);
+        }
+        HelperLog.info("Download context: " + Build.MANUFACTURER + " " + Build.MODEL
+                + ", Android " + Build.VERSION.RELEASE + " (SDK " + Build.VERSION.SDK_INT + ")"
+                + ", abis=" + TextUtils.join(",", Build.SUPPORTED_ABIS)
+                + ", free=" + freeMb + " MB");
+        try {
+            ConnectivityManager manager =
+                    (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            Network network = manager == null ? null : manager.getActiveNetwork();
+            NetworkCapabilities caps = network == null
+                    ? null : manager.getNetworkCapabilities(network);
+            if (caps != null) {
+                String transport = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                        ? "wifi"
+                        : caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+                                ? "cellular"
+                                : caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                                        ? "ethernet"
+                                        : caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+                                                ? "vpn" : "other";
+                HelperLog.info("Download network: " + transport
+                        + ", validated=" + caps.hasCapability(
+                                NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                        + ", metered=" + !caps.hasCapability(
+                                NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                        + ", downKbps=" + caps.getLinkDownstreamBandwidthKbps()
+                        + ", upKbps=" + caps.getLinkUpstreamBandwidthKbps());
+            }
+        } catch (Exception error) {
+            HelperLog.error("Could not read network capabilities", error);
+        }
+    }
+
+    /**
+     * Logs DNS/connect/TLS/header/body timings and the final protocol for one download.
+     */
+    private static final class DownloadTimingListener extends EventListener {
+        private long callStart;
+        private long dnsStart;
+        private long dnsEnd;
+        private long connectStart;
+        private long connectEnd;
+        private long secureStart;
+        private long secureEnd;
+        private long requestStart;
+        private long requestEnd;
+        private long responseStart;
+        private long responseEnd;
+        private long bodyStart;
+        private long bodyEnd;
+        private long bytesRead;
+        private String finalUrl;
+        private String protocol;
+        private String connectionProtocol;
+        private String tlsVersion;
+        private String cipher;
+        private String route;
+        private boolean logged;
+
+        private static long now() {
+            return System.nanoTime() / 1_000_000L;
+        }
+
+        private static String duration(long start, long end) {
+            return start <= 0 || end <= 0 ? "n/a" : String.valueOf(end - start);
+        }
+
+        @Override
+        public void callStart(Call call) {
+            callStart = now();
+            finalUrl = call.request().url().toString();
+        }
+
+        @Override
+        public void dnsStart(Call call, String domainName) {
+            dnsStart = now();
+        }
+
+        @Override
+        public void dnsEnd(Call call, String domainName, List<InetAddress> addresses) {
+            dnsEnd = now();
+        }
+
+        @Override
+        public void connectStart(Call call, InetSocketAddress address, Proxy proxy) {
+            connectStart = now();
+        }
+
+        @Override
+        public void connectEnd(Call call, InetSocketAddress address, Proxy proxy,
+                               Protocol protocol) {
+            connectEnd = now();
+        }
+
+        @Override
+        public void secureConnectStart(Call call) {
+            secureStart = now();
+        }
+
+        @Override
+        public void secureConnectEnd(Call call, Handshake handshake) {
+            secureEnd = now();
+            if (handshake != null) {
+                tlsVersion = handshake.tlsVersion().javaName();
+                cipher = handshake.cipherSuite().javaName();
+            }
+        }
+
+        @Override
+        public void requestHeadersStart(Call call) {
+            requestStart = now();
+        }
+
+        @Override
+        public void requestHeadersEnd(Call call, Request request) {
+            requestEnd = now();
+        }
+
+        @Override
+        public void responseHeadersStart(Call call) {
+            responseStart = now();
+        }
+
+        @Override
+        public void responseHeadersEnd(Call call, Response response) {
+            responseEnd = now();
+            protocol = response.protocol().toString();
+            finalUrl = response.request().url().toString();
+        }
+
+        @Override
+        public void responseBodyStart(Call call) {
+            bodyStart = now();
+        }
+
+        @Override
+        public void responseBodyEnd(Call call, long byteCount) {
+            bodyEnd = now();
+            bytesRead = byteCount;
+        }
+
+        @Override
+        public void connectionAcquired(Call call, Connection connection) {
+            connectionProtocol = connection.protocol().toString();
+            try {
+                route = connection.route().socketAddress().toString();
+            } catch (Exception ignored) {
+            }
+        }
+
+        @Override
+        public void callEnd(Call call) {
+            log("ok");
+        }
+
+        @Override
+        public void callFailed(Call call, IOException error) {
+            HelperLog.error("Download call failed", error);
+            log("failed");
+        }
+
+        private void log(String outcome) {
+            if (logged) {
+                return;
+            }
+            logged = true;
+            long end = bodyEnd > 0 ? bodyEnd : now();
+            long bodyMs = bodyEnd > 0 && bodyStart > 0 ? bodyEnd - bodyStart : 0;
+            double mibPerSecond = bodyMs > 0
+                    ? bytesRead / (bodyMs / 1000.0) / (1024.0 * 1024.0) : 0;
+            HelperLog.info("Download timing (" + outcome + "):"
+                    + " dns=" + duration(dnsStart, dnsEnd)
+                    + " connect=" + duration(connectStart, connectEnd)
+                    + " tls=" + duration(secureStart, secureEnd)
+                    + " request=" + duration(requestStart, requestEnd)
+                    + " headers=" + duration(responseStart, responseEnd)
+                    + " body=" + duration(bodyStart, bodyEnd)
+                    + " total=" + duration(callStart, end)
+                    + " ms, bytes=" + bytesRead
+                    + ", bodySpeed=" + String.format(Locale.US, "%.2f", mibPerSecond)
+                    + " MiB/s, protocol=" + protocol
+                    + ", connection=" + connectionProtocol
+                    + ", tlsVersion=" + tlsVersion
+                    + ", cipher=" + cipher
+                    + ", route=" + route
+                    + ", url=" + finalUrl);
+        }
+    }
+
+    /**
      * Streams a URL to a cache file and reports progress to the UI.
      *
      * <p>The method rejects HTML responses (often a Cloudflare challenge or a login
@@ -3556,7 +3786,12 @@ public class DownloadActivity extends Activity {
 
         HelperLog.info("DOWNLOAD " + url
                 + (referer != null ? " (referer=" + referer + ")" : ""));
-        try (Response response = HTTP.newCall(builder.build()).execute()) {
+        logDownloadContext(dir);
+        DownloadTimingListener timing = new DownloadTimingListener();
+        OkHttpClient downloadClient = HTTP.newBuilder()
+                .eventListener(timing)
+                .build();
+        try (Response response = downloadClient.newCall(builder.build()).execute()) {
             String contentType = response.header("Content-Type");
             ResponseBody body = response.body();
             long bodyLength = body != null ? body.contentLength() : -1;
@@ -3565,6 +3800,20 @@ public class DownloadActivity extends Activity {
             HelperLog.info("DOWNLOAD " + url + " -> HTTP " + response.code()
                     + " type=" + contentType
                     + " length=" + total);
+            HelperLog.info("DOWNLOAD finalUrl=" + response.request().url()
+                    + " protocol=" + response.protocol()
+                    + " server=" + response.header("Server")
+                    + " cfRay=" + response.header("CF-Ray")
+                    + " acceptRanges=" + response.header("Accept-Ranges")
+                    + " contentEncoding=" + response.header("Content-Encoding")
+                    + " contentRange=" + response.header("Content-Range")
+                    + " serverTimeMs=" + (response.receivedResponseAtMillis()
+                            - response.sentRequestAtMillis()));
+            Handshake handshake = response.handshake();
+            if (handshake != null) {
+                HelperLog.info("DOWNLOAD TLS=" + handshake.tlsVersion().javaName()
+                        + " cipher=" + handshake.cipherSuite().javaName());
+            }
             if (!response.isSuccessful()) {
                 throw new IOException("HTTP " + response.code());
             }
@@ -3595,11 +3844,12 @@ public class DownloadActivity extends Activity {
 
             long startTime = System.currentTimeMillis();
             long lastUi = 0;
+            long bodyStart = System.currentTimeMillis();
+            long readTotal = existing;
             try (InputStream in = new BufferedInputStream(body.byteStream());
                  BufferedOutputStream out = new BufferedOutputStream(
                          new FileOutputStream(part, resume))) {
                 byte[] buffer = new byte[64 * 1024];
-                long readTotal = existing;
                 while (!cancelled) {
                     while (paused && !cancelled) {
                         try {
@@ -3640,6 +3890,14 @@ public class DownloadActivity extends Activity {
                     }
                 }
             }
+
+            long bodyElapsed = Math.max(1, System.currentTimeMillis() - bodyStart);
+            long bodyBytes = readTotal - existing;
+            HelperLog.info("DOWNLOAD body complete: bytes=" + bodyBytes
+                    + " elapsedMs=" + bodyElapsed
+                    + " avg=" + String.format(Locale.US, "%.2f",
+                    bodyBytes * 1000.0 / bodyElapsed / (1024.0 * 1024.0))
+                    + " MiB/s");
 
             if (cancelled) {
                 throw new IOException("Cancelled");
