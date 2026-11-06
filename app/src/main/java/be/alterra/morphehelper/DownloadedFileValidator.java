@@ -185,8 +185,19 @@ final class DownloadedFileValidator {
         if (left == null || right == null) {
             return false;
         }
-        return left.trim().replace(" ", "")
-                .equalsIgnoreCase(right.trim().replace(" ", ""));
+        return normalizeVersion(left).equalsIgnoreCase(normalizeVersion(right));
+    }
+
+    /**
+     * Patch bundles often write versions as {@code v1.0.14}, while the APK
+     * manifest reports {@code 1.0.14}. Treat both forms as the same version.
+     */
+    private static String normalizeVersion(String value) {
+        String result = value.trim().replace(" ", "");
+        while (result.startsWith("v") || result.startsWith("V")) {
+            result = result.substring(1);
+        }
+        return result;
     }
 
     private static boolean contains(long[] values, long target) {
@@ -249,7 +260,8 @@ final class DownloadedFileValidator {
             HelperLog.error("GitHub signature mismatch for " + pkg
                     + " archive=" + archiveHashes + " installed=" + installedHashes, null);
             throw new IOException(
-                    "Downloaded GitHub APK signature does not match the installed app");
+                    "Downloaded GitHub APK signature does not match the installed app. "
+                            + "Uninstall the existing app or install the official APK first");
         }
         HelperLog.info("GitHub signature matches installed app for " + pkg);
     }

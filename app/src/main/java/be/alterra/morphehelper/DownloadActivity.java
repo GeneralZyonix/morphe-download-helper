@@ -309,6 +309,9 @@ public class DownloadActivity extends Activity {
     /** True when Morphe's resolver points at a GitHub release for this request. */
     private boolean githubResolverHint;
 
+    /** Last GitHub package/signature verification failure, if any. */
+    private String verificationFailure;
+
     /** Root scroll view, used to reveal the Uptodown section. */
     private ScrollView scrollView;
 
@@ -470,6 +473,7 @@ public class DownloadActivity extends Activity {
             return;
         }
         retrySources = retryOnly ? failed : null;
+        verificationFailure = null;
         webRetries = 0;
         String abi = (requestAbis != null && requestAbis.length > 0)
                 ? requestAbis[0] : "unknown";
@@ -1968,15 +1972,31 @@ public class DownloadActivity extends Activity {
      */
     private File downloadGitHubFile(String url, String referer, String pkg, String version,
                                     String fileType) throws IOException {
-        File file = downloadFile(url, referer, pkg, version, fileType);
+        File file = null;
         try {
+            file = downloadFile(url, referer, pkg, version, fileType);
             DownloadedFileValidator.verifyInstalledSignature(this, file, pkg);
+            return file;
         } catch (IOException error) {
-            //noinspection ResultOfMethodCallIgnored
-            file.delete();
+            if (file != null) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+            }
+            if (isVerificationFailure(error)) {
+                verificationFailure = error.getMessage();
+            }
             throw error;
         }
-        return file;
+    }
+
+    /** True for a package/version/signature rejection rather than a network error. */
+    private boolean isVerificationFailure(IOException error) {
+        if (error instanceof DownloadedFileValidator.VersionMismatchException) {
+            return true;
+        }
+        String message = error.getMessage();
+        return message != null
+                && message.toLowerCase(Locale.US).contains("signature");
     }
 
     /**
@@ -2108,6 +2128,13 @@ public class DownloadActivity extends Activity {
             if (file != null) {
                 return file;
             }
+        }
+
+        // A package/version/signature rejection is not a network problem. Opening
+        // the APKPure WebView in that case only hides the reason and usually
+        // cannot produce a matching APK either. Show the verification error.
+        if (!TextUtils.isEmpty(verificationFailure)) {
+            throw new IOException(verificationFailure);
         }
 
         if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
@@ -2750,7 +2777,7 @@ public class DownloadActivity extends Activity {
                 JSONObject entry = packages.getJSONObject(i);
                 String entryVersion = entry.optString("versionName", "");
                 long entryCode = entry.optLong("versionCode", -1);
-                if (!TextUtils.isEmpty(version) && entryVersion.equalsIgnoreCase(version)) {
+                if (!TextUtils.isEmpty(version) && sameVersion(entryVersion, version)) {
                     selected = entry;
                     break;
                 }
@@ -2868,7 +2895,7 @@ public class DownloadActivity extends Activity {
         }
         String entryVersion = file.optString("vername", "");
         long entryCode = file.optLong("vercode", -1);
-        return entryVersion.equalsIgnoreCase(version)
+        return sameVersion(entryVersion, version)
                 || (versionCodes != null && contains(versionCodes, entryCode));
     }
 
@@ -2984,8 +3011,19 @@ public class DownloadActivity extends Activity {
         if (TextUtils.isEmpty(left) || TextUtils.isEmpty(right)) {
             return false;
         }
-        return left.trim().replace(" ", "")
-                .equalsIgnoreCase(right.trim().replace(" ", ""));
+        return normalizeVersion(left).equalsIgnoreCase(normalizeVersion(right));
+    }
+
+    /**
+     * Patch bundles often write versions as {@code v1.0.14}, while the APK
+     * manifest reports {@code 1.0.14}. Treat both forms as the same version.
+     */
+    private String normalizeVersion(String value) {
+        String result = value.trim().replace(" ", "");
+        while (result.startsWith("v") || result.startsWith("V")) {
+            result = result.substring(1);
+        }
+        return result;
     }
 
     /**
