@@ -24,14 +24,58 @@ final class UpdateInfo {
     }
 
     static int compareVersions(String left, String right) {
-        String[] leftParts = clean(left).split("\\.");
-        String[] rightParts = clean(right).split("\\.");
+        String[] leftParts = clean(left).split("-", 2);
+        String[] rightParts = clean(right).split("-", 2);
+        int numeric = compareNumbers(leftParts[0], rightParts[0]);
+        if (numeric != 0) {
+            return numeric;
+        }
+        boolean leftPre = leftParts.length > 1 && !leftParts[1].isEmpty();
+        boolean rightPre = rightParts.length > 1 && !rightParts[1].isEmpty();
+        if (leftPre != rightPre) {
+            return leftPre ? -1 : 1;
+        }
+        if (!leftPre) {
+            return 0;
+        }
+        return comparePrerelease(leftParts[1], rightParts[1]);
+    }
+
+    private static int compareNumbers(String left, String right) {
+        String[] leftParts = left.split("\\.");
+        String[] rightParts = right.split("\\.");
         int count = Math.max(leftParts.length, rightParts.length);
         for (int i = 0; i < count; i++) {
             int a = number(leftParts, i);
             int b = number(rightParts, i);
             if (a != b) {
                 return Integer.compare(a, b);
+            }
+        }
+        return 0;
+    }
+
+    private static int comparePrerelease(String left, String right) {
+        String[] leftParts = left.split("\\.");
+        String[] rightParts = right.split("\\.");
+        int count = Math.max(leftParts.length, rightParts.length);
+        for (int i = 0; i < count; i++) {
+            String a = i < leftParts.length ? leftParts[i] : "";
+            String b = i < rightParts.length ? rightParts[i] : "";
+            int numericA = number(leftParts, i);
+            int numericB = number(rightParts, i);
+            boolean aNumeric = !a.isEmpty() && a.matches("\\d+");
+            boolean bNumeric = !b.isEmpty() && b.matches("\\d+");
+            if (aNumeric && bNumeric) {
+                int result = Integer.compare(numericA, numericB);
+                if (result != 0) {
+                    return result;
+                }
+            } else {
+                int result = a.compareTo(b);
+                if (result != 0) {
+                    return result;
+                }
             }
         }
         return 0;
