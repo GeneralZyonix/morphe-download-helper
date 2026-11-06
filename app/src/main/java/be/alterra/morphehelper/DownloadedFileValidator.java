@@ -1,6 +1,7 @@
 package be.alterra.morphehelper;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
@@ -41,32 +42,47 @@ final class DownloadedFileValidator {
         }
     }
 
+    /** The downloaded build requires a newer Android API than this device. */
+    static final class IncompatibleSdkException extends IOException {
+        IncompatibleSdkException(String message) {
+            super(message);
+        }
+    }
+
     /** Collects the attributes of the root {@code <manifest>} element. */
     private static final class ManifestStreamer implements XmlStreamer {
         String packageName;
         String versionName;
         long versionCode = -1;
+        int minSdkVersion = -1;
 
         @Override
         public void onStartTag(XmlNodeStartTag tag) {
-            if (packageName != null || !"manifest".equals(tag.getName())) {
-                return;
-            }
             Attributes attributes = tag.getAttributes();
             if (attributes == null) {
                 return;
             }
-            packageName = attributes.getString("package");
-            versionName = attributes.getString("versionName");
-            String code = attributes.getString("versionCode");
-            if (code != null) {
-                try {
-                    versionCode = Long.parseLong(code);
-                } catch (NumberFormatException ignored) {
+            if ("manifest".equals(tag.getName()) && packageName == null) {
+                packageName = attributes.getString("package");
+                versionName = attributes.getString("versionName");
+                String code = attributes.getString("versionCode");
+                if (code != null) {
+                    try {
+                        versionCode = Long.parseLong(code);
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
-            }
-            if (versionName != null && versionName.startsWith("resourceId:")) {
-                versionName = null;
+                if (versionName != null && versionName.startsWith("resourceId:")) {
+                    versionName = null;
+                }
+            } else if ("uses-sdk".equals(tag.getName())) {
+                String minSdk = attributes.getString("minSdkVersion");
+                if (minSdk != null) {
+                    try {
+                        minSdkVersion = Integer.parseInt(minSdk);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
             }
         }
 
@@ -92,11 +108,14 @@ final class DownloadedFileValidator {
         final String packageName;
         final String versionName;
         final long versionCode;
+        final int minSdkVersion;
 
-        XapkManifest(String packageName, String versionName, long versionCode) {
+        XapkManifest(String packageName, String versionName, long versionCode,
+                     int minSdkVersion) {
             this.packageName = packageName;
             this.versionName = versionName;
             this.versionCode = versionCode;
+            this.minSdkVersion = minSdkVersion;
         }
     }
 
@@ -145,9 +164,11 @@ final class DownloadedFileValidator {
                 }
                 if (matchesVersion(manifest.versionName, manifest.versionCode,
                         versionName, versionCodes)) {
+                    checkMinSdk(manifest.minSdkVersion, "XAPK");
                     HelperLog.info("Validated XAPK manifest package="
                             + manifest.packageName + " version=" + manifest.versionName
-                            + " code=" + manifest.versionCode);
+                            + " code=" + manifest.versionCode
+                            + " minSdk=" + manifest.minSdkVersion);
                     return;
                 }
                 wrongManifest = manifest;
@@ -198,7 +219,8 @@ final class DownloadedFileValidator {
                 }
             }
         } catch (IOException error) {
-            if (error instanceof VersionMismatchException) {
+            if (error instanceof VersionMismatchException
+                    || error instanceof IncompatibleSdkException) {
                 throw error;
             }
             throw new IOException("Downloaded archive could not be read", error);
@@ -243,7 +265,8 @@ final class DownloadedFileValidator {
             }
             String versionName = root.optString("version_name", "").trim();
             long versionCode = parseVersionCode(root.opt("version_code"));
-            return new XapkManifest(packageName, versionName, versionCode);
+            int minSdkVersion = parseSdkInt(root.opt("min_sdk_version"));
+            return new XapkManifest(packageName, versionName, versionCode, minSdkVersion);
         } catch (Exception error) {
             HelperLog.error("Could not read XAPK manifest", error);
             return null;
@@ -278,6 +301,40 @@ final class DownloadedFileValidator {
                 return Long.parseLong(String.valueOf(value).trim());
             } catch (NumberFormatException ignored) {
             }
+        }
+        return -1;
+    }
+
+    private static int parseSdkInt(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        if (value != null) {
+            try {
+                return Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Android's package parser refuses an archive whose {@code minSdkVersion} is newer than
+     * the device, so Morphe cannot read the base APK of such a bundle. Reject it here and
+     * let the caller fall back to a source that has a compatible build.
+     */
+    private static void checkMinSdk(int minSdkVersion, String kind)
+            throws IncompatibleSdkException {
+        if (minSdkVersion > 0 && minSdkVersion > Build.VERSION.SDK_INT) {
+            throw new IncompatibleSdkException("Downloaded " + kind
+                    + " requires Android SDK " + minSdkVersion
+                    + " but this device is SDK " + Build.VERSION.SDK_INT);
+        }
+    }
+
+    private static int minSdkOf(PackageInfo info) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && info.applicationInfo != null) {
+            return info.applicationInfo.minSdkVersion;
         }
         return -1;
     }
@@ -331,7 +388,8 @@ final class DownloadedFileValidator {
                     ? fallback.getLongVersionCode() : fallback.versionCode;
             HelperLog.info("Parsed split APK manifest package="
                     + fallback.packageName + " version=" + fallback.versionName
-                    + " code=" + fallbackCode + " entry=" + entry.getName());
+                    + " code=" + fallbackCode + " minSdk=" + minSdkOf(fallback)
+                    + " entry=" + entry.getName());
             return fallback;
         } finally {
             //noinspection ResultOfMethodCallIgnored
@@ -369,6 +427,11 @@ final class DownloadedFileValidator {
             if (Build.VERSION.SDK_INT >= 28) {
                 info.setLongVersionCode(streamer.versionCode);
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                ApplicationInfo applicationInfo = new ApplicationInfo();
+                applicationInfo.minSdkVersion = streamer.minSdkVersion;
+                info.applicationInfo = applicationInfo;
+            }
             return info;
         } catch (Exception error) {
             HelperLog.error("Could not parse split APK metadata: " + file.getName(),
@@ -391,12 +454,14 @@ final class DownloadedFileValidator {
             throw new VersionMismatchException("Downloaded " + kind + " is version "
                     + actualVersion + " (" + actualCode + "), expected " + versionName);
         }
+        checkMinSdk(minSdkOf(info), kind);
         String actualVersion = info.versionName == null
                 ? "" : info.versionName.trim();
         long actualCode = Build.VERSION.SDK_INT >= 28
                 ? info.getLongVersionCode() : info.versionCode;
         HelperLog.info("Validated " + kind + " package=" + info.packageName
-                + " version=" + actualVersion + " code=" + actualCode);
+                + " version=" + actualVersion + " code=" + actualCode
+                + " minSdk=" + minSdkOf(info));
     }
 
     private static boolean matches(PackageInfo info, String pkg, String versionName,

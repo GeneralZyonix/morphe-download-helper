@@ -5,6 +5,18 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.14-beta.2] - 2026-11-06
+
+### Fixed
+
+- Uptodown builds whose `minSdkVersion` is newer than the device are now rejected
+  during validation, and the helper automatically retries the remaining sources.
+  Android 12's package parser cannot read the base APK of such a bundle, which made
+  Morphe show **The selected file is not a valid APK** even though the helper could
+  read its manifest. Uptodown's Gboard APKS requires SDK 32; APKPure's build for the
+  same version requires SDK 26 and is now used instead. Reported in
+  [#15](https://github.com/GeneralZyonix/morphe-download-helper/issues/15).
+
 ## [1.6.14-beta.1] - 2026-11-06
 
 ### Fixed

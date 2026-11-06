@@ -337,6 +337,13 @@ public class DownloadActivity extends Activity {
     /** Guards against handling the same Uptodown download URL more than once. */
     private boolean uptodownHandled;
 
+    /**
+     * Set when Uptodown served a build whose minSdkVersion is newer than this device.
+     * Android's package parser cannot read such an APK, so Morphe would reject the
+     * bundle. Keep Uptodown out of the remaining attempts for this request.
+     */
+    private volatile boolean uptodownIncompatible;
+
     /** Request values kept for the WebView download path. */
     private String uptodownPkg;
     private String uptodownVersion;
@@ -1259,6 +1266,26 @@ public class DownloadActivity extends Activity {
                         deliverFile(file);
                     }
                 } catch (Exception e) {
+                    if (e instanceof DownloadedFileValidator.IncompatibleSdkException
+                            && "uptodown".equals(source)) {
+                        // Android 12 cannot parse an APK whose minSdkVersion is newer
+                        // than the device, so Morphe would reject this bundle even
+                        // though the helper can read its manifest. Try the other
+                        // sources for a build this device can actually open.
+                        uptodownIncompatible = true;
+                        verificationFailure = e.getMessage();
+                        HelperLog.info("Uptodown build is incompatible: "
+                                + e.getMessage() + "; retrying other sources");
+                        markSource(SourceSettings.UPTODOWN, false, e.getMessage());
+                        if (cancelled) {
+                            return;
+                        }
+                        main.post(() -> {
+                            startResolution(false);
+                            markSource(SourceSettings.UPTODOWN, false, e.getMessage());
+                        });
+                        return;
+                    }
                     if ("apkmirror".equals(source) && isRetryableWebDownload(e)
                             && webRetries < 1 && !cancelled) {
                         webRetries++;
@@ -1914,6 +1941,9 @@ public class DownloadActivity extends Activity {
     }
 
     private boolean sourceAllowed(String key) {
+        if (SourceSettings.UPTODOWN.equals(key) && uptodownIncompatible) {
+            return false;
+        }
         return SourceSettings.isEnabled(this, key)
                 && (retrySources == null || retrySources.contains(key));
     }
