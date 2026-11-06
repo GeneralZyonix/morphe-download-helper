@@ -86,6 +86,7 @@ public class MainActivity extends Activity {
         // Create the log file before any screen can try to share it.
         HelperLog.init(getApplicationContext());
         SourceSettings.ensureInitialized(this);
+        PublicSettings.apply(this);
         new Thread(() -> AppSettings.cleanup(this)).start();
         new Thread(() -> UpdateManager.cleanupStagedUpdates(this)).start();
         if (Build.VERSION.SDK_INT >= 33

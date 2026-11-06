@@ -357,6 +357,7 @@ public class DownloadActivity extends Activity {
         // Prepare logging first so every later step is captured.
         HelperLog.init(getApplicationContext());
         SourceSettings.ensureInitialized(this);
+        PublicSettings.apply(this);
         new Thread(() -> AppSettings.cleanup(this)).start();
 
         // Build the dark UI before reading the intent; the UI is then updated as work runs.

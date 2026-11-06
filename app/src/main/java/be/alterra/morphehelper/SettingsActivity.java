@@ -4,7 +4,6 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.LocaleManager;
-import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -76,10 +75,12 @@ public class SettingsActivity extends Activity {
                 boolean granted = grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED;
                 if (granted) {
                     UpdateManager.setMode(this, UpdateManager.MODE_SHIZUKU);
+                    PublicSettings.write(this);
                     Toast.makeText(this, R.string.settings_automatic_enabled,
                             Toast.LENGTH_SHORT).show();
                 } else {
                     UpdateManager.setMode(this, UpdateManager.MODE_NOTIFY);
+                    PublicSettings.write(this);
                     Toast.makeText(this, R.string.settings_shizuku_denied,
                             Toast.LENGTH_LONG).show();
                 }
@@ -90,6 +91,7 @@ public class SettingsActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SourceSettings.ensureInitialized(this);
+        PublicSettings.apply(this);
         Shizuku.addRequestPermissionResultListener(shizukuListener);
         getWindow().setStatusBarColor(BG_TOP);
         getWindow().setNavigationBarColor(BG_TOP);
@@ -220,6 +222,12 @@ public class SettingsActivity extends Activity {
         super.onDestroy();
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        PublicSettings.write(this);
+    }
+
     private void addLanguageRow(LinearLayout root) {
         LinearLayout row = settingRow(getString(R.string.settings_language),
                 currentLanguageLabel());
@@ -347,7 +355,7 @@ public class SettingsActivity extends Activity {
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         Switch toggle = new Switch(this);
-        toggle.setChecked(isLauncherIconHidden());
+        toggle.setChecked(AppSettings.isLauncherIconHidden(this));
         toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
         toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
         final boolean[] updating = {false};
@@ -356,7 +364,8 @@ public class SettingsActivity extends Activity {
                 return;
             }
             if (!isChecked) {
-                setLauncherIconHidden(false);
+                AppSettings.setLauncherIconHidden(this, false);
+                PublicSettings.write(this);
                 Toast.makeText(this, R.string.settings_hide_launcher_icon_shown,
                         Toast.LENGTH_SHORT).show();
                 return;
@@ -370,7 +379,8 @@ public class SettingsActivity extends Activity {
                     .setNegativeButton(R.string.common_cancel, null)
                     .setPositiveButton(R.string.settings_hide_launcher_icon_confirm,
                             (dialog, which) -> {
-                                setLauncherIconHidden(true);
+                                AppSettings.setLauncherIconHidden(this, true);
+                                PublicSettings.write(this);
                                 updating[0] = true;
                                 buttonView.setChecked(true);
                                 updating[0] = false;
@@ -388,24 +398,6 @@ public class SettingsActivity extends Activity {
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(6), 0, 0);
         card.addView(note);
-    }
-
-    private boolean isLauncherIconHidden() {
-        return getPackageManager().getComponentEnabledSetting(launcherAlias())
-                == PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
-    }
-
-    private void setLauncherIconHidden(boolean hidden) {
-        getPackageManager().setComponentEnabledSetting(
-                launcherAlias(),
-                hidden ? PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-                        : PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP);
-        HelperLog.info(hidden ? "Launcher icon hidden" : "Launcher icon restored");
-    }
-
-    private ComponentName launcherAlias() {
-        return new ComponentName(getPackageName(), getPackageName() + ".Launcher");
     }
 
     private void addUpdatesCard(LinearLayout root) {
@@ -454,6 +446,7 @@ public class SettingsActivity extends Activity {
         enabledSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
         enabledSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             UpdateManager.setEnabled(this, isChecked);
+            PublicSettings.write(this);
             if (isChecked) {
                 Toast.makeText(this, R.string.settings_checks_enabled, Toast.LENGTH_SHORT).show();
             } else {
@@ -477,6 +470,7 @@ public class SettingsActivity extends Activity {
                     dialog.dismiss();
                     if (which == 0) {
                         UpdateManager.setMode(this, UpdateManager.MODE_NOTIFY);
+                        PublicSettings.write(this);
                         recreate();
                     } else {
                         requestShizukuMode();
@@ -506,6 +500,7 @@ public class SettingsActivity extends Activity {
             popupSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
             popupSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 UpdateManager.setInAppPopupEnabled(this, isChecked);
+                PublicSettings.write(this);
                 Toast.makeText(this,
                         isChecked ? R.string.settings_update_popup_enabled
                                 : R.string.settings_update_popup_disabled,
@@ -639,6 +634,7 @@ public class SettingsActivity extends Activity {
         scanSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
         scanSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalEnabled(this, isChecked);
+            PublicSettings.write(this);
             if (isChecked && AppSettings.virusTotalApiKey(this).isEmpty()) {
                 Toast.makeText(this, R.string.virustotal_add_key_toast,
                         Toast.LENGTH_LONG).show();
@@ -673,8 +669,10 @@ public class SettingsActivity extends Activity {
         blockSwitch.setChecked(AppSettings.virusTotalBlockDetections(this));
         blockSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
         blockSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
-        blockSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
-                AppSettings.setVirusTotalBlockDetections(this, isChecked));
+        blockSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setVirusTotalBlockDetections(this, isChecked);
+            PublicSettings.write(this);
+        });
         blockRow.addView(blockSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(blockRow);
 
@@ -699,6 +697,7 @@ public class SettingsActivity extends Activity {
         uploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
         uploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalUploadUnknown(this, isChecked);
+            PublicSettings.write(this);
             if (isChecked) {
                 Toast.makeText(this, R.string.virustotal_unknown_upload_toast,
                         Toast.LENGTH_SHORT).show();
@@ -729,6 +728,7 @@ public class SettingsActivity extends Activity {
         alwaysUploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
         alwaysUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalAlwaysUpload(this, isChecked);
+            PublicSettings.write(this);
             if (isChecked) {
                 Toast.makeText(this, R.string.virustotal_always_upload_toast,
                         Toast.LENGTH_LONG).show();
@@ -758,8 +758,10 @@ public class SettingsActivity extends Activity {
         quotaUploadSwitch.setChecked(AppSettings.virusTotalUploadOnQuota(this));
         quotaUploadSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
         quotaUploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
-        quotaUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
-                AppSettings.setVirusTotalUploadOnQuota(this, isChecked));
+        quotaUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setVirusTotalUploadOnQuota(this, isChecked);
+            PublicSettings.write(this);
+        });
         quotaUploadRow.addView(quotaUploadSwitch,
                 new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(quotaUploadRow);
@@ -781,6 +783,7 @@ public class SettingsActivity extends Activity {
                         getString(R.string.virustotal_quota_dialog_abort)
                 }, AppSettings.virusTotalAbortOnQuota(this) ? 1 : 0, (dialog, which) -> {
                     AppSettings.setVirusTotalAbortOnQuota(this, which == 1);
+                    PublicSettings.write(this);
                     dialog.dismiss();
                     recreate();
                 })
@@ -830,6 +833,7 @@ public class SettingsActivity extends Activity {
         int status = ShizukuHelper.status(this);
         if (status == ShizukuHelper.READY) {
             UpdateManager.setMode(this, UpdateManager.MODE_SHIZUKU);
+            PublicSettings.write(this);
             Toast.makeText(this, R.string.settings_automatic_enabled,
                     Toast.LENGTH_SHORT).show();
             recreate();
@@ -841,6 +845,7 @@ public class SettingsActivity extends Activity {
                     .setMessage(R.string.settings_shizuku_dialog_message)
                     .setNegativeButton(R.string.settings_use_notifications, (dialog, which) -> {
                         UpdateManager.setMode(this, UpdateManager.MODE_NOTIFY);
+                        PublicSettings.write(this);
                         recreate();
                     })
                     .setPositiveButton(R.string.settings_grant_permission, (dialog, which) ->
@@ -1086,6 +1091,7 @@ public class SettingsActivity extends Activity {
         toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setApptekaSnapTubeOnly(this, isChecked);
+            PublicSettings.write(this);
             if (!isChecked) {
                 Toast.makeText(this, R.string.settings_appteka_all_apps_warning,
                         Toast.LENGTH_LONG).show();
@@ -1202,6 +1208,7 @@ public class SettingsActivity extends Activity {
             up.setClickable(true);
             up.setOnClickListener(v -> {
                 AppSettings.moveSource(this, key, -1);
+                PublicSettings.write(this);
                 recreate();
             });
             row.addView(up);
@@ -1211,6 +1218,7 @@ public class SettingsActivity extends Activity {
             down.setClickable(true);
             down.setOnClickListener(v -> {
                 AppSettings.moveSource(this, key, 1);
+                PublicSettings.write(this);
                 recreate();
             });
             row.addView(down);
@@ -1220,6 +1228,7 @@ public class SettingsActivity extends Activity {
         TextView reset = actionButton(getString(R.string.settings_reset_order), PRIMARY_START);
         reset.setOnClickListener(v -> {
             AppSettings.resetSourceOrder(this);
+            PublicSettings.write(this);
             recreate();
         });
         card.addView(reset);
@@ -1340,6 +1349,7 @@ public class SettingsActivity extends Activity {
                 return;
             }
             SourceSettings.setEnabled(this, key, isChecked);
+            PublicSettings.write(this);
         });
         LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
                 dp(64), dp(48));

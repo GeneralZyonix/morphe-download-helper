@@ -98,10 +98,10 @@
     <string name="settings_launcher_icon">Launcher icon</string>
     <string name="settings_hide_launcher_icon">Hide launcher icon</string>
     <string name="settings_hide_launcher_icon_detail">Removes the app from your launcher</string>
-    <string name="settings_hide_launcher_icon_desc">Only enable this after configuring the helper. Once hidden, you cannot reopen Settings or the changelog from the app. To restore the icon, uninstall and reinstall the APK (this clears app data), or use ADB.</string>
-    <string name="settings_hide_launcher_icon_note">Morphe can still launch the helper for downloads, and update notifications or Shizuku updates continue to work. Some launchers may need a restart before the icon disappears.</string>
+    <string name="settings_hide_launcher_icon_desc">Only enable this after configuring the helper. Once hidden, you cannot reopen Settings or the changelog from the app. To restore the icon, set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.conf, then start a download from Morphe. You can also uninstall and reinstall the APK, or use ADB.</string>
+    <string name="settings_hide_launcher_icon_note">Morphe can still launch the helper for downloads, and update notifications or Shizuku updates continue to work. Non-secret settings are mirrored to Downloads/Morphe Helper/helper-settings.conf; the VirusTotal API key is never written there.</string>
     <string name="settings_hide_launcher_icon_confirm_title">Hide launcher icon?</string>
-    <string name="settings_hide_launcher_icon_confirm_message">The app will disappear from your launcher. You will not be able to open Settings or the changelog afterwards. To restore the icon, uninstall and reinstall the APK (this clears app data), or use ADB. Continue?</string>
+    <string name="settings_hide_launcher_icon_confirm_message">The app will disappear from your launcher. You will not be able to open Settings or the changelog afterwards. To restore the icon, set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.conf, then start a download from Morphe. You can also uninstall and reinstall the APK, or use ADB. Continue?</string>
     <string name="settings_hide_launcher_icon_confirm">Hide icon</string>
     <string name="settings_hide_launcher_icon_hidden">Launcher icon hidden.</string>
     <string name="settings_hide_launcher_icon_shown">Launcher icon restored.</string>

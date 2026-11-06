@@ -1,9 +1,11 @@
 package be.alterra.morphehelper;
 
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -78,6 +80,25 @@ final class AppSettings {
 
     static void setLocation(Context context, String location) {
         prefs(context).edit().putString(KEY_LOCATION, location).apply();
+    }
+
+    static boolean isLauncherIconHidden(Context context) {
+        return context.getPackageManager().getComponentEnabledSetting(
+                launcherAlias(context)) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+    }
+
+    static void setLauncherIconHidden(Context context, boolean hidden) {
+        context.getPackageManager().setComponentEnabledSetting(
+                launcherAlias(context),
+                hidden ? PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                        : PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP);
+        HelperLog.info(hidden ? "Launcher icon hidden" : "Launcher icon restored");
+    }
+
+    private static ComponentName launcherAlias(Context context) {
+        return new ComponentName(context.getPackageName(),
+                context.getPackageName() + ".Launcher");
     }
 
     static String customTreeUri(Context context) {
@@ -381,8 +402,12 @@ final class AppSettings {
             if (Build.VERSION.SDK_INT >= 29) {
                 return context.getContentResolver().delete(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?",
-                        new String[]{Environment.DIRECTORY_DOWNLOADS + "/Morphe Helper/%"});
+                        MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ? AND "
+                                + MediaStore.MediaColumns.DISPLAY_NAME + " != ?",
+                        new String[]{
+                                Environment.DIRECTORY_DOWNLOADS + "/Morphe Helper/%",
+                                PublicSettings.FILE_NAME
+                        });
             }
             File dir = new File(
                     Environment.getExternalStoragePublicDirectory(
@@ -394,7 +419,8 @@ final class AppSettings {
             }
             int deleted = 0;
             for (File file : files) {
-                if (file.isFile() && file.delete()) {
+                if (file.isFile() && !PublicSettings.FILE_NAME.equals(file.getName())
+                        && file.delete()) {
                     deleted++;
                 }
             }
