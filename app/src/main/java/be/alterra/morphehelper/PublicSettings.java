@@ -144,6 +144,15 @@ final class PublicSettings {
             AppSettings.setThemeCustomHex(context,
                     ThemeManager.normalizeHex(themeHex));
         }
+        String themeSchemeHex = values.get("theme_scheme_hex");
+        if (themeSchemeHex != null) {
+            AppSettings.setThemeSchemeHex(context,
+                    ThemeManager.normalizeHex(themeSchemeHex));
+        }
+        Boolean themeTint = bool(values, "theme_tint_surfaces");
+        if (themeTint != null) {
+            AppSettings.setThemeTintSurfaces(context, themeTint);
+        }
 
         Boolean updateChecks = bool(values, "update_checks");
         if (updateChecks != null) {
@@ -267,6 +276,9 @@ final class PublicSettings {
         text.append("theme_mode=").append(AppSettings.themeMode(context)).append('\n');
         text.append("theme_accent=").append(AppSettings.themeAccent(context)).append('\n');
         text.append("theme_custom_hex=").append(AppSettings.themeCustomHex(context)).append('\n');
+        text.append("theme_scheme_hex=").append(AppSettings.themeSchemeHex(context)).append('\n');
+        text.append("theme_tint_surfaces=")
+                .append(AppSettings.themeTintSurfaces(context)).append('\n');
         text.append("update_checks=")
                 .append(UpdateManager.isEnabled(context)).append('\n');
         text.append("update_mode=")

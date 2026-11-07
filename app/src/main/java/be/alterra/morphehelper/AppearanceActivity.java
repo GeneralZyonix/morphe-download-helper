@@ -12,10 +12,12 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,8 +28,11 @@ import androidx.core.view.WindowInsetsCompat;
 public class AppearanceActivity extends Activity {
 
     private String themeSignature;
-    private EditText customHex;
-    private TextView customError;
+    private EditText schemeHex;
+    private TextView schemeError;
+    private LinearLayout schemeEditor;
+    private View schemeRow;
+    private ScrollView scrollView;
     private int RED;
 
     private int BG_TOP;
@@ -45,6 +50,7 @@ public class AppearanceActivity extends Activity {
     private int TEXT;
     private int MUTED;
     private int STEPS;
+    private int SWITCH_THUMB;
     private boolean LIGHT;
 
     @Override
@@ -53,15 +59,15 @@ public class AppearanceActivity extends Activity {
         PublicSettings.apply(this);
         applyPalette();
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.setId(R.id.appearance_scroll);
-        scroll.setFillViewport(true);
-        scroll.setBackground(gradient(BG_TOP, BG_BOTTOM));
+        scrollView = new ScrollView(this);
+        scrollView.setId(R.id.appearance_scroll);
+        scrollView.setFillViewport(true);
+        scrollView.setBackground(gradient(BG_TOP, BG_BOTTOM));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         applyContentPadding(root);
-        scroll.addView(root, new ScrollView.LayoutParams(
+        scrollView.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -77,8 +83,8 @@ public class AppearanceActivity extends Activity {
 
         addPreviewCard(root);
         addModeCard(root);
+        addTintCard(root);
         addAccentCard(root);
-        addCustomCard(root);
         addResetCard(root);
 
         TextView done = primaryButton(getString(R.string.common_done));
@@ -89,7 +95,14 @@ public class AppearanceActivity extends Activity {
         doneParams.bottomMargin = dp(24);
         root.addView(done, doneParams);
 
-        setContentView(scroll);
+        setContentView(scrollView);
+        ViewCompat.setOnApplyWindowInsetsListener(scrollView, (view, insets) -> {
+            if (insets.isVisible(WindowInsetsCompat.Type.ime())
+                    && schemeHex != null && schemeHex.hasFocus()) {
+                view.postDelayed(this::scrollSchemeFieldIntoView, 60);
+            }
+            return insets;
+        });
         ThemeManager.applySystemBars(this);
     }
 
@@ -119,6 +132,7 @@ public class AppearanceActivity extends Activity {
         TEXT = palette.text;
         MUTED = palette.muted;
         STEPS = palette.steps;
+        SWITCH_THUMB = palette.switchThumb;
         RED = palette.red;
         LIGHT = palette.light;
         themeSignature = ThemeManager.signature(this);
@@ -245,6 +259,58 @@ public class AppearanceActivity extends Activity {
         secondRow.addView(system, systemParams);
     }
 
+    private void addTintCard(LinearLayout root) {
+        LinearLayout card = card();
+        LinearLayout.LayoutParams params = cardParams();
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text(getString(R.string.appearance_tint), 16, TEXT, true));
+        TextView detail = text(getString(R.string.appearance_tint_detail), 12, MUTED, false);
+        detail.setLineSpacing(dp(2), 1f);
+        detail.setPadding(0, dp(4), dp(12), 0);
+        labels.addView(detail);
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch toggle = new Switch(this);
+        toggle.setChecked(AppSettings.themeTintSurfaces(this));
+        styleSwitch(toggle);
+        toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setThemeTintSurfaces(this, isChecked);
+            PublicSettings.write(this);
+            recreate();
+        });
+        LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
+                dp(64), dp(48));
+        toggleParams.gravity = Gravity.CENTER_VERTICAL;
+        row.addView(toggle, toggleParams);
+        card.addView(row);
+    }
+
+    private void styleSwitch(Switch toggle) {
+        toggle.setThumbTintList(new ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                },
+                new int[]{SWITCH_THUMB, MUTED}
+        ));
+        toggle.setTrackTintList(new ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                },
+                new int[]{PRIMARY_START, SECONDARY_BORDER}
+        ));
+    }
+
     private void addAccentCard(LinearLayout root) {
         LinearLayout card = card();
         LinearLayout.LayoutParams params = cardParams();
@@ -280,67 +346,136 @@ public class AppearanceActivity extends Activity {
                 optionParams.setMarginStart(dp(6));
             }
             row.addView(option, optionParams);
+            if (ThemeManager.ACCENT_SCHEME.equals(accent)) {
+                schemeRow = option;
+                option.setOnClickListener(v -> toggleSchemeEditor());
+            }
             index++;
         }
+        addSchemeEditor(card);
     }
 
-    private void addCustomCard(LinearLayout root) {
-        LinearLayout card = card();
-        LinearLayout.LayoutParams params = cardParams();
-        params.topMargin = dp(18);
-        root.addView(card, params);
+    private void addSchemeEditor(LinearLayout accentCard) {
+        schemeEditor = new LinearLayout(this);
+        schemeEditor.setOrientation(LinearLayout.VERTICAL);
+        schemeEditor.setPadding(0, dp(10), 0, dp(4));
+        schemeEditor.setVisibility(View.GONE);
+        accentCard.addView(schemeEditor, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        card.addView(text(getString(R.string.appearance_custom_hex), 16, TEXT, true));
-
-        TextView detail = text(getString(R.string.appearance_custom_hex_detail), 12, MUTED, false);
-        detail.setLineSpacing(dp(2), 1f);
-        detail.setPadding(0, dp(4), 0, dp(10));
-        card.addView(detail);
+        TextView hint = text(getString(R.string.appearance_scheme_hint), 12, MUTED, false);
+        hint.setLineSpacing(dp(2), 1f);
+        hint.setPadding(0, 0, 0, dp(8));
+        schemeEditor.addView(hint);
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        customHex = new EditText(this);
-        customHex.setSingleLine(true);
-        customHex.setInputType(InputType.TYPE_CLASS_TEXT
+        schemeHex = new EditText(this);
+        schemeHex.setSingleLine(true);
+        schemeHex.setInputType(InputType.TYPE_CLASS_TEXT
                 | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
-        customHex.setHint(getString(R.string.appearance_custom_hex_hint));
-        customHex.setTextColor(TEXT);
-        customHex.setHintTextColor(MUTED);
-        customHex.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        customHex.setTypeface(Typeface.create("monospace", Typeface.NORMAL));
-        customHex.setPadding(dp(12), dp(10), dp(12), dp(10));
+        schemeHex.setHint(getString(R.string.appearance_custom_hex_hint));
+        schemeHex.setTextColor(TEXT);
+        schemeHex.setHintTextColor(MUTED);
+        schemeHex.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        schemeHex.setTypeface(Typeface.create("monospace", Typeface.NORMAL));
+        schemeHex.setPadding(dp(12), dp(10), dp(12), dp(10));
         GradientDrawable field = rounded(BG_TOP, 12);
         field.setStroke(dp(1), BORDER);
-        customHex.setBackground(field);
-        String savedHex = ThemeManager.normalizeHex(AppSettings.themeCustomHex(this));
+        schemeHex.setBackground(field);
+        String savedHex = ThemeManager.schemeHex(this);
         if (!savedHex.isEmpty()) {
-            customHex.setText(savedHex);
+            schemeHex.setText(savedHex);
         }
-        row.addView(customHex, new LinearLayout.LayoutParams(
+        row.addView(schemeHex, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView apply = text(getString(R.string.appearance_apply), 13, ACCENT_TEXT, true);
-        apply.setGravity(Gravity.CENTER);
-        apply.setPadding(dp(14), dp(12), dp(14), dp(12));
-        GradientDrawable applyBackground = rounded(SECONDARY, 12);
-        applyBackground.setStroke(dp(1), SECONDARY_BORDER);
-        apply.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE), applyBackground, null));
-        apply.setClickable(true);
-        apply.setFocusable(true);
-        apply.setOnClickListener(v -> applyCustomHex());
-        LinearLayout.LayoutParams applyParams = new LinearLayout.LayoutParams(
+        TextView save = text(getString(R.string.appearance_scheme_apply), 13, ACCENT_TEXT, true);
+        save.setGravity(Gravity.CENTER);
+        save.setPadding(dp(14), dp(12), dp(14), dp(12));
+        GradientDrawable saveBackground = rounded(SECONDARY, 12);
+        saveBackground.setStroke(dp(1), SECONDARY_BORDER);
+        save.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), saveBackground, null));
+        save.setClickable(true);
+        save.setFocusable(true);
+        save.setOnClickListener(v -> applySchemeHex());
+        LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        applyParams.setMarginStart(dp(8));
-        row.addView(apply, applyParams);
-        card.addView(row);
+        saveParams.setMarginStart(dp(8));
+        row.addView(save, saveParams);
+        schemeEditor.addView(row);
 
-        customError = text("", 12, RED, false);
-        customError.setPadding(0, dp(6), 0, 0);
-        customError.setVisibility(View.GONE);
-        card.addView(customError);
+        schemeError = text("", 12, RED, false);
+        schemeError.setPadding(0, dp(6), 0, 0);
+        schemeError.setVisibility(View.GONE);
+        schemeEditor.addView(schemeError);
+    }
+
+    private void toggleSchemeEditor() {
+        showSchemeEditor(schemeEditor.getVisibility() != View.VISIBLE, true);
+    }
+
+    private void showSchemeEditor(boolean show, boolean focus) {
+        if (schemeEditor == null) {
+            return;
+        }
+        if (!show) {
+            schemeEditor.setVisibility(View.GONE);
+            scrollView.setPadding(0, 0, 0, 0);
+            schemeHex.clearFocus();
+            InputMethodManager keyboard = (InputMethodManager)
+                    getSystemService(INPUT_METHOD_SERVICE);
+            if (keyboard != null) {
+                keyboard.hideSoftInputFromWindow(schemeHex.getWindowToken(), 0);
+            }
+            return;
+        }
+        scrollView.setPadding(0, 0, 0, dp(300));
+        schemeEditor.setAlpha(0f);
+        schemeEditor.setVisibility(View.VISIBLE);
+        schemeEditor.animate().alpha(1f).setDuration(180).start();
+        if (!focus) {
+            return;
+        }
+        schemeRow.post(() -> {
+            if (schemeRow != null) {
+                int[] rowLocation = new int[2];
+                int[] scrollLocation = new int[2];
+                schemeRow.getLocationInWindow(rowLocation);
+                scrollView.getLocationInWindow(scrollLocation);
+                int rowTop = rowLocation[1] - scrollLocation[1]
+                        + scrollView.getScrollY();
+                scrollView.smoothScrollTo(0, Math.max(0, rowTop - dp(90)));
+            }
+            schemeHex.postDelayed(() -> {
+                schemeHex.requestFocus();
+                InputMethodManager keyboard = (InputMethodManager)
+                        getSystemService(INPUT_METHOD_SERVICE);
+                if (keyboard != null) {
+                    keyboard.showSoftInput(schemeHex, InputMethodManager.SHOW_IMPLICIT);
+                }
+            }, 320);
+        });
+    }
+
+    private void applySchemeHex() {
+        String hex = ThemeManager.normalizeHex(schemeHex.getText().toString());
+        if (hex.isEmpty()) {
+            schemeError.setText(R.string.appearance_scheme_required);
+            schemeError.setVisibility(View.VISIBLE);
+            return;
+        }
+        schemeError.setVisibility(View.GONE);
+        AppSettings.setThemeAccent(this, ThemeManager.ACCENT_SCHEME);
+        AppSettings.setThemeSchemeHex(this, hex);
+        AppSettings.setThemeCustomHex(this, "");
+        PublicSettings.write(this);
+        Toast.makeText(this, R.string.appearance_scheme_applied, Toast.LENGTH_SHORT).show();
+        recreate();
     }
 
     private void addResetCard(LinearLayout root) {
@@ -383,24 +518,32 @@ public class AppearanceActivity extends Activity {
         if (accent.equals(ThemeManager.accent(this))) {
             return;
         }
+        if (ThemeManager.ACCENT_SCHEME.equals(accent)
+                && ThemeManager.schemeHex(this).isEmpty()) {
+            showSchemeEditor(true, true);
+            schemeError.setText(R.string.appearance_scheme_required);
+            schemeError.setVisibility(View.VISIBLE);
+            Toast.makeText(this, R.string.appearance_scheme_required,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
         AppSettings.setThemeAccent(this, accent);
         PublicSettings.write(this);
         recreate();
     }
 
-    private void applyCustomHex() {
-        String hex = ThemeManager.normalizeHex(customHex.getText().toString());
-        if (hex.isEmpty()) {
-            customError.setText(R.string.appearance_custom_invalid);
-            customError.setVisibility(View.VISIBLE);
+    /** Scrolls the required HEX field above the keyboard, with room to see it. */
+    private void scrollSchemeFieldIntoView() {
+        if (schemeHex == null || scrollView == null) {
             return;
         }
-        customError.setVisibility(View.GONE);
-        AppSettings.setThemeAccent(this, ThemeManager.ACCENT_CUSTOM);
-        AppSettings.setThemeCustomHex(this, hex);
-        PublicSettings.write(this);
-        Toast.makeText(this, R.string.appearance_custom_applied, Toast.LENGTH_SHORT).show();
-        recreate();
+        int[] field = new int[2];
+        int[] scroll = new int[2];
+        schemeHex.getLocationInWindow(field);
+        scrollView.getLocationInWindow(scroll);
+        int fieldTopInContent = field[1] - scroll[1] + scrollView.getScrollY();
+        int target = Math.max(0, fieldTopInContent - dp(160));
+        scrollView.smoothScrollTo(0, target);
     }
 
     private View accentOption(String accent, String customHex, boolean selected) {
@@ -420,10 +563,14 @@ public class AppearanceActivity extends Activity {
                 ColorStateList.valueOf(RIPPLE), background, null));
 
         View dot = new View(this);
-        GradientDrawable dotBackground = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT, colors);
-        dotBackground.setShape(GradientDrawable.OVAL);
-        dot.setBackground(dotBackground);
+        if (ThemeManager.ACCENT_SCHEME.equals(accent)) {
+            dot.setBackground(new ColorWheelDrawable());
+        } else {
+            GradientDrawable dotBackground = new GradientDrawable(
+                    GradientDrawable.Orientation.LEFT_RIGHT, colors);
+            dotBackground.setShape(GradientDrawable.OVAL);
+            dot.setBackground(dotBackground);
+        }
         option.addView(dot, new LinearLayout.LayoutParams(dp(22), dp(22)));
 
         TextView label = text(getString(ThemeManager.accentLabel(accent)),

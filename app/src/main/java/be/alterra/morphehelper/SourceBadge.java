@@ -1,14 +1,14 @@
 package be.alterra.morphehelper;
 
 import android.content.Context;
-import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
-/** Rounded tile containing the real logo for a download source. */
+/** Transparent logo tile for a download source. */
 final class SourceBadge {
 
     private SourceBadge() {
@@ -16,18 +16,22 @@ final class SourceBadge {
 
     static View create(Context context, String key) {
         FrameLayout tile = new FrameLayout(context);
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(0xFFFFFFFF);
-        background.setCornerRadius(dp(context, 9));
-        background.setStroke(dp(context, 1), 0x33000000);
-        tile.setBackground(background);
-        int padding = dp(context, 4);
+        tile.setBackground(new ColorDrawable(0x00000000));
+        int padding = dp(context, 1);
         tile.setPadding(padding, padding, padding, padding);
 
         ImageView logo = new ImageView(context);
         logo.setImageResource(logo(key));
         logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         logo.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+
+        ThemePalette palette = ThemeManager.palette(context);
+        if (SourceSettings.GITHUB.equals(key)) {
+            logo.setColorFilter(palette.text);
+        } else if (SourceSettings.FALLBACK.equals(key)) {
+            logo.setColorFilter(palette.light ? 0xFF0369A1 : 0xFF38BDF8);
+        }
+
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT);
@@ -45,6 +49,7 @@ final class SourceBadge {
             case SourceSettings.APTOIDE: return R.drawable.source_logo_aptoide;
             case SourceSettings.APPTEKA: return R.drawable.source_logo_appteka;
             case SourceSettings.GITHUB: return R.drawable.source_logo_github;
+            case SourceSettings.FALLBACK: return R.drawable.source_logo_morphe_link;
             default: return R.drawable.ic_logo_mark;
         }
     }

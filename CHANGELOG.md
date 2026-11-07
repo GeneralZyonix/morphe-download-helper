@@ -5,6 +5,44 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.0-beta.3] - 2026-11-07
+
+Follow-up UI beta with transparent logos, richer themes, and a custom colour
+scheme.
+
+### Added
+
+- **Custom colour scheme** in Appearance. Tap the colour-wheel row and the
+  Accent card expands downward with a HEX field and Save button. One base HEX
+  generates tinted backgrounds, cards, borders, controls, and an accent
+  gradient. A valid HEX is required. Requested by @IkoMosiEntertainmentHub in
+  [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
+- **Tint backgrounds from accent** in Appearance, on by default. Turn it off to
+  keep the neutral blue-black or light surfaces. The custom scheme always keeps
+  its tint.
+- The Custom scheme swatch is now a **colour wheel**, placed below Material You,
+  so it is visually distinct from the solid accent presets.
+- **Transparent source logos**, including cleaner APKPure and official F-Droid
+  artwork, plus a chain-link icon for the Morphe link source.
+
+### Changed
+
+- The separate **Custom accent HEX** card was merged into the Custom scheme
+  editor. Existing custom-accent HEX values carry over.
+- Every accent preset now tints backgrounds, cards, borders, and controls, not
+  just buttons. Light mode uses stronger tints so schemes read clearly instead
+  of washing out to white.
+- Card borders are accent-tinted and more visible in dark, light, and AMOLED
+  modes. AMOLED keeps true-black backgrounds.
+- The **Open Morphe** button now has the external-link box-and-arrow icon.
+- The **Manage** button in Download sources is a distinct outlined pill with a
+  chevron.
+
+### Fixed
+
+- Custom scheme no longer silently uses a default indigo when no HEX has been
+  saved.
+
 ## [2.0.0-beta.2] - 2026-11-07
 
 Second UI beta, with validation fixes and backup improvements.

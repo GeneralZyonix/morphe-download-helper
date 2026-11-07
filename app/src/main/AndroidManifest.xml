@@ -94,7 +94,8 @@
         <activity
             android:name=".AppearanceActivity"
             android:exported="false"
-            android:label="@string/appearance_title" />
+            android:label="@string/appearance_title"
+            android:windowSoftInputMode="adjustResize" />
 
         <!--
             Helper contract: Morphe sends this action when the user taps

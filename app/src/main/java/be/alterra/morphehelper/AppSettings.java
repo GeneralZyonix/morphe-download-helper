@@ -56,6 +56,8 @@ final class AppSettings {
     private static final String KEY_THEME_MODE = "theme_mode";
     private static final String KEY_THEME_ACCENT = "theme_accent";
     private static final String KEY_THEME_CUSTOM_HEX = "theme_custom_hex";
+    private static final String KEY_THEME_SCHEME_HEX = "theme_scheme_hex";
+    private static final String KEY_THEME_TINT_SURFACES = "theme_tint_surfaces";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
     private static final String KEY_VT_API_KEY = "virustotal_api_key";
@@ -218,6 +220,23 @@ final class AppSettings {
     static void setThemeCustomHex(Context context, String hex) {
         prefs(context).edit().putString(KEY_THEME_CUSTOM_HEX,
                 hex == null ? "" : hex).apply();
+    }
+
+    static String themeSchemeHex(Context context) {
+        return prefs(context).getString(KEY_THEME_SCHEME_HEX, "");
+    }
+
+    static void setThemeSchemeHex(Context context, String hex) {
+        prefs(context).edit().putString(KEY_THEME_SCHEME_HEX,
+                hex == null ? "" : hex).apply();
+    }
+
+    static boolean themeTintSurfaces(Context context) {
+        return prefs(context).getBoolean(KEY_THEME_TINT_SURFACES, true);
+    }
+
+    static void setThemeTintSurfaces(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_THEME_TINT_SURFACES, enabled).apply();
     }
 
     static boolean virusTotalEnabled(Context context) {

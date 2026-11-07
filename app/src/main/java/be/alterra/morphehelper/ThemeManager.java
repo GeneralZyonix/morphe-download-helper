@@ -18,6 +18,7 @@ import android.widget.TextView;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -43,11 +44,13 @@ final class ThemeManager {
     static final String ACCENT_MONO = "mono";
     static final String ACCENT_MATERIAL = "material";
     static final String ACCENT_CUSTOM = "custom";
+    static final String ACCENT_SCHEME = "scheme";
 
     private static final List<String> PRESETS = Arrays.asList(
             ACCENT_MORPHE, ACCENT_AURORA, ACCENT_MINT, ACCENT_FOREST,
             ACCENT_GOLD, ACCENT_SUNSET, ACCENT_ROSE, ACCENT_BERRY,
-            ACCENT_ICE, ACCENT_OCEAN, ACCENT_MONO, ACCENT_MATERIAL
+            ACCENT_ICE, ACCENT_OCEAN, ACCENT_MONO, ACCENT_MATERIAL,
+            ACCENT_SCHEME
     );
 
     private ThemeManager() {
@@ -62,7 +65,13 @@ final class ThemeManager {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             return PRESETS;
         }
-        return PRESETS.subList(0, PRESETS.size() - 1);
+        List<String> values = new ArrayList<>(PRESETS.size() - 1);
+        for (String preset : PRESETS) {
+            if (!ACCENT_MATERIAL.equals(preset)) {
+                values.add(preset);
+            }
+        }
+        return values;
     }
 
     /** The user's saved choice, which may be "system". */
@@ -100,12 +109,27 @@ final class ThemeManager {
 
     static String accent(Context context) {
         String value = AppSettings.themeAccent(context);
+        if (ACCENT_CUSTOM.equals(value)) {
+            value = ACCENT_SCHEME;
+        }
+        if (ACCENT_SCHEME.equals(value) && schemeHex(context).isEmpty()) {
+            return ACCENT_AURORA;
+        }
         if (ACCENT_MATERIAL.equals(value)
                 && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             return ACCENT_AURORA;
         }
         return PRESETS.contains(value) || ACCENT_CUSTOM.equals(value)
                 ? value : ACCENT_AURORA;
+    }
+
+    /** The saved scheme colour, falling back to the old custom-accent HEX. */
+    static String schemeHex(Context context) {
+        String scheme = normalizeHex(AppSettings.themeSchemeHex(context));
+        if (!scheme.isEmpty()) {
+            return scheme;
+        }
+        return normalizeHex(AppSettings.themeCustomHex(context));
     }
 
     static int modeLabel(String mode) {
@@ -135,6 +159,7 @@ final class ThemeManager {
             case ACCENT_MONO: return R.string.theme_accent_mono;
             case ACCENT_MATERIAL: return R.string.theme_accent_material;
             case ACCENT_CUSTOM: return R.string.theme_accent_custom;
+            case ACCENT_SCHEME: return R.string.theme_accent_scheme;
             default: return R.string.theme_accent_morphe;
         }
     }
@@ -155,6 +180,10 @@ final class ThemeManager {
         int end = accentEnd(context, accent, start);
         boolean amoled = MODE_AMOLED.equals(mode);
         boolean light = MODE_LIGHT.equals(mode);
+        float tintStrength = ACCENT_SCHEME.equals(accent) ? 1f : 0.82f;
+        float textTint = ACCENT_SCHEME.equals(accent) ? 1f : 0.55f;
+        boolean tintSurfaces = ACCENT_SCHEME.equals(accent)
+                || AppSettings.themeTintSurfaces(context);
 
         int bgTop;
         int bgBottom;
@@ -194,6 +223,20 @@ final class ThemeManager {
             warnText = Color.parseColor("#92400E");
             warnBg = Color.parseColor("#FFFBEB");
             warnBorder = Color.parseColor("#FDE68A");
+            if (tintSurfaces) {
+                float hue = toHsl(start)[0];
+                bgTop = fromHsl(hue, 0.55f * tintStrength, 0.84f);
+                bgBottom = fromHsl(hue, 0.62f * tintStrength, 0.78f);
+                cardTop = fromHsl(hue, 0.38f * tintStrength, 0.95f);
+                cardBottom = fromHsl(hue, 0.45f * tintStrength, 0.91f);
+                border = fromHsl(hue, 0.50f * tintStrength, 0.68f);
+                secondary = fromHsl(hue, 0.45f * tintStrength, 0.84f);
+                secondaryBorder = fromHsl(hue, 0.40f * tintStrength, 0.68f);
+                text = fromHsl(hue, 0.32f * textTint, 0.08f);
+                muted = fromHsl(hue, 0.14f * textTint, 0.32f);
+                steps = fromHsl(hue, 0.18f * textTint, 0.20f);
+                footer = fromHsl(hue, 0.12f * textTint, 0.46f);
+            }
         } else {
             bgTop = amoled ? Color.BLACK : Color.parseColor("#0B1220");
             bgBottom = amoled ? Color.BLACK : Color.parseColor("#0F172A");
@@ -214,7 +257,23 @@ final class ThemeManager {
             warnText = Color.parseColor("#FDE68A");
             warnBg = Color.parseColor("#1C1917");
             warnBorder = Color.parseColor("#78350F");
+            if (tintSurfaces && !amoled) {
+                float hue = toHsl(start)[0];
+                bgTop = fromHsl(hue, 0.30f * tintStrength, 0.07f);
+                bgBottom = fromHsl(hue, 0.34f * tintStrength, 0.10f);
+                cardTop = fromHsl(hue, 0.26f * tintStrength, 0.12f);
+                cardBottom = fromHsl(hue, 0.30f * tintStrength, 0.10f);
+                border = fromHsl(hue, 0.22f * tintStrength, 0.23f);
+                secondary = fromHsl(hue, 0.24f * tintStrength, 0.17f);
+                secondaryBorder = fromHsl(hue, 0.20f * tintStrength, 0.29f);
+                text = fromHsl(hue, 0.15f * textTint, 0.97f);
+                muted = fromHsl(hue, 0.14f * textTint, 0.68f);
+                steps = fromHsl(hue, 0.12f * textTint, 0.85f);
+                footer = fromHsl(hue, 0.12f * textTint, 0.48f);
+            }
         }
+
+        border = accentBorder(start, light, amoled);
 
         return new ThemePalette(
                 amoled, light,
@@ -310,6 +369,44 @@ final class ThemeManager {
         }
     }
 
+    /** Applies the themed surface, title, message, and button colours to a dialog. */
+    static AlertDialog styleDialog(AlertDialog dialog, Context context) {
+        ThemePalette palette = palette(context);
+        int accent = palette.accentText;
+        tint(dialog, AlertDialog.BUTTON_POSITIVE, accent);
+        tint(dialog, AlertDialog.BUTTON_NEGATIVE, accent);
+        tint(dialog, AlertDialog.BUTTON_NEUTRAL, accent);
+
+        TextView title = dialog.findViewById(android.R.id.title);
+        if (title != null) {
+            title.setTextColor(palette.text);
+        }
+        TextView message = dialog.findViewById(android.R.id.message);
+        if (message != null) {
+            message.setTextColor(palette.steps);
+        }
+
+        Window window = dialog.getWindow();
+        if (window != null) {
+            float density = context.getResources().getDisplayMetrics().density;
+            GradientDrawable background = new GradientDrawable();
+            background.setColor(palette.cardTop);
+            background.setCornerRadius(24 * density);
+            background.setStroke(Math.max(1, (int) density), palette.border);
+            int inset = (int) (10 * density);
+            window.setBackgroundDrawable(new InsetDrawable(
+                    background, inset, inset, inset, inset));
+        }
+        return dialog;
+    }
+
+    private static void tint(AlertDialog dialog, int which, int color) {
+        Button button = dialog.getButton(which);
+        if (button != null) {
+            button.setTextColor(color);
+        }
+    }
+
     private static final class ThemedBuilder extends AlertDialog.Builder {
 
         private final Context context;
@@ -321,41 +418,7 @@ final class ThemeManager {
 
         @Override
         public AlertDialog show() {
-            AlertDialog dialog = super.show();
-            ThemePalette palette = palette(context);
-            int accent = palette.accentText;
-            tint(dialog, AlertDialog.BUTTON_POSITIVE, accent);
-            tint(dialog, AlertDialog.BUTTON_NEGATIVE, accent);
-            tint(dialog, AlertDialog.BUTTON_NEUTRAL, accent);
-
-            TextView title = dialog.findViewById(android.R.id.title);
-            if (title != null) {
-                title.setTextColor(palette.text);
-            }
-            TextView message = dialog.findViewById(android.R.id.message);
-            if (message != null) {
-                message.setTextColor(palette.steps);
-            }
-
-            Window window = dialog.getWindow();
-            if (window != null) {
-                float density = context.getResources().getDisplayMetrics().density;
-                GradientDrawable background = new GradientDrawable();
-                background.setColor(palette.cardTop);
-                background.setCornerRadius(24 * density);
-                background.setStroke(Math.max(1, (int) density), palette.border);
-                int inset = (int) (10 * density);
-                window.setBackgroundDrawable(new InsetDrawable(
-                        background, inset, inset, inset, inset));
-            }
-            return dialog;
-        }
-
-        private static void tint(AlertDialog dialog, int which, int color) {
-            Button button = dialog.getButton(which);
-            if (button != null) {
-                button.setTextColor(color);
-            }
+            return styleDialog(super.show(), context);
         }
     }
 
@@ -363,7 +426,9 @@ final class ThemeManager {
     static String signature(Context context) {
         String accent = accent(context);
         String signature = savedMode(context) + "|" + mode(context) + "|" + accent + "|"
-                + AppSettings.themeCustomHex(context);
+                + AppSettings.themeCustomHex(context) + "|"
+                + AppSettings.themeSchemeHex(context) + "|"
+                + AppSettings.themeTintSurfaces(context);
         if (ACCENT_MATERIAL.equals(accent)) {
             int[] colors = accentColors(context, accent, "");
             signature += "|" + colors[0] + "|" + colors[1];
@@ -401,6 +466,10 @@ final class ThemeManager {
             String hex = normalizeHex(customHex);
             return hex.isEmpty() ? Color.parseColor("#6366F1") : Color.parseColor(hex);
         }
+        if (ACCENT_SCHEME.equals(accent)) {
+            String hex = schemeHex(context);
+            return hex.isEmpty() ? Color.parseColor("#6366F1") : Color.parseColor(hex);
+        }
         switch (accent) {
             case ACCENT_AURORA: return Color.parseColor("#8B5CF6");
             case ACCENT_MINT: return Color.parseColor("#34D399");
@@ -435,6 +504,7 @@ final class ThemeManager {
                 return systemAccent(context, android.R.color.system_accent2_500,
                         Color.parseColor("#22D3EE"));
             case ACCENT_CUSTOM: return darken(start, 0.22);
+            case ACCENT_SCHEME: return schemeSecondary(start);
             default: return Color.parseColor("#4F46E5");
         }
     }
@@ -457,6 +527,81 @@ final class ThemeManager {
                 (int) (Color.green(color) * factor),
                 (int) (Color.blue(color) * factor)
         );
+    }
+
+    /** A muted accent-tinted edge that stays visible without becoming a bright line. */
+    private static int accentBorder(int accent, boolean light, boolean amoled) {
+        float hue = toHsl(accent)[0];
+        if (light) {
+            return fromHsl(hue, 0.42f, 0.74f);
+        }
+        return fromHsl(hue, amoled ? 0.18f : 0.30f, amoled ? 0.25f : 0.28f);
+    }
+
+    /** A nearby hue for the second stop of a custom-scheme gradient. */
+    private static int schemeSecondary(int base) {
+        float[] hsl = toHsl(base);
+        float hue = (hsl[0] + 38f) % 360f;
+        float saturation = Math.max(0.20f, Math.min(0.85f, hsl[1] + 0.08f));
+        float lightness = Math.max(0.18f, Math.min(0.82f,
+                hsl[2] + (hsl[2] < 0.55f ? 0.12f : -0.08f)));
+        return fromHsl(hue, saturation, lightness);
+    }
+
+    private static float[] toHsl(int color) {
+        float red = Color.red(color) / 255f;
+        float green = Color.green(color) / 255f;
+        float blue = Color.blue(color) / 255f;
+        float max = Math.max(red, Math.max(green, blue));
+        float min = Math.min(red, Math.min(green, blue));
+        float lightness = (max + min) / 2f;
+        float hue = 0f;
+        float saturation = 0f;
+        float delta = max - min;
+        if (delta != 0f) {
+            saturation = lightness > 0.5f
+                    ? delta / (2f - max - min)
+                    : delta / (max + min);
+            if (max == red) {
+                hue = (green - blue) / delta + (green < blue ? 6f : 0f);
+            } else if (max == green) {
+                hue = (blue - red) / delta + 2f;
+            } else {
+                hue = (red - green) / delta + 4f;
+            }
+            hue *= 60f;
+        }
+        return new float[]{hue, saturation, lightness};
+    }
+
+    private static int fromHsl(float hue, float saturation, float lightness) {
+        float h = ((hue % 360f) + 360f) % 360f;
+        float s = Math.max(0f, Math.min(1f, saturation));
+        float l = Math.max(0f, Math.min(1f, lightness));
+        float chroma = (1f - Math.abs(2f * l - 1f)) * s;
+        float x = chroma * (1f - Math.abs((h / 60f) % 2f - 1f));
+        float m = l - chroma / 2f;
+        float red;
+        float green;
+        float blue;
+        if (h < 60f) {
+            red = chroma; green = x; blue = 0f;
+        } else if (h < 120f) {
+            red = x; green = chroma; blue = 0f;
+        } else if (h < 180f) {
+            red = 0f; green = chroma; blue = x;
+        } else if (h < 240f) {
+            red = 0f; green = x; blue = chroma;
+        } else if (h < 300f) {
+            red = x; green = 0f; blue = chroma;
+        } else {
+            red = chroma; green = 0f; blue = x;
+        }
+        return Color.rgb(channel255(red + m), channel255(green + m), channel255(blue + m));
+    }
+
+    private static int channel255(float value) {
+        return Math.max(0, Math.min(255, Math.round(value * 255f)));
     }
 
     /** Blends an accent toward white so it stays readable as text on dark cards. */
@@ -504,6 +649,8 @@ final class ThemeManager {
         AppSettings.setThemeMode(context, MODE_SYSTEM);
         AppSettings.setThemeAccent(context, ACCENT_AURORA);
         AppSettings.setThemeCustomHex(context, "");
+        AppSettings.setThemeSchemeHex(context, "");
+        AppSettings.setThemeTintSurfaces(context, true);
         PublicSettings.write(context);
     }
 }

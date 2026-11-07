@@ -14,6 +14,8 @@ import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -239,7 +241,8 @@ public class MainActivity extends Activity {
         heroBody.setPadding(0, dp(8), 0, 0);
         hero.addView(heroBody);
 
-        TextView openMorphe = primaryButton(getString(R.string.main_open_morphe));
+        View openMorphe = primaryButtonWithIcon(
+                getString(R.string.main_open_morphe), R.drawable.ic_external_link);
         openMorphe.setOnClickListener(v -> openMorphe());
         LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(MATCH_PARENT, dp(52));
         openParams.topMargin = dp(16);
@@ -287,7 +290,17 @@ public class MainActivity extends Activity {
                 new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
 
         TextView editOrder = text(getString(R.string.main_manage_sources), 12, ACCENT_TEXT, true);
-        editOrder.setPadding(dp(10), dp(8), 0, dp(8));
+        editOrder.setGravity(Gravity.CENTER);
+        editOrder.setSingleLine(true);
+        editOrder.setPadding(dp(14), dp(8), dp(10), dp(8));
+        editOrder.setCompoundDrawablesWithIntrinsicBounds(
+                0, 0, R.drawable.ic_chevron_right, 0);
+        editOrder.setCompoundDrawablePadding(dp(2));
+        editOrder.setCompoundDrawableTintList(ColorStateList.valueOf(ACCENT_TEXT));
+        GradientDrawable manageBackground = rounded(SECONDARY, 12);
+        manageBackground.setStroke(dp(1), SECONDARY_BORDER);
+        editOrder.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), manageBackground, null));
         editOrder.setClickable(true);
         editOrder.setFocusable(true);
         editOrder.setOnClickListener(v -> startActivity(new Intent(
@@ -585,6 +598,45 @@ public class MainActivity extends Activity {
                 null
         ));
         return view;
+    }
+
+    /** Full-width gradient button with the icon centred beside the label. */
+    private View primaryButtonWithIcon(String label, int iconRes) {
+        FrameLayout button = new FrameLayout(this);
+        button.setClickable(true);
+        button.setFocusable(true);
+
+        GradientDrawable fill = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{PRIMARY_START, PRIMARY_END}
+        );
+        fill.setCornerRadius(dp(16));
+        button.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(0x33FFFFFF),
+                fill,
+                null
+        ));
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.HORIZONTAL);
+        content.setGravity(Gravity.CENTER_VERTICAL);
+
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(ON_PRIMARY);
+        content.addView(icon, new LinearLayout.LayoutParams(dp(22), dp(22)));
+
+        TextView text = text(label, 16, ON_PRIMARY, true);
+        text.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        text.setPadding(dp(10), 0, 0, 0);
+        content.addView(text);
+
+        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER);
+        button.addView(content, contentParams);
+        return button;
     }
 
     /** Creates a dark outlined button with a ripple and custom text/border colors. */
