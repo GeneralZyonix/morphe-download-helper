@@ -5,6 +5,20 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.15-beta.5] - 2026-11-07
+
+### Fixed
+
+- APKMirror's WebView fallback now reads the build numbers shown on its version
+  page and selects the row matching Morphe's requested build. This covers the
+  case where the normal APKMirror request is blocked by Cloudflare and the
+  helper has to navigate the page in a WebView.
+- If APKMirror still hands over a wrong build, the helper now rejects it and
+  retries the remaining enabled sources in the configured order, instead of
+  stopping with a failure.
+- Reported and confirmed for HushGram in
+  [#19](https://github.com/GeneralZyonix/morphe-download-helper/issues/19).
+
 ## [1.6.15-beta.4] - 2026-11-07
 
 ### Fixed

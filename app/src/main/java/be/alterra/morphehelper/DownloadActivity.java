@@ -353,6 +353,7 @@ public class DownloadActivity extends Activity {
      * the remaining attempts for this request and let the other sources try.
      */
     private volatile boolean uptodownRejected;
+    private volatile boolean apkmirrorRejected;
 
     /** Request values kept for the WebView download path. */
     private String uptodownPkg;
@@ -969,11 +970,23 @@ public class DownloadActivity extends Activity {
         String type = JSONObject.quote(uptodownFileType == null ? "" : uptodownFileType);
         String abi = JSONObject.quote(
                 requestAbis != null && requestAbis.length > 0 ? requestAbis[0] : "");
+        StringBuilder codesBuilder = new StringBuilder("[");
+        if (requestVersionCodes != null) {
+            for (int i = 0; i < requestVersionCodes.length; i++) {
+                if (i > 0) {
+                    codesBuilder.append(',');
+                }
+                codesBuilder.append(requestVersionCodes[i]);
+            }
+        }
+        String codes = codesBuilder.append(']').toString();
+        String allowSplit = allowSplitArchive ? "true" : "false";
         return """
                 (function(){
                 if(window.__mhApkMirrorStarted)return;
                 window.__mhApkMirrorStarted=true;
                 var pkg=__MH_PKG__,ver=__MH_VER__,name=__MH_NAME__,fileType=__MH_TYPE__,abi=__MH_ABI__;
+                var codes=__MH_CODES__,allowSplit=__MH_ALLOW_SPLIT__;
                 var nameLower=(name||'').toLowerCase();
                 var nameSlug=nameLower.replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
                 var pkgParts=(pkg||'').toLowerCase().split('.').filter(function(p){
@@ -992,6 +1005,16 @@ public class DownloadActivity extends Activity {
                     return p.endsWith('-android-apk-download/')
                         || p.endsWith('-android-apkm-download/')
                         || p.endsWith('-android-apks-download/');
+                }
+                function rowCode(row){
+                    if(!row)return -1;
+                    var m=(row.innerText||'').match(/\\b\\d{6,}\\b/g);
+                    if(!m)return -1;
+                    for(var i=0;i<m.length;i++){
+                        var v=parseInt(m[i],10);
+                        if(!isNaN(v)&&v>0)return v;
+                    }
+                    return -1;
                 }
                 function segments(p){
                     return p.split('/').filter(function(s){return s.length>0;});
@@ -1068,7 +1091,9 @@ public class DownloadActivity extends Activity {
                     }
                     if(isRelease(p)){
                         var vs=document.querySelectorAll('a');
-                        var fallback=null,plain=null,plainUniversal=null,bundle=null,bundleAbi=null;
+                        var fallback=null,plain=null,plainAbi=null,plainExact=null;
+                        var plainExactAbi=null,plainUniversal=null,bundle=null,bundleAbi=null;
+                        var bundleExact=null,bundleExactAbi=null,sawCode=false;
                         for(var v=0;v<vs.length;v++){
                             var va=vs[v],vh=va.href||'';
                             if(!vh||vh.indexOf('#')>=0)continue;
@@ -1086,17 +1111,35 @@ public class DownloadActivity extends Activity {
                             var isBundle=rt.indexOf('bundle')>=0||rt.indexOf('apkm')>=0
                                 ||rt.indexOf('apks')>=0;
                             var isPlain=!isBundle;
-                            var universal=rt.indexOf('universal')>=0||rt.indexOf('nodpi')>=0;
+                            var universal=rt.indexOf('universal')>=0;
                             var hasAbi=abi&&rt.indexOf(abi.toLowerCase())>=0;
+                            var rc=rowCode(row);
+                            if(rc>0)sawCode=true;
+                            var exact=rc>0&&codes.indexOf(rc)>=0;
                             if(!fallback)fallback=va;
+                            if(isPlain&&exact&&hasAbi&&!plainExactAbi)plainExactAbi=va;
+                            if(isPlain&&exact&&!plainExact)plainExact=va;
                             if(isPlain&&universal&&!plainUniversal)plainUniversal=va;
+                            if(isPlain&&hasAbi&&!plainAbi)plainAbi=va;
                             if(isPlain&&!plain)plain=va;
+                            if(isBundle&&exact&&hasAbi&&!bundleExactAbi)bundleExactAbi=va;
+                            if(isBundle&&exact&&!bundleExact)bundleExact=va;
                             if(isBundle&&hasAbi&&!bundleAbi)bundleAbi=va;
                             if(isBundle&&!bundle)bundle=va;
                         }
                         var wantBundle=fileType&&fileType.toLowerCase()!=='apk';
-                        if(wantBundle)return bundleAbi||bundle||plain||fallback;
-                        return plainUniversal||plain||fallback;
+                        if(wantBundle){
+                            if(bundleExactAbi)return bundleExactAbi;
+                            if(bundleExact)return bundleExact;
+                            if(plainExactAbi)return plainExactAbi;
+                            if(plainExact)return plainExact;
+                            return bundleAbi||bundle||plain||fallback;
+                        }
+                        if(plainExactAbi)return plainExactAbi;
+                        if(plainExact)return plainExact;
+                        if(allowSplit&&bundleExactAbi)return bundleExactAbi;
+                        if(allowSplit&&bundleExact)return bundleExact;
+                        return plainUniversal||plainAbi||plain||fallback;
                     }
                     if(isAppPage(p)){
                         var rs=document.querySelectorAll('a'),picked=null,first=null;
@@ -1157,7 +1200,9 @@ public class DownloadActivity extends Activity {
                 .replace("__MH_VER__", version)
                 .replace("__MH_NAME__", name)
                 .replace("__MH_TYPE__", type)
-                .replace("__MH_ABI__", abi);
+                .replace("__MH_ABI__", abi)
+                .replace("__MH_CODES__", codes)
+                .replace("__MH_ALLOW_SPLIT__", allowSplit);
     }
 
     private void scheduleWebFlowTimeout(WebView web) {
@@ -1378,21 +1423,25 @@ public class DownloadActivity extends Activity {
                 } catch (Exception e) {
                     if ((e instanceof DownloadedFileValidator.IncompatibleSdkException
                             || e instanceof DownloadedFileValidator.VersionMismatchException)
-                            && "uptodown".equals(source)) {
+                            && ("uptodown".equals(source) || "apkmirror".equals(source))) {
                         // Either the build number does not match the request or the
                         // device cannot parse its minSdk. Neither is usable; keep
-                        // Uptodown out of the retry and let the other sources try.
-                        uptodownRejected = true;
+                        // that source out of the retry and let the others try.
+                        if ("uptodown".equals(source)) {
+                            uptodownRejected = true;
+                        } else {
+                            apkmirrorRejected = true;
+                        }
                         verificationFailure = e.getMessage();
-                        HelperLog.info("Uptodown build rejected: "
+                        HelperLog.info(webSourceName() + " build rejected: "
                                 + e.getMessage() + "; retrying other sources");
-                        markSource(SourceSettings.UPTODOWN, false, e.getMessage());
+                        markSource(webSourceKey(), false, e.getMessage());
                         if (cancelled) {
                             return;
                         }
                         main.post(() -> {
                             startResolution(false);
-                            markSource(SourceSettings.UPTODOWN, false, e.getMessage());
+                            markSource(webSourceKey(), false, e.getMessage());
                         });
                         return;
                     }
@@ -2056,6 +2105,9 @@ public class DownloadActivity extends Activity {
 
     private boolean sourceAllowed(String key) {
         if (SourceSettings.UPTODOWN.equals(key) && uptodownRejected) {
+            return false;
+        }
+        if (SourceSettings.APKMIRROR.equals(key) && apkmirrorRejected) {
             return false;
         }
         return SourceSettings.isEnabled(this, key)
