@@ -63,6 +63,11 @@ final class SourceTester {
                         builder = request("https://appteka.store/api/1/app/info"
                                 + "?package=com.snaptube.premium&locale=en");
                         break;
+                    case SourceSettings.GITHUB:
+                        builder = request("https://api.github.com/repos/brave/brave-browser"
+                                + "/releases/latest");
+                        builder.header("Accept", "application/vnd.github+json");
+                        break;
                     default:
                         throw new IOException(context.getString(R.string.source_test_unknown_source));
                 }

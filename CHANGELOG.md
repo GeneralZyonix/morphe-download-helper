@@ -15,10 +15,12 @@ Second UI beta, with validation fixes and backup improvements.
   Custom folder access may need to be re-approved after importing on a new
   device. Requested by @IkoMosiEntertainmentHub in
   [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
-- Source badges and **drag-to-reorder** in Source order. The existing up/down
-  buttons remain as an accessible fallback. Concept and feedback from
-  @thegodfather-hub and @IkoMosiEntertainmentHub in
+- **Real source logos** in the source lists, shown in the rounded tile style.
+  Concept feedback from @thegodfather-hub and @IkoMosiEntertainmentHub in
   [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
+- One **Test all sources** button at the bottom of the Sources card. Individual
+  Test buttons were removed so the list stays compact. Each result is still
+  saved and shown under its source.
 - Rounded, theme-aware dialogs and tinted icon tiles for Settings sections.
   Reported as inconsistent by @IkoMosiEntertainmentHub in
   [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
@@ -29,6 +31,16 @@ Second UI beta, with validation fixes and backup improvements.
 
 ### Changed
 
+- The separate **Source order** section is gone. Sources and source order are
+  now one list: drag a row by its handle to change the priority. Enabled
+  sources stay at the top; disabled sources move to the bottom. Requested by
+  @IkoMosiEntertainmentHub in
+  [#11](https://github.com/GeneralZyonix/morphe-download-helper/issues/11) and
+  [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
+- Main now shows **all enabled sources** instead of stopping after four and
+  saying "more sources enabled". This also fixes the missing-source report from
+  @IkoMosiEntertainmentHub in
+  [#11](https://github.com/GeneralZyonix/morphe-download-helper/issues/11).
 - The **Uninstall Helper** button was removed from Main. Suggested by
   @IkoMosiEntertainmentHub in
   [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).

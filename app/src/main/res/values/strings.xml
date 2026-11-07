@@ -22,6 +22,9 @@
     <string name="main_hero_body">Morphe patches the app. The helper finds the right build and hands it over.</string>
     <string name="main_edit_order">Edit order</string>
     <string name="main_manage_sources">Manage</string>
+    <string name="settings_test_all">Test all sources</string>
+    <string name="settings_testing_all">Testing all sources…</string>
+    <string name="settings_test_all_result">%1$d passed, %2$d failed.</string>
     <string name="settings_source_drag_hint">Drag the handle to change which source is tried first. Disabled sources stay at the bottom.</string>
     <string name="main_sources_note_short">Uptodown follows a Morphe link. Appteka is limited to SnapTube.</string>
     <string name="main_logs_local">Logs stay on this device</string>

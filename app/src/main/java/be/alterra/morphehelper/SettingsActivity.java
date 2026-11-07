@@ -413,6 +413,44 @@ public class SettingsActivity extends Activity {
         for (String key : sourceDisplayOrder()) {
             addSourceRow(card, key, sourceTitle(key), sourceDescription(key));
         }
+
+        TextView testAll = secondaryButton(getString(R.string.settings_test_all));
+        testAll.setOnClickListener(v -> testAllSources(testAll));
+        LinearLayout.LayoutParams testAllParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        testAllParams.topMargin = dp(10);
+        card.addView(testAll, testAllParams);
+    }
+
+    private void testAllSources(TextView button) {
+        List<String> keys = AppSettings.sourceOrder(this);
+        if (keys.isEmpty()) {
+            return;
+        }
+        button.setEnabled(false);
+        button.setText(R.string.settings_testing_all);
+        int[] state = {0, 0, 0}; // passed, failed, index
+        final Runnable[] runner = new Runnable[1];
+        runner[0] = () -> {
+            if (state[2] >= keys.size()) {
+                button.setEnabled(true);
+                button.setText(R.string.settings_test_all);
+                Toast.makeText(this, getString(R.string.settings_test_all_result,
+                        state[0], state[1]), Toast.LENGTH_LONG).show();
+                recreate();
+                return;
+            }
+            String key = keys.get(state[2]++);
+            SourceTester.test(this, key, (ok, message) -> runOnUiThread(() -> {
+                if (ok) {
+                    state[0]++;
+                } else {
+                    state[1]++;
+                }
+                runner[0].run();
+            }));
+        };
+        runner[0].run();
     }
 
     /** Enabled sources in saved order, followed by disabled sources. */
@@ -1822,22 +1860,6 @@ public class SettingsActivity extends Activity {
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView test = text(getString(R.string.settings_test), 12, PRIMARY_START, true);
-        test.setPadding(dp(8), dp(8), dp(8), dp(8));
-        test.setClickable(true);
-        test.setFocusable(true);
-        test.setOnClickListener(v -> {
-            test.setText(R.string.settings_testing);
-            SourceTester.test(this, key, (ok, message) -> runOnUiThread(() -> {
-                test.setText(R.string.settings_test);
-                health.setText(SourceHealth.summary(this, key));
-                Toast.makeText(this, getString(R.string.settings_test_result, title, message),
-                        Toast.LENGTH_SHORT).show();
-            }));
-        });
-        row.addView(test, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
-
         Switch toggle = new Switch(this);
         toggle.setChecked(enabled);
         styleSwitch(toggle);
@@ -1936,6 +1958,24 @@ public class SettingsActivity extends Activity {
                 "sans-serif",
                 bold ? Typeface.BOLD : Typeface.NORMAL
         ));
+        return view;
+    }
+
+    private TextView secondaryButton(String label) {
+        TextView view = text(label, 14, PRIMARY_START, true);
+        view.setGravity(Gravity.CENTER);
+        view.setPadding(dp(16), dp(12), dp(16), dp(12));
+        GradientDrawable outline = new GradientDrawable();
+        outline.setColor(BG_TOP);
+        outline.setCornerRadius(dp(14));
+        outline.setStroke(dp(1), SECONDARY_BORDER);
+        view.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(0x22FFFFFF),
+                outline,
+                null
+        ));
+        view.setClickable(true);
+        view.setFocusable(true);
         return view;
     }
 
