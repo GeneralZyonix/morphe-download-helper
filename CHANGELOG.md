@@ -5,6 +5,27 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.15] - 2026-11-07
+
+### Fixed
+
+- Exact build-number validation: when Morphe supplies `VERSION_CODES`, the
+  downloaded APK must match one of those `versionCode` values and the requested
+  version name.
+- APKMirror WebView fallback now selects the exact requested build and falls
+  back to the remaining enabled sources if a wrong build is returned.
+- Uptodown builds rejected for a wrong build number or a newer `minSdkVersion`
+  now fall back to the remaining enabled sources.
+- APKMirror prefers the requested CPU ABI and no longer treats every `nodpi`
+  row as a universal APK.
+- Update checks follow the installed channel: stable builds see only stable
+  releases, while pre-release builds can see newer pre-releases.
+
+### Added
+
+- Optional ad and tracker blocking for the in-app download pages.
+- Complete French translations for the current UI.
+
 ## [1.6.15-beta.5] - 2026-11-07
 
 ### Fixed
