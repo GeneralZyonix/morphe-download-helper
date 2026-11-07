@@ -17,9 +17,11 @@ import net.dongliu.apk.parser.struct.xml.XmlNamespaceStartTag;
 import net.dongliu.apk.parser.struct.xml.XmlNodeEndTag;
 import net.dongliu.apk.parser.struct.xml.XmlNodeStartTag;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.io.File;
@@ -27,12 +29,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 final class DownloadedFileValidator {
 
@@ -145,19 +150,101 @@ final class DownloadedFileValidator {
     private static void validateArchive(Context context, File file, String pkg,
                                         String versionName, long[] versionCodes)
             throws IOException {
-        if ((versionName == null || versionName.trim().isEmpty())
-                && (versionCodes == null || versionCodes.length == 0)) {
-            HelperLog.info("Validation skipped for unversioned split archive "
-                    + file.getName());
-            return;
-        }
-
         HelperLog.info("Validating split archive " + file.getName());
         PackageInfo wrongVersion = null;
+        PackageInfo wrongPackage = null;
         XapkManifest wrongManifest = null;
+        boolean sawApk = false;
+        boolean parsedApk = false;
+        PackageInfo verified = null;
+
         try (ZipFile zip = new ZipFile(file)) {
             XapkManifest manifest = readXapkManifest(zip);
-            if (manifest != null) {
+            List<String> parsedEntries = new ArrayList<>();
+
+            // Base APKs are the source of truth. Read their manifests first.
+            Enumeration<? extends ZipEntry> baseEntries = zip.entries();
+            while (baseEntries.hasMoreElements()) {
+                ZipEntry entry = baseEntries.nextElement();
+                String name = entry.getName().toLowerCase(Locale.US);
+                if (!name.endsWith(".apk") || !name.contains("base")) {
+                    continue;
+                }
+                sawApk = true;
+                parsedEntries.add(entry.getName());
+                PackageInfo info = readEntryManifest(context, zip, entry);
+                if (info == null) {
+                    info = readEntry(context, zip, entry);
+                }
+                if (info == null) {
+                    continue;
+                }
+                parsedApk = true;
+                if (!pkg.equals(info.packageName)) {
+                    if (wrongPackage == null) {
+                        wrongPackage = info;
+                    }
+                    continue;
+                }
+                if (matches(info, pkg, versionName, versionCodes)) {
+                    verified = info;
+                    break;
+                }
+                wrongVersion = info;
+            }
+
+            // Randomly named splits are common. If no base matched, inspect the
+            // remaining APK entries, still preferring real APK metadata.
+            if (verified == null) {
+                Enumeration<? extends ZipEntry> all = zip.entries();
+                while (all.hasMoreElements()) {
+                    ZipEntry entry = all.nextElement();
+                    String name = entry.getName().toLowerCase(Locale.US);
+                    if (!name.endsWith(".apk") || parsedEntries.contains(entry.getName())) {
+                        continue;
+                    }
+                    sawApk = true;
+                    parsedEntries.add(entry.getName());
+                    PackageInfo info = readEntryManifest(context, zip, entry);
+                    if (info == null) {
+                        info = readEntry(context, zip, entry);
+                    }
+                    if (info == null) {
+                        continue;
+                    }
+                    parsedApk = true;
+                    if (!pkg.equals(info.packageName)) {
+                        if (wrongPackage == null) {
+                            wrongPackage = info;
+                        }
+                        continue;
+                    }
+                    if (matches(info, pkg, versionName, versionCodes)) {
+                        verified = info;
+                        break;
+                    }
+                    wrongVersion = info;
+                }
+            }
+
+            if (verified != null) {
+                checkInfo(verified, pkg, versionName, versionCodes, "archive");
+                if (manifest != null) {
+                    crossCheckManifest(manifest, verified, pkg);
+                }
+                HelperLog.info("Validated split archive APK package="
+                        + verified.packageName + " version=" + verified.versionName);
+                return;
+            }
+
+            if (!sawApk) {
+                throw new VersionMismatchException(
+                        "Downloaded archive does not contain an APK file");
+            }
+
+            // Only fall back to manifest.json when no APK metadata could be read.
+            // A readable APK always wins over the manifest.
+            if (!parsedApk && manifest != null) {
                 if (!pkg.equals(manifest.packageName)) {
                     throw new VersionMismatchException("Downloaded XAPK is for "
                             + manifest.packageName + " instead of " + pkg);
@@ -165,58 +252,13 @@ final class DownloadedFileValidator {
                 if (matchesVersion(manifest.versionName, manifest.versionCode,
                         versionName, versionCodes)) {
                     checkMinSdk(manifest.minSdkVersion, "XAPK");
-                    HelperLog.info("Validated XAPK manifest package="
+                    HelperLog.info("Validated XAPK manifest fallback package="
                             + manifest.packageName + " version=" + manifest.versionName
                             + " code=" + manifest.versionCode
                             + " minSdk=" + manifest.minSdkVersion);
                     return;
                 }
                 wrongManifest = manifest;
-            }
-
-            // Base APKs are usually named base*.apk. Check those first so we do not
-            // extract every split in a large bundle unnecessarily.
-            Enumeration<? extends ZipEntry> first = zip.entries();
-            while (first.hasMoreElements()) {
-                ZipEntry entry = first.nextElement();
-                String name = entry.getName().toLowerCase(Locale.US);
-                if (name.endsWith(".apk") && name.contains("base")) {
-                    PackageInfo info = readEntry(context, zip, entry);
-                    if (info != null) {
-                        if (matches(info, pkg, versionName, versionCodes)) {
-                            checkInfo(info, pkg, versionName, versionCodes, "archive");
-                            return;
-                        }
-                        if (pkg.equals(info.packageName)) {
-                            wrongVersion = info;
-                        }
-                    } else {
-                        HelperLog.info("Archive APK entry could not be parsed: "
-                                + entry.getName());
-                    }
-                }
-            }
-
-            Enumeration<? extends ZipEntry> all = zip.entries();
-            while (all.hasMoreElements()) {
-                ZipEntry entry = all.nextElement();
-                String name = entry.getName().toLowerCase(Locale.US);
-                if (!name.endsWith(".apk") || name.contains("base")) {
-                    continue;
-                }
-                PackageInfo info = readEntry(context, zip, entry);
-                if (info != null) {
-                    if (matches(info, pkg, versionName, versionCodes)) {
-                        checkInfo(info, pkg, versionName, versionCodes, "archive");
-                        return;
-                    }
-                    if (pkg.equals(info.packageName)) {
-                        wrongVersion = info;
-                    }
-                } else {
-                    HelperLog.info("Archive APK entry could not be parsed: "
-                            + entry.getName());
-                }
             }
         } catch (IOException error) {
             if (error instanceof VersionMismatchException
@@ -226,6 +268,10 @@ final class DownloadedFileValidator {
             throw new IOException("Downloaded archive could not be read", error);
         }
 
+        if (wrongPackage != null) {
+            throw new VersionMismatchException("Downloaded archive contains package "
+                    + wrongPackage.packageName + " instead of " + pkg);
+        }
         if (wrongVersion != null) {
             String actual = wrongVersion.versionName == null
                     ? "" : wrongVersion.versionName.trim();
@@ -242,6 +288,30 @@ final class DownloadedFileValidator {
         }
         throw new VersionMismatchException(
                 "Downloaded archive does not contain the requested package " + pkg);
+    }
+
+    /** Ensures a readable APK and manifest.json cannot contradict each other. */
+    private static void crossCheckManifest(XapkManifest manifest, PackageInfo info,
+                                           String pkg) throws IOException {
+        if (!pkg.equals(manifest.packageName)) {
+            throw new VersionMismatchException("Downloaded XAPK manifest is for "
+                    + manifest.packageName + " instead of " + pkg);
+        }
+        String apkName = info.versionName == null ? "" : info.versionName.trim();
+        String manifestName = manifest.versionName == null
+                ? "" : manifest.versionName.trim();
+        if (!manifestName.isEmpty() && !apkName.isEmpty()
+                && !sameVersion(manifestName, apkName)) {
+            throw new VersionMismatchException("Downloaded XAPK manifest says version "
+                    + manifestName + " but the APK is " + apkName);
+        }
+        long apkCode = Build.VERSION.SDK_INT >= 28
+                ? info.getLongVersionCode() : info.versionCode;
+        if (manifest.versionCode > 0 && apkCode > 0
+                && manifest.versionCode != apkCode) {
+            throw new VersionMismatchException("Downloaded XAPK manifest says build "
+                    + manifest.versionCode + " but the APK is " + apkCode);
+        }
     }
 
     /**
@@ -349,9 +419,11 @@ final class DownloadedFileValidator {
                 && !contains(requestedCodes, actualCode)) {
             return false;
         }
-        if (requestedName == null || requestedName.trim().isEmpty()
-                || actualName == null || actualName.trim().isEmpty()) {
+        if (requestedName == null || requestedName.trim().isEmpty()) {
             return true;
+        }
+        if (actualName == null || actualName.trim().isEmpty()) {
+            return false;
         }
         return sameVersion(actualName, requestedName);
     }
@@ -399,6 +471,39 @@ final class DownloadedFileValidator {
         }
     }
 
+    /**
+     * Streams only AndroidManifest.xml out of a nested APK. This avoids copying
+     * a large base APK to the cache just to read package metadata.
+     */
+    private static PackageInfo readEntryManifest(Context context, ZipFile zip,
+                                                 ZipEntry entry) {
+        try (InputStream input = zip.getInputStream(entry);
+             ZipInputStream nested = new ZipInputStream(new BufferedInputStream(input))) {
+            ZipEntry child;
+            while ((child = nested.getNextEntry()) != null) {
+                if ("AndroidManifest.xml".equals(child.getName())) {
+                    ByteArrayOutputStream output = new ByteArrayOutputStream();
+                    byte[] buffer = new byte[16 * 1024];
+                    int total = 0;
+                    int read;
+                    while ((read = nested.read(buffer)) != -1) {
+                        total += read;
+                        if (total > 8 * 1024 * 1024) {
+                            return null;
+                        }
+                        output.write(buffer, 0, read);
+                    }
+                    return parseManifestBytes(output.toByteArray(), entry.getName());
+                }
+                nested.closeEntry();
+            }
+        } catch (Exception error) {
+            HelperLog.error("Could not read nested APK manifest: " + entry.getName(),
+                    error);
+        }
+        return null;
+    }
+
     private static PackageInfo readSplitMeta(File file) {
         try (ZipFile apk = new ZipFile(file)) {
             ZipEntry entry = apk.getEntry("AndroidManifest.xml");
@@ -415,6 +520,16 @@ final class DownloadedFileValidator {
                 }
                 manifest = output.toByteArray();
             }
+            return parseManifestBytes(manifest, file.getName());
+        } catch (Exception error) {
+            HelperLog.error("Could not parse split APK metadata: " + file.getName(),
+                    error);
+            return null;
+        }
+    }
+
+    private static PackageInfo parseManifestBytes(byte[] manifest, String source) {
+        try {
             ManifestStreamer streamer = new ManifestStreamer();
             BinaryXmlParser parser = new BinaryXmlParser(ByteBuffer.wrap(manifest), null);
             parser.setXmlStreamer(streamer);
@@ -436,8 +551,7 @@ final class DownloadedFileValidator {
             }
             return info;
         } catch (Exception error) {
-            HelperLog.error("Could not parse split APK metadata: " + file.getName(),
-                    error);
+            HelperLog.error("Could not parse APK manifest from " + source, error);
             return null;
         }
     }

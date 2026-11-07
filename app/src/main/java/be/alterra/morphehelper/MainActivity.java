@@ -66,8 +66,6 @@ public class MainActivity extends Activity {
     private int TEXT;
     private int MUTED;
     private int GREEN;
-    private int RED;
-    private int RED_BORDER;
     private int FOOTER;
 
     // Amber warning palette used by the "Heads up" card.
@@ -108,8 +106,6 @@ public class MainActivity extends Activity {
         TEXT = palette.text;
         MUTED = palette.muted;
         GREEN = palette.green;
-        RED = palette.red;
-        RED_BORDER = palette.redBorder;
         FOOTER = palette.footer;
         WARN_TITLE = palette.warnTitle;
         WARN_TEXT = palette.warnText;
@@ -318,22 +314,6 @@ public class MainActivity extends Activity {
         disabledSource.setPadding(0, dp(12), 0, 0);
         sourcesCard.addView(disabledSource);
 
-        // -----------------------------------------------------------------
-        // Maintenance actions
-        // -----------------------------------------------------------------
-        // Red-tinted destructive action. Android shows its own uninstall confirmation.
-        TextView uninstall = secondaryButton(getString(R.string.main_uninstall), RED, RED_BORDER);
-        uninstall.setOnClickListener(v -> {
-            Intent intent = new Intent(
-                    Intent.ACTION_DELETE,
-                    Uri.parse("package:" + getPackageName())
-            );
-            startActivity(intent);
-        });
-        LinearLayout.LayoutParams uninstallParams = new LinearLayout.LayoutParams(MATCH_PARENT, dp(50));
-        uninstallParams.topMargin = dp(10);
-        root.addView(uninstall, uninstallParams);
-
         // About the developer.
         LinearLayout about = new LinearLayout(this);
         about.setOrientation(LinearLayout.VERTICAL);
@@ -511,34 +491,18 @@ public class MainActivity extends Activity {
         }
         sourcesList.removeAllViews();
         List<String> order = AppSettings.sourceOrder(this);
-        int enabledCount = 0;
-        for (String key : order) {
-            if (SourceSettings.isEnabled(this, key)) {
-                enabledCount++;
-            }
-        }
-
         int position = 0;
         for (String key : order) {
             if (!SourceSettings.isEnabled(this, key)) {
                 continue;
             }
             position++;
-            if (position > 4) {
-                break;
-            }
             addSourceRow(key, position);
         }
 
-        if (enabledCount == 0) {
+        if (position == 0) {
             sourcesList.addView(text(
                     getString(R.string.main_no_sources), 13, MUTED, false));
-        } else if (enabledCount > 4) {
-            int remaining = enabledCount - 4;
-            TextView more = text(getResources().getQuantityString(
-                    R.plurals.main_sources_more, remaining, remaining), 11, MUTED, false);
-            more.setPadding(0, dp(10), 0, 0);
-            sourcesList.addView(more);
         }
     }
 
@@ -548,14 +512,12 @@ public class MainActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, dp(10), 0, dp(10));
 
-        TextView number = text(String.valueOf(position), 12, ACCENT_TEXT, true);
-        number.setGravity(Gravity.CENTER);
-        number.setBackground(rounded(SECONDARY, 999));
-        row.addView(number, new LinearLayout.LayoutParams(dp(26), dp(26)));
+        View badge = SourceBadge.create(this, key);
+        row.addView(badge, new LinearLayout.LayoutParams(dp(34), dp(34)));
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.setPadding(dp(12), 0, 0, 0);
+        labels.setPadding(dp(10), 0, 0, 0);
         String name = SourceSettings.APPTEKA.equals(key)
                 ? getString(R.string.main_source_appteka)
                 : AppSettings.sourceLabel(this, key);

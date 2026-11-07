@@ -82,6 +82,20 @@ final class PublicSettings {
             write(context);
             return;
         }
+        applyText(context, text);
+    }
+
+    /** Applies settings from an imported configuration file. */
+    static void applyText(Context context, String text) {
+        SourceSettings.ensureInitialized(context);
+        if (text == null || text.trim().isEmpty()) {
+            HelperLog.info("Imported settings are empty");
+            return;
+        }
+        applyValues(context, text);
+    }
+
+    private static void applyValues(Context context, String text) {
         Map<String, String> values = parse(text);
         if (values.isEmpty()) {
             HelperLog.info("Public settings file is empty");
@@ -181,8 +195,35 @@ final class PublicSettings {
             }
         }
 
+        String apiKey = values.get("virustotal_api_key");
+        if (apiKey != null) {
+            AppSettings.setVirusTotalApiKey(context, apiKey.trim());
+        }
+
+        String location = values.get("download_location");
+        if (AppSettings.LOCATION_PUBLIC.equals(location)
+                || AppSettings.LOCATION_INTERNAL.equals(location)
+                || AppSettings.LOCATION_EXTERNAL.equals(location)
+                || AppSettings.LOCATION_CUSTOM.equals(location)) {
+            AppSettings.setLocation(context, location);
+        }
+        String locationUri = values.get("download_location_uri");
+        if (locationUri != null) {
+            AppSettings.setCustomTreeUri(context, locationUri.trim());
+        }
+        String retention = values.get("download_retention");
+        if (AppSettings.KEEP.equals(retention)
+                || AppSettings.AFTER_HANDOFF.equals(retention)
+                || AppSettings.HOUR_1.equals(retention)
+                || AppSettings.HOUR_24.equals(retention)
+                || AppSettings.DAY_7.equals(retention)) {
+            AppSettings.setRetention(context, retention);
+        }
+
         applyBoolean(context, values, "block_web_ads",
                 AppSettings::setBlockWebAds);
+        applyBoolean(context, values, "multi_thread_downloads",
+                AppSettings::setMultiThreadDownloads);
         applyBoolean(context, values, "live_adguard_checks",
                 AppSettings::setLiveAdGuardChecks);
         applyBoolean(context, values, "virustotal_enabled",
@@ -203,12 +244,23 @@ final class PublicSettings {
 
     /** Rewrites the public file from the current settings. */
     static void write(Context context) {
+        writeText(context, buildText(context, false));
+    }
+
+    /** Builds configuration text, optionally including API secrets. */
+    static String exportText(Context context, boolean includeSecrets) {
+        return buildText(context, includeSecrets);
+    }
+
+    private static String buildText(Context context, boolean includeSecrets) {
         StringBuilder text = new StringBuilder();
         text.append("# Morphe Download Helper settings\n");
         text.append("# Edit while the helper is not running, then open the helper\n");
         text.append("# or start a download from Morphe to apply the changes.\n");
-        text.append("# Secrets such as the VirusTotal API key are never written here.\n");
-        text.append("# Download location, retention, and the API key stay in the app.\n\n");
+        text.append("# Download location and retention are included below.\n");
+        text.append(includeSecrets
+                ? "# Includes the VirusTotal API key in plain text.\n\n"
+                : "# Secrets such as the VirusTotal API key are not included.\n\n");
 
         text.append("show_launcher_icon=")
                 .append(!AppSettings.isLauncherIconHidden(context)).append('\n');
@@ -232,6 +284,8 @@ final class PublicSettings {
 
         text.append("block_web_ads=")
                 .append(AppSettings.blockWebAds(context)).append('\n');
+        text.append("multi_thread_downloads=")
+                .append(AppSettings.multiThreadDownloads(context)).append('\n');
         text.append("live_adguard_checks=")
                 .append(AppSettings.liveAdGuardChecks(context)).append('\n');
         text.append("virustotal_enabled=")
@@ -250,7 +304,23 @@ final class PublicSettings {
         text.append("appteka_snaptube_only=")
                 .append(AppSettings.apptekaSnapTubeOnly(context)).append('\n');
 
-        writeText(context, text.toString());
+        text.append("download_location=")
+                .append(AppSettings.location(context)).append('\n');
+        if (AppSettings.LOCATION_CUSTOM.equals(AppSettings.location(context))) {
+            text.append("download_location_uri=")
+                    .append(AppSettings.customTreeUri(context)).append('\n');
+        }
+        text.append("download_retention=")
+                .append(AppSettings.retention(context)).append('\n');
+
+        if (includeSecrets) {
+            String apiKey = AppSettings.virusTotalApiKey(context);
+            if (!apiKey.isEmpty()) {
+                text.append("\nvirustotal_api_key=").append(apiKey).append('\n');
+            }
+        }
+
+        return text.toString();
     }
 
     private static String read(Context context) throws IOException {

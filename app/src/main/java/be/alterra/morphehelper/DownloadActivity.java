@@ -56,6 +56,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -72,7 +73,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -4124,6 +4128,14 @@ public class DownloadActivity extends Activity {
             partBase = "download-" + Math.abs(url.hashCode());
         }
         File part = new File(dir, partBase + ".part");
+        if (AppSettings.multiThreadDownloads(this)) {
+            File multi = segmentedDownload(url, referer, pkg, versionName,
+                    fileType, cookie, dir, partBase);
+            if (multi != null) {
+                return multi;
+            }
+            HelperLog.info("Multi-connection download unavailable; using single stream");
+        }
         long existing = part.length();
         boolean append = existing > 0;
 
@@ -4261,33 +4273,346 @@ public class DownloadActivity extends Activity {
             if (cancelled) {
                 throw new IOException("Cancelled");
             }
-            if (part.length() == 0) {
-                //noinspection ResultOfMethodCallIgnored
-                part.delete();
-                throw new IOException("Empty file");
-            }
-
-            File file = new File(dir, filename);
-            if (file.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                file.delete();
-            }
-            if (!part.renameTo(file)) {
-                throw new IOException("Cannot finalize downloaded file");
-            }
-            file = ArchiveTypeDetector.normalizeExtension(file);
-            try {
-                DownloadedFileValidator.validate(this, file, pkg, versionName,
-                        requestVersionCodes);
-            } catch (IOException invalid) {
-                //noinspection ResultOfMethodCallIgnored
-                file.delete();
-                throw invalid;
-            }
-            HelperLog.info("Saved " + file.getAbsolutePath()
-                    + " (" + file.length() + " bytes)");
-            return file;
+            return finalizeDownloadedFile(part, dir, filename, pkg, versionName);
         }
+    }
+
+    private static final long MULTI_MIN_BYTES = 5L * 1024L * 1024L;
+
+    /**
+     * Attempts a segmented HTTP Range download. Returns null when the server or
+     * network does not support it, so the caller can use the normal single stream.
+     */
+    private File segmentedDownload(String url, String referer, String pkg,
+                                   String versionName, String fileType, String cookie,
+                                   File dir, String partBase) throws IOException {
+        OkHttpClient client = HTTP.newBuilder().build();
+        Request.Builder base = new Request.Builder()
+                .url(url)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", "*/*")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header("Accept-Encoding", "identity");
+        if (referer != null) {
+            base.header("Referer", referer);
+        }
+        if (cookie != null && !cookie.isEmpty()) {
+            base.header("Cookie", cookie);
+        }
+
+        long total;
+        String filename;
+        String segmentUrl;
+        try (Response response = client.newCall(base.build().newBuilder()
+                .header("Range", "bytes=0-0")
+                .build()).execute()) {
+            if (response.code() != 206) {
+                HelperLog.info("Multi download skipped: probe HTTP " + response.code());
+                return null;
+            }
+            String encoding = response.header("Content-Encoding");
+            if (encoding != null && !"identity".equalsIgnoreCase(encoding)) {
+                HelperLog.info("Multi download skipped: encoding " + encoding);
+                return null;
+            }
+            total = contentRangeTotal(response.header("Content-Range"));
+            if (total < MULTI_MIN_BYTES) {
+                HelperLog.info("Multi download skipped: total " + total);
+                return null;
+            }
+            ResponseBody body = response.body();
+            if (body == null) {
+                return null;
+            }
+            String contentType = response.header("Content-Type");
+            if (contentType != null
+                    && contentType.toLowerCase(Locale.US).contains("text/html")) {
+                return null;
+            }
+            segmentUrl = response.request().url().toString();
+            filename = filenameFrom(response.header("Content-Disposition"),
+                    segmentUrl, pkg, versionName, fileType, contentType);
+        }
+
+        int segments = total < 8L * 1024L * 1024L ? 2 : 4;
+        File multiPart = new File(dir, partBase + ".seg.part");
+        //noinspection ResultOfMethodCallIgnored
+        multiPart.delete();
+        try (RandomAccessFile preallocate = new RandomAccessFile(multiPart, "rw")) {
+            preallocate.setLength(total);
+        }
+
+        HelperLog.info("MULTI download " + url + " total=" + total
+                + " segments=" + segments + " finalUrl=" + segmentUrl);
+        main.post(() -> {
+            setPauseVisible(true);
+            progress.setVisibility(View.VISIBLE);
+            progress.setIndeterminate(false);
+            progress.setProgress(0);
+            setStatus(R.string.download_starting);
+        });
+
+        AtomicLong downloaded = new AtomicLong();
+        ExecutorService pool = Executors.newFixedThreadPool(segments);
+        List<Future<?>> futures = new ArrayList<>();
+        Request segmentBase = new Request.Builder()
+                .url(segmentUrl)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", "*/*")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header("Accept-Encoding", "identity")
+                .build();
+        if (referer != null) {
+            segmentBase = segmentBase.newBuilder().header("Referer", referer).build();
+        }
+        if (cookie != null && !cookie.isEmpty()) {
+            segmentBase = segmentBase.newBuilder().header("Cookie", cookie).build();
+        }
+        final Request workerBase = segmentBase;
+        for (int i = 0; i < segments; i++) {
+            long start = i * total / segments;
+            long end = i == segments - 1 ? total - 1 : (i + 1) * total / segments - 1;
+            futures.add(pool.submit(() -> {
+                downloadSegment(client, workerBase, multiPart, start, end,
+                        total, downloaded);
+                return null;
+            }));
+        }
+
+        long startedAt = System.currentTimeMillis();
+        AtomicBoolean reporterRunning = new AtomicBoolean(true);
+        Thread reporter = new Thread(() -> {
+            long lastBytes = 0;
+            long lastTime = startedAt;
+            while (reporterRunning.get()) {
+                try {
+                    Thread.sleep(500L);
+                } catch (InterruptedException ignored) {
+                    return;
+                }
+                long bytes = downloaded.get();
+                long now = System.currentTimeMillis();
+                if (paused) {
+                    main.post(() -> setStatus(R.string.download_paused));
+                    lastBytes = bytes;
+                    lastTime = now;
+                    continue;
+                }
+                long elapsed = Math.max(1, now - lastTime);
+                double speed = Math.max(0, bytes - lastBytes) * 1000.0 / elapsed;
+                int percent = total > 0
+                        ? (int) Math.min(100, bytes * 100 / total) : 0;
+                String speedText = String.format(Locale.US, "%.1f MB/s",
+                        speed / (1024 * 1024));
+                long left = speed > 0 ? (long) ((total - bytes) / speed) : -1;
+                String text = left > 0
+                        ? getString(R.string.download_progress_eta,
+                                percent, speedText, left)
+                        : getString(R.string.download_progress, percent, speedText);
+                final int progressValue = percent;
+                main.post(() -> {
+                    progress.setProgress(progressValue);
+                    setStatus(text);
+                });
+                updateDownloadService(text, percent, false);
+                lastBytes = bytes;
+                lastTime = now;
+            }
+        }, "segment-progress");
+        reporter.start();
+
+        boolean failed = false;
+        for (Future<?> future : futures) {
+            try {
+                future.get();
+            } catch (Exception error) {
+                failed = true;
+                cancelSegmentedTasks(pool, futures);
+                break;
+            }
+        }
+        reporterRunning.set(false);
+        reporter.interrupt();
+        pool.shutdownNow();
+
+        if (cancelled) {
+            //noinspection ResultOfMethodCallIgnored
+            multiPart.delete();
+            throw new IOException("Cancelled");
+        }
+        if (failed || multiPart.length() != total) {
+            HelperLog.error("Multi download failed; falling back to single stream", null);
+            //noinspection ResultOfMethodCallIgnored
+            multiPart.delete();
+            return null;
+        }
+        long elapsed = System.currentTimeMillis() - startedAt;
+        HelperLog.info("MULTI complete bytes=" + total + " elapsedMs=" + elapsed
+                + " avg=" + String.format(Locale.US, "%.2f",
+                total * 1000.0 / Math.max(1, elapsed) / (1024.0 * 1024.0))
+                + " MiB/s");
+        main.post(() -> progress.setProgress(100));
+        return finalizeDownloadedFile(multiPart, dir, filename, pkg, versionName);
+    }
+
+    private void cancelSegmentedTasks(ExecutorService pool, List<Future<?>> futures) {
+        for (Future<?> future : futures) {
+            future.cancel(true);
+        }
+        pool.shutdownNow();
+    }
+
+    private void downloadSegment(OkHttpClient client, Request base, File part,
+                                 long start, long end, long total,
+                                 AtomicLong downloaded) throws IOException {
+        long expected = end - start + 1;
+        IOException last = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            long written = 0;
+            waitForResume();
+            try (Response response = client.newCall(base.newBuilder()
+                    .header("Range", "bytes=" + start + "-" + end)
+                    .build()).execute()) {
+                if (response.code() != 206) {
+                    throw new IOException("HTTP " + response.code());
+                }
+                String encoding = response.header("Content-Encoding");
+                if (encoding != null && !"identity".equalsIgnoreCase(encoding)) {
+                    throw new IOException("Unexpected Content-Encoding " + encoding);
+                }
+                if (!rangeMatches(response.header("Content-Range"),
+                        start, end, total)) {
+                    throw new IOException("Unexpected Content-Range");
+                }
+                ResponseBody body = response.body();
+                if (body == null) {
+                    throw new IOException("Empty segment response");
+                }
+                try (RandomAccessFile output = new RandomAccessFile(part, "rw");
+                     InputStream input = new BufferedInputStream(body.byteStream())) {
+                    output.seek(start);
+                    byte[] buffer = new byte[64 * 1024];
+                    int read;
+                    while ((read = input.read(buffer)) != -1) {
+                        waitForResume();
+                        output.write(buffer, 0, read);
+                        written += read;
+                        downloaded.addAndGet(read);
+                        if (written > expected) {
+                            throw new IOException("Segment overflow");
+                        }
+                    }
+                }
+                if (written != expected) {
+                    throw new IOException("Short segment " + written + "/" + expected);
+                }
+                return;
+            } catch (IOException error) {
+                last = error;
+                downloaded.addAndGet(-written);
+                if (cancelled) {
+                    throw error;
+                }
+                HelperLog.info("Segment " + start + "-" + end + " retry "
+                        + (attempt + 1) + ": " + error.getMessage());
+            }
+        }
+        throw last != null ? last : new IOException("Segment failed");
+    }
+
+    private void waitForResume() throws IOException {
+        while (paused && !cancelled) {
+            try {
+                Thread.sleep(200L);
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Cancelled");
+            }
+        }
+        if (cancelled) {
+            throw new IOException("Cancelled");
+        }
+    }
+
+    private static long contentRangeTotal(String value) {
+        if (value == null) {
+            return -1;
+        }
+        int slash = value.lastIndexOf('/');
+        if (slash < 0) {
+            return -1;
+        }
+        String total = value.substring(slash + 1).trim();
+        if ("*".equals(total)) {
+            return -1;
+        }
+        try {
+            return Long.parseLong(total);
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+    }
+
+    private static boolean rangeMatches(String value, long start, long end,
+                                        long total) {
+        if (value == null || !value.startsWith("bytes ")) {
+            return false;
+        }
+        String spec = value.substring(6).trim();
+        int slash = spec.indexOf('/');
+        if (slash < 0) {
+            return false;
+        }
+        String range = spec.substring(0, slash);
+        String totalText = spec.substring(slash + 1).trim();
+        int dash = range.indexOf('-');
+        if (dash < 0) {
+            return false;
+        }
+        try {
+            long actualStart = Long.parseLong(range.substring(0, dash).trim());
+            long actualEnd = Long.parseLong(range.substring(dash + 1).trim());
+            long actualTotal = "*".equals(totalText)
+                    ? total : Long.parseLong(totalText);
+            return actualStart == start && actualEnd == end
+                    && actualTotal == total;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
+    }
+
+    private File finalizeDownloadedFile(File part, File dir, String filename,
+                                        String pkg, String versionName)
+            throws IOException {
+        if (cancelled) {
+            throw new IOException("Cancelled");
+        }
+        if (part.length() == 0) {
+            //noinspection ResultOfMethodCallIgnored
+            part.delete();
+            throw new IOException("Empty file");
+        }
+
+        File file = new File(dir, filename);
+        if (file.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+        }
+        if (!part.renameTo(file)) {
+            throw new IOException("Cannot finalize downloaded file");
+        }
+        file = ArchiveTypeDetector.normalizeExtension(file);
+        try {
+            DownloadedFileValidator.validate(this, file, pkg, versionName,
+                    requestVersionCodes);
+        } catch (IOException invalid) {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+            throw invalid;
+        }
+        HelperLog.info("Saved " + file.getAbsolutePath()
+                + " (" + file.length() + " bytes)");
+        return file;
     }
 
     /**

@@ -3,6 +3,7 @@ package be.alterra.morphehelper;
 import android.Manifest;
 import android.app.Activity;
 import android.app.LocaleManager;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -18,11 +19,14 @@ import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.text.InputType;
+import android.text.TextUtils;
 import android.util.TypedValue;
+import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -30,6 +34,11 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -70,6 +79,8 @@ public class SettingsActivity extends Activity {
     private static final int SHIZUKU_REQUEST_CODE = 71;
     private static final int FOLDER_REQUEST_CODE = 72;
     private static final int STORAGE_PERMISSION_CODE = 73;
+    private static final int EXPORT_SETTINGS_REQUEST_CODE = 74;
+    private static final int IMPORT_SETTINGS_REQUEST_CODE = 75;
     private static final String SECTION_PREFS = "settings_sections";
     static final String EXTRA_SECTION = "open_section";
     static final String EXTRA_SECTION_SOURCES = "sources";
@@ -80,8 +91,10 @@ public class SettingsActivity extends Activity {
     private static final String SECTION_STORAGE = "storage";
     private static final String SECTION_SECURITY = "security";
     private static final String SECTION_BATTERY = "battery";
+    private static final String SECTION_BACKUP = "backup";
     private boolean batteryIgnoring;
     private String pendingLocation;
+    private boolean exportIncludeSecrets;
     private final Map<String, View> sectionCards = new HashMap<>();
     private View sourceOrderTarget;
 
@@ -191,6 +204,11 @@ public class SettingsActivity extends Activity {
                 R.drawable.ic_section_battery);
         addBatteryCard(battery);
 
+        LinearLayout backup = addSection(root, SECTION_BACKUP,
+                R.string.settings_backup, R.string.settings_backup_summary,
+                R.drawable.ic_section_backup);
+        addBackupCard(backup);
+
         TextView done = primaryButton(getString(R.string.common_done));
         done.setOnClickListener(v -> finish());
         LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
@@ -294,13 +312,25 @@ public class SettingsActivity extends Activity {
         header.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE), null, null));
 
+        FrameLayout iconTile = new FrameLayout(this);
+        GradientDrawable tileBackground = new GradientDrawable();
+        tileBackground.setColor((ACCENT_TEXT & 0x00FFFFFF) | 0x22000000);
+        tileBackground.setCornerRadius(dp(11));
+        iconTile.setBackground(tileBackground);
+
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconRes);
         icon.setColorFilter(ACCENT_TEXT);
         icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(22), dp(22));
+        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(
+                dp(20), dp(20));
+        iconInner.gravity = Gravity.CENTER;
+        iconTile.addView(icon, iconInner);
+
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
+                dp(36), dp(36));
         iconParams.setMarginEnd(dp(12));
-        header.addView(icon, iconParams);
+        header.addView(iconTile, iconParams);
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
@@ -699,6 +729,91 @@ public class SettingsActivity extends Activity {
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(8), 0, 0);
         card.addView(note);
+    }
+
+    private void addBackupCard(LinearLayout card) {
+        LinearLayout export = settingRow(getString(R.string.settings_export),
+                getString(R.string.settings_export_detail));
+        export.setOnClickListener(v -> showExportDialog());
+        card.addView(export);
+
+        LinearLayout importRow = settingRow(getString(R.string.settings_import),
+                getString(R.string.settings_import_detail));
+        importRow.setOnClickListener(v -> showImportConfirm());
+        card.addView(importRow);
+    }
+
+    private void showExportDialog() {
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_export_title)
+                .setItems(new String[]{
+                        getString(R.string.settings_export_without_secrets),
+                        getString(R.string.settings_export_with_secrets)
+                }, (dialog, which) -> launchExport(which == 1))
+                .show();
+    }
+
+    private void launchExport(boolean includeSecrets) {
+        exportIncludeSecrets = includeSecrets;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("text/plain")
+                .putExtra(Intent.EXTRA_TITLE, "morphe-helper-settings.txt");
+        try {
+            startActivityForResult(intent, EXPORT_SETTINGS_REQUEST_CODE);
+        } catch (Exception error) {
+            Toast.makeText(this, R.string.settings_export_failed, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showImportConfirm() {
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_import_confirm_title)
+                .setMessage(R.string.settings_import_confirm_message)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.settings_import, (dialog, which) ->
+                        launchImport())
+                .show();
+    }
+
+    private void launchImport() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*");
+        try {
+            startActivityForResult(intent, IMPORT_SETTINGS_REQUEST_CODE);
+        } catch (Exception error) {
+            Toast.makeText(this, R.string.settings_import_failed, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String readImportedText(Uri uri) throws Exception {
+        try (InputStream input = getContentResolver().openInputStream(uri);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            if (input == null) {
+                return null;
+            }
+            byte[] buffer = new byte[8 * 1024];
+            int total = 0;
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                total += read;
+                if (total > 1024 * 1024) {
+                    throw new Exception("Configuration file is too large");
+                }
+                output.write(buffer, 0, read);
+            }
+            return new String(output.toByteArray(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private void writeExportedText(Uri uri, String text) throws Exception {
+        try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+            if (output == null) {
+                throw new Exception("Could not open destination");
+            }
+            output.write(text.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     private boolean isIgnoringBatteryOptimizations() {
@@ -1145,6 +1260,35 @@ public class SettingsActivity extends Activity {
         note.setPadding(0, dp(6), 0, dp(10));
         card.addView(note);
 
+        LinearLayout multiRow = new LinearLayout(this);
+        multiRow.setOrientation(LinearLayout.HORIZONTAL);
+        multiRow.setGravity(Gravity.CENTER_VERTICAL);
+        multiRow.setPadding(0, dp(8), 0, dp(8));
+        LinearLayout multiLabels = new LinearLayout(this);
+        multiLabels.setOrientation(LinearLayout.VERTICAL);
+        multiLabels.addView(text(getString(R.string.settings_multi_thread), 14, TEXT, true));
+        TextView multiDetail = text(
+                getString(R.string.settings_multi_thread_detail), 11, MUTED, false);
+        multiDetail.setLineSpacing(dp(2), 1f);
+        multiDetail.setPadding(0, dp(3), 0, 0);
+        multiLabels.addView(multiDetail);
+        multiRow.addView(multiLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch multiSwitch = new Switch(this);
+        multiSwitch.setChecked(AppSettings.multiThreadDownloads(this));
+        styleSwitch(multiSwitch);
+        multiSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setMultiThreadDownloads(this, isChecked);
+            PublicSettings.write(this);
+            Toast.makeText(this, isChecked
+                            ? R.string.settings_multi_thread_enabled
+                            : R.string.settings_multi_thread_disabled,
+                    Toast.LENGTH_SHORT).show();
+        });
+        multiRow.addView(multiSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(multiRow);
+
         TextView delete = actionButton(getString(R.string.settings_delete_all), RED);
         delete.setOnClickListener(v -> ThemeManager.dialog(this)
                 .setTitle(R.string.settings_delete_dialog_title)
@@ -1201,11 +1345,47 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != FOLDER_REQUEST_CODE || resultCode != RESULT_OK
-                || data == null || data.getData() == null) {
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
             return;
         }
-        Uri tree = data.getData();
+        Uri uri = data.getData();
+        if (requestCode == EXPORT_SETTINGS_REQUEST_CODE) {
+            try {
+                writeExportedText(uri,
+                        PublicSettings.exportText(this, exportIncludeSecrets));
+                Toast.makeText(this, R.string.settings_export_success,
+                        Toast.LENGTH_SHORT).show();
+            } catch (Exception error) {
+                HelperLog.error("Could not export configuration", error);
+                Toast.makeText(this, R.string.settings_export_failed,
+                        Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        if (requestCode == IMPORT_SETTINGS_REQUEST_CODE) {
+            try {
+                String text = readImportedText(uri);
+                if (TextUtils.isEmpty(text)) {
+                    Toast.makeText(this, R.string.settings_import_empty,
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                PublicSettings.applyText(this, text);
+                PublicSettings.write(this);
+                Toast.makeText(this, R.string.settings_import_success,
+                        Toast.LENGTH_SHORT).show();
+                recreate();
+            } catch (Exception error) {
+                HelperLog.error("Could not import configuration", error);
+                Toast.makeText(this, R.string.settings_import_failed,
+                        Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        if (requestCode != FOLDER_REQUEST_CODE) {
+            return;
+        }
+        Uri tree = uri;
         try {
             getContentResolver().takePersistableUriPermission(tree,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -1357,13 +1537,35 @@ public class SettingsActivity extends Activity {
         note.setPadding(0, dp(4), 0, dp(8));
         card.addView(note);
 
+        LinearLayout orderList = new LinearLayout(this);
+        orderList.setOrientation(LinearLayout.VERTICAL);
+        card.addView(orderList);
+
         List<String> order = AppSettings.sourceOrder(this);
         for (int i = 0; i < order.size(); i++) {
             String key = order.get(i);
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, dp(8), 0, dp(8));
+            row.setPadding(0, dp(6), 0, dp(6));
+            row.setTag(key);
+
+            TextView drag = text("\u2261", 18, MUTED, true);
+            drag.setGravity(Gravity.CENTER);
+            drag.setContentDescription(getString(R.string.settings_drag_source));
+            drag.setPadding(dp(4), dp(4), dp(8), dp(4));
+            drag.setOnLongClickListener(v -> {
+                startSourceDrag(row);
+                return true;
+            });
+            row.addView(drag, new LinearLayout.LayoutParams(
+                    dp(30), dp(44)));
+
+            View badge = SourceBadge.create(this, key);
+            LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
+                    dp(32), dp(32));
+            badgeParams.setMarginEnd(dp(8));
+            row.addView(badge, badgeParams);
 
             TextView label = text((i + 1) + ". " + AppSettings.sourceLabel(this, key),
                     14, TEXT, false);
@@ -1390,7 +1592,39 @@ public class SettingsActivity extends Activity {
                 recreate();
             });
             row.addView(down);
-            card.addView(row);
+
+            row.setOnDragListener((view, event) -> {
+                int action = event.getAction();
+                if (action == DragEvent.ACTION_DRAG_ENTERED) {
+                    view.setAlpha(0.65f);
+                    return true;
+                }
+                if (action == DragEvent.ACTION_DRAG_EXITED) {
+                    view.setAlpha(1f);
+                    return true;
+                }
+                if (action == DragEvent.ACTION_DRAG_ENDED) {
+                    view.setAlpha(1f);
+                    return true;
+                }
+                if (action == DragEvent.ACTION_DROP) {
+                    view.setAlpha(1f);
+                    Object local = event.getLocalState();
+                    if (local instanceof View) {
+                        Object tag = ((View) local).getTag();
+                        int target = orderList.indexOfChild(view);
+                        if (tag != null && target >= 0) {
+                            AppSettings.moveSourceTo(this, String.valueOf(tag), target);
+                            PublicSettings.write(this);
+                            recreate();
+                        }
+                    }
+                    return true;
+                }
+                return action == DragEvent.ACTION_DRAG_STARTED;
+            });
+
+            orderList.addView(row);
         }
 
         TextView reset = actionButton(getString(R.string.settings_reset_order), PRIMARY_START);
@@ -1400,6 +1634,20 @@ public class SettingsActivity extends Activity {
             recreate();
         });
         card.addView(reset);
+    }
+
+    private void startSourceDrag(View row) {
+        Object tag = row.getTag();
+        if (tag == null) {
+            return;
+        }
+        ClipData clip = ClipData.newPlainText("source", String.valueOf(tag));
+        View.DragShadowBuilder shadow = new View.DragShadowBuilder(row);
+        if (Build.VERSION.SDK_INT >= 24) {
+            row.startDragAndDrop(clip, shadow, row, 0);
+        } else {
+            row.startDrag(clip, shadow, row, 0);
+        }
     }
     /**
      * Makes the checked state vibrant and the unchecked state visibly dimmed,
@@ -1494,6 +1742,12 @@ public class SettingsActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, dp(14), 0, dp(14));
+
+        View badge = SourceBadge.create(this, key);
+        LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
+                dp(36), dp(36));
+        badgeParams.setMarginEnd(dp(10));
+        row.addView(badge, badgeParams);
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);

@@ -6,11 +6,14 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.InsetDrawable;
 import android.os.Build;
 import android.view.ContextThemeWrapper;
 import android.view.View;
 import android.view.Window;
 import android.widget.Button;
+import android.widget.TextView;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -319,10 +322,32 @@ final class ThemeManager {
         @Override
         public AlertDialog show() {
             AlertDialog dialog = super.show();
-            int accent = palette(context).accentText;
+            ThemePalette palette = palette(context);
+            int accent = palette.accentText;
             tint(dialog, AlertDialog.BUTTON_POSITIVE, accent);
             tint(dialog, AlertDialog.BUTTON_NEGATIVE, accent);
             tint(dialog, AlertDialog.BUTTON_NEUTRAL, accent);
+
+            TextView title = dialog.findViewById(android.R.id.title);
+            if (title != null) {
+                title.setTextColor(palette.text);
+            }
+            TextView message = dialog.findViewById(android.R.id.message);
+            if (message != null) {
+                message.setTextColor(palette.steps);
+            }
+
+            Window window = dialog.getWindow();
+            if (window != null) {
+                float density = context.getResources().getDisplayMetrics().density;
+                GradientDrawable background = new GradientDrawable();
+                background.setColor(palette.cardTop);
+                background.setCornerRadius(24 * density);
+                background.setStroke(Math.max(1, (int) density), palette.border);
+                int inset = (int) (10 * density);
+                window.setBackgroundDrawable(new InsetDrawable(
+                        background, inset, inset, inset, inset));
+            }
             return dialog;
         }
 

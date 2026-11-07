@@ -5,6 +5,49 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.0-beta.2] - 2026-11-07
+
+Second UI beta, with validation fixes and backup improvements.
+
+### Added
+
+- Import/export now includes the **download folder** and **retention** setting.
+  Custom folder access may need to be re-approved after importing on a new
+  device. Requested by @IkoMosiEntertainmentHub in
+  [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
+- Source badges and **drag-to-reorder** in Source order. The existing up/down
+  buttons remain as an accessible fallback. Concept and feedback from
+  @thegodfather-hub and @IkoMosiEntertainmentHub in
+  [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
+- Rounded, theme-aware dialogs and tinted icon tiles for Settings sections.
+  Reported as inconsistent by @IkoMosiEntertainmentHub in
+  [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
+- Optional **Faster multi-connection downloads** in Storage. It is off by
+  default and falls back to the normal single stream automatically. Requested
+  by @thegodfather-hub in
+  [#20](https://github.com/GeneralZyonix/morphe-download-helper/issues/20).
+
+### Changed
+
+- The **Uninstall Helper** button was removed from Main. Suggested by
+  @IkoMosiEntertainmentHub in
+  [#12](https://github.com/GeneralZyonix/morphe-download-helper/issues/12).
+- Multi-connection downloads stay opt-in because testing on a fast Wi-Fi
+  connection showed no speed gain over the normal OkHttp stream, and it can be
+  slower on some servers.
+
+### Fixed
+
+- XAPK/APKS validation no longer trusts `manifest.json` before reading the
+  APKs. Package checks also run for unversioned requests, readable APKs
+  override the manifest, and mismatches are rejected. Reported by
+  @thegodfather-hub in
+  [#21](https://github.com/GeneralZyonix/morphe-download-helper/issues/21).
+- Added 10 fixture tests for the split-archive validator.
+- Settings and Appearance no longer jump to the top after a theme change.
+  Originally reported by @rowi123 in
+  [#5](https://github.com/GeneralZyonix/morphe-download-helper/issues/5).
+
 ## [2.0.0-beta.1] - 2026-11-07
 
 First public beta of the redesigned interface.

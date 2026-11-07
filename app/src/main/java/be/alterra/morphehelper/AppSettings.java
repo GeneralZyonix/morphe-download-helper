@@ -51,6 +51,7 @@ final class AppSettings {
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_SHOW_LAUNCHER_ICON = "show_launcher_icon";
     private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
+    private static final String KEY_MULTI_THREAD = "multi_thread_downloads";
     private static final String KEY_LIVE_ADGUARD = "live_adguard_checks";
     private static final String KEY_THEME_MODE = "theme_mode";
     private static final String KEY_THEME_ACCENT = "theme_accent";
@@ -184,6 +185,14 @@ final class AppSettings {
 
     static void setLiveAdGuardChecks(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_LIVE_ADGUARD, enabled).apply();
+    }
+
+    static boolean multiThreadDownloads(Context context) {
+        return prefs(context).getBoolean(KEY_MULTI_THREAD, false);
+    }
+
+    static void setMultiThreadDownloads(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_MULTI_THREAD, enabled).apply();
     }
 
     static String themeMode(Context context) {
@@ -722,6 +731,21 @@ final class AppSettings {
         }
         order.remove(index);
         order.add(target, key);
+        setSourceOrder(context, order);
+    }
+
+    static void moveSourceTo(Context context, String key, int target) {
+        List<String> order = sourceOrder(context);
+        int index = order.indexOf(key);
+        if (index < 0) {
+            return;
+        }
+        int clamped = Math.max(0, Math.min(target, order.size() - 1));
+        if (index == clamped) {
+            return;
+        }
+        order.remove(index);
+        order.add(clamped, key);
         setSourceOrder(context, order);
     }
 
