@@ -185,7 +185,6 @@ public class SettingsActivity extends Activity {
                 R.string.settings_sources, R.string.settings_sources_summary,
                 R.drawable.ic_section_sources);
         addSourcesCard(sources);
-        addOrderCard(sources);
         addApptekaWarningCard(sources);
         addGitHubAppsCard(sources);
 
@@ -405,26 +404,71 @@ public class SettingsActivity extends Activity {
         sourceWebViewHint.setPadding(0, 0, 0, dp(4));
         card.addView(sourceWebViewHint);
 
-        addSourceRow(card, SourceSettings.APKPURE, getString(R.string.source_apkpure),
-                getString(R.string.settings_source_apkpure_desc));
-        addSourceRow(card, SourceSettings.FALLBACK,
-                getString(R.string.settings_source_fallback_title),
-                getString(R.string.settings_source_fallback_desc));
-        addSourceRow(card, SourceSettings.APKMIRROR, getString(R.string.source_apkmirror),
-                getString(R.string.settings_source_apkmirror_desc));
-        addSourceRow(card, SourceSettings.UPTODOWN,
-                getString(R.string.settings_source_uptodown_title),
-                getString(R.string.settings_source_uptodown_desc));
-        addSourceRow(card, SourceSettings.FDROID, getString(R.string.source_fdroid),
-                getString(R.string.settings_source_fdroid_desc));
-        addSourceRow(card, SourceSettings.APTOIDE, getString(R.string.source_aptoide),
-                getString(R.string.settings_source_aptoide_desc));
-        addSourceRow(card, SourceSettings.APPTEKA,
-                getString(R.string.settings_source_appteka_title),
-                getString(R.string.settings_source_appteka_desc));
-        addSourceRow(card, SourceSettings.GITHUB,
-                getString(R.string.settings_source_github_title),
-                getString(R.string.settings_source_github_desc));
+        TextView dragHint = text(
+                getString(R.string.settings_source_drag_hint), 11, MUTED, false);
+        dragHint.setLineSpacing(dp(2), 1f);
+        dragHint.setPadding(0, 0, 0, dp(8));
+        card.addView(dragHint);
+
+        for (String key : sourceDisplayOrder()) {
+            addSourceRow(card, key, sourceTitle(key), sourceDescription(key));
+        }
+    }
+
+    /** Enabled sources in saved order, followed by disabled sources. */
+    private List<String> sourceDisplayOrder() {
+        List<String> order = AppSettings.sourceOrder(this);
+        List<String> enabled = new ArrayList<>();
+        List<String> disabled = new ArrayList<>();
+        for (String key : order) {
+            if (SourceSettings.isEnabled(this, key)) {
+                enabled.add(key);
+            } else {
+                disabled.add(key);
+            }
+        }
+        enabled.addAll(disabled);
+        return enabled;
+    }
+
+    private String sourceTitle(String key) {
+        switch (key) {
+            case SourceSettings.APKPURE: return getString(R.string.source_apkpure);
+            case SourceSettings.FALLBACK:
+                return getString(R.string.settings_source_fallback_title);
+            case SourceSettings.APKMIRROR: return getString(R.string.source_apkmirror);
+            case SourceSettings.UPTODOWN:
+                return getString(R.string.settings_source_uptodown_title);
+            case SourceSettings.FDROID: return getString(R.string.source_fdroid);
+            case SourceSettings.APTOIDE: return getString(R.string.source_aptoide);
+            case SourceSettings.APPTEKA:
+                return getString(R.string.settings_source_appteka_title);
+            case SourceSettings.GITHUB:
+                return getString(R.string.settings_source_github_title);
+            default: return AppSettings.sourceLabel(this, key);
+        }
+    }
+
+    private String sourceDescription(String key) {
+        switch (key) {
+            case SourceSettings.APKPURE:
+                return getString(R.string.settings_source_apkpure_desc);
+            case SourceSettings.FALLBACK:
+                return getString(R.string.settings_source_fallback_desc);
+            case SourceSettings.APKMIRROR:
+                return getString(R.string.settings_source_apkmirror_desc);
+            case SourceSettings.UPTODOWN:
+                return getString(R.string.settings_source_uptodown_desc);
+            case SourceSettings.FDROID:
+                return getString(R.string.settings_source_fdroid_desc);
+            case SourceSettings.APTOIDE:
+                return getString(R.string.settings_source_aptoide_desc);
+            case SourceSettings.APPTEKA:
+                return getString(R.string.settings_source_appteka_desc);
+            case SourceSettings.GITHUB:
+                return getString(R.string.settings_source_github_desc);
+            default: return "";
+        }
     }
 
     private void addLanguageRow(LinearLayout root) {
@@ -1738,10 +1782,22 @@ public class SettingsActivity extends Activity {
         return view;
     }
     private void addSourceRow(LinearLayout parent, String key, String title, String description) {
+        boolean enabled = SourceSettings.isEnabled(this, key);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(14), 0, dp(14));
+        row.setPadding(0, dp(12), 0, dp(12));
+        row.setTag(key);
+
+        TextView drag = text("\u2261", 18, MUTED, true);
+        drag.setGravity(Gravity.CENTER);
+        drag.setContentDescription(getString(R.string.settings_drag_source));
+        drag.setPadding(dp(2), dp(4), dp(6), dp(4));
+        drag.setOnLongClickListener(v -> {
+            startSourceDrag(row);
+            return true;
+        });
+        row.addView(drag, new LinearLayout.LayoutParams(dp(26), dp(44)));
 
         View badge = SourceBadge.create(this, key);
         LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
@@ -1751,8 +1807,9 @@ public class SettingsActivity extends Activity {
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text(title, 15, TEXT, true));
-        int descColor = SourceSettings.APPTEKA.equals(key) ? RED
+        labels.addView(text(title, 15, enabled ? TEXT : MUTED, true));
+        int descColor = !enabled ? MUTED
+                : SourceSettings.APPTEKA.equals(key) ? RED
                 : (SourceSettings.APKPURE.equals(key)
                 || SourceSettings.UPTODOWN.equals(key)
                 || SourceSettings.GITHUB.equals(key)) ? WARN_TEXT : MUTED;
@@ -1762,7 +1819,8 @@ public class SettingsActivity extends Activity {
         TextView health = text(SourceHealth.summary(this, key), 11, MUTED, false);
         health.setPadding(0, dp(4), 0, 0);
         labels.addView(health);
-        row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView test = text(getString(R.string.settings_test), 12, PRIMARY_START, true);
         test.setPadding(dp(8), dp(8), dp(8), dp(8));
@@ -1781,7 +1839,7 @@ public class SettingsActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
 
         Switch toggle = new Switch(this);
-        toggle.setChecked(SourceSettings.isEnabled(this, key));
+        toggle.setChecked(enabled);
         styleSwitch(toggle);
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!isChecked && SourceSettings.enabledCount(this) <= 1) {
@@ -1792,11 +1850,57 @@ public class SettingsActivity extends Activity {
             }
             SourceSettings.setEnabled(this, key, isChecked);
             PublicSettings.write(this);
+            recreate();
         });
         LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
                 dp(64), dp(48));
         toggleParams.gravity = Gravity.CENTER_VERTICAL;
         row.addView(toggle, toggleParams);
+
+        row.setOnDragListener((view, event) -> {
+            int action = event.getAction();
+            if (action == DragEvent.ACTION_DRAG_ENTERED) {
+                view.setAlpha(0.65f);
+                return true;
+            }
+            if (action == DragEvent.ACTION_DRAG_EXITED
+                    || action == DragEvent.ACTION_DRAG_ENDED) {
+                view.setAlpha(1f);
+                return true;
+            }
+            if (action == DragEvent.ACTION_DROP) {
+                view.setAlpha(1f);
+                Object local = event.getLocalState();
+                if (!(local instanceof View)) {
+                    return true;
+                }
+                Object draggedTag = ((View) local).getTag();
+                Object targetTag = view.getTag();
+                if (draggedTag == null || targetTag == null) {
+                    return true;
+                }
+                String dragged = String.valueOf(draggedTag);
+                String target = String.valueOf(targetTag);
+                if (dragged.equals(target)
+                        || SourceSettings.isEnabled(this, dragged)
+                        != SourceSettings.isEnabled(this, target)) {
+                    return true;
+                }
+                List<String> order = sourceDisplayOrder();
+                int from = order.indexOf(dragged);
+                int to = order.indexOf(target);
+                if (from >= 0 && to >= 0) {
+                    order.remove(from);
+                    order.add(to, dragged);
+                    AppSettings.setSourceOrder(this, order);
+                    PublicSettings.write(this);
+                    recreate();
+                }
+                return true;
+            }
+            return action == DragEvent.ACTION_DRAG_STARTED;
+        });
+
         parent.addView(row, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));

@@ -286,7 +286,7 @@ public class MainActivity extends Activity {
         sourcesHeader.addView(text(getString(R.string.main_sources_title), 16, TEXT, true),
                 new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
 
-        TextView editOrder = text(getString(R.string.main_edit_order), 12, ACCENT_TEXT, true);
+        TextView editOrder = text(getString(R.string.main_manage_sources), 12, ACCENT_TEXT, true);
         editOrder.setPadding(dp(10), dp(8), 0, dp(8));
         editOrder.setClickable(true);
         editOrder.setFocusable(true);

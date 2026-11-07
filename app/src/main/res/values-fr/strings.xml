@@ -22,6 +22,8 @@
     <string name="main_hero_title">Récupérez l’APK d’origine.</string>
     <string name="main_hero_body">Morphe applique le patch. L’assistant trouve le bon build et le transfère.</string>
     <string name="main_edit_order">Modifier l’ordre</string>
+    <string name="main_manage_sources">Gérer</string>
+    <string name="settings_source_drag_hint">Faites glisser la poignée pour choisir la source essayée en premier. Les sources désactivées restent en bas.</string>
     <string name="main_sources_note_short">Uptodown suit un lien Morphe. Appteka est limité à SnapTube.</string>
     <string name="main_logs_local">Les journaux restent sur cet appareil</string>
     <plurals name="main_sources_more">
