@@ -348,11 +348,11 @@ public class DownloadActivity extends Activity {
     private boolean uptodownHandled;
 
     /**
-     * Set when Uptodown served a build whose minSdkVersion is newer than this device.
-     * Android's package parser cannot read such an APK, so Morphe would reject the
-     * bundle. Keep Uptodown out of the remaining attempts for this request.
+     * Set when Uptodown served a build this request cannot use (wrong build
+     * number or a minSdkVersion newer than the device). Keep Uptodown out of
+     * the remaining attempts for this request and let the other sources try.
      */
-    private volatile boolean uptodownIncompatible;
+    private volatile boolean uptodownRejected;
 
     /** Request values kept for the WebView download path. */
     private String uptodownPkg;
@@ -1376,15 +1376,15 @@ public class DownloadActivity extends Activity {
                         deliverFile(file);
                     }
                 } catch (Exception e) {
-                    if (e instanceof DownloadedFileValidator.IncompatibleSdkException
+                    if ((e instanceof DownloadedFileValidator.IncompatibleSdkException
+                            || e instanceof DownloadedFileValidator.VersionMismatchException)
                             && "uptodown".equals(source)) {
-                        // Android 12 cannot parse an APK whose minSdkVersion is newer
-                        // than the device, so Morphe would reject this bundle even
-                        // though the helper can read its manifest. Try the other
-                        // sources for a build this device can actually open.
-                        uptodownIncompatible = true;
+                        // Either the build number does not match the request or the
+                        // device cannot parse its minSdk. Neither is usable; keep
+                        // Uptodown out of the retry and let the other sources try.
+                        uptodownRejected = true;
                         verificationFailure = e.getMessage();
-                        HelperLog.info("Uptodown build is incompatible: "
+                        HelperLog.info("Uptodown build rejected: "
                                 + e.getMessage() + "; retrying other sources");
                         markSource(SourceSettings.UPTODOWN, false, e.getMessage());
                         if (cancelled) {
@@ -2055,7 +2055,7 @@ public class DownloadActivity extends Activity {
     }
 
     private boolean sourceAllowed(String key) {
-        if (SourceSettings.UPTODOWN.equals(key) && uptodownIncompatible) {
+        if (SourceSettings.UPTODOWN.equals(key) && uptodownRejected) {
             return false;
         }
         return SourceSettings.isEnabled(this, key)
@@ -2568,11 +2568,10 @@ public class DownloadActivity extends Activity {
         boolean noVersionRequested = TextUtils.isEmpty(version)
                 && (versionCodes == null || versionCodes.length == 0);
         boolean infoMatches = noVersionRequested
-                || sameVersion(info.optString("ver_name"), version)
-                || contains(versionCodes, info.optLong("ver_code", -1));
+                || matchesRequestedVersion(info.optString("ver_name"),
+                info.optLong("ver_code", -1), version, versionCodes);
 
-        JSONObject selectedByCode = null;
-        JSONObject selectedByName = null;
+        JSONObject selected = null;
         JSONArray versions = result.optJSONArray("versions");
         if (versions != null) {
             for (int i = 0; i < versions.length(); i++) {
@@ -2580,18 +2579,15 @@ public class DownloadActivity extends Activity {
                 if (candidate == null) {
                     continue;
                 }
-                if (contains(versionCodes, candidate.optLong("ver_code", -1))) {
-                    selectedByCode = candidate;
+                if (!noVersionRequested && matchesRequestedVersion(
+                        candidate.optString("ver_name"),
+                        candidate.optLong("ver_code", -1), version, versionCodes)) {
+                    selected = candidate;
                     break;
-                }
-                if (selectedByName == null
-                        && sameVersion(candidate.optString("ver_name"), version)) {
-                    selectedByName = candidate;
                 }
             }
         }
 
-        JSONObject selected = selectedByCode != null ? selectedByCode : selectedByName;
         String link;
         if (selected != null
                 && !selected.optString("app_id").equals(info.optString("app_id"))) {
@@ -2605,8 +2601,8 @@ public class DownloadActivity extends Activity {
             }
             link = selectedResult.optString("link");
         } else {
-            if (!infoMatches && !TextUtils.isEmpty(version)) {
-                throw new IOException("Requested version not found on Appteka");
+            if (!infoMatches) {
+                throw new IOException("Requested build not found on Appteka");
             }
             link = result.optString("link");
         }
@@ -2917,22 +2913,22 @@ public class DownloadActivity extends Activity {
                 throw new IOException("F-Droid has no packages");
             }
 
+            boolean noVersionRequested = TextUtils.isEmpty(version)
+                    && (versionCodes == null || versionCodes.length == 0);
             JSONObject selected = null;
             for (int i = 0; i < packages.length(); i++) {
                 JSONObject entry = packages.getJSONObject(i);
                 String entryVersion = entry.optString("versionName", "");
                 long entryCode = entry.optLong("versionCode", -1);
-                if (!TextUtils.isEmpty(version) && sameVersion(entryVersion, version)) {
-                    selected = entry;
-                    break;
-                }
-                if (versionCodes != null && contains(versionCodes, entryCode)) {
+                if (!noVersionRequested && matchesRequestedVersion(
+                        entryVersion, entryCode, version, versionCodes)) {
                     selected = entry;
                     break;
                 }
             }
 
-            if (selected == null && TextUtils.isEmpty(version)) {
+            if (selected == null && TextUtils.isEmpty(version)
+                    && (versionCodes == null || versionCodes.length == 0)) {
                 int suggested = root.optInt("suggestedVersionCode", -1);
                 for (int i = 0; i < packages.length(); i++) {
                     JSONObject entry = packages.getJSONObject(i);
@@ -3035,13 +3031,19 @@ public class DownloadActivity extends Activity {
         if (file == null) {
             return false;
         }
-        if (TextUtils.isEmpty(version)) {
-            return true;
+        return matchesRequestedVersion(file.optString("vername", ""),
+                file.optLong("vercode", -1), version, versionCodes);
+    }
+
+    /** Version codes are exact build numbers; the name is checked as well. */
+    private boolean matchesRequestedVersion(String actualName, long actualCode,
+                                            String requestedName, long[] requestedCodes) {
+        if (requestedCodes != null && requestedCodes.length > 0
+                && !contains(requestedCodes, actualCode)) {
+            return false;
         }
-        String entryVersion = file.optString("vername", "");
-        long entryCode = file.optLong("vercode", -1);
-        return sameVersion(entryVersion, version)
-                || (versionCodes != null && contains(versionCodes, entryCode));
+        return TextUtils.isEmpty(requestedName) || TextUtils.isEmpty(actualName)
+                || sameVersion(actualName, requestedName);
     }
 
     private boolean contains(long[] values, long target) {
@@ -3108,8 +3110,8 @@ public class DownloadActivity extends Activity {
             } catch (Exception ignored) {
                 itemCode = -1;
             }
-            boolean matches = contains(versionCodes, itemCode)
-                    || sameVersion(itemVersion, version);
+            boolean matches = matchesRequestedVersion(
+                    itemVersion, itemCode, version, versionCodes);
             if (!matches) {
                 continue;
             }
@@ -3347,11 +3349,17 @@ public class DownloadActivity extends Activity {
      *
      * <p>Preference order:</p>
      * <ul>
-     *   <li>APK request: universal APK, then an APK matching the first supported ABI,
-     *       then any APK, then fallback.</li>
-     *   <li>Bundle request: bundle matching the first supported ABI, then any bundle,
-     *       then an APK matching the ABI, then any APK.</li>
+     *   <li>An exact requested build number first, preferring the first supported
+     *       ABI.</li>
+     *   <li>APK request after that: universal APK, an APK matching the ABI, then
+     *       any APK.</li>
+     *   <li>Bundle request after that: bundle matching the ABI, any bundle, an
+     *       APK matching the ABI, then any APK.</li>
      * </ul>
+     *
+     * <p>When a build number is requested and the page exposes build numbers but
+     * none matches, this returns {@code null} instead of downloading a wrong
+     * build and only rejecting it later.</p>
      */
     private String chooseVariant(String versionHtml, String fileType, String[] abis) {
         // Each variant is a table row; split on the row wrapper to inspect one at a time.
@@ -3359,10 +3367,17 @@ public class DownloadActivity extends Activity {
         String fallback = null;
         String plainApk = null;
         String plainApkAbi = null;
+        String plainApkExact = null;
+        String plainApkExactAbi = null;
         String plainApkUniversal = null;
         String bundle = null;
         String bundleAbi = null;
+        String bundleExact = null;
+        String bundleExactAbi = null;
+        boolean sawVersionCode = false;
         String preferredAbi = (abis != null && abis.length > 0) ? abis[0] : null;
+        long[] requestedCodes = requestVersionCodes;
+        boolean wantsExactBuild = requestedCodes != null && requestedCodes.length > 0;
 
         for (String row : rows) {
             Matcher m = Pattern.compile(
@@ -3380,15 +3395,41 @@ public class DownloadActivity extends Activity {
             // mean the file is a universal APK. Only the explicit label does.
             boolean universal = row.contains("universal");
             boolean hasAbi = preferredAbi != null && row.contains(preferredAbi);
+            long rowCode = variantCode(row);
+            if (rowCode > 0) {
+                sawVersionCode = true;
+            }
+            boolean exactCode = rowCode > 0 && contains(requestedCodes, rowCode);
 
+            if (isPlainApk && exactCode && hasAbi && plainApkExactAbi == null) {
+                plainApkExactAbi = href;
+            }
+            if (isPlainApk && exactCode && plainApkExact == null) {
+                plainApkExact = href;
+            }
             if (isPlainApk && universal && plainApkUniversal == null) plainApkUniversal = href;
             if (isPlainApk && hasAbi && plainApkAbi == null) plainApkAbi = href;
             if (isPlainApk && plainApk == null) plainApk = href;
+            if (isBundle && exactCode && hasAbi && bundleExactAbi == null) {
+                bundleExactAbi = href;
+            }
+            if (isBundle && exactCode && bundleExact == null) {
+                bundleExact = href;
+            }
             if (isBundle && hasAbi && bundleAbi == null) bundleAbi = href;
             if (isBundle && bundle == null) bundle = href;
         }
 
+        boolean exactPlain = plainApkExactAbi != null || plainApkExact != null;
+        boolean exactBundle = bundleExactAbi != null || bundleExact != null;
         if ("apk".equalsIgnoreCase(fileType) || TextUtils.isEmpty(fileType)) {
+            if (plainApkExactAbi != null) return plainApkExactAbi;
+            if (plainApkExact != null) return plainApkExact;
+            // A split archive is still usable when Morphe allows one; prefer the
+            // exact build over a plain APK with the wrong build number.
+            if (allowSplitArchive && bundleExactAbi != null) return bundleExactAbi;
+            if (allowSplitArchive && bundleExact != null) return bundleExact;
+            if (wantsExactBuild && sawVersionCode && !exactPlain) return null;
             if (plainApkUniversal != null) return plainApkUniversal;
             // APKMirror publishes one row per CPU variant. Picking the first plain
             // APK can download a different ABI with a different versionCode, which
@@ -3396,12 +3437,32 @@ public class DownloadActivity extends Activity {
             if (plainApkAbi != null) return plainApkAbi;
             if (plainApk != null) return plainApk;
         } else {
+            if (bundleExactAbi != null) return bundleExactAbi;
+            if (bundleExact != null) return bundleExact;
+            if (plainApkExactAbi != null) return plainApkExactAbi;
+            if (plainApkExact != null) return plainApkExact;
+            if (wantsExactBuild && sawVersionCode && !exactBundle) return null;
             if (bundleAbi != null) return bundleAbi;
             if (bundle != null) return bundle;
             if (plainApkAbi != null) return plainApkAbi;
             if (plainApk != null) return plainApk;
         }
         return fallback;
+    }
+
+    /** Reads the numeric build number shown in an APKMirror variant row. */
+    private long variantCode(String row) {
+        Matcher matcher = Pattern.compile(
+                "class=\"colorLightBlack\">\\s*(\\d+)\\s*</span>",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(row);
+        if (!matcher.find()) {
+            return -1;
+        }
+        try {
+            return Long.parseLong(matcher.group(1));
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
     }
 
     // ---------------------------------------------------------------------

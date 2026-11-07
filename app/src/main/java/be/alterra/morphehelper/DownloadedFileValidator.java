@@ -232,12 +232,13 @@ final class DownloadedFileValidator {
             long actualCode = Build.VERSION.SDK_INT >= 28
                     ? wrongVersion.getLongVersionCode() : wrongVersion.versionCode;
             throw new VersionMismatchException("Downloaded archive contains version "
-                    + actual + " (" + actualCode + "), expected " + versionName);
+                    + actual + " (" + actualCode + "), expected "
+                    + expectedVersion(versionName, versionCodes));
         }
         if (wrongManifest != null) {
             throw new VersionMismatchException("Downloaded XAPK manifest contains version "
                     + wrongManifest.versionName + " (" + wrongManifest.versionCode
-                    + "), expected " + versionName);
+                    + "), expected " + expectedVersion(versionName, versionCodes));
         }
         throw new VersionMismatchException(
                 "Downloaded archive does not contain the requested package " + pkg);
@@ -341,17 +342,18 @@ final class DownloadedFileValidator {
 
     private static boolean matchesVersion(String actualName, long actualCode,
                                           String requestedName, long[] requestedCodes) {
-        boolean wantsVersion = (requestedName != null && !requestedName.trim().isEmpty())
-                || (requestedCodes != null && requestedCodes.length > 0);
-        if (!wantsVersion) {
+        // A build number is exact when Morphe supplies one. The version name is
+        // also checked because the same code should never legitimise an unrelated
+        // build with a different displayed version.
+        if (requestedCodes != null && requestedCodes.length > 0
+                && !contains(requestedCodes, actualCode)) {
+            return false;
+        }
+        if (requestedName == null || requestedName.trim().isEmpty()
+                || actualName == null || actualName.trim().isEmpty()) {
             return true;
         }
-        if (contains(requestedCodes, actualCode)) {
-            return true;
-        }
-        return requestedName != null && !requestedName.trim().isEmpty()
-                && actualName != null && !actualName.trim().isEmpty()
-                && sameVersion(actualName, requestedName);
+        return sameVersion(actualName, requestedName);
     }
 
     private static PackageInfo readEntry(Context context, ZipFile zip, ZipEntry entry)
@@ -452,7 +454,8 @@ final class DownloadedFileValidator {
             long actualCode = Build.VERSION.SDK_INT >= 28
                     ? info.getLongVersionCode() : info.versionCode;
             throw new VersionMismatchException("Downloaded " + kind + " is version "
-                    + actualVersion + " (" + actualCode + "), expected " + versionName);
+                    + actualVersion + " (" + actualCode + "), expected "
+                    + expectedVersion(versionName, versionCodes));
         }
         checkMinSdk(minSdkOf(info), kind);
         String actualVersion = info.versionName == null
@@ -472,9 +475,16 @@ final class DownloadedFileValidator {
         String actualVersion = info.versionName == null ? "" : info.versionName.trim();
         long actualCode = Build.VERSION.SDK_INT >= 28
                 ? info.getLongVersionCode() : info.versionCode;
+        // Exact build numbers take precedence. Two builds can share the same
+        // version name; accepting the name alone is what let older/wrong APKs
+        // through when a patch requested a specific build. Requiring both also
+        // prevents an unrelated APK with a matching numeric code from passing.
+        if (versionCodes != null && versionCodes.length > 0
+                && !contains(versionCodes, actualCode)) {
+            return false;
+        }
         return versionName == null || versionName.trim().isEmpty()
-                || sameVersion(actualVersion, versionName)
-                || contains(versionCodes, actualCode);
+                || sameVersion(actualVersion, versionName);
     }
 
     private static boolean sameVersion(String left, String right) {
@@ -494,6 +504,21 @@ final class DownloadedFileValidator {
             result = result.substring(1);
         }
         return result;
+    }
+
+    private static String expectedVersion(String versionName, long[] versionCodes) {
+        String name = versionName == null ? "" : versionName.trim();
+        if (versionCodes == null || versionCodes.length == 0) {
+            return name;
+        }
+        StringBuilder codes = new StringBuilder();
+        for (long code : versionCodes) {
+            if (codes.length() > 0) {
+                codes.append(", ");
+            }
+            codes.append(code);
+        }
+        return name.isEmpty() ? "build " + codes : name + " (build " + codes + ")";
     }
 
     private static boolean contains(long[] values, long target) {

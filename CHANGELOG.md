@@ -5,6 +5,24 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.15-beta.4] - 2026-11-07
+
+### Fixed
+
+- Morphe's version codes are now treated as exact build numbers. When a
+  request supplies one or more codes, the helper only accepts an APK whose
+  `versionCode` matches one of them, and requires the version name to match as
+  well. This prevents a same-named build with a different build number from
+  being handed to Morphe. Reported in
+  [#19](https://github.com/GeneralZyonix/morphe-download-helper/issues/19).
+- A Uptodown build rejected for a wrong build number now falls back to the
+  remaining sources, just like a build rejected for its minimum Android
+  version.
+- APKMirror reads the build number from each variant row and prefers the exact
+  requested build. If none matches, it stops before downloading a wrong build.
+- APKPure, Aptoide, Appteka, and F-Droid source selection also prioritise exact
+  build numbers when Morphe supplies them.
+
 ## [1.6.15-beta.3] - 2026-11-06
 
 ### Fixed
