@@ -17,6 +17,16 @@
 
     <!-- Launcher screen. -->
     <string name="main_subtitle">APK download helper for Morphe</string>
+    <string name="main_hero_kicker">READY WHEN YOU ARE</string>
+    <string name="main_hero_title">Fetch the original APK.</string>
+    <string name="main_hero_body">Morphe patches the app. The helper finds the right build and hands it over.</string>
+    <string name="main_edit_order">Edit order</string>
+    <string name="main_sources_note_short">Uptodown follows a Morphe link. Appteka is limited to SnapTube.</string>
+    <string name="main_logs_local">Logs stay on this device</string>
+    <plurals name="main_sources_more">
+        <item quantity="one">%1$d more source enabled</item>
+        <item quantity="other">%1$d more sources enabled</item>
+    </plurals>
     <string name="main_status_detected">Morphe detected</string>
     <string name="main_status_missing">Morphe not installed</string>
     <string name="main_how_to_use">How to use</string>
@@ -81,7 +91,7 @@
     <string name="update_error_installer">Could not open installer: %1$s</string>
 
     <!-- Settings screen. -->
-    <string name="settings_subtitle">Sources, storage, and download order</string>
+    <string name="settings_subtitle">Appearance and download settings</string>
     <string name="settings_sources">Sources</string>
     <string name="settings_sources_hint">Disabled sources are skipped completely. At least one source must stay enabled.</string>
     <string name="settings_webview_hint">APKPure may use an in-app WebView. Uptodown uses an in-app verification page.</string>
@@ -111,6 +121,16 @@
     <string name="settings_hide_launcher_icon_confirm">Hide icon</string>
     <string name="settings_hide_launcher_icon_hidden">App icon hidden.</string>
     <string name="settings_hide_launcher_icon_shown">App icon shown.</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_appearance_detail">Theme, accent colour, and preview</string>
+    <string name="settings_general">General</string>
+    <string name="settings_general_summary">Language, appearance, and app icon</string>
+    <string name="settings_updates_summary">Checks, update mode, and Shizuku</string>
+    <string name="settings_sources_summary">Enabled sources, order, and GitHub apps</string>
+    <string name="settings_web_pages_summary">Ad blocking and embedded pages</string>
+    <string name="settings_storage_summary">Download folder, retention, and cleanup</string>
+    <string name="settings_security_summary">VirusTotal scanning and upload rules</string>
+    <string name="settings_background_summary">Battery optimization and background limits</string>
     <string name="settings_updates">Updates</string>
     <string name="settings_status_not_checked">Current v%1$s • Not checked yet</string>
     <string name="settings_status_available">Current v%1$s • v%2$s available</string>
@@ -201,6 +221,19 @@
 
     <!-- Download screen. -->
     <string name="download_subtitle">Fetching the original APK</string>
+    <string name="download_title_progress">Downloading for Morphe</string>
+    <string name="download_title_failure">No APK found</string>
+    <string name="download_subtitle_failure">Checked every enabled source</string>
+    <string name="download_steps_title">Sources</string>
+    <string name="download_what_happened">What happened</string>
+    <string name="download_nothing_matched">Nothing matched.</string>
+    <string name="download_step_ok">OK</string>
+    <string name="download_step_failed">FAILED</string>
+    <string name="download_step_current">NOW</string>
+    <string name="download_step_next">NEXT</string>
+    <string name="download_edit_sources">Edit sources</string>
+    <string name="download_progress_preparing">PREPARING</string>
+    <string name="download_progress_downloading">DOWNLOADING</string>
     <string name="download_sources_summary">Sources: %1$s</string>
     <string name="download_sources_none">No download sources are enabled.</string>
     <string name="download_tried_title">What was tried</string>
@@ -447,4 +480,43 @@
     <string name="update_choose_version">Choose a version</string>
     <string name="update_release_notes_for">Release notes for v%1$s.</string>
     <string name="update_viewing_versions">Current v%1$s  •  Viewing v%2$s</string>
+
+    <!-- Appearance screen. -->
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_subtitle">Choose how the helper looks</string>
+    <string name="appearance_preview">Preview</string>
+    <string name="appearance_preview_title">Morphe Download Helper</string>
+    <string name="appearance_preview_body">Downloads are checked against the package, version, and build Morphe requested.</string>
+    <string name="appearance_preview_button">Preview button</string>
+    <string name="appearance_mode">Mode</string>
+    <string name="appearance_mode_detail">Dark keeps the current blue-black look. AMOLED uses true black. Light uses bright cards. System follows your device.</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="theme_mode_amoled">AMOLED</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_system">System</string>
+    <string name="appearance_accent">Accent</string>
+    <string name="appearance_accent_detail">Used for buttons, progress, switches, and highlights.</string>
+    <string name="theme_accent_morphe">Original</string>
+    <string name="theme_accent_aurora">Aurora</string>
+    <string name="theme_accent_mint">Mint</string>
+    <string name="theme_accent_forest">Forest</string>
+    <string name="theme_accent_gold">Gold</string>
+    <string name="theme_accent_sunset">Sunset</string>
+    <string name="theme_accent_rose">Rose</string>
+    <string name="theme_accent_berry">Berry</string>
+    <string name="theme_accent_ice">Ice</string>
+    <string name="theme_accent_ocean">Ocean</string>
+    <string name="theme_accent_mono">Mono</string>
+    <string name="theme_accent_material">Material You</string>
+    <string name="theme_accent_custom">Custom</string>
+    <string name="appearance_custom_hex">Custom HEX</string>
+    <string name="appearance_custom_hex_detail">Enter a six-digit colour. Button text switches between light and dark automatically for contrast.</string>
+    <string name="appearance_custom_hex_hint">#RRGGBB</string>
+    <string name="appearance_apply">Apply</string>
+    <string name="appearance_custom_invalid">Enter a colour as #RRGGBB.</string>
+    <string name="appearance_custom_applied">Custom accent applied.</string>
+    <string name="appearance_reset">Reset appearance</string>
+    <string name="appearance_reset_detail">Back to System with Aurora.</string>
+    <string name="appearance_reset_done">Appearance reset.</string>
+    <string name="appearance_current">Current: %1$s</string>
 </resources>

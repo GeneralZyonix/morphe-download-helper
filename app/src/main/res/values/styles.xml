@@ -10,4 +10,113 @@
         <item name="android:navigationBarColor">#0B1220</item>
         <item name="android:colorAccent">#6366F1</item>
     </style>
+
+    <!--
+        Dialog themes are chosen at runtime from ThemeManager so radio buttons and
+        text selection follow the saved accent. The default (Original) stays violet.
+    -->
+    <style name="AppDialogTheme" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">#6366F1</item>
+    </style>
+
+    <style name="AppDialogTheme.Original">
+        <item name="android:colorAccent">#6366F1</item>
+    </style>
+
+    <style name="AppDialogTheme.Aurora">
+        <item name="android:colorAccent">#8B5CF6</item>
+    </style>
+
+    <style name="AppDialogTheme.Mint">
+        <item name="android:colorAccent">#34D399</item>
+    </style>
+
+    <style name="AppDialogTheme.Forest">
+        <item name="android:colorAccent">#22C55E</item>
+    </style>
+
+    <style name="AppDialogTheme.Gold">
+        <item name="android:colorAccent">#F59E0B</item>
+    </style>
+
+    <style name="AppDialogTheme.Sunset">
+        <item name="android:colorAccent">#FB923C</item>
+    </style>
+
+    <style name="AppDialogTheme.Rose">
+        <item name="android:colorAccent">#F472B6</item>
+    </style>
+
+    <style name="AppDialogTheme.Berry">
+        <item name="android:colorAccent">#A855F7</item>
+    </style>
+
+    <style name="AppDialogTheme.Ice">
+        <item name="android:colorAccent">#60A5FA</item>
+    </style>
+
+    <style name="AppDialogTheme.Ocean">
+        <item name="android:colorAccent">#0EA5E9</item>
+    </style>
+
+    <style name="AppDialogTheme.Mono">
+        <item name="android:colorAccent">#E2E8F0</item>
+    </style>
+
+    <style name="AppDialogTheme.Material">
+        <item name="android:colorAccent">@android:color/system_accent1_500</item>
+    </style>
+
+    <!-- Light-mode dialogs. -->
+    <style name="AppDialogThemeLight" parent="@android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">#4F46E5</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Original">
+        <item name="android:colorAccent">#4F46E5</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Aurora">
+        <item name="android:colorAccent">#7C3AED</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Mint">
+        <item name="android:colorAccent">#059669</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Forest">
+        <item name="android:colorAccent">#15803D</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Gold">
+        <item name="android:colorAccent">#B45309</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Sunset">
+        <item name="android:colorAccent">#EA580C</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Rose">
+        <item name="android:colorAccent">#DB2777</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Berry">
+        <item name="android:colorAccent">#9333EA</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Ice">
+        <item name="android:colorAccent">#2563EB</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Ocean">
+        <item name="android:colorAccent">#0369A1</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Mono">
+        <item name="android:colorAccent">#64748B</item>
+    </style>
+
+    <style name="AppDialogThemeLight.Material">
+        <item name="android:colorAccent">@android:color/system_accent1_500</item>
+    </style>
 </resources>

@@ -18,6 +18,16 @@
 
     <!-- Écran d'accueil. -->
     <string name="main_subtitle">Assistant de téléchargement d’APK pour Morphe</string>
+    <string name="main_hero_kicker">PRÊT QUAND VOUS VOULEZ</string>
+    <string name="main_hero_title">Récupérez l’APK d’origine.</string>
+    <string name="main_hero_body">Morphe applique le patch. L’assistant trouve le bon build et le transfère.</string>
+    <string name="main_edit_order">Modifier l’ordre</string>
+    <string name="main_sources_note_short">Uptodown suit un lien Morphe. Appteka est limité à SnapTube.</string>
+    <string name="main_logs_local">Les journaux restent sur cet appareil</string>
+    <plurals name="main_sources_more">
+        <item quantity="one">%1$d autre source activée</item>
+        <item quantity="other">%1$d autres sources activées</item>
+    </plurals>
     <string name="main_status_detected">Morphe détecté</string>
     <string name="main_status_missing">Morphe non installé</string>
     <string name="main_how_to_use">Mode d’emploi</string>
@@ -93,7 +103,7 @@
     <string name="update_popup_skip">Ignorer cette version</string>
 
     <!-- Écran des paramètres. -->
-    <string name="settings_subtitle">Sources, stockage et ordre de téléchargement</string>
+    <string name="settings_subtitle">Apparence et paramètres de téléchargement</string>
     <string name="settings_sources">Sources</string>
     <string name="settings_sources_hint">Les sources désactivées sont entièrement ignorées. Au moins une source doit rester activée.</string>
     <string name="settings_web_pages">Pages de téléchargement</string>
@@ -213,6 +223,19 @@
 
     <!-- Écran de téléchargement. -->
     <string name="download_subtitle">Récupération de l’APK d’origine</string>
+    <string name="download_title_progress">Téléchargement pour Morphe</string>
+    <string name="download_title_failure">Aucun APK trouvé</string>
+    <string name="download_subtitle_failure">Toutes les sources actives ont été vérifiées</string>
+    <string name="download_steps_title">Sources</string>
+    <string name="download_what_happened">Ce qui s’est passé</string>
+    <string name="download_nothing_matched">Aucun résultat.</string>
+    <string name="download_step_ok">OK</string>
+    <string name="download_step_failed">ÉCHEC</string>
+    <string name="download_step_current">EN COURS</string>
+    <string name="download_step_next">SUIVANT</string>
+    <string name="download_edit_sources">Modifier les sources</string>
+    <string name="download_progress_preparing">PRÉPARATION</string>
+    <string name="download_progress_downloading">TÉLÉCHARGEMENT</string>
     <string name="download_sources_summary">Sources&#160;: %1$s</string>
     <string name="download_sources_none">Aucune source de téléchargement n’est activée.</string>
     <string name="download_tried_title">Ce qui a été essayé</string>
@@ -446,4 +469,53 @@
     <string name="virustotal_blocked_reason">VirusTotal a bloqué ce fichier&#160;: %1$s</string>
     <string name="virustotal_quota_reason">Quota VirusTotal dépassé&#160;; transmission abandonnée&#160;: %1$s</string>
     <string name="virustotal_quota_status">Quota VirusTotal dépassé.</string>
+
+    <!-- Appearance screen. -->
+    <string name="appearance_title">Apparence</string>
+    <string name="settings_appearance">Apparence</string>
+    <string name="settings_appearance_detail">Thème, couleur d’accent et aperçu</string>
+    <string name="settings_general">Général</string>
+    <string name="settings_general_summary">Langue, apparence et icône de l’appli</string>
+    <string name="settings_updates_summary">Vérifications, mode de mise à jour et Shizuku</string>
+    <string name="settings_sources_summary">Sources actives, ordre et applis GitHub</string>
+    <string name="settings_web_pages_summary">Blocage des publicités et pages intégrées</string>
+    <string name="settings_storage_summary">Dossier, conservation et nettoyage</string>
+    <string name="settings_security_summary">Analyse VirusTotal et règles d’envoi</string>
+    <string name="settings_background_summary">Optimisation de la batterie et limites d’arrière-plan</string>
+    <string name="appearance_subtitle">Choisissez l’apparence de l’assistant</string>
+    <string name="appearance_preview">Aperçu</string>
+    <string name="appearance_preview_title">Morphe Download Helper</string>
+    <string name="appearance_preview_body">Les téléchargements sont vérifiés par rapport au paquet, à la version et au build demandés par Morphe.</string>
+    <string name="appearance_preview_button">Bouton d’aperçu</string>
+    <string name="appearance_mode">Mode</string>
+    <string name="appearance_mode_detail">Le mode sombre conserve l’aspect bleu-noir actuel. AMOLED utilise un noir pur. Le mode clair utilise des cartes lumineuses. Système suit votre appareil.</string>
+    <string name="theme_mode_dark">Sombre</string>
+    <string name="theme_mode_amoled">AMOLED</string>
+    <string name="theme_mode_light">Clair</string>
+    <string name="theme_mode_system">Système</string>
+    <string name="appearance_accent">Accent</string>
+    <string name="appearance_accent_detail">Utilisé pour les boutons, la progression, les interrupteurs et les mises en évidence.</string>
+    <string name="theme_accent_morphe">Original</string>
+    <string name="theme_accent_aurora">Aurore</string>
+    <string name="theme_accent_mint">Menthe</string>
+    <string name="theme_accent_forest">Forêt</string>
+    <string name="theme_accent_gold">Or</string>
+    <string name="theme_accent_sunset">Soleil couchant</string>
+    <string name="theme_accent_rose">Rose</string>
+    <string name="theme_accent_berry">Baie</string>
+    <string name="theme_accent_ice">Glace</string>
+    <string name="theme_accent_ocean">Océan</string>
+    <string name="theme_accent_mono">Mono</string>
+    <string name="theme_accent_material">Material You</string>
+    <string name="theme_accent_custom">Personnalisé</string>
+    <string name="appearance_custom_hex">HEX personnalisé</string>
+    <string name="appearance_custom_hex_detail">Saisissez une couleur à six chiffres. Le texte des boutons passe automatiquement en clair ou en foncé pour rester lisible.</string>
+    <string name="appearance_custom_hex_hint">#RRGGBB</string>
+    <string name="appearance_apply">Appliquer</string>
+    <string name="appearance_custom_invalid">Saisissez une couleur au format #RRGGBB.</string>
+    <string name="appearance_custom_applied">Accent personnalisé appliqué.</string>
+    <string name="appearance_reset">Réinitialiser l’apparence</string>
+    <string name="appearance_reset_detail">Revenir au mode Système avec Aurore.</string>
+    <string name="appearance_reset_done">Apparence réinitialisée.</string>
+    <string name="appearance_current">Actuel&#160;: %1$s</string>
 </resources>

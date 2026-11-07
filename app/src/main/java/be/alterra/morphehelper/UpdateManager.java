@@ -2,7 +2,6 @@ package be.alterra.morphehelper;
 
 import android.app.Activity;
 import android.app.AlarmManager;
-import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -296,7 +295,7 @@ final class UpdateManager {
         }
         popupVersionShown = info.version;
         String current = UpdateChecker.installedVersion(activity);
-        new AlertDialog.Builder(activity)
+        ThemeManager.dialog(activity)
                 .setTitle(R.string.update_popup_title)
                 .setMessage(activity.getString(
                         R.string.update_popup_message, info.version, current))

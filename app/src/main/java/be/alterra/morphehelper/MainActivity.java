@@ -5,7 +5,6 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -52,27 +51,30 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------------
     // UI palette (kept in code so the two screens share the same look)
     // ---------------------------------------------------------------------
-    private static final int BG_TOP = Color.parseColor("#0B1220");
-    private static final int BG_BOTTOM = Color.parseColor("#0F172A");
-    private static final int CARD_TOP = Color.parseColor("#111827");
-    private static final int CARD_BOTTOM = Color.parseColor("#0F172A");
-    private static final int BORDER = Color.parseColor("#1F2937");
-    private static final int PRIMARY_START = Color.parseColor("#6366F1");
-    private static final int PRIMARY_END = Color.parseColor("#4F46E5");
-    private static final int SECONDARY = Color.parseColor("#1F2937");
-    private static final int SECONDARY_BORDER = Color.parseColor("#334155");
-    private static final int TEXT = Color.parseColor("#F8FAFC");
-    private static final int MUTED = Color.parseColor("#94A3B8");
-    private static final int STEPS = Color.parseColor("#CBD5E1");
-    private static final int RED = Color.parseColor("#F87171");
-    private static final int RED_BORDER = Color.parseColor("#7F1D1D");
-    private static final int FOOTER = Color.parseColor("#64748B");
+    private int BG_TOP;
+    private int BG_BOTTOM;
+    private int CARD_TOP;
+    private int CARD_BOTTOM;
+    private int BORDER;
+    private int PRIMARY_START;
+    private int PRIMARY_END;
+    private int ON_PRIMARY;
+    private int ACCENT_TEXT;
+    private int RIPPLE;
+    private int SECONDARY;
+    private int SECONDARY_BORDER;
+    private int TEXT;
+    private int MUTED;
+    private int GREEN;
+    private int RED;
+    private int RED_BORDER;
+    private int FOOTER;
 
     // Amber warning palette used by the "Heads up" card.
-    private static final int WARN_BG = Color.parseColor("#1C1917");
-    private static final int WARN_BORDER = Color.parseColor("#78350F");
-    private static final int WARN_TITLE = Color.parseColor("#FBBF24");
-    private static final int WARN_TEXT = Color.parseColor("#FDE68A");
+    private int WARN_TITLE;
+    private int WARN_TEXT;
+
+    private String themeSignature;
 
     /** Container rebuilt in onResume so it always matches the saved order. */
     private LinearLayout sourcesList;
@@ -80,8 +82,38 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (themeSignature != null
+                && !themeSignature.equals(ThemeManager.signature(this))) {
+            recreate();
+            return;
+        }
         renderSources();
         UpdateManager.showInAppUpdatePopupIfAvailable(this);
+    }
+
+    private void applyPalette() {
+        ThemePalette palette = ThemeManager.palette(this);
+        BG_TOP = palette.bgTop;
+        BG_BOTTOM = palette.bgBottom;
+        CARD_TOP = palette.cardTop;
+        CARD_BOTTOM = palette.cardBottom;
+        BORDER = palette.border;
+        PRIMARY_START = palette.primaryStart;
+        PRIMARY_END = palette.primaryEnd;
+        ON_PRIMARY = palette.onPrimary;
+        ACCENT_TEXT = palette.accentText;
+        RIPPLE = palette.ripple;
+        SECONDARY = palette.secondary;
+        SECONDARY_BORDER = palette.secondaryBorder;
+        TEXT = palette.text;
+        MUTED = palette.muted;
+        GREEN = palette.green;
+        RED = palette.red;
+        RED_BORDER = palette.redBorder;
+        FOOTER = palette.footer;
+        WARN_TITLE = palette.warnTitle;
+        WARN_TEXT = palette.warnText;
+        themeSignature = ThemeManager.signature(this);
     }
 
     @Override
@@ -93,6 +125,7 @@ public class MainActivity extends Activity {
         SourceSettings.ensureInitialized(this);
         PublicSettings.apply(this);
         AppSettings.ensureLauncherIconState(this);
+        applyPalette();
         new Thread(() -> AppSettings.cleanup(this)).start();
         new Thread(() -> UpdateManager.cleanupStagedUpdates(this)).start();
         if (Build.VERSION.SDK_INT >= 33
@@ -100,11 +133,6 @@ public class MainActivity extends Activity {
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 41);
         }
-
-        // Keep the system bars dark so the light status/navigation icons stay readable.
-        getWindow().setStatusBarColor(BG_TOP);
-        getWindow().setNavigationBarColor(BG_TOP);
-        getWindow().getDecorView().setSystemUiVisibility(0);
 
         // Root is a ScrollView because the content can be taller than short screens.
         ScrollView scroll = new ScrollView(this);
@@ -122,7 +150,7 @@ public class MainActivity extends Activity {
                 .getLaunchIntentForPackage(MORPHE_PACKAGE) != null;
 
         // -----------------------------------------------------------------
-        // Header: logo, title, subtitle, and Morphe status chip
+        // Header: logo, title, status chip, and settings shortcut
         // -----------------------------------------------------------------
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -130,16 +158,16 @@ public class MainActivity extends Activity {
 
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.ic_logo_mark);
-        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(72), dp(72));
-        logoParams.setMarginEnd(dp(16));
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(56), dp(56));
+        logoParams.setMarginEnd(dp(12));
         header.addView(logo, logoParams);
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(text(getString(R.string.app_name), 22, TEXT, true));
+        titles.addView(text(getString(R.string.app_name), 18, TEXT, true));
 
-        TextView subtitle = text(getString(R.string.main_subtitle), 14, MUTED, false);
-        subtitle.setPadding(0, dp(4), 0, 0);
+        TextView subtitle = text(getString(R.string.main_subtitle), 12, MUTED, false);
+        subtitle.setPadding(0, dp(3), 0, 0);
         titles.addView(subtitle);
 
         // Status chip: green dot when Morphe is installed, amber dot otherwise.
@@ -147,14 +175,12 @@ public class MainActivity extends Activity {
         chip.setOrientation(LinearLayout.HORIZONTAL);
         chip.setGravity(Gravity.CENTER_VERTICAL);
         chip.setPadding(dp(10), dp(6), dp(12), dp(6));
-        chip.setBackground(rounded(Color.parseColor("#111827"), 999));
+        chip.setBackground(rounded(CARD_TOP, 999));
 
         View dot = new View(this);
         GradientDrawable dotDrawable = new GradientDrawable();
         dotDrawable.setShape(GradientDrawable.OVAL);
-        dotDrawable.setColor(morpheInstalled
-                ? Color.parseColor("#34D399")
-                : Color.parseColor("#FBBF24"));
+        dotDrawable.setColor(morpheInstalled ? GREEN : WARN_TITLE);
         dot.setBackground(dotDrawable);
         chip.addView(dot, new LinearLayout.LayoutParams(dp(8), dp(8)));
 
@@ -162,46 +188,89 @@ public class MainActivity extends Activity {
                 morpheInstalled ? getString(R.string.main_status_detected)
                         : getString(R.string.main_status_missing),
                 12,
-                morpheInstalled ? Color.parseColor("#A7F3D0") : Color.parseColor("#FDE68A"),
+                morpheInstalled ? GREEN : WARN_TEXT,
                 false
         );
         chipText.setPadding(dp(8), 0, 0, 0);
         chip.addView(chipText);
 
         LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT);
-        chipParams.topMargin = dp(10);
+        chipParams.topMargin = dp(8);
         titles.addView(chip, chipParams);
 
         // The title block takes the remaining width next to the logo.
         header.addView(titles, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
+
+        ImageView settingsButton = new ImageView(this);
+        settingsButton.setImageResource(R.drawable.ic_settings_gear);
+        settingsButton.setColorFilter(ACCENT_TEXT);
+        settingsButton.setContentDescription(getString(R.string.common_settings));
+        settingsButton.setPadding(dp(10), dp(10), dp(10), dp(10));
+        settingsButton.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), rounded(SECONDARY, 999), null));
+        settingsButton.setClickable(true);
+        settingsButton.setFocusable(true);
+        settingsButton.setOnClickListener(v ->
+                startActivity(new Intent(this, SettingsActivity.class)));
+        LinearLayout.LayoutParams settingsParams = new LinearLayout.LayoutParams(dp(44), dp(44));
+        settingsParams.setMarginStart(dp(6));
+        header.addView(settingsButton, settingsParams);
+
         root.addView(header);
 
         // -----------------------------------------------------------------
-        // "How to use" card: the four steps a user follows inside Morphe
+        // Hero: primary explanation and the main action
         // -----------------------------------------------------------------
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(20), dp(18), dp(20), dp(18));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT);
-        cardParams.topMargin = dp(22);
-        root.addView(card, cardParams);
+        LinearLayout hero = new LinearLayout(this);
+        hero.setOrientation(LinearLayout.VERTICAL);
+        hero.setPadding(dp(20), dp(18), dp(20), dp(18));
+        hero.setBackground(cardBackground());
+        LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        heroParams.topMargin = dp(22);
+        root.addView(hero, heroParams);
 
-        card.addView(text(getString(R.string.main_how_to_use), 16, TEXT, true));
+        TextView kicker = text(getString(R.string.main_hero_kicker), 11, ACCENT_TEXT, true);
+        kicker.setLetterSpacing(0.12f);
+        hero.addView(kicker);
 
-        // Keep these steps short; the Morphe side owns the actual trust flow.
-        TextView steps = text(getString(R.string.main_steps), 14, STEPS, false);
-        steps.setLineSpacing(dp(4), 1f);
-        steps.setPadding(0, dp(10), 0, 0);
-        card.addView(steps);
+        TextView heroTitle = text(getString(R.string.main_hero_title), 24, TEXT, true);
+        heroTitle.setPadding(0, dp(6), 0, 0);
+        hero.addView(heroTitle);
 
-        TextView guideButton = secondaryButton(getString(R.string.main_visual_guide), TEXT, SECONDARY_BORDER);
+        TextView heroBody = text(getString(R.string.main_hero_body), 13, MUTED, false);
+        heroBody.setLineSpacing(dp(3), 1f);
+        heroBody.setPadding(0, dp(8), 0, 0);
+        hero.addView(heroBody);
+
+        TextView openMorphe = primaryButton(getString(R.string.main_open_morphe));
+        openMorphe.setOnClickListener(v -> openMorphe());
+        LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(MATCH_PARENT, dp(52));
+        openParams.topMargin = dp(16);
+        hero.addView(openMorphe, openParams);
+
+        // Secondary actions sit directly under the hero.
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        actionsParams.topMargin = dp(12);
+        root.addView(actions, actionsParams);
+
+        TextView guideButton = secondaryButton(getString(R.string.main_visual_guide),
+                TEXT, SECONDARY_BORDER);
         guideButton.setOnClickListener(v ->
                 startActivity(new Intent(this, GuideActivity.class)));
-        LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(
-                MATCH_PARENT, dp(46));
-        guideParams.topMargin = dp(14);
-        card.addView(guideButton, guideParams);
+        LinearLayout.LayoutParams guideParams = new LinearLayout.LayoutParams(0, dp(50), 1f);
+        guideParams.setMarginEnd(dp(6));
+        actions.addView(guideButton, guideParams);
+
+        TextView shareLog = secondaryButton(getString(R.string.main_share_log),
+                TEXT, SECONDARY_BORDER);
+        shareLog.setOnClickListener(v -> shareLog());
+        LinearLayout.LayoutParams shareParams = new LinearLayout.LayoutParams(0, dp(50), 1f);
+        shareParams.setMarginStart(dp(6));
+        actions.addView(shareLog, shareParams);
 
         // -----------------------------------------------------------------
         // Download sources card: the order used by DownloadActivity.resolve()
@@ -215,7 +284,22 @@ public class MainActivity extends Activity {
         sourcesParams.topMargin = dp(12);
         root.addView(sourcesCard, sourcesParams);
 
-        sourcesCard.addView(text(getString(R.string.main_sources_title), 16, TEXT, true));
+        LinearLayout sourcesHeader = new LinearLayout(this);
+        sourcesHeader.setOrientation(LinearLayout.HORIZONTAL);
+        sourcesHeader.setGravity(Gravity.CENTER_VERTICAL);
+        sourcesHeader.addView(text(getString(R.string.main_sources_title), 16, TEXT, true),
+                new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
+
+        TextView editOrder = text(getString(R.string.main_edit_order), 12, ACCENT_TEXT, true);
+        editOrder.setPadding(dp(10), dp(8), 0, dp(8));
+        editOrder.setClickable(true);
+        editOrder.setFocusable(true);
+        editOrder.setOnClickListener(v -> startActivity(new Intent(
+                this, SettingsActivity.class)
+                .putExtra(SettingsActivity.EXTRA_SECTION,
+                        SettingsActivity.EXTRA_SECTION_SOURCES)));
+        sourcesHeader.addView(editOrder);
+        sourcesCard.addView(sourcesHeader);
 
         // The chips are rebuilt from AppSettings.sourceOrder(). This is the same
         // list and order used by DownloadActivity, so the screen cannot drift
@@ -229,50 +313,14 @@ public class MainActivity extends Activity {
         renderSources();
 
         TextView disabledSource = text(
-                getString(R.string.main_sources_note), 12, MUTED, false);
+                getString(R.string.main_sources_note_short), 11, MUTED, false);
+        disabledSource.setLineSpacing(dp(2), 1f);
         disabledSource.setPadding(0, dp(12), 0, 0);
         sourcesCard.addView(disabledSource);
 
-        // Open the source settings screen.
-        TextView sourceSettings = secondaryButton(getString(R.string.common_settings), TEXT, SECONDARY_BORDER);
-        sourceSettings.setOnClickListener(v ->
-                startActivity(new Intent(this, SettingsActivity.class)));
-        LinearLayout.LayoutParams sourceSettingsParams = new LinearLayout.LayoutParams(
-                MATCH_PARENT, dp(50));
-        sourceSettingsParams.topMargin = dp(10);
-        root.addView(sourceSettings, sourceSettingsParams);
-
         // -----------------------------------------------------------------
-        // Primary action and maintenance buttons
+        // Maintenance actions
         // -----------------------------------------------------------------
-        TextView openMorphe = primaryButton(getString(R.string.main_open_morphe));
-        openMorphe.setOnClickListener(v -> openMorphe());
-        LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(MATCH_PARENT, dp(54));
-        openParams.topMargin = dp(20);
-        root.addView(openMorphe, openParams);
-
-        // Share log and Clear log sit side by side with equal weight.
-        LinearLayout logRow = new LinearLayout(this);
-        logRow.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams logRowParams = new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT);
-        logRowParams.topMargin = dp(10);
-        root.addView(logRow, logRowParams);
-
-        TextView shareLog = secondaryButton(getString(R.string.main_share_log), TEXT, SECONDARY_BORDER);
-        shareLog.setOnClickListener(v -> shareLog());
-        LinearLayout.LayoutParams shareParams = new LinearLayout.LayoutParams(0, dp(50), 1f);
-        shareParams.setMarginEnd(dp(6));
-        logRow.addView(shareLog, shareParams);
-
-        TextView clearLog = secondaryButton(getString(R.string.main_clear_log), TEXT, SECONDARY_BORDER);
-        clearLog.setOnClickListener(v -> {
-            HelperLog.clear();
-            Toast.makeText(this, R.string.main_log_cleared, Toast.LENGTH_SHORT).show();
-        });
-        LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(0, dp(50), 1f);
-        clearParams.setMarginStart(dp(6));
-        logRow.addView(clearLog, clearParams);
-
         // Red-tinted destructive action. Android shows its own uninstall confirmation.
         TextView uninstall = secondaryButton(getString(R.string.main_uninstall), RED, RED_BORDER);
         uninstall.setOnClickListener(v -> {
@@ -327,7 +375,7 @@ public class MainActivity extends Activity {
         links.addView(linkButton("Reddit", "https://www.reddit.com/r/MorpheApp/comments/1xjmnf3/i_made_an_helper_that_fetches_the_right_apk_for/"));
         about.addView(links);
 
-        // Footer shows the installed version, read from PackageManager.
+        // Footer: local log note, version, and the clear-log action.
         String version = "v?";
         try {
             version = "v" + getPackageManager()
@@ -335,13 +383,37 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {
             // Keep the fallback text if the package info is unavailable.
         }
-        TextView footer = text(version, 12, FOOTER, false);
-        footer.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams footerParams = new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT);
-        footerParams.topMargin = dp(20);
-        root.addView(footer, footerParams);
+
+        LinearLayout footerRow = new LinearLayout(this);
+        footerRow.setOrientation(LinearLayout.HORIZONTAL);
+        footerRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams footerRowParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        footerRowParams.topMargin = dp(20);
+        root.addView(footerRow, footerRowParams);
+
+        TextView logsLocal = text(getString(R.string.main_logs_local), 11, FOOTER, false);
+        footerRow.addView(logsLocal, new LinearLayout.LayoutParams(
+                0, WRAP_CONTENT, 1f));
+        footerRow.addView(text(version, 11, FOOTER, false));
+
+        TextView clearLog = text(getString(R.string.main_clear_log), 12, ACCENT_TEXT, true);
+        clearLog.setGravity(Gravity.CENTER);
+        clearLog.setPadding(dp(8), dp(8), dp(8), dp(8));
+        clearLog.setClickable(true);
+        clearLog.setFocusable(true);
+        clearLog.setOnClickListener(v -> {
+            HelperLog.clear();
+            Toast.makeText(this, R.string.main_log_cleared, Toast.LENGTH_SHORT).show();
+        });
+        LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        clearParams.topMargin = dp(4);
+        clearParams.bottomMargin = dp(4);
+        root.addView(clearLog, clearParams);
 
         setContentView(scroll);
+        ThemeManager.applySystemBars(this);
         UpdateManager.maybeCheckOnLaunch(this,
                 () -> UpdateManager.showInAppUpdatePopupIfAvailable(this));
     }
@@ -439,72 +511,93 @@ public class MainActivity extends Activity {
         }
         sourcesList.removeAllViews();
         List<String> order = AppSettings.sourceOrder(this);
+        int enabledCount = 0;
+        for (String key : order) {
+            if (SourceSettings.isEnabled(this, key)) {
+                enabledCount++;
+            }
+        }
+
         int position = 0;
-        int column = 0;
-        LinearLayout row = null;
         for (String key : order) {
             if (!SourceSettings.isEnabled(this, key)) {
                 continue;
             }
-            if (row == null || column == 2) {
-                row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                        MATCH_PARENT, WRAP_CONTENT);
-                if (position > 0) {
-                    rowParams.topMargin = dp(8);
-                }
-                sourcesList.addView(row, rowParams);
-                column = 0;
-            }
             position++;
-            String sourceName = SourceSettings.APPTEKA.equals(key)
-                    ? getString(R.string.main_source_appteka)
-                    : AppSettings.sourceLabel(this, key);
-            String label = getString(R.string.main_source_rank, position, sourceName);
-            int[] colors = sourceChipColors(key);
-            TextView chip = sourceChip(label, colors[0], colors[1]);
-            LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(
-                    WRAP_CONTENT, WRAP_CONTENT);
-            chipParams.setMarginEnd(dp(8));
-            row.addView(chip, chipParams);
-            column++;
+            if (position > 4) {
+                break;
+            }
+            addSourceRow(key, position);
         }
-        if (position == 0) {
+
+        if (enabledCount == 0) {
             sourcesList.addView(text(
                     getString(R.string.main_no_sources), 13, MUTED, false));
+        } else if (enabledCount > 4) {
+            int remaining = enabledCount - 4;
+            TextView more = text(getResources().getQuantityString(
+                    R.plurals.main_sources_more, remaining, remaining), 11, MUTED, false);
+            more.setPadding(0, dp(10), 0, 0);
+            sourcesList.addView(more);
         }
     }
 
-    private int[] sourceChipColors(String key) {
+    private void addSourceRow(String key, int position) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(10), 0, dp(10));
+
+        TextView number = text(String.valueOf(position), 12, ACCENT_TEXT, true);
+        number.setGravity(Gravity.CENTER);
+        number.setBackground(rounded(SECONDARY, 999));
+        row.addView(number, new LinearLayout.LayoutParams(dp(26), dp(26)));
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPadding(dp(12), 0, 0, 0);
+        String name = SourceSettings.APPTEKA.equals(key)
+                ? getString(R.string.main_source_appteka)
+                : AppSettings.sourceLabel(this, key);
+        labels.addView(text(name, 14, TEXT, true));
+        String description = sourceDescription(key);
+        if (!description.isEmpty()) {
+            TextView detail = text(description, 11, MUTED, false);
+            detail.setPadding(0, dp(2), 0, 0);
+            labels.addView(detail);
+        }
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, WRAP_CONTENT, 1f));
+
+        TextView check = text("\u2713", 16, GREEN, true);
+        row.addView(check);
+        sourcesList.addView(row);
+
+        View divider = new View(this);
+        divider.setBackgroundColor(BORDER);
+        sourcesList.addView(divider, new LinearLayout.LayoutParams(
+                MATCH_PARENT, dp(1)));
+    }
+
+    private String sourceDescription(String key) {
         switch (key) {
             case SourceSettings.FALLBACK:
-                return new int[]{Color.parseColor("#312E81"), Color.parseColor("#C7D2FE")};
+                return getString(R.string.settings_source_fallback_desc);
             case SourceSettings.APKMIRROR:
-                return new int[]{Color.parseColor("#1E3A8A"), Color.parseColor("#BFDBFE")};
+                return getString(R.string.settings_source_apkmirror_desc);
             case SourceSettings.APKPURE:
-                return new int[]{Color.parseColor("#064E3B"), Color.parseColor("#A7F3D0")};
+                return getString(R.string.settings_source_apkpure_desc);
             case SourceSettings.FDROID:
-                return new int[]{Color.parseColor("#0F766E"), Color.parseColor("#CCFBF1")};
+                return getString(R.string.settings_source_fdroid_desc);
             case SourceSettings.APTOIDE:
-                return new int[]{Color.parseColor("#7C2D12"), Color.parseColor("#FED7AA")};
+                return getString(R.string.settings_source_aptoide_desc);
             case SourceSettings.APPTEKA:
-                return new int[]{Color.parseColor("#7F1D1D"), Color.parseColor("#FECACA")};
+                return getString(R.string.settings_source_appteka_desc);
             case SourceSettings.GITHUB:
-                return new int[]{Color.parseColor("#1F2937"), Color.parseColor("#E5E7EB")};
+                return getString(R.string.settings_source_github_desc);
             default:
-                return new int[]{Color.parseColor("#4C1D95"), Color.parseColor("#DDD6FE")};
+                return "";
         }
-    }
-
-    /** Creates a small rounded pill used for the source list. */
-    private TextView sourceChip(String label, int background, int textColor) {
-        TextView chip = text(label, 12, textColor, true);
-        chip.setGravity(Gravity.CENTER);
-        chip.setPadding(dp(10), dp(6), dp(10), dp(6));
-        chip.setBackground(rounded(background, 999));
-        return chip;
     }
 
     /** Creates the full-width gradient button used for the main action. */
@@ -512,7 +605,7 @@ public class MainActivity extends Activity {
         TextView view = new TextView(this);
         view.setText(label);
         view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        view.setTextColor(Color.WHITE);
+        view.setTextColor(ON_PRIMARY);
         view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         view.setGravity(Gravity.CENTER);
         view.setClickable(true);
@@ -534,11 +627,11 @@ public class MainActivity extends Activity {
 
     /** Creates a dark outlined button with a ripple and custom text/border colors. */
     private TextView linkButton(String label, String url) {
-        TextView view = text(label, 12, Color.parseColor("#C7D2FE"), true);
+        TextView view = text(label, 12, ACCENT_TEXT, true);
         view.setGravity(Gravity.CENTER);
         view.setClickable(true);
         view.setPadding(dp(10), dp(8), dp(10), dp(8));
-        GradientDrawable background = rounded(Color.parseColor("#1E293B"), 12);
+        GradientDrawable background = rounded(SECONDARY, 12);
         background.setStroke(dp(1), SECONDARY_BORDER);
         view.setBackground(background);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -568,7 +661,7 @@ public class MainActivity extends Activity {
         GradientDrawable fill = rounded(SECONDARY, 14);
         fill.setStroke(dp(1), strokeColor);
         view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x22FFFFFF),
+                ColorStateList.valueOf(RIPPLE),
                 fill,
                 null
         ));

@@ -1,7 +1,6 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.graphics.Color;
@@ -46,19 +45,56 @@ public class UpdateActivity extends Activity {
     private boolean releaseHistoryLoading;
     private boolean started;
 
+    private int BG_TOP;
+    private int BG_BOTTOM;
+    private int TEXT;
+    private int MUTED;
+    private int STEPS;
+    private int PRIMARY_START;
+    private int PRIMARY_END;
+    private int ON_PRIMARY;
+    private int ACCENT_TEXT;
+    private int SECONDARY;
+    private int SECONDARY_BORDER;
+    private String themeSignature;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!started && themeSignature != null
+                && !themeSignature.equals(ThemeManager.signature(this))) {
+            recreate();
+        }
+    }
+
+    private void applyPalette() {
+        ThemePalette palette = ThemeManager.palette(this);
+        BG_TOP = palette.bgTop;
+        BG_BOTTOM = palette.bgBottom;
+        TEXT = palette.text;
+        MUTED = palette.muted;
+        STEPS = palette.steps;
+        PRIMARY_START = palette.primaryStart;
+        PRIMARY_END = palette.primaryEnd;
+        ON_PRIMARY = palette.onPrimary;
+        ACCENT_TEXT = palette.accentText;
+        SECONDARY = palette.secondary;
+        SECONDARY_BORDER = palette.secondaryBorder;
+        themeSignature = ThemeManager.signature(this);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         PublicSettings.apply(this);
         AppSettings.ensureLauncherIconState(this);
-        getWindow().setStatusBarColor(Color.parseColor("#0B1220"));
-        getWindow().setNavigationBarColor(Color.parseColor("#0B1220"));
+        applyPalette();
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setBackground(new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.parseColor("#0B1220"), Color.parseColor("#0F172A")}));
+                new int[]{BG_TOP, BG_BOTTOM}));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -75,25 +111,23 @@ public class UpdateActivity extends Activity {
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text(getString(R.string.app_name), 24, Color.parseColor("#F8FAFC"), true);
+        TextView title = text(getString(R.string.app_name), 24, TEXT, true);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
-        version = text(getString(R.string.update_current_version), 14,
-                Color.parseColor("#94A3B8"), false);
+        version = text(getString(R.string.update_current_version), 14, MUTED, false);
         version.setGravity(Gravity.CENTER);
         version.setPadding(0, dp(8), 0, 0);
         root.addView(version);
 
-        releasePicker = text("", 13, Color.parseColor("#818CF8"), true);
+        releasePicker = text("", 13, ACCENT_TEXT, true);
         releasePicker.setGravity(Gravity.CENTER);
         releasePicker.setPadding(0, dp(8), 0, 0);
         releasePicker.setVisibility(View.GONE);
         releasePicker.setOnClickListener(v -> showVersionPicker());
         root.addView(releasePicker);
 
-        status = text(getString(R.string.update_loading), 15,
-                Color.parseColor("#CBD5E1"), false);
+        status = text(getString(R.string.update_loading), 15, STEPS, false);
         status.setGravity(Gravity.CENTER);
         status.setPadding(0, dp(18), 0, dp(12));
         root.addView(status);
@@ -101,11 +135,11 @@ public class UpdateActivity extends Activity {
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setIndeterminate(true);
         progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(
-                Color.parseColor("#6366F1")));
+                PRIMARY_START));
         progress.setProgressTintList(android.content.res.ColorStateList.valueOf(
-                Color.parseColor("#6366F1")));
+                PRIMARY_START));
         progress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(
-                Color.parseColor("#1F2937")));
+                SECONDARY_BORDER));
         root.addView(progress, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -115,13 +149,12 @@ public class UpdateActivity extends Activity {
         root.addView(actions, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        notesTitle = text(getString(R.string.update_whats_new), 16,
-                Color.parseColor("#F8FAFC"), true);
+        notesTitle = text(getString(R.string.update_whats_new), 16, TEXT, true);
         notesTitle.setPadding(0, dp(18), 0, dp(8));
         notesTitle.setVisibility(View.GONE);
         root.addView(notesTitle);
 
-        notes = text("", 14, Color.parseColor("#CBD5E1"), false);
+        notes = text("", 14, STEPS, false);
         notes.setTextIsSelectable(true);
         notes.setLineSpacing(dp(4), 1f);
         notes.setPadding(0, 0, 0, dp(12));
@@ -129,6 +162,7 @@ public class UpdateActivity extends Activity {
         root.addView(notes);
 
         setContentView(scroll);
+        ThemeManager.applySystemBars(this);
 
         changelogOnly = getIntent().getBooleanExtra(EXTRA_CHANGELOG, false);
         info = UpdateManager.cachedLatest(this);
@@ -214,7 +248,7 @@ public class UpdateActivity extends Activity {
                 selected = i;
             }
         }
-        new AlertDialog.Builder(this)
+        ThemeManager.dialog(this)
                 .setTitle(R.string.update_choose_version)
                 .setSingleChoiceItems(labels, selected, (dialog, which) -> {
                     info = releases.get(which);
@@ -311,13 +345,13 @@ public class UpdateActivity extends Activity {
     }
 
     private void addButton(String label, Runnable action) {
-        TextView button = text(label, 16, Color.WHITE, true);
+        TextView button = text(label, 16, TEXT, true);
         button.setGravity(Gravity.CENTER);
         button.setPadding(dp(16), dp(14), dp(16), dp(14));
         GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.parseColor("#1F2937"));
+        background.setColor(SECONDARY);
         background.setCornerRadius(dp(14));
-        background.setStroke(dp(1), Color.parseColor("#334155"));
+        background.setStroke(dp(1), SECONDARY_BORDER);
         button.setBackground(background);
         button.setClickable(true);
         button.setFocusable(true);

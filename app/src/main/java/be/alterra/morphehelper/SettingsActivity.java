@@ -2,7 +2,6 @@ package be.alterra.morphehelper;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.LocaleManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -32,8 +31,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.xmlpull.v1.XmlPullParser;
 
@@ -47,25 +48,42 @@ import rikka.shizuku.Shizuku;
  */
 public class SettingsActivity extends Activity {
 
-    private static final int BG_TOP = Color.parseColor("#0B1220");
-    private static final int BG_BOTTOM = Color.parseColor("#0F172A");
-    private static final int CARD_TOP = Color.parseColor("#111827");
-    private static final int CARD_BOTTOM = Color.parseColor("#0F172A");
-    private static final int BORDER = Color.parseColor("#1F2937");
-    private static final int PRIMARY_START = Color.parseColor("#6366F1");
-    private static final int PRIMARY_END = Color.parseColor("#4F46E5");
-    private static final int TEXT = Color.parseColor("#F8FAFC");
-    private static final int MUTED = Color.parseColor("#94A3B8");
-    private static final int WARN_TEXT = Color.parseColor("#FDE68A");
-    private static final int RED = Color.parseColor("#F87171");
-    private static final int GREEN = Color.parseColor("#34D399");
+    private int BG_TOP;
+    private int BG_BOTTOM;
+    private int CARD_TOP;
+    private int CARD_BOTTOM;
+    private int BORDER;
+    private int PRIMARY_START;
+    private int PRIMARY_END;
+    private int ON_PRIMARY;
+    private int ACCENT_TEXT;
+    private int RIPPLE;
+    private int SECONDARY;
+    private int SECONDARY_BORDER;
+    private int TEXT;
+    private int MUTED;
+    private int WARN_TEXT;
+    private int RED;
+    private int GREEN;
+    private int SWITCH_THUMB;
+    private String themeSignature;
     private static final int SHIZUKU_REQUEST_CODE = 71;
     private static final int FOLDER_REQUEST_CODE = 72;
     private static final int STORAGE_PERMISSION_CODE = 73;
-    private static final String STATE_SCROLL_Y = "settings_scroll_y";
-    private ScrollView scrollView;
+    private static final String SECTION_PREFS = "settings_sections";
+    static final String EXTRA_SECTION = "open_section";
+    static final String EXTRA_SECTION_SOURCES = "sources";
+    private static final String SECTION_GENERAL = "general";
+    private static final String SECTION_UPDATES = "updates";
+    private static final String SECTION_WEB = "web";
+    private static final String SECTION_SOURCES = "sources";
+    private static final String SECTION_STORAGE = "storage";
+    private static final String SECTION_SECURITY = "security";
+    private static final String SECTION_BATTERY = "battery";
     private boolean batteryIgnoring;
     private String pendingLocation;
+    private final Map<String, View> sectionCards = new HashMap<>();
+    private View sourceOrderTarget;
 
     private final Shizuku.OnRequestPermissionResultListener shizukuListener =
             (requestCode, grantResult) -> {
@@ -93,12 +111,11 @@ public class SettingsActivity extends Activity {
         SourceSettings.ensureInitialized(this);
         PublicSettings.apply(this);
         AppSettings.ensureLauncherIconState(this);
+        applyPalette();
         Shizuku.addRequestPermissionResultListener(shizukuListener);
-        getWindow().setStatusBarColor(BG_TOP);
-        getWindow().setNavigationBarColor(BG_TOP);
 
         ScrollView scroll = new ScrollView(this);
-        scrollView = scroll;
+        scroll.setId(R.id.settings_scroll);
         scroll.setFillViewport(true);
         scroll.setBackground(gradient(BG_TOP, BG_BOTTOM));
 
@@ -128,33 +145,228 @@ public class SettingsActivity extends Activity {
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         root.addView(header);
 
-        addLanguageRow(root);
-        addLauncherIconCard(root);
-        addUpdatesCard(root);
-        addBatteryCard(root);
-        addSecurityCard(root);
-        addWebPagesCard(root);
-        addStorageCard(root);
-        addOrderCard(root);
+        boolean openSources = EXTRA_SECTION_SOURCES.equals(
+                getIntent().getStringExtra(EXTRA_SECTION));
+        if (openSources) {
+            setSectionExpanded(SECTION_SOURCES, true);
+        }
 
+        LinearLayout general = addSection(root, SECTION_GENERAL,
+                R.string.settings_general, R.string.settings_general_summary,
+                R.drawable.ic_section_general);
+        addLanguageRow(general);
+        addAppearanceRow(general);
+        addLauncherIconCard(general);
+
+        LinearLayout updates = addSection(root, SECTION_UPDATES,
+                R.string.settings_updates, R.string.settings_updates_summary,
+                R.drawable.ic_section_updates);
+        addUpdatesCard(updates);
+
+        LinearLayout web = addSection(root, SECTION_WEB,
+                R.string.settings_web_pages, R.string.settings_web_pages_summary,
+                R.drawable.ic_section_web);
+        addWebPagesCard(web);
+
+        LinearLayout sources = addSection(root, SECTION_SOURCES,
+                R.string.settings_sources, R.string.settings_sources_summary,
+                R.drawable.ic_section_sources);
+        addSourcesCard(sources);
+        addOrderCard(sources);
+        addApptekaWarningCard(sources);
+        addGitHubAppsCard(sources);
+
+        LinearLayout storage = addSection(root, SECTION_STORAGE,
+                R.string.settings_storage, R.string.settings_storage_summary,
+                R.drawable.ic_section_storage);
+        addStorageCard(storage);
+
+        LinearLayout security = addSection(root, SECTION_SECURITY,
+                R.string.virustotal_security, R.string.settings_security_summary,
+                R.drawable.ic_section_security);
+        addSecurityCard(security);
+
+        LinearLayout battery = addSection(root, SECTION_BATTERY,
+                R.string.settings_background, R.string.settings_background_summary,
+                R.drawable.ic_section_battery);
+        addBatteryCard(battery);
+
+        TextView done = primaryButton(getString(R.string.common_done));
+        done.setOnClickListener(v -> finish());
+        LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        doneParams.topMargin = dp(20);
+        doneParams.bottomMargin = dp(24);
+        root.addView(done, doneParams);
+
+        setContentView(scroll);
+        ThemeManager.applySystemBars(this);
+        if (openSources) {
+            scroll.post(() -> {
+                View target = sourceOrderTarget;
+                if (target == null) {
+                    target = sectionCards.get(SECTION_SOURCES);
+                }
+                if (target != null) {
+                    scroll.smoothScrollTo(0, Math.max(0, contentTop(target, scroll) - dp(32)));
+                }
+            });
+        }
+    }
+
+    /** Returns the vertical position of a nested view inside the scroll content. */
+    private int contentTop(View target, View scrollRoot) {
+        int top = 0;
+        View current = target;
+        while (current != null && current != scrollRoot) {
+            top += current.getTop();
+            if (!(current.getParent() instanceof View)) {
+                break;
+            }
+            current = (View) current.getParent();
+        }
+        return top;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (themeSignature != null
+                && !themeSignature.equals(ThemeManager.signature(this))) {
+            recreate();
+            return;
+        }
+        if (isIgnoringBatteryOptimizations() != batteryIgnoring) {
+            recreate();
+        }
+    }
+
+    private void applyPalette() {
+        ThemePalette palette = ThemeManager.palette(this);
+        BG_TOP = palette.bgTop;
+        BG_BOTTOM = palette.bgBottom;
+        CARD_TOP = palette.cardTop;
+        CARD_BOTTOM = palette.cardBottom;
+        BORDER = palette.border;
+        PRIMARY_START = palette.primaryStart;
+        PRIMARY_END = palette.primaryEnd;
+        ON_PRIMARY = palette.onPrimary;
+        ACCENT_TEXT = palette.accentText;
+        RIPPLE = palette.ripple;
+        SECONDARY = palette.secondary;
+        SECONDARY_BORDER = palette.secondaryBorder;
+        TEXT = palette.text;
+        MUTED = palette.muted;
+        WARN_TEXT = palette.warnText;
+        RED = palette.red;
+        GREEN = palette.green;
+        SWITCH_THUMB = palette.switchThumb;
+        themeSignature = ThemeManager.signature(this);
+    }
+
+    @Override
+    protected void onDestroy() {
+        Shizuku.removeRequestPermissionResultListener(shizukuListener);
+        super.onDestroy();
+    }
+
+    /**
+     * Adds a collapsible settings section and returns its body container.
+     * The expanded state is remembered by key across recreations.
+     */
+    private LinearLayout addSection(LinearLayout root, String key,
+                                    int titleRes, int summaryRes, int iconRes) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(4), dp(18), dp(4));
         card.setBackground(cardBackground());
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.topMargin = dp(18);
-        root.addView(card, cardParams);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(14);
+        root.addView(card, params);
+        sectionCards.put(key, card);
 
-        TextView sourceTitle = text(getString(R.string.settings_sources), 16, TEXT, true);
-        sourceTitle.setPadding(0, dp(14), 0, dp(4));
-        card.addView(sourceTitle);
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(18), dp(15), dp(12), dp(15));
+        header.setClickable(true);
+        header.setFocusable(true);
+        header.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), null, null));
 
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(ACCENT_TEXT);
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(22), dp(22));
+        iconParams.setMarginEnd(dp(12));
+        header.addView(icon, iconParams);
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text(getString(titleRes), 16, TEXT, true));
+        TextView summary = text(getString(summaryRes), 11, MUTED, false);
+        summary.setPadding(0, dp(3), 0, 0);
+        labels.addView(summary);
+        header.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView chevron = text("\u203A", 22, MUTED, true);
+        chevron.setGravity(Gravity.CENTER);
+        chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        header.addView(chevron, new LinearLayout.LayoutParams(dp(28), dp(36)));
+        card.addView(header);
+
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(18), 0, dp(18), dp(16));
+        card.addView(body);
+
+        boolean expanded = isSectionExpanded(key);
+        applySectionState(body, chevron, expanded);
+        header.setOnClickListener(v -> {
+            boolean next = body.getVisibility() != View.VISIBLE;
+            applySectionState(body, chevron, next);
+            setSectionExpanded(key, next);
+        });
+        return body;
+    }
+
+    private void applySectionState(LinearLayout body, TextView chevron, boolean expanded) {
+        body.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        chevron.setRotation(expanded ? 90f : 0f);
+    }
+
+    private boolean isSectionExpanded(String key) {
+        return getSharedPreferences(SECTION_PREFS, MODE_PRIVATE)
+                .getBoolean(key, SECTION_GENERAL.equals(key));
+    }
+
+    private void setSectionExpanded(String key, boolean expanded) {
+        getSharedPreferences(SECTION_PREFS, MODE_PRIVATE)
+                .edit().putBoolean(key, expanded).apply();
+    }
+
+    private void addSubsectionDivider(LinearLayout parent) {
+        View divider = new View(this);
+        divider.setBackgroundColor(BORDER);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        params.topMargin = dp(16);
+        parent.addView(divider, params);
+    }
+
+    private TextView subsectionTitle(String value, int color) {
+        TextView title = text(value, 14, color, true);
+        title.setPadding(0, dp(12), 0, dp(2));
+        return title;
+    }
+
+    private void addSourcesCard(LinearLayout card) {
         TextView sourceHint = text(
                 getString(R.string.settings_sources_hint), 12, MUTED, false);
         sourceHint.setLineSpacing(dp(3), 1f);
-        sourceHint.setPadding(0, 0, 0, dp(6));
+        sourceHint.setPadding(0, dp(4), 0, dp(6));
         card.addView(sourceHint);
 
         TextView sourceWebViewHint = text(
@@ -183,51 +395,20 @@ public class SettingsActivity extends Activity {
         addSourceRow(card, SourceSettings.GITHUB,
                 getString(R.string.settings_source_github_title),
                 getString(R.string.settings_source_github_desc));
-
-        addApptekaWarningCard(root);
-        addGitHubAppsCard(root);
-
-        TextView done = primaryButton(getString(R.string.common_done));
-        done.setOnClickListener(v -> finish());
-        LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
-        doneParams.topMargin = dp(20);
-        doneParams.bottomMargin = dp(24);
-        root.addView(done, doneParams);
-
-        setContentView(scroll);
-        if (savedInstanceState != null) {
-            int scrollY = savedInstanceState.getInt(STATE_SCROLL_Y, 0);
-            scroll.post(() -> scroll.scrollTo(0, scrollY));
-        }
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        if (scrollView != null) {
-            outState.putInt(STATE_SCROLL_Y, scrollView.getScrollY());
-        }
-        super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (isIgnoringBatteryOptimizations() != batteryIgnoring) {
-            recreate();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        Shizuku.removeRequestPermissionResultListener(shizukuListener);
-        super.onDestroy();
     }
 
     private void addLanguageRow(LinearLayout root) {
         LinearLayout row = settingRow(getString(R.string.settings_language),
                 currentLanguageLabel());
         row.setOnClickListener(v -> showLanguageDialog());
+        root.addView(row);
+    }
+
+    private void addAppearanceRow(LinearLayout root) {
+        LinearLayout row = settingRow(getString(R.string.settings_appearance),
+                ThemeManager.summary(this));
+        row.setOnClickListener(v ->
+                startActivity(new Intent(this, AppearanceActivity.class)));
         root.addView(row);
     }
 
@@ -277,7 +458,7 @@ public class SettingsActivity extends Activity {
 
     private void showLanguageDialog() {
         if (Build.VERSION.SDK_INT < 33) {
-            new AlertDialog.Builder(this)
+            ThemeManager.dialog(this)
                     .setTitle(R.string.settings_language)
                     .setMessage(R.string.settings_language_android13)
                     .setPositiveButton(R.string.common_ok, null)
@@ -305,7 +486,7 @@ public class SettingsActivity extends Activity {
             }
         }
 
-        new AlertDialog.Builder(this)
+        ThemeManager.dialog(this)
                 .setTitle(R.string.settings_language)
                 .setSingleChoiceItems(labels, selected, (dialog, which) -> {
                     LocaleList locales = which == 0
@@ -318,18 +499,7 @@ public class SettingsActivity extends Activity {
                 .show();
     }
 
-    private void addLauncherIconCard(LinearLayout root) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.settings_launcher_icon), 16, TEXT, true));
-
+    private void addLauncherIconCard(LinearLayout card) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -346,8 +516,7 @@ public class SettingsActivity extends Activity {
 
         Switch toggle = new Switch(this);
         toggle.setChecked(AppSettings.isLauncherIconShown(this));
-        toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(toggle);
         final boolean[] updating = {false};
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (updating[0]) {
@@ -363,7 +532,7 @@ public class SettingsActivity extends Activity {
             updating[0] = true;
             buttonView.setChecked(true);
             updating[0] = false;
-            new AlertDialog.Builder(this)
+            ThemeManager.dialog(this)
                     .setTitle(R.string.settings_hide_launcher_icon_confirm_title)
                     .setMessage(R.string.settings_hide_launcher_icon_confirm_message)
                     .setNegativeButton(R.string.common_cancel, null)
@@ -384,18 +553,7 @@ public class SettingsActivity extends Activity {
         card.addView(row);
     }
 
-    private void addUpdatesCard(LinearLayout root) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.settings_updates), 16, TEXT, true));
-
+    private void addUpdatesCard(LinearLayout card) {
         String current = UpdateChecker.installedVersion(this);
         UpdateInfo latest = UpdateManager.cachedLatest(this);
         String status;
@@ -426,8 +584,7 @@ public class SettingsActivity extends Activity {
 
         Switch enabledSwitch = new Switch(this);
         enabledSwitch.setChecked(UpdateManager.isEnabled(this));
-        enabledSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        enabledSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(enabledSwitch);
         enabledSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             UpdateManager.setEnabled(this, isChecked);
             PublicSettings.write(this);
@@ -445,7 +602,7 @@ public class SettingsActivity extends Activity {
                 ? getString(R.string.settings_mode_shizuku)
                 : getString(R.string.settings_mode_notify);
         LinearLayout modeRow = settingRow(getString(R.string.settings_update_mode), modeLabel);
-        modeRow.setOnClickListener(v -> new AlertDialog.Builder(this)
+        modeRow.setOnClickListener(v -> ThemeManager.dialog(this)
                 .setTitle(R.string.settings_update_mode)
                 .setSingleChoiceItems(new String[]{
                         getString(R.string.settings_mode_notify_option),
@@ -480,8 +637,7 @@ public class SettingsActivity extends Activity {
 
             Switch popupSwitch = new Switch(this);
             popupSwitch.setChecked(UpdateManager.isInAppPopupEnabled(this));
-            popupSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-            popupSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+            styleSwitch(popupSwitch);
             popupSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 UpdateManager.setInAppPopupEnabled(this, isChecked);
                 PublicSettings.write(this);
@@ -529,17 +685,7 @@ public class SettingsActivity extends Activity {
         card.addView(note);
     }
 
-    private void addBatteryCard(LinearLayout root) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.settings_background), 16, TEXT, true));
+    private void addBatteryCard(LinearLayout card) {
         batteryIgnoring = isIgnoringBatteryOptimizations();
         LinearLayout row = settingRow(getString(R.string.settings_battery_optimization),
                 getString(batteryIgnoring
@@ -566,7 +712,7 @@ public class SettingsActivity extends Activity {
                     Toast.LENGTH_SHORT).show();
             return;
         }
-        new AlertDialog.Builder(this)
+        ThemeManager.dialog(this)
                 .setTitle(R.string.settings_battery_dialog_title)
                 .setMessage(R.string.settings_battery_dialog_message)
                 .setNegativeButton(R.string.settings_not_now, null)
@@ -586,18 +732,7 @@ public class SettingsActivity extends Activity {
                 .show();
     }
 
-    private void addSecurityCard(LinearLayout root) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.virustotal_security), 16, TEXT, true));
-
+    private void addSecurityCard(LinearLayout card) {
         LinearLayout scanRow = new LinearLayout(this);
         scanRow.setOrientation(LinearLayout.HORIZONTAL);
         scanRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -614,8 +749,7 @@ public class SettingsActivity extends Activity {
 
         Switch scanSwitch = new Switch(this);
         scanSwitch.setChecked(AppSettings.virusTotalEnabled(this));
-        scanSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        scanSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(scanSwitch);
         scanSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalEnabled(this, isChecked);
             PublicSettings.write(this);
@@ -652,8 +786,7 @@ public class SettingsActivity extends Activity {
 
         Switch blockSwitch = new Switch(this);
         blockSwitch.setChecked(AppSettings.virusTotalBlockDetections(this));
-        blockSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        blockSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(blockSwitch);
         blockSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalBlockDetections(this, isChecked);
             PublicSettings.write(this);
@@ -678,8 +811,7 @@ public class SettingsActivity extends Activity {
 
         Switch uploadSwitch = new Switch(this);
         uploadSwitch.setChecked(AppSettings.virusTotalUploadUnknown(this));
-        uploadSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        uploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(uploadSwitch);
         uploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalUploadUnknown(this, isChecked);
             PublicSettings.write(this);
@@ -709,8 +841,7 @@ public class SettingsActivity extends Activity {
 
         Switch alwaysUploadSwitch = new Switch(this);
         alwaysUploadSwitch.setChecked(AppSettings.virusTotalAlwaysUpload(this));
-        alwaysUploadSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        alwaysUploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(alwaysUploadSwitch);
         alwaysUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalAlwaysUpload(this, isChecked);
             PublicSettings.write(this);
@@ -741,8 +872,7 @@ public class SettingsActivity extends Activity {
 
         Switch quotaUploadSwitch = new Switch(this);
         quotaUploadSwitch.setChecked(AppSettings.virusTotalUploadOnQuota(this));
-        quotaUploadSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        quotaUploadSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(quotaUploadSwitch);
         quotaUploadSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setVirusTotalUploadOnQuota(this, isChecked);
             PublicSettings.write(this);
@@ -761,7 +891,7 @@ public class SettingsActivity extends Activity {
         LinearLayout quotaRow = settingRow(getString(R.string.virustotal_quota_exceeded),
                 getString(abortOnQuota ? R.string.virustotal_quota_abort
                         : R.string.virustotal_quota_continue));
-        quotaRow.setOnClickListener(v -> new AlertDialog.Builder(this)
+        quotaRow.setOnClickListener(v -> ThemeManager.dialog(this)
                 .setTitle(R.string.virustotal_quota_dialog_title)
                 .setSingleChoiceItems(new String[]{
                         getString(R.string.virustotal_quota_continue),
@@ -795,18 +925,7 @@ public class SettingsActivity extends Activity {
      * content filter, not a DNS/VPN: it adds no permission prompt and only
      * affects the pages the helper opens itself.
      */
-    private void addWebPagesCard(LinearLayout root) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.settings_web_pages), 16, TEXT, true));
-
+    private void addWebPagesCard(LinearLayout card) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -825,8 +944,7 @@ public class SettingsActivity extends Activity {
 
         Switch toggle = new Switch(this);
         toggle.setChecked(AppSettings.blockWebAds(this));
-        toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(toggle);
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setBlockWebAds(this, isChecked);
             PublicSettings.write(this);
@@ -853,8 +971,7 @@ public class SettingsActivity extends Activity {
 
         Switch liveSwitch = new Switch(this);
         liveSwitch.setChecked(AppSettings.liveAdGuardChecks(this));
-        liveSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        liveSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(liveSwitch);
         liveSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setLiveAdGuardChecks(this, isChecked);
             PublicSettings.write(this);
@@ -873,7 +990,7 @@ public class SettingsActivity extends Activity {
     /** Keeps the live-check row and note visible only while the master switch is on. */
     private void setWebPagesDetailsVisible(LinearLayout card, boolean visible) {
         int state = visible ? View.VISIBLE : View.GONE;
-        for (int i = 2; i < card.getChildCount(); i++) {
+        for (int i = 1; i < card.getChildCount(); i++) {
             card.getChildAt(i).setVisibility(state);
         }
     }
@@ -881,7 +998,7 @@ public class SettingsActivity extends Activity {
     /** Keeps the master switch visible and hides its dependent rows when off. */
     private void setVirusTotalDetailsVisible(LinearLayout card, boolean visible) {
         int state = visible ? View.VISIBLE : View.GONE;
-        for (int i = 2; i < card.getChildCount(); i++) {
+        for (int i = 1; i < card.getChildCount(); i++) {
             card.getChildAt(i).setVisibility(state);
         }
     }
@@ -896,7 +1013,7 @@ public class SettingsActivity extends Activity {
         int padding = dp(16);
         input.setPadding(padding, padding, padding, padding);
 
-        new AlertDialog.Builder(this)
+        ThemeManager.dialog(this)
                 .setTitle(R.string.virustotal_api_key_dialog_title)
                 .setMessage(R.string.virustotal_api_key_dialog_message)
                 .setView(input)
@@ -923,7 +1040,7 @@ public class SettingsActivity extends Activity {
             return;
         }
         if (status == ShizukuHelper.PERMISSION_REQUIRED) {
-            new AlertDialog.Builder(this)
+            ThemeManager.dialog(this)
                     .setTitle(R.string.settings_shizuku_dialog_title)
                     .setMessage(R.string.settings_shizuku_dialog_message)
                     .setNegativeButton(R.string.settings_use_notifications, (dialog, which) -> {
@@ -937,7 +1054,7 @@ public class SettingsActivity extends Activity {
             return;
         }
         if (status == ShizukuHelper.NOT_RUNNING) {
-            new AlertDialog.Builder(this)
+            ThemeManager.dialog(this)
                     .setTitle(R.string.settings_shizuku_not_running_title)
                     .setMessage(R.string.settings_shizuku_not_running_message)
                     .setNegativeButton(R.string.common_cancel, null)
@@ -946,7 +1063,7 @@ public class SettingsActivity extends Activity {
             return;
         }
         if (status == ShizukuHelper.NOT_INSTALLED) {
-            new AlertDialog.Builder(this)
+            ThemeManager.dialog(this)
                     .setTitle(R.string.settings_shizuku_not_installed_title)
                     .setMessage(R.string.settings_shizuku_not_installed_message)
                     .setNegativeButton(R.string.settings_use_notifications, null)
@@ -978,22 +1095,11 @@ public class SettingsActivity extends Activity {
         }
     }
 
-    private void addStorageCard(LinearLayout root) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.settings_storage), 16, TEXT, true));
-
+    private void addStorageCard(LinearLayout card) {
         String location = AppSettings.location(this);
         LinearLayout folder = settingRow(getString(R.string.settings_download_folder),
                 AppSettings.locationLabel(this));
-        folder.setOnClickListener(v -> new AlertDialog.Builder(this)
+        folder.setOnClickListener(v -> ThemeManager.dialog(this)
                 .setTitle(R.string.settings_download_folder)
                 .setSingleChoiceItems(new String[]{
                         getString(R.string.settings_folder_public),
@@ -1017,7 +1123,7 @@ public class SettingsActivity extends Activity {
             default: retentionLabel = getString(R.string.settings_keep_forever); break;
         }
         LinearLayout keep = settingRow(getString(R.string.settings_keep_downloads), retentionLabel);
-        keep.setOnClickListener(v -> new AlertDialog.Builder(this)
+        keep.setOnClickListener(v -> ThemeManager.dialog(this)
                 .setTitle(R.string.settings_keep_downloads)
                 .setSingleChoiceItems(new String[]{
                         getString(R.string.settings_keep_forever),
@@ -1040,7 +1146,7 @@ public class SettingsActivity extends Activity {
         card.addView(note);
 
         TextView delete = actionButton(getString(R.string.settings_delete_all), RED);
-        delete.setOnClickListener(v -> new AlertDialog.Builder(this)
+        delete.setOnClickListener(v -> ThemeManager.dialog(this)
                 .setTitle(R.string.settings_delete_dialog_title)
                 .setMessage(R.string.settings_delete_dialog_message)
                 .setNegativeButton(R.string.common_cancel, null)
@@ -1138,17 +1244,9 @@ public class SettingsActivity extends Activity {
         return 0;
     }
 
-    private void addApptekaWarningCard(LinearLayout root) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.settings_appteka_title), 16, RED, true));
+    private void addApptekaWarningCard(LinearLayout card) {
+        addSubsectionDivider(card);
+        card.addView(subsectionTitle(getString(R.string.settings_appteka_title), RED));
 
         TextView message = text(getString(R.string.settings_appteka_message),
                 12, WARN_TEXT, false);
@@ -1173,8 +1271,7 @@ public class SettingsActivity extends Activity {
 
         Switch toggle = new Switch(this);
         toggle.setChecked(AppSettings.apptekaSnapTubeOnly(this));
-        toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(toggle);
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setApptekaSnapTubeOnly(this, isChecked);
             PublicSettings.write(this);
@@ -1194,19 +1291,11 @@ public class SettingsActivity extends Activity {
         card.addView(note);
     }
 
-    private void addGitHubAppsCard(LinearLayout root) {
+    private void addGitHubAppsCard(LinearLayout card) {
         List<GitHubAppStore.Entry> entries = GitHubAppStore.all(this);
 
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.settings_github_apps), 16, TEXT, true));
+        addSubsectionDivider(card);
+        card.addView(subsectionTitle(getString(R.string.settings_github_apps), TEXT));
         TextView note = text(getString(R.string.settings_github_apps_note), 12, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(4), 0, dp(4));
@@ -1260,17 +1349,10 @@ public class SettingsActivity extends Activity {
         }
     }
 
-    private void addOrderCard(LinearLayout root) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.settings_source_order), 16, TEXT, true));
+    private void addOrderCard(LinearLayout card) {
+        TextView orderTitle = subsectionTitle(getString(R.string.settings_source_order), TEXT);
+        sourceOrderTarget = orderTitle;
+        card.addView(orderTitle);
         TextView note = text(getString(R.string.settings_source_order_note), 12, MUTED, false);
         note.setPadding(0, dp(4), 0, dp(8));
         card.addView(note);
@@ -1319,6 +1401,27 @@ public class SettingsActivity extends Activity {
         });
         card.addView(reset);
     }
+    /**
+     * Makes the checked state vibrant and the unchecked state visibly dimmed,
+     * so a setting's current state is readable at a glance.
+     */
+    private void styleSwitch(Switch toggle) {
+        toggle.setThumbTintList(new ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                },
+                new int[]{SWITCH_THUMB, MUTED}
+        ));
+        toggle.setTrackTintList(new ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                },
+                new int[]{PRIMARY_START, SECONDARY_BORDER}
+        ));
+    }
+
     private LinearLayout settingRow(String title, String value) {
         return settingRow(title, value, false);
     }
@@ -1329,11 +1432,11 @@ public class SettingsActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(14), dp(12), dp(14), dp(12));
         GradientDrawable fill = new GradientDrawable();
-        fill.setColor(Color.parseColor("#0B1220"));
+        fill.setColor(BG_TOP);
         fill.setCornerRadius(dp(12));
         fill.setStroke(dp(1), BORDER);
         row.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x22FFFFFF),
+                ColorStateList.valueOf(RIPPLE),
                 fill,
                 null
         ));
@@ -1375,7 +1478,7 @@ public class SettingsActivity extends Activity {
         view.setGravity(Gravity.CENTER);
         view.setPadding(dp(12), dp(12), dp(12), dp(12));
         GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.parseColor("#0B1220"));
+        background.setColor(BG_TOP);
         background.setCornerRadius(dp(12));
         background.setStroke(dp(1), BORDER);
         view.setBackground(background);
@@ -1425,8 +1528,7 @@ public class SettingsActivity extends Activity {
 
         Switch toggle = new Switch(this);
         toggle.setChecked(SourceSettings.isEnabled(this, key));
-        toggle.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
-        toggle.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        styleSwitch(toggle);
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!isChecked && SourceSettings.enabledCount(this) <= 1) {
                 buttonView.setChecked(true);
@@ -1483,7 +1585,7 @@ public class SettingsActivity extends Activity {
         TextView view = new TextView(this);
         view.setText(label);
         view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        view.setTextColor(Color.WHITE);
+        view.setTextColor(ON_PRIMARY);
         view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         view.setGravity(Gravity.CENTER);
         view.setClickable(true);

@@ -3,9 +3,12 @@ package be.alterra.morphehelper;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
-import android.graphics.Color;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -35,7 +38,6 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -182,21 +184,25 @@ public class DownloadActivity extends Activity {
     // UI palette
     // ---------------------------------------------------------------------
 
-    private static final int BG_TOP = Color.parseColor("#0B1220");
-    private static final int BG_BOTTOM = Color.parseColor("#0F172A");
-    private static final int CARD_TOP = Color.parseColor("#111827");
-    private static final int CARD_BOTTOM = Color.parseColor("#0F172A");
-    private static final int BORDER = Color.parseColor("#1F2937");
-    private static final int PRIMARY_START = Color.parseColor("#6366F1");
-    private static final int PRIMARY_END = Color.parseColor("#4F46E5");
-    private static final int SECONDARY = Color.parseColor("#1F2937");
-    private static final int SECONDARY_BORDER = Color.parseColor("#334155");
-    private static final int TEXT = Color.parseColor("#F8FAFC");
-    private static final int MUTED = Color.parseColor("#94A3B8");
-    private static final int STEPS = Color.parseColor("#CBD5E1");
-    private static final int WARN_TEXT = Color.parseColor("#FDE68A");
-    private static final int GREEN = Color.parseColor("#34D399");
-    private static final int RED = Color.parseColor("#F87171");
+    private int BG_TOP;
+    private int BG_BOTTOM;
+    private int CARD_TOP;
+    private int CARD_BOTTOM;
+    private int BORDER;
+    private int PRIMARY_START;
+    private int PRIMARY_END;
+    private int ON_PRIMARY;
+    private int ACCENT_TEXT;
+    private int RIPPLE;
+    private int SECONDARY;
+    private int SECONDARY_BORDER;
+    private int TEXT;
+    private int MUTED;
+    private int STEPS;
+    private int WARN_TEXT;
+    private int GREEN;
+    private int RED;
+    private String themeSignature;
 
     // ---------------------------------------------------------------------
     // Feature switches
@@ -278,7 +284,7 @@ public class DownloadActivity extends Activity {
     private TextView skipScanButton;
 
     /** Download progress bar. Indeterminate while resolving, determinate while downloading. */
-    private ProgressBar progress;
+    private ProgressDisplay progress;
 
     /** Button that opens the fallback web page when automatic resolution fails. */
     private TextView fallbackButton;
@@ -378,6 +384,12 @@ public class DownloadActivity extends Activity {
     private TextView diagnosticsSummary;
     private TextView retryButton;
     private TextView copyButton;
+    private TextView editSourcesButton;
+    private TextView screenTitle;
+    private TextView screenSubtitle;
+    private TextView stateIcon;
+    private LinearLayout sourceStepsCard;
+    private LinearLayout sourceStepsList;
     private ResolutionReport report;
     private Set<String> retrySources;
     private String requestPkg;
@@ -396,6 +408,7 @@ public class DownloadActivity extends Activity {
         SourceSettings.ensureInitialized(this);
         PublicSettings.apply(this);
         AppSettings.ensureLauncherIconState(this);
+        applyPalette();
         new Thread(() -> AppSettings.cleanup(this)).start();
 
         // Build the dark UI before reading the intent; the UI is then updated as work runs.
@@ -420,6 +433,7 @@ public class DownloadActivity extends Activity {
         requestFileType = fileType;
         requestVersionCodes = versionCodes;
         requestAbis = abis;
+        updateRequestHeader();
 
         // Log the full request once; this is the first thing to check in a bug report.
         HelperLog.info("Request pkg=" + pkg
@@ -511,6 +525,16 @@ public class DownloadActivity extends Activity {
         progress.setVisibility(View.VISIBLE);
         progress.setIndeterminate(true);
         progress.setProgress(0);
+        if (sourceStepsCard != null) {
+            sourceStepsCard.setVisibility(View.VISIBLE);
+        }
+        if (stateIcon != null) {
+            stateIcon.setVisibility(View.GONE);
+        }
+        scanNote.setVisibility(View.GONE);
+        skipScanButton.setVisibility(View.GONE);
+        updateRequestHeader();
+        main.post(this::renderSourceSteps);
         setPauseVisible(false);
         if (retryOnly) {
             setStatus(R.string.download_retrying);
@@ -1482,6 +1506,29 @@ public class DownloadActivity extends Activity {
         });
     }
 
+    private void applyPalette() {
+        ThemePalette palette = ThemeManager.palette(this);
+        BG_TOP = palette.bgTop;
+        BG_BOTTOM = palette.bgBottom;
+        CARD_TOP = palette.cardTop;
+        CARD_BOTTOM = palette.cardBottom;
+        BORDER = palette.border;
+        PRIMARY_START = palette.primaryStart;
+        PRIMARY_END = palette.primaryEnd;
+        ON_PRIMARY = palette.onPrimary;
+        ACCENT_TEXT = palette.accentText;
+        RIPPLE = palette.ripple;
+        SECONDARY = palette.secondary;
+        SECONDARY_BORDER = palette.secondaryBorder;
+        TEXT = palette.text;
+        MUTED = palette.muted;
+        STEPS = palette.steps;
+        WARN_TEXT = palette.warnText;
+        GREEN = palette.green;
+        RED = palette.red;
+        themeSignature = ThemeManager.signature(this);
+    }
+
     /**
      * Builds the download screen entirely in code.
      *
@@ -1490,75 +1537,56 @@ public class DownloadActivity extends Activity {
      * different Android versions.</p>
      */
     private void buildUi() {
-        // Match the system bars to the dark background.
-        getWindow().setStatusBarColor(BG_TOP);
-        getWindow().setNavigationBarColor(BG_TOP);
-
         // ScrollView keeps the layout usable on small screens and with large fonts.
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setBackground(gradient(BG_TOP, BG_BOTTOM));
 
-        // Main vertical column; top padding keeps the logo clear of the status bar.
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
         final int horizontalPadding = dp(24);
-        final int topPadding = dp(64);
+        final int baseTop = dp(16);
         final int bottomPadding = dp(24);
-        root.setPadding(horizontalPadding, topPadding, horizontalPadding, bottomPadding);
+        root.setPadding(horizontalPadding, dp(48), horizontalPadding, bottomPadding);
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            int top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
             int navigation = insets.getInsets(
                     WindowInsetsCompat.Type.navigationBars()).bottom;
-            view.setPadding(horizontalPadding, topPadding, horizontalPadding,
+            view.setPadding(horizontalPadding, baseTop + top, horizontalPadding,
                     bottomPadding + navigation);
             return insets;
         });
 
-        // Brand mark.
-        ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.ic_logo_mark);
-        root.addView(logo, new LinearLayout.LayoutParams(dp(84), dp(84)));
-
-        // Screen title.
-        TextView title = text(getString(R.string.app_name), 24, TEXT, true);
-        title.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+        // Compact top bar instead of the old logo block.
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        root.addView(topBar, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        titleParams.topMargin = dp(16);
-        root.addView(title, titleParams);
+                ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        // Short subtitle explaining what the screen is doing.
-        TextView subtitle = text(getString(R.string.download_subtitle), 14, MUTED, false);
-        subtitle.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        subtitleParams.topMargin = dp(6);
-        root.addView(subtitle, subtitleParams);
+        TextView back = text("\u2190", 24, TEXT, true);
+        back.setGravity(Gravity.CENTER);
+        back.setContentDescription(getString(R.string.common_cancel));
+        back.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), rounded(SECONDARY, 999), null));
+        back.setClickable(true);
+        back.setFocusable(true);
+        back.setOnClickListener(v -> cancel());
+        topBar.addView(back, new LinearLayout.LayoutParams(dp(44), dp(44)));
 
-        // Use the same saved order as the resolver and the main screen, so this
-        // summary cannot contradict the actual fallback path.
-        List<String> sourceNames = new ArrayList<>();
-        for (String key : AppSettings.sourceOrder(this)) {
-            if (SourceSettings.isEnabled(this, key)) {
-                sourceNames.add(AppSettings.sourceLabel(this, key));
-            }
-        }
-        String sourceSummary = sourceNames.isEmpty()
-                ? getString(R.string.download_sources_none)
-                : getString(R.string.download_sources_summary,
-                        TextUtils.join(" \u2192 ", sourceNames));
-        TextView sources = text(sourceSummary, 12, MUTED, false);
-        sources.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams sourcesParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        sourcesParams.topMargin = dp(8);
-        root.addView(sources, sourcesParams);
+        LinearLayout topLabels = new LinearLayout(this);
+        topLabels.setOrientation(LinearLayout.VERTICAL);
+        topLabels.setPadding(dp(12), 0, 0, 0);
+        screenTitle = text(getString(R.string.download_title_progress), 20, TEXT, true);
+        screenSubtitle = text(getString(R.string.download_subtitle), 12, MUTED, false);
+        screenSubtitle.setPadding(0, dp(3), 0, 0);
+        topLabels.addView(screenTitle);
+        topLabels.addView(screenSubtitle);
+        topBar.addView(topLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        // Card containing status, progress, and the source warning.
+        // Progress card: ring, status, source, and scan controls.
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(20), dp(20), dp(20), dp(20));
@@ -1566,13 +1594,25 @@ public class DownloadActivity extends Activity {
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.topMargin = dp(28);
+        cardParams.topMargin = dp(20);
         root.addView(card, cardParams);
 
-        // Live status text ("Preparing...", "Trying APKMirror...", "Done...", etc.).
-        status = text("", 15, STEPS, false);
+        stateIcon = text("\u2715", 56, RED, true);
+        stateIcon.setGravity(Gravity.CENTER);
+        stateIcon.setVisibility(View.GONE);
+        card.addView(stateIcon);
+
+        progress = new ProgressDisplay(this);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+                dp(180), dp(180));
+        progressParams.gravity = Gravity.CENTER_HORIZONTAL;
+        progressParams.topMargin = dp(4);
+        card.addView(progress, progressParams);
+
+        status = text("", 14, STEPS, false);
         status.setGravity(Gravity.CENTER);
         status.setLineSpacing(dp(3), 1f);
+        status.setPadding(0, dp(12), 0, 0);
         card.addView(status, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -1582,21 +1622,8 @@ public class DownloadActivity extends Activity {
         sourceLabel.setVisibility(View.GONE);
         LinearLayout.LayoutParams sourceLabelParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        sourceLabelParams.topMargin = dp(14);
+        sourceLabelParams.topMargin = dp(8);
         card.addView(sourceLabel, sourceLabelParams);
-
-        // Indeterminate while resolving; switches to a percentage while downloading.
-        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        progress.setMax(100);
-        progress.setIndeterminate(true);
-        progress.setIndeterminateTintList(ColorStateList.valueOf(PRIMARY_START));
-        progress.setProgressTintList(ColorStateList.valueOf(PRIMARY_START));
-        progress.setProgressBackgroundTintList(ColorStateList.valueOf(BORDER));
-        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        progressParams.topMargin = dp(18);
-        card.addView(progress, progressParams);
 
         scanNote = text(getString(R.string.virustotal_scan_note), 12, MUTED, false);
         scanNote.setGravity(Gravity.CENTER);
@@ -1612,6 +1639,25 @@ public class DownloadActivity extends Activity {
         skipScanButton.setOnClickListener(v -> skipVirusTotalScan());
         card.addView(skipScanButton);
 
+        // Compact resolver steps while the helper is working.
+        sourceStepsCard = new LinearLayout(this);
+        sourceStepsCard.setOrientation(LinearLayout.VERTICAL);
+        sourceStepsCard.setPadding(dp(18), dp(16), dp(18), dp(16));
+        sourceStepsCard.setBackground(cardBackground());
+        LinearLayout.LayoutParams stepsParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        stepsParams.topMargin = dp(14);
+        root.addView(sourceStepsCard, stepsParams);
+
+        sourceStepsCard.addView(text(
+                getString(R.string.download_steps_title), 15, TEXT, true));
+        sourceStepsList = new LinearLayout(this);
+        sourceStepsList.setOrientation(LinearLayout.VERTICAL);
+        sourceStepsList.setPadding(0, dp(4), 0, 0);
+        sourceStepsCard.addView(sourceStepsList);
+        renderSourceSteps();
+
         diagnosticsCard = new LinearLayout(this);
         diagnosticsCard.setOrientation(LinearLayout.VERTICAL);
         diagnosticsCard.setPadding(dp(18), dp(16), dp(18), dp(16));
@@ -1622,7 +1668,7 @@ public class DownloadActivity extends Activity {
         diagnosticsParams.topMargin = dp(14);
         root.addView(diagnosticsCard, diagnosticsParams);
 
-        diagnosticsCard.addView(text(getString(R.string.download_tried_title), 16, TEXT, true));
+        diagnosticsCard.addView(text(getString(R.string.download_what_happened), 16, TEXT, true));
         diagnosticsSummary = text("", 12, MUTED, false);
         diagnosticsSummary.setLineSpacing(dp(3), 1f);
         diagnosticsSummary.setPadding(0, dp(6), 0, dp(4));
@@ -1647,6 +1693,17 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         copyParams.topMargin = dp(8);
         diagnosticsCard.addView(copyButton, copyParams);
+
+        editSourcesButton = secondaryButton(getString(R.string.download_edit_sources));
+        editSourcesButton.setVisibility(View.GONE);
+        editSourcesButton.setOnClickListener(v -> startActivity(new Intent(
+                this, SettingsActivity.class)
+                .putExtra(SettingsActivity.EXTRA_SECTION,
+                        SettingsActivity.EXTRA_SECTION_SOURCES)));
+        LinearLayout.LayoutParams editSourcesParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        editSourcesParams.topMargin = dp(8);
+        diagnosticsCard.addView(editSourcesButton, editSourcesParams);
 
         // Uptodown verification section. Hidden until the WebView flow starts so the
         // normal APKMirror/APKPure screens stay clean.
@@ -1716,6 +1773,152 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         scrollView = scroll;
         setContentView(scroll);
+        ThemeManager.applySystemBars(this);
+    }
+
+    /** Circular percentage display used while resolving and downloading. */
+    private final class ProgressDisplay extends FrameLayout {
+        private final ProgressRing ring;
+        private final TextView percent;
+        private final TextView caption;
+        private boolean indeterminate = true;
+        private int value = 0;
+
+        ProgressDisplay(Context context) {
+            super(context);
+            ring = new ProgressRing(context);
+            addView(ring, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+
+            LinearLayout labels = new LinearLayout(context);
+            labels.setOrientation(LinearLayout.VERTICAL);
+            labels.setGravity(Gravity.CENTER);
+            percent = new TextView(context);
+            percent.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34);
+            percent.setTextColor(TEXT);
+            percent.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+            percent.setGravity(Gravity.CENTER);
+            labels.addView(percent);
+
+            caption = new TextView(context);
+            caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+            caption.setTextColor(MUTED);
+            caption.setLetterSpacing(0.16f);
+            caption.setGravity(Gravity.CENTER);
+            caption.setPadding(0, dp(2), 0, 0);
+            labels.addView(caption);
+
+            FrameLayout.LayoutParams labelParams = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            labelParams.gravity = Gravity.CENTER;
+            addView(labels, labelParams);
+
+            setIndeterminate(true);
+        }
+
+        void setIndeterminate(boolean indeterminate) {
+            this.indeterminate = indeterminate;
+            ring.setIndeterminate(indeterminate);
+            caption.setText(indeterminate
+                    ? R.string.download_progress_preparing
+                    : R.string.download_progress_downloading);
+            percent.setText(indeterminate ? "\u2026" : value + "%");
+        }
+
+        void setProgress(int progress) {
+            value = Math.max(0, Math.min(100, progress));
+            ring.setProgress(value);
+            if (!indeterminate) {
+                percent.setText(value + "%");
+                caption.setText(R.string.download_progress_downloading);
+            }
+        }
+
+        int getProgress() {
+            return value;
+        }
+
+        void setMax(int max) {
+            // The display always uses a fixed 0-100 range.
+        }
+
+        void setIndeterminateTintList(ColorStateList tint) {
+            ring.setProgressColor(tint.getDefaultColor());
+        }
+
+        void setProgressTintList(ColorStateList tint) {
+            ring.setProgressColor(tint.getDefaultColor());
+        }
+
+        void setProgressBackgroundTintList(ColorStateList tint) {
+            ring.setTrackColor(tint.getDefaultColor());
+        }
+    }
+
+    /** Draws the progress arc behind the percentage text. */
+    private final class ProgressRing extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF arc = new RectF();
+        private int progressColor = PRIMARY_START;
+        private int trackColor = BORDER;
+        private int progress = 0;
+        private boolean indeterminate = true;
+        private float angle = -90f;
+
+        ProgressRing(Context context) {
+            super(context);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setStrokeWidth(dp(10));
+        }
+
+        void setProgress(int value) {
+            progress = value;
+            invalidate();
+        }
+
+        void setIndeterminate(boolean value) {
+            indeterminate = value;
+            invalidate();
+        }
+
+        void setProgressColor(int color) {
+            progressColor = color;
+            invalidate();
+        }
+
+        void setTrackColor(int color) {
+            trackColor = color;
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float stroke = paint.getStrokeWidth();
+            if (getWidth() <= stroke || getHeight() <= stroke) {
+                return;
+            }
+            arc.set(stroke / 2f, stroke / 2f,
+                    getWidth() - stroke / 2f, getHeight() - stroke / 2f);
+
+            paint.setColor(trackColor);
+            canvas.drawArc(arc, 0f, 360f, false, paint);
+
+            paint.setColor(progressColor);
+            if (indeterminate) {
+                canvas.drawArc(arc, angle, 80f, false, paint);
+                angle += 6f;
+                if (angle > 270f) {
+                    angle -= 360f;
+                }
+                postInvalidateOnAnimation();
+            } else {
+                canvas.drawArc(arc, -90f, 360f * progress / 100f, false, paint);
+            }
+        }
     }
 
     /** Converts density-independent pixels to physical pixels for this screen. */
@@ -1741,7 +1944,7 @@ public class DownloadActivity extends Activity {
         TextView view = new TextView(this);
         view.setText(label);
         view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        view.setTextColor(Color.WHITE);
+        view.setTextColor(ON_PRIMARY);
         view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         view.setGravity(Gravity.CENTER);
         view.setClickable(true);
@@ -1776,7 +1979,7 @@ public class DownloadActivity extends Activity {
         GradientDrawable fill = rounded(SECONDARY, 14);
         fill.setStroke(dp(1), SECONDARY_BORDER);
         view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x22FFFFFF),
+                ColorStateList.valueOf(RIPPLE),
                 fill,
                 null
         ));
@@ -1808,6 +2011,25 @@ public class DownloadActivity extends Activity {
         drawable.setColor(color);
         drawable.setCornerRadius(dp(radiusDp));
         return drawable;
+    }
+
+    /** Updates the top bar with the app and version from Morphe's request. */
+    private void updateRequestHeader() {
+        main.post(() -> {
+            if (screenTitle != null) {
+                screenTitle.setText(R.string.download_title_progress);
+            }
+            if (screenSubtitle != null) {
+                String app = TextUtils.isEmpty(requestedAppName)
+                        ? requestPkg : requestedAppName;
+                if (TextUtils.isEmpty(app)) {
+                    return;
+                }
+                String version = TextUtils.isEmpty(requestVersion) ? "" : requestVersion;
+                screenSubtitle.setText(version.isEmpty()
+                        ? app : app + " \u00B7 " + version);
+            }
+        });
     }
 
     /** Updates the status line from any thread. */
@@ -1848,6 +2070,7 @@ public class DownloadActivity extends Activity {
         main.post(() -> {
             sourceLabel.setText(getString(R.string.download_source_label, label));
             sourceLabel.setVisibility(View.VISIBLE);
+            renderSourceSteps();
         });
     }
 
@@ -1885,6 +2108,93 @@ public class DownloadActivity extends Activity {
             report.record(key, ok, message);
         }
         SourceHealth.record(this, key, ok, message == null ? "" : message);
+        main.post(this::renderSourceSteps);
+    }
+
+    /** Rebuilds the compact source progress list from the current report. */
+    private void renderSourceSteps() {
+        if (sourceStepsList == null) {
+            return;
+        }
+        sourceStepsList.removeAllViews();
+        List<String> order = AppSettings.sourceOrder(this);
+        List<ResolutionReport.Attempt> attempts = report == null
+                ? Collections.emptyList() : report.attempts();
+        boolean finished = report != null && report.isFinished();
+        boolean currentMarked = false;
+        int position = 0;
+
+        for (String key : order) {
+            if (!SourceSettings.isEnabled(this, key)) {
+                continue;
+            }
+            position++;
+
+            ResolutionReport.Attempt latest = null;
+            for (int i = attempts.size() - 1; i >= 0; i--) {
+                if (key.equals(attempts.get(i).key)) {
+                    latest = attempts.get(i);
+                    break;
+                }
+            }
+            boolean current = !finished && latest == null && !currentMarked;
+            if (current) {
+                currentMarked = true;
+            }
+
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(7), 0, dp(7));
+
+            String symbol;
+            int color;
+            if (latest != null) {
+                symbol = latest.success ? "\u2713" : "\u2715";
+                color = latest.success ? GREEN : RED;
+            } else if (current) {
+                symbol = "\u25CF";
+                color = ACCENT_TEXT;
+            } else {
+                symbol = String.valueOf(position);
+                color = MUTED;
+            }
+            TextView marker = text(symbol, 12, color, true);
+            marker.setGravity(Gravity.CENTER);
+            marker.setBackground(rounded(SECONDARY, 999));
+            row.addView(marker, new LinearLayout.LayoutParams(dp(24), dp(24)));
+
+            String name = SourceSettings.APPTEKA.equals(key)
+                    ? getString(R.string.main_source_appteka)
+                    : AppSettings.sourceLabel(this, key);
+            TextView label = text(name, 13,
+                    latest != null || current ? TEXT : MUTED,
+                    latest != null || current);
+            label.setPadding(dp(10), 0, 0, 0);
+            row.addView(label, new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            String stateText;
+            int stateColor;
+            if (latest != null) {
+                stateText = getString(latest.success
+                        ? R.string.download_step_ok : R.string.download_step_failed);
+                stateColor = latest.success ? GREEN : RED;
+            } else if (current) {
+                stateText = getString(R.string.download_step_current);
+                stateColor = ACCENT_TEXT;
+            } else {
+                stateText = getString(R.string.download_step_next);
+                stateColor = MUTED;
+            }
+            row.addView(text(stateText, 10, stateColor, true));
+            sourceStepsList.addView(row);
+        }
+
+        if (position == 0) {
+            sourceStepsList.addView(text(
+                    getString(R.string.download_sources_none), 12, MUTED, false));
+        }
     }
 
     private void showFallback() {
@@ -1893,9 +2203,24 @@ public class DownloadActivity extends Activity {
 
     private void showFailure() {
         cancelAdBlockRetry();
+        setPauseVisible(false);
         main.post(() -> {
             progress.setVisibility(View.GONE);
             sourceLabel.setVisibility(View.GONE);
+            scanNote.setVisibility(View.GONE);
+            skipScanButton.setVisibility(View.GONE);
+            if (sourceStepsCard != null) {
+                sourceStepsCard.setVisibility(View.GONE);
+            }
+            if (stateIcon != null) {
+                stateIcon.setVisibility(View.VISIBLE);
+            }
+            if (screenTitle != null) {
+                screenTitle.setText(R.string.download_title_failure);
+            }
+            if (screenSubtitle != null) {
+                screenSubtitle.setText(R.string.download_subtitle_failure);
+            }
             if (!TextUtils.isEmpty(fallbackUrl)) {
                 fallbackButton.setVisibility(View.VISIBLE);
             }
@@ -1945,6 +2270,7 @@ public class DownloadActivity extends Activity {
         retryButton.setVisibility(failed.isEmpty() ? View.GONE : View.VISIBLE);
         retryButton.setEnabled(true);
         copyButton.setVisibility(View.VISIBLE);
+        editSourcesButton.setVisibility(View.VISIBLE);
     }
 
     private void retryFailedSources() {

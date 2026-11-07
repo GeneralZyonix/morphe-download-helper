@@ -90,6 +90,12 @@
             android:exported="false"
             android:label="@string/common_settings" />
 
+        <!-- Appearance settings: theme mode, accent presets, and custom HEX. -->
+        <activity
+            android:name=".AppearanceActivity"
+            android:exported="false"
+            android:label="@string/appearance_title" />
+
         <!--
             Helper contract: Morphe sends this action when the user taps
             "Use a helper app". The activity returns a content:// URI to the APK.

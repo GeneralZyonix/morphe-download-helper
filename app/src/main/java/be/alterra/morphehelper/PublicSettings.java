@@ -105,6 +105,32 @@ final class PublicSettings {
             HelperLog.info("Public settings: show_launcher_icon not set");
         }
 
+        String themeMode = values.get("theme_mode");
+        if (themeMode != null) {
+            if (ThemeManager.MODE_AMOLED.equalsIgnoreCase(themeMode)) {
+                AppSettings.setThemeMode(context, ThemeManager.MODE_AMOLED);
+            } else if (ThemeManager.MODE_LIGHT.equalsIgnoreCase(themeMode)) {
+                AppSettings.setThemeMode(context, ThemeManager.MODE_LIGHT);
+            } else if (ThemeManager.MODE_SYSTEM.equalsIgnoreCase(themeMode)) {
+                AppSettings.setThemeMode(context, ThemeManager.MODE_SYSTEM);
+            } else if (ThemeManager.MODE_DARK.equalsIgnoreCase(themeMode)) {
+                AppSettings.setThemeMode(context, ThemeManager.MODE_DARK);
+            }
+        }
+        String themeAccent = values.get("theme_accent");
+        if (themeAccent != null) {
+            String normalized = themeAccent.trim().toLowerCase(Locale.US);
+            if (ThemeManager.presets().contains(normalized)
+                    || ThemeManager.ACCENT_CUSTOM.equals(normalized)) {
+                AppSettings.setThemeAccent(context, normalized);
+            }
+        }
+        String themeHex = values.get("theme_custom_hex");
+        if (themeHex != null) {
+            AppSettings.setThemeCustomHex(context,
+                    ThemeManager.normalizeHex(themeHex));
+        }
+
         Boolean updateChecks = bool(values, "update_checks");
         if (updateChecks != null) {
             UpdateManager.setEnabled(context, updateChecks);
@@ -186,6 +212,9 @@ final class PublicSettings {
 
         text.append("show_launcher_icon=")
                 .append(!AppSettings.isLauncherIconHidden(context)).append('\n');
+        text.append("theme_mode=").append(AppSettings.themeMode(context)).append('\n');
+        text.append("theme_accent=").append(AppSettings.themeAccent(context)).append('\n');
+        text.append("theme_custom_hex=").append(AppSettings.themeCustomHex(context)).append('\n');
         text.append("update_checks=")
                 .append(UpdateManager.isEnabled(context)).append('\n');
         text.append("update_mode=")

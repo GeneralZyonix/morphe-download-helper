@@ -52,6 +52,9 @@ final class AppSettings {
     private static final String KEY_SHOW_LAUNCHER_ICON = "show_launcher_icon";
     private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
     private static final String KEY_LIVE_ADGUARD = "live_adguard_checks";
+    private static final String KEY_THEME_MODE = "theme_mode";
+    private static final String KEY_THEME_ACCENT = "theme_accent";
+    private static final String KEY_THEME_CUSTOM_HEX = "theme_custom_hex";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
     private static final String KEY_VT_API_KEY = "virustotal_api_key";
@@ -181,6 +184,31 @@ final class AppSettings {
 
     static void setLiveAdGuardChecks(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_LIVE_ADGUARD, enabled).apply();
+    }
+
+    static String themeMode(Context context) {
+        return prefs(context).getString(KEY_THEME_MODE, ThemeManager.MODE_SYSTEM);
+    }
+
+    static void setThemeMode(Context context, String mode) {
+        prefs(context).edit().putString(KEY_THEME_MODE, mode).apply();
+    }
+
+    static String themeAccent(Context context) {
+        return prefs(context).getString(KEY_THEME_ACCENT, ThemeManager.ACCENT_AURORA);
+    }
+
+    static void setThemeAccent(Context context, String accent) {
+        prefs(context).edit().putString(KEY_THEME_ACCENT, accent).apply();
+    }
+
+    static String themeCustomHex(Context context) {
+        return prefs(context).getString(KEY_THEME_CUSTOM_HEX, "");
+    }
+
+    static void setThemeCustomHex(Context context, String hex) {
+        prefs(context).edit().putString(KEY_THEME_CUSTOM_HEX,
+                hex == null ? "" : hex).apply();
     }
 
     static boolean virusTotalEnabled(Context context) {

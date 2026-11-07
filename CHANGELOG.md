@@ -5,6 +5,50 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.0-beta.1] - 2026-11-07
+
+First public beta of the redesigned interface.
+
+### Added
+
+- New **Appearance** screen with **Dark**, **AMOLED**, **Light**, and
+  **Follow system** modes.
+- Accent presets: Original, Aurora, Mint, Forest, Gold, Sunset, Rose, Berry,
+  Ice, Ocean, and Mono.
+- **Material You** accent on Android 12+, using the device wallpaper colours.
+- Custom HEX accent with automatic light or dark button text for contrast.
+- Live preview and one-tap reset on the Appearance screen.
+- Collapsible Settings sections with icons: General, Updates, Download pages,
+  Sources, Storage, Security, and Background.
+- Redesigned Main screen with a hero action card, compact source list, and a
+  direct **Edit order** link.
+- Redesigned Download screen with a circular progress ring, live source steps,
+  and a clearer failure screen with retry, edit sources, and copy details.
+- French translations for the new UI.
+
+### Changed
+
+- **Follow system** is now the default theme. Reset returns to System + Aurora.
+- Source order and other settings save immediately; the Done button only closes
+  Settings.
+- Switches use a vivid checked state and a dimmed unchecked state.
+- Settings and Appearance keep their scroll position when the theme changes.
+- Dialogs, system bars, switches, progress indicators, and WebView chrome follow
+  the selected theme.
+- The Download screen hands the APK back to Morphe immediately on success.
+
+### Fixed
+
+- Settings and Appearance jumping to the top after a theme change.
+- The Reset appearance card only reacting when its title text was tapped.
+- Update action buttons becoming unreadable with light accent colours.
+
+### Notes
+
+- This is a pre-release for testing. Stable remains `v1.6.15`.
+- Includes the opt-in **Live AdGuard checks** and the 512 KB log cap from
+  `v1.6.16-beta.1`.
+
 ## [1.6.16-beta.1] - 2026-11-07
 
 ### Added

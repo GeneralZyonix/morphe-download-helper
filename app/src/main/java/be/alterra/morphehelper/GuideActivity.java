@@ -1,7 +1,6 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -19,17 +18,43 @@ import androidx.core.view.WindowInsetsCompat;
 /** In-app visual setup guide with the Morphe screenshots. */
 public class GuideActivity extends Activity {
 
-    private static final int BG_TOP = Color.parseColor("#0B1220");
-    private static final int BG_BOTTOM = Color.parseColor("#0F172A");
-    private static final int TEXT = Color.parseColor("#F8FAFC");
-    private static final int MUTED = Color.parseColor("#94A3B8");
-    private static final int STEPS = Color.parseColor("#CBD5E1");
+    private int BG_TOP;
+    private int BG_BOTTOM;
+    private int TEXT;
+    private int MUTED;
+    private int STEPS;
+    private int PRIMARY_START;
+    private int PRIMARY_END;
+    private int ON_PRIMARY;
+    private String themeSignature;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (themeSignature != null
+                && !themeSignature.equals(ThemeManager.signature(this))) {
+            recreate();
+        }
+    }
+
+    private void applyPalette() {
+        ThemePalette palette = ThemeManager.palette(this);
+        BG_TOP = palette.bgTop;
+        BG_BOTTOM = palette.bgBottom;
+        TEXT = palette.text;
+        MUTED = palette.muted;
+        STEPS = palette.steps;
+        PRIMARY_START = palette.primaryStart;
+        PRIMARY_END = palette.primaryEnd;
+        ON_PRIMARY = palette.onPrimary;
+        themeSignature = ThemeManager.signature(this);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(BG_TOP);
-        getWindow().setNavigationBarColor(BG_TOP);
+        PublicSettings.apply(this);
+        applyPalette();
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -80,6 +105,7 @@ public class GuideActivity extends Activity {
         root.addView(close, closeParams);
 
         setContentView(scroll);
+        ThemeManager.applySystemBars(this);
     }
 
     private void addStep(LinearLayout parent, String number, String heading, String body) {
@@ -88,10 +114,10 @@ public class GuideActivity extends Activity {
         row.setGravity(Gravity.TOP);
         row.setPadding(0, dp(18), 0, dp(8));
 
-        TextView badge = text(number, 14, Color.WHITE, true);
+        TextView badge = text(number, 14, ON_PRIMARY, true);
         badge.setGravity(Gravity.CENTER);
         GradientDrawable fill = new GradientDrawable();
-        fill.setColor(Color.parseColor("#4F46E5"));
+        fill.setColor(PRIMARY_END);
         fill.setCornerRadius(dp(16));
         badge.setBackground(fill);
         row.addView(badge, new LinearLayout.LayoutParams(dp(32), dp(32)));
@@ -132,12 +158,12 @@ public class GuideActivity extends Activity {
     }
 
     private TextView primaryButton(String label) {
-        TextView view = text(label, 16, Color.WHITE, true);
+        TextView view = text(label, 16, ON_PRIMARY, true);
         view.setGravity(Gravity.CENTER);
         view.setClickable(true);
         GradientDrawable fill = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.parseColor("#6366F1"), Color.parseColor("#4F46E5")});
+                new int[]{PRIMARY_START, PRIMARY_END});
         fill.setCornerRadius(dp(16));
         view.setBackground(fill);
         return view;
