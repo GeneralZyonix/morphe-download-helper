@@ -15,6 +15,8 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   short timeout, fails open, and falls back to the bundled list if AdGuard is
   unavailable. It sends the checked hostnames to AdGuard. Requested in
   [#18](https://github.com/GeneralZyonix/morphe-download-helper/issues/18).
+- The helper log is capped at 512 KB and keeps its most recent 128 KB, so a
+  long-running install cannot produce an unbounded log file.
 
 ## [1.6.15] - 2026-11-07
 
