@@ -830,14 +830,52 @@ public class SettingsActivity extends Activity {
         toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setBlockWebAds(this, isChecked);
             PublicSettings.write(this);
+            setWebPagesDetailsVisible(card, isChecked);
         });
         row.addView(toggle, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(row);
+
+        LinearLayout liveRow = new LinearLayout(this);
+        liveRow.setOrientation(LinearLayout.HORIZONTAL);
+        liveRow.setGravity(Gravity.CENTER_VERTICAL);
+        liveRow.setPadding(0, dp(8), 0, dp(8));
+
+        LinearLayout liveLabels = new LinearLayout(this);
+        liveLabels.setOrientation(LinearLayout.VERTICAL);
+        liveLabels.addView(text(getString(R.string.settings_live_adguard), 14, TEXT, true));
+        TextView liveDetail = text(
+                getString(R.string.settings_live_adguard_detail), 12, MUTED, false);
+        liveDetail.setLineSpacing(dp(2), 1f);
+        liveDetail.setPadding(0, dp(3), 0, 0);
+        liveLabels.addView(liveDetail);
+        liveRow.addView(liveLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch liveSwitch = new Switch(this);
+        liveSwitch.setChecked(AppSettings.liveAdGuardChecks(this));
+        liveSwitch.setThumbTintList(ColorStateList.valueOf(PRIMARY_START));
+        liveSwitch.setTrackTintList(ColorStateList.valueOf(Color.parseColor("#334155")));
+        liveSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setLiveAdGuardChecks(this, isChecked);
+            PublicSettings.write(this);
+        });
+        liveRow.addView(liveSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(liveRow);
 
         TextView note = text(getString(R.string.settings_block_ads_note), 11, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(4), 0, 0);
         card.addView(note);
+
+        setWebPagesDetailsVisible(card, AppSettings.blockWebAds(this));
+    }
+
+    /** Keeps the live-check row and note visible only while the master switch is on. */
+    private void setWebPagesDetailsVisible(LinearLayout card, boolean visible) {
+        int state = visible ? View.VISIBLE : View.GONE;
+        for (int i = 2; i < card.getChildCount(); i++) {
+            card.getChildAt(i).setVisibility(state);
+        }
     }
 
     /** Keeps the master switch visible and hides its dependent rows when off. */

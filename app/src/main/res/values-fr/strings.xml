@@ -99,6 +99,8 @@
     <string name="settings_web_pages">Pages de téléchargement</string>
     <string name="settings_block_ads">Bloquer les publicités et les traqueurs</string>
     <string name="settings_block_ads_detail">Bloque les hôtes publicitaires et de suivi connus dans les pages Uptodown, APKMirror et APKPure. Les hôtes Cloudflare et de captcha restent autorisés.</string>
+    <string name="settings_live_adguard">Vérifications AdGuard en direct</string>
+    <string name="settings_live_adguard_detail">Interroge AdGuard DNS pour les hôtes absents de la liste intégrée. Ajoute une requête par nouvel hôte et envoie ce nom d’hôte à AdGuard. Désactivé par défaut.</string>
     <string name="settings_block_ads_note">Si une page de vérification ne fonctionne plus, désactivez cette option et réessayez. Cela ne concerne que les pages ouvertes dans l’assistant.</string>
     <string name="settings_webview_hint">APKPure peut utiliser une WebView intégrée. Uptodown utilise une page de vérification intégrée.</string>
     <string name="settings_source_apkpure_desc">Chemin direct/API rapide, puis repli via WebView</string>

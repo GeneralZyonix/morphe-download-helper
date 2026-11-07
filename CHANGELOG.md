@@ -5,6 +5,17 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [1.6.16-beta.1] - 2026-11-07
+
+### Added
+
+- Optional **Live AdGuard checks** under **Settings → Download pages**. When the
+  bundled list does not know a host, the helper asks AdGuard DNS-over-HTTPS
+  whether it is blocked and caches the answer. It is off by default, uses a
+  short timeout, fails open, and falls back to the bundled list if AdGuard is
+  unavailable. It sends the checked hostnames to AdGuard. Requested in
+  [#18](https://github.com/GeneralZyonix/morphe-download-helper/issues/18).
+
 ## [1.6.15] - 2026-11-07
 
 ### Fixed

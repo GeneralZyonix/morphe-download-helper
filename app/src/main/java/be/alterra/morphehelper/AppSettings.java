@@ -51,6 +51,7 @@ final class AppSettings {
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_SHOW_LAUNCHER_ICON = "show_launcher_icon";
     private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
+    private static final String KEY_LIVE_ADGUARD = "live_adguard_checks";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
     private static final String KEY_VT_API_KEY = "virustotal_api_key";
@@ -171,6 +172,15 @@ final class AppSettings {
 
     static void setBlockWebAds(Context context, boolean block) {
         prefs(context).edit().putBoolean(KEY_BLOCK_WEB_ADS, block).apply();
+    }
+
+    /** True when unknown WebView hosts may be checked against AdGuard DoH. */
+    static boolean liveAdGuardChecks(Context context) {
+        return prefs(context).getBoolean(KEY_LIVE_ADGUARD, false);
+    }
+
+    static void setLiveAdGuardChecks(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_LIVE_ADGUARD, enabled).apply();
     }
 
     static boolean virusTotalEnabled(Context context) {

@@ -88,6 +88,8 @@
     <string name="settings_web_pages">Download pages</string>
     <string name="settings_block_ads">Block ads and trackers</string>
     <string name="settings_block_ads_detail">Blocks known ad and tracker hosts in the Uptodown, APKMirror, and APKPure pages. Cloudflare and captcha hosts stay allowed.</string>
+    <string name="settings_live_adguard">Live AdGuard checks</string>
+    <string name="settings_live_adguard_detail">Asks AdGuard DNS about hosts that are not in the bundled list. Adds one lookup per new host and sends that hostname to AdGuard. Off by default.</string>
     <string name="settings_block_ads_note">If a verification page stops working, turn this off and retry. It only affects pages opened inside the helper.</string>
     <string name="settings_source_apkpure_desc">Fast direct/API path, then WebView fallback</string>
     <string name="settings_source_fallback_title">Morphe fallback link</string>

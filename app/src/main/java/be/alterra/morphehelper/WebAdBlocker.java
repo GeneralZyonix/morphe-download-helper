@@ -3,6 +3,9 @@ package be.alterra.morphehelper;
 import android.content.Context;
 import android.webkit.WebResourceResponse;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -12,7 +15,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 /**
  * Lightweight blocker for the in-app source WebViews.
@@ -26,6 +38,19 @@ import java.util.Set;
 final class WebAdBlocker {
 
     private static final String ASSET = "ad_hosts.txt";
+    private static final String DOH_ENDPOINT = "https://dns.adguard-dns.com/resolve";
+    private static final long LIVE_BLOCK_TTL_MS = 30L * 60L * 1000L;
+    private static final long LIVE_ALLOW_TTL_MS = 10L * 60L * 1000L;
+    private static final long LIVE_DISABLED_MS = 60L * 1000L;
+    private static final int LIVE_CACHE_LIMIT = 512;
+
+    private static final OkHttpClient DOH_HTTP = new OkHttpClient.Builder()
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.SECONDS)
+            .callTimeout(3, TimeUnit.SECONDS)
+            .build();
 
     /**
      * Hosts that must never be blocked even if a future block-list entry would
@@ -54,6 +79,21 @@ final class WebAdBlocker {
     /** Parsed once; the asset is tiny but should not be read per request. */
     private static volatile Set<String> blockedHosts;
 
+    /** Live AdGuard answers, cached so a page does not repeat the same lookup. */
+    private static final Map<String, LiveEntry> liveCache = new ConcurrentHashMap<>();
+    private static final Map<String, Object> liveLocks = new ConcurrentHashMap<>();
+    private static volatile long liveDisabledUntil;
+
+    private static final class LiveEntry {
+        final boolean blocked;
+        final long expiresAt;
+
+        LiveEntry(boolean blocked, long expiresAt) {
+            this.blocked = blocked;
+            this.expiresAt = expiresAt;
+        }
+    }
+
     private WebAdBlocker() {
     }
 
@@ -64,6 +104,108 @@ final class WebAdBlocker {
             return false;
         }
         return matches(hosts(context), normalized);
+    }
+
+    /**
+     * Asks AdGuard's public DoH endpoint whether [host] is on its blocklist.
+     * The result is cached, and failures fail open so a page still loads.
+     */
+    static boolean shouldBlockLive(Context context, String host) {
+        String normalized = normalize(host);
+        if (normalized.isEmpty() || matches(ALLOWED, normalized)) {
+            return false;
+        }
+        if (matches(hosts(context), normalized)) {
+            return true;
+        }
+
+        long now = System.currentTimeMillis();
+        LiveEntry cached = liveCache.get(normalized);
+        if (cached != null && cached.expiresAt > now) {
+            return cached.blocked;
+        }
+        if (now < liveDisabledUntil) {
+            return false;
+        }
+
+        Object lock = liveLocks.computeIfAbsent(normalized, key -> new Object());
+        try {
+            synchronized (lock) {
+                now = System.currentTimeMillis();
+                cached = liveCache.get(normalized);
+                if (cached != null && cached.expiresAt > now) {
+                    return cached.blocked;
+                }
+                if (now < liveDisabledUntil) {
+                    return false;
+                }
+                boolean blocked = queryAdGuard(normalized);
+                HelperLog.info("Live AdGuard check " + normalized + " -> "
+                        + (blocked ? "blocked" : "allowed"));
+                long ttl = blocked ? LIVE_BLOCK_TTL_MS : LIVE_ALLOW_TTL_MS;
+                if (liveCache.size() > LIVE_CACHE_LIMIT) {
+                    liveCache.clear();
+                }
+                liveCache.put(normalized, new LiveEntry(blocked, now + ttl));
+                return blocked;
+            }
+        } finally {
+            liveLocks.remove(normalized, lock);
+        }
+    }
+
+    private static boolean queryAdGuard(String host) {
+        try {
+            HttpUrl url = HttpUrl.get(DOH_ENDPOINT).newBuilder()
+                    .addQueryParameter("name", host)
+                    .addQueryParameter("type", "A")
+                    .build();
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("Accept", "application/dns-json")
+                    .header("User-Agent", "Morphe-Download-Helper/1.6.15")
+                    .build();
+            try (Response response = DOH_HTTP.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    disableLive();
+                    return false;
+                }
+                ResponseBody body = response.body();
+                if (body == null) {
+                    disableLive();
+                    return false;
+                }
+                JSONObject root = new JSONObject(body.string());
+                if (root.optInt("Status", -1) != 0) {
+                    return false;
+                }
+                JSONArray answers = root.optJSONArray("Answer");
+                if (answers == null) {
+                    return false;
+                }
+                for (int i = 0; i < answers.length(); i++) {
+                    JSONObject answer = answers.optJSONObject(i);
+                    if (answer == null || answer.optInt("type", -1) != 1) {
+                        continue;
+                    }
+                    String data = answer.optString("data", "");
+                    if ("0.0.0.0".equals(data)
+                            || "::".equals(data)
+                            || "0:0:0:0:0:0:0:0".equals(data)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        } catch (Exception error) {
+            disableLive();
+            HelperLog.error("AdGuard DoH check failed for " + host, error);
+            return false;
+        }
+    }
+
+    private static void disableLive() {
+        liveDisabledUntil = System.currentTimeMillis() + LIVE_DISABLED_MS;
     }
 
     /** An empty resource used to stop an ad/tracker request without a network call. */

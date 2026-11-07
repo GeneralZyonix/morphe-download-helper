@@ -336,6 +336,9 @@ public class DownloadActivity extends Activity {
     /** True when the current WebView may block known ad/tracker hosts. */
     private volatile boolean blockWebAds;
 
+    /** True when unknown hosts may also be checked against AdGuard DoH. */
+    private volatile boolean liveAdGuard;
+
     /** Blocked request diagnostics for the current WebView flow. */
     private final Object adBlockLock = new Object();
     private final Set<String> blockedAdHosts = new HashSet<>();
@@ -778,6 +781,7 @@ public class DownloadActivity extends Activity {
         uptodownReloads = 0;
         cancelAdBlockRetry();
         blockWebAds = AppSettings.blockWebAds(this);
+        liveAdGuard = blockWebAds && AppSettings.liveAdGuardChecks(this);
         synchronized (adBlockLock) {
             blockedAdRequests = 0;
             blockedAdHosts.clear();
@@ -846,7 +850,9 @@ public class DownloadActivity extends Activity {
                     return null;
                 }
                 String host = request.getUrl().getHost();
-                if (WebAdBlocker.shouldBlock(DownloadActivity.this, host)) {
+                if (WebAdBlocker.shouldBlock(DownloadActivity.this, host)
+                        || (liveAdGuard && WebAdBlocker.shouldBlockLive(
+                        DownloadActivity.this, host))) {
                     recordBlockedAd(host);
                     return WebAdBlocker.emptyResponse();
                 }
@@ -1255,6 +1261,7 @@ public class DownloadActivity extends Activity {
                 return;
             }
             blockWebAds = false;
+            liveAdGuard = false;
             HelperLog.info(webSource
                     + " still busy; retrying once without ad blocking");
             web.loadUrl(webOriginalUrl);
