@@ -39,6 +39,11 @@ public class PatchPassLogoView extends View {
     private boolean light;
     private LinearGradient gradient;
 
+    private boolean previewMode;
+    private int previewStart;
+    private int previewEnd;
+    private boolean previewLight;
+
     public PatchPassLogoView(Context context) {
         super(context);
         init();
@@ -160,14 +165,31 @@ public class PatchPassLogoView extends View {
         canvas.restore();
     }
 
-    private void updateColors() {
-        ThemePalette palette = ThemeManager.palette(getContext());
-        light = palette.light;
+    /** Renders a specific accent pair, used by the Appearance scheme picker. */
+    public void setPreviewPalette(int start, int end, boolean light) {
+        previewMode = true;
+        previewStart = start;
+        previewEnd = end;
+        previewLight = light;
+        invalidate();
+    }
 
-        int[] colors = ThemeManager.accentColors(getContext(),
-                ThemeManager.accent(getContext()), AppSettings.themeCustomHex(getContext()));
-        int start = colors[0];
-        int end = colors[1];
+    private void updateColors() {
+        int start;
+        int end;
+        if (previewMode) {
+            light = previewLight;
+            start = previewStart;
+            end = previewEnd;
+        } else {
+            ThemePalette palette = ThemeManager.palette(getContext());
+            light = palette.light;
+            int[] colors = ThemeManager.accentColors(getContext(),
+                    ThemeManager.accent(getContext()),
+                    AppSettings.themeCustomHex(getContext()));
+            start = colors[0];
+            end = colors[1];
+        }
 
         float[] hsv = new float[3];
         Color.colorToHSV(start, hsv);

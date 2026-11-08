@@ -158,7 +158,19 @@ public class AppearanceActivity extends Activity {
         previewParams.topMargin = dp(12);
         card.addView(preview, previewParams);
 
-        preview.addView(text(getString(R.string.appearance_preview_title), 15, TEXT, true));
+        LinearLayout previewHeader = new LinearLayout(this);
+        previewHeader.setOrientation(LinearLayout.HORIZONTAL);
+        previewHeader.setGravity(Gravity.CENTER_VERTICAL);
+        PatchPassLogoView previewLogo = new PatchPassLogoView(this);
+        previewLogo.setContentDescription(getString(R.string.appearance_preview_title));
+        LinearLayout.LayoutParams previewLogoParams =
+                new LinearLayout.LayoutParams(dp(56), dp(56));
+        previewLogoParams.setMarginEnd(dp(12));
+        previewHeader.addView(previewLogo, previewLogoParams);
+        previewHeader.addView(
+                text(getString(R.string.appearance_preview_title), 15, TEXT, true),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        preview.addView(previewHeader);
         TextView body = text(getString(R.string.appearance_preview_body), 12, MUTED, false);
         body.setLineSpacing(dp(3), 1f);
         body.setPadding(0, dp(6), 0, dp(14));
@@ -563,16 +575,10 @@ public class AppearanceActivity extends Activity {
         option.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE), background, null));
 
-        View dot = new View(this);
-        if (ThemeManager.ACCENT_SCHEME.equals(accent)) {
-            dot.setBackground(new ColorWheelDrawable());
-        } else {
-            GradientDrawable dotBackground = new GradientDrawable(
-                    GradientDrawable.Orientation.LEFT_RIGHT, colors);
-            dotBackground.setShape(GradientDrawable.OVAL);
-            dot.setBackground(dotBackground);
-        }
-        option.addView(dot, new LinearLayout.LayoutParams(dp(22), dp(22)));
+        PatchPassLogoView logo = new PatchPassLogoView(this);
+        logo.setPreviewPalette(colors[0], colors[1], LIGHT);
+        logo.setContentDescription(getString(ThemeManager.accentLabel(accent)));
+        option.addView(logo, new LinearLayout.LayoutParams(dp(30), dp(30)));
 
         TextView label = text(getString(ThemeManager.accentLabel(accent)),
                 12, selected ? TEXT : MUTED, selected);
