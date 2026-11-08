@@ -162,9 +162,9 @@ public class MainActivity extends Activity {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
-        ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.ic_logo_mark);
-        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(56), dp(56));
+        PatchPassLogoView logo = new PatchPassLogoView(this);
+        logo.setContentDescription(getString(R.string.app_name));
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(64), dp(64));
         logoParams.setMarginEnd(dp(12));
         header.addView(logo, logoParams);
 

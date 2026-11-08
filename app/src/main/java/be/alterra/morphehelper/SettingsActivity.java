@@ -149,8 +149,8 @@ public class SettingsActivity extends Activity {
         boolean openSources = EXTRA_SECTION_SOURCES.equals(
                 getIntent().getStringExtra(EXTRA_SECTION));
 
-        ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.ic_logo_mark);
+        PatchPassLogoView logo = new PatchPassLogoView(this);
+        logo.setContentDescription(getString(R.string.app_name));
         LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(64), dp(64));
         logoParams.setMarginEnd(dp(14));
         header.addView(logo, logoParams);
