@@ -1,6 +1,7 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -19,12 +20,14 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
@@ -69,12 +72,16 @@ public class MainActivity extends Activity {
     private int MUTED;
     private int GREEN;
     private int FOOTER;
+    private int SWITCH_THUMB;
 
     // Amber warning palette used by the "Heads up" card.
     private int WARN_TITLE;
     private int WARN_TEXT;
 
     private String themeSignature;
+
+    /** Focused source manager dialog opened from Manage. */
+    private AlertDialog sourceDialog;
 
     /** Container rebuilt in onResume so it always matches the saved order. */
     private LinearLayout sourcesList;
@@ -109,6 +116,7 @@ public class MainActivity extends Activity {
         MUTED = palette.muted;
         GREEN = palette.green;
         FOOTER = palette.footer;
+        SWITCH_THUMB = palette.switchThumb;
         WARN_TITLE = palette.warnTitle;
         WARN_TEXT = palette.warnText;
         themeSignature = ThemeManager.signature(this);
@@ -311,10 +319,7 @@ public class MainActivity extends Activity {
                 ColorStateList.valueOf(RIPPLE), manageBackground, null));
         editOrder.setClickable(true);
         editOrder.setFocusable(true);
-        editOrder.setOnClickListener(v -> startActivity(new Intent(
-                this, SettingsActivity.class)
-                .putExtra(SettingsActivity.EXTRA_SECTION,
-                        SettingsActivity.EXTRA_SECTION_SOURCES)));
+        editOrder.setOnClickListener(v -> showSourceManager());
         sourcesHeader.addView(editOrder);
         sourcesCard.addView(sourcesHeader);
 
@@ -538,6 +543,186 @@ public class MainActivity extends Activity {
             sourcesList.addView(text(
                     getString(R.string.main_no_sources), 13, MUTED, false));
         }
+    }
+
+    private void showSourceManager() {
+        if (sourceDialog != null && sourceDialog.isShowing()) {
+            return;
+        }
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(4), dp(20), 0);
+
+        TextView hint = text(getString(R.string.source_manager_hint), 12, MUTED, false);
+        hint.setLineSpacing(dp(2), 1f);
+        hint.setPadding(0, 0, 0, dp(8));
+        content.addView(hint);
+
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(list, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(scroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(420)));
+        for (String key : sourceDisplayOrder()) {
+            list.addView(sourceManagerRow(key));
+            View divider = new View(this);
+            divider.setBackgroundColor(BORDER);
+            list.addView(divider, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+        }
+
+        TextView testAll = secondaryButton(getString(R.string.settings_test_all),
+                ACCENT_TEXT, SECONDARY_BORDER);
+        testAll.setOnClickListener(v -> testAllSources(testAll));
+        LinearLayout.LayoutParams testParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        testParams.topMargin = dp(12);
+        content.addView(testAll, testParams);
+
+        sourceDialog = ThemeManager.dialog(this)
+                .setTitle(R.string.main_sources_title)
+                .setView(content)
+                .setNegativeButton(R.string.common_done, null)
+                .show();
+    }
+
+    private View sourceManagerRow(String key) {
+        boolean enabled = SourceSettings.isEnabled(this, key);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(10), 0, dp(10));
+
+        View badge = SourceBadge.create(this, key);
+        row.addView(badge, new LinearLayout.LayoutParams(dp(34), dp(34)));
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPadding(dp(10), 0, dp(4), 0);
+        String name = SourceSettings.APPTEKA.equals(key)
+                ? getString(R.string.main_source_appteka)
+                : AppSettings.sourceLabel(this, key);
+        labels.addView(text(name, 14, enabled ? TEXT : MUTED, true));
+        String description = sourceDescription(key);
+        if (!description.isEmpty()) {
+            TextView detail = text(description, 11, enabled ? MUTED : FOOTER, false);
+            detail.setPadding(0, dp(2), 0, 0);
+            labels.addView(detail);
+        }
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        List<String> display = sourceDisplayOrder();
+        int index = display.indexOf(key);
+        TextView up = text("\u2191", 16, index > 0 ? PRIMARY_START : FOOTER, true);
+        up.setGravity(Gravity.CENTER);
+        up.setPadding(dp(5), dp(6), dp(5), dp(6));
+        up.setClickable(index > 0);
+        up.setOnClickListener(v -> moveSource(key, -1));
+        row.addView(up, new LinearLayout.LayoutParams(dp(26), dp(40)));
+        TextView down = text("\u2193", 16,
+                index >= 0 && index < display.size() - 1 ? PRIMARY_START : FOOTER, true);
+        down.setGravity(Gravity.CENTER);
+        down.setPadding(dp(5), dp(6), dp(5), dp(6));
+        down.setClickable(index >= 0 && index < display.size() - 1);
+        down.setOnClickListener(v -> moveSource(key, 1));
+        row.addView(down, new LinearLayout.LayoutParams(dp(26), dp(40)));
+
+        Switch toggle = new Switch(this);
+        toggle.setChecked(enabled);
+        styleSwitch(toggle);
+        toggle.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (!checked && SourceSettings.enabledCount(this) <= 1) {
+                buttonView.setChecked(true);
+                Toast.makeText(this, R.string.settings_min_one_source,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            SourceSettings.setEnabled(this, key, checked);
+            PublicSettings.write(this);
+            refreshSourceManager();
+        });
+        row.addView(toggle, new LinearLayout.LayoutParams(dp(60), dp(44)));
+        return row;
+    }
+
+    private void moveSource(String key, int delta) {
+        AppSettings.moveSource(this, key, delta);
+        PublicSettings.write(this);
+        refreshSourceManager();
+    }
+
+    private void refreshSourceManager() {
+        if (sourceDialog != null) {
+            sourceDialog.dismiss();
+            sourceDialog = null;
+        }
+        renderSources();
+        showSourceManager();
+    }
+
+    private List<String> sourceDisplayOrder() {
+        List<String> order = AppSettings.sourceOrder(this);
+        List<String> enabled = new ArrayList<>();
+        List<String> disabled = new ArrayList<>();
+        for (String key : order) {
+            if (SourceSettings.isEnabled(this, key)) {
+                enabled.add(key);
+            } else {
+                disabled.add(key);
+            }
+        }
+        enabled.addAll(disabled);
+        return enabled;
+    }
+
+    private void styleSwitch(Switch toggle) {
+        toggle.setThumbTintList(new ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                },
+                new int[]{SWITCH_THUMB, MUTED}
+        ));
+        toggle.setTrackTintList(new ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                },
+                new int[]{PRIMARY_START, SECONDARY_BORDER}
+        ));
+    }
+
+    private void testAllSources(TextView button) {
+        List<String> keys = AppSettings.sourceOrder(this);
+        if (keys.isEmpty()) {
+            return;
+        }
+        button.setEnabled(false);
+        button.setText(R.string.settings_testing_all);
+        int[] state = {0, 0, 0};
+        Runnable[] runner = new Runnable[1];
+        runner[0] = () -> {
+            if (state[2] >= keys.size()) {
+                button.setEnabled(true);
+                button.setText(R.string.settings_test_all);
+                Toast.makeText(this, getString(R.string.settings_test_all_result,
+                        state[0], state[1]), Toast.LENGTH_LONG).show();
+                return;
+            }
+            String key = keys.get(state[2]++);
+            SourceTester.test(this, key, (ok, message) -> runOnUiThread(() -> {
+                if (ok) {
+                    state[0]++;
+                } else {
+                    state[1]++;
+                }
+                runner[0].run();
+            }));
+        };
+        runner[0].run();
     }
 
     private void addSourceRow(String key, int position) {

@@ -997,6 +997,31 @@ public class SettingsActivity extends Activity {
                 .show();
     }
 
+    private void showVirusTotalDetectionDialog() {
+        String[] labels = {
+                getString(R.string.virustotal_action_ask),
+                getString(R.string.virustotal_action_block),
+                getString(R.string.virustotal_action_continue)
+        };
+        String[] values = {
+                AppSettings.VT_ACTION_ASK,
+                AppSettings.VT_ACTION_BLOCK,
+                AppSettings.VT_ACTION_CONTINUE
+        };
+        String current = AppSettings.virusTotalDetectionAction(this);
+        int selected = current.equals(AppSettings.VT_ACTION_BLOCK) ? 1
+                : current.equals(AppSettings.VT_ACTION_CONTINUE) ? 2 : 0;
+        ThemeManager.dialog(this)
+                .setTitle(R.string.virustotal_detection_action)
+                .setSingleChoiceItems(labels, selected, (dialog, which) -> {
+                    AppSettings.setVirusTotalDetectionAction(this, values[which]);
+                    PublicSettings.write(this);
+                    dialog.dismiss();
+                    recreate();
+                })
+                .show();
+    }
+
     private void addSecurityCard(LinearLayout card) {
         LinearLayout scanRow = new LinearLayout(this);
         scanRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -1034,30 +1059,33 @@ public class SettingsActivity extends Activity {
         keyRow.setOnClickListener(v -> showVirusTotalKeyDialog());
         card.addView(keyRow);
 
-        LinearLayout blockRow = new LinearLayout(this);
-        blockRow.setOrientation(LinearLayout.HORIZONTAL);
-        blockRow.setGravity(Gravity.CENTER_VERTICAL);
-        blockRow.setPadding(0, dp(8), 0, dp(8));
-        LinearLayout blockLabels = new LinearLayout(this);
-        blockLabels.setOrientation(LinearLayout.VERTICAL);
-        blockLabels.addView(text(getString(R.string.virustotal_block_detected),
+        LinearLayout detectionRow = new LinearLayout(this);
+        detectionRow.setOrientation(LinearLayout.HORIZONTAL);
+        detectionRow.setGravity(Gravity.CENTER_VERTICAL);
+        detectionRow.setPadding(0, dp(8), 0, dp(8));
+        detectionRow.setClickable(true);
+        detectionRow.setFocusable(true);
+        LinearLayout detectionLabels = new LinearLayout(this);
+        detectionLabels.setOrientation(LinearLayout.VERTICAL);
+        detectionLabels.addView(text(getString(R.string.virustotal_detection_action),
                 14, TEXT, true));
-        TextView blockDetail = text(getString(R.string.virustotal_block_detail),
+        TextView detectionDetail = text(getString(R.string.virustotal_detection_detail),
                 12, MUTED, false);
-        blockDetail.setPadding(0, dp(3), 0, 0);
-        blockLabels.addView(blockDetail);
-        blockRow.addView(blockLabels, new LinearLayout.LayoutParams(
+        detectionDetail.setPadding(0, dp(3), 0, 0);
+        detectionLabels.addView(detectionDetail);
+        detectionRow.addView(detectionLabels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        Switch blockSwitch = new Switch(this);
-        blockSwitch.setChecked(AppSettings.virusTotalBlockDetections(this));
-        styleSwitch(blockSwitch);
-        blockSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            AppSettings.setVirusTotalBlockDetections(this, isChecked);
-            PublicSettings.write(this);
-        });
-        blockRow.addView(blockSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
-        card.addView(blockRow);
+        TextView actionValue = text(getString(AppSettings.VT_ACTION_BLOCK.equals(
+                        AppSettings.virusTotalDetectionAction(this))
+                        ? R.string.virustotal_action_block
+                        : AppSettings.VT_ACTION_CONTINUE.equals(
+                                AppSettings.virusTotalDetectionAction(this))
+                                ? R.string.virustotal_action_continue
+                                : R.string.virustotal_action_ask),
+                12, ACCENT_TEXT, true);
+        detectionRow.addView(actionValue);
+        detectionRow.setOnClickListener(v -> showVirusTotalDetectionDialog());
+        card.addView(detectionRow);
 
         LinearLayout uploadRow = new LinearLayout(this);
         uploadRow.setOrientation(LinearLayout.HORIZONTAL);

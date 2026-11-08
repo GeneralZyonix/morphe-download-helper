@@ -5,6 +5,31 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.0-beta.5] - 2026-11-08
+
+Test beta completing the remaining follow-up work from beta.4.
+
+### Added
+
+- **Focused source manager on Main.** Manage now opens a dialog over the Main
+  screen with toggles, reordering arrows, and Test all sources. It no longer
+  opens the full Settings screen.
+- **Stop & switch source** now opens a source picker. Pick any enabled source
+  and the current attempt is cancelled and restarted from that source.
+- **VirusTotal detections** now has three modes: **Ask me**, **Always block**,
+  and **Always continue**. The default is Ask.
+- Detection results now include the names of flagged VirusTotal engines, with
+  the report link still available.
+- The progress ring now uses a gradient sweep and a rotating comet-style
+  indeterminate arc, closer to the Morphe updater.
+
+### Changed
+
+- Existing `virustotal_block_detections` settings migrate to the new three-way
+  setting.
+- Settings backup includes `virustotal_detection_action` while keeping the old
+  boolean for compatibility.
+
 ## [2.0.0-beta.4] - 2026-11-08
 
 Follow-up beta focused on safer downloads, source recovery, and theme polish.

@@ -9,6 +9,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.graphics.SweepGradient;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -321,6 +322,7 @@ public class DownloadActivity extends Activity {
     private volatile Call activeCall;
     private final Set<Call> activeCalls = Collections.synchronizedSet(new HashSet<>());
     private volatile boolean switchingSource;
+    private volatile String forcedSource;
 
     /** Label above the progress bar naming the active source. */
     private TextView sourceLabel;
@@ -680,12 +682,19 @@ public class DownloadActivity extends Activity {
                     return;
                 }
             } else if (scan.isDetection()) {
-                boolean block = AppSettings.virusTotalBlockDetections(this);
-                String message = getString(
-                        block ? R.string.virustotal_detected_block
-                                : R.string.virustotal_detected_continue,
-                        scan.message);
-                if (awaitResultDecision(message, scan) != DECISION_CONTINUE) {
+                String action = AppSettings.virusTotalDetectionAction(this);
+                if (AppSettings.VT_ACTION_BLOCK.equals(action)) {
+                    abortHandoff(file,
+                            getString(R.string.virustotal_blocked_reason, scan.message),
+                            getString(R.string.virustotal_blocked_signatures));
+                    return;
+                }
+                if (AppSettings.VT_ACTION_CONTINUE.equals(action)) {
+                    runOnUiThread(() -> setStatus(
+                            getString(R.string.virustotal_detected_continue, scan.message)));
+                } else if (awaitResultDecision(
+                        getString(R.string.virustotal_detected_ask, scan.message), scan)
+                        != DECISION_CONTINUE) {
                     abortHandoff(file,
                             getString(R.string.virustotal_blocked_reason, scan.message),
                             getString(R.string.virustotal_blocked_signatures));
@@ -1882,7 +1891,7 @@ public class DownloadActivity extends Activity {
 
         switchSourceButton = secondaryButton(getString(R.string.download_switch_source));
         switchSourceButton.setVisibility(View.GONE);
-        switchSourceButton.setOnClickListener(v -> stopAndSwitchSource());
+        switchSourceButton.setOnClickListener(v -> showSwitchSourcePicker());
         LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         switchParams.topMargin = dp(8);
@@ -1992,6 +2001,7 @@ public class DownloadActivity extends Activity {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF arc = new RectF();
         private int progressColor = PRIMARY_START;
+        private int progressEndColor = PRIMARY_END;
         private int trackColor = BORDER;
         private int progress = 0;
         private boolean indeterminate = true;
@@ -2001,7 +2011,7 @@ public class DownloadActivity extends Activity {
             super(context);
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeCap(Paint.Cap.ROUND);
-            paint.setStrokeWidth(dp(10));
+            paint.setStrokeWidth(dp(12));
         }
 
         void setProgress(int value) {
@@ -2035,12 +2045,17 @@ public class DownloadActivity extends Activity {
                     getWidth() - stroke / 2f, getHeight() - stroke / 2f);
 
             paint.setColor(trackColor);
+            paint.setShader(null);
             canvas.drawArc(arc, 0f, 360f, false, paint);
 
-            paint.setColor(progressColor);
+            float cx = getWidth() / 2f;
+            float cy = getHeight() / 2f;
+            paint.setShader(new SweepGradient(cx, cy,
+                    new int[]{progressColor, progressEndColor, progressColor}, null));
             if (indeterminate) {
-                canvas.drawArc(arc, angle, 80f, false, paint);
-                angle += 6f;
+                canvas.drawArc(arc, angle, 115f, false, paint);
+                canvas.drawArc(arc, angle + 180f, 55f, false, paint);
+                angle += 4f;
                 if (angle > 270f) {
                     angle -= 360f;
                 }
@@ -2048,6 +2063,7 @@ public class DownloadActivity extends Activity {
             } else {
                 canvas.drawArc(arc, -90f, 360f * progress / 100f, false, paint);
             }
+            paint.setShader(null);
         }
     }
 
@@ -2276,7 +2292,31 @@ public class DownloadActivity extends Activity {
         });
     }
 
-    private void stopAndSwitchSource() {
+    private void showSwitchSourcePicker() {
+        List<String> keys = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        for (String key : AppSettings.sourceOrder(this)) {
+            if (SourceSettings.isEnabled(this, key)) {
+                keys.add(key);
+                labels.add(AppSettings.sourceLabel(this, key));
+            }
+        }
+        if (keys.isEmpty()) {
+            return;
+        }
+        ThemeManager.dialog(this)
+                .setTitle(R.string.download_choose_source)
+                .setSingleChoiceItems(labels.toArray(new String[0]), -1,
+                        (dialog, which) -> {
+                            dialog.dismiss();
+                            switchToSource(keys.get(which));
+                        })
+                .show();
+    }
+
+    private void switchToSource(String key) {
+        forcedSource = key;
+        retrySources = null;
         switchingSource = true;
         setStatus(R.string.download_switching_source);
         Call call = activeCall;
@@ -2288,11 +2328,6 @@ public class DownloadActivity extends Activity {
         }
         cancelWebFlowTimeout();
         if (uptodownSection != null && uptodownSection.getVisibility() == View.VISIBLE) {
-            if ("uptodown".equals(webSource)) {
-                uptodownRejected = true;
-            } else if ("apkmirror".equals(webSource)) {
-                apkmirrorRejected = true;
-            }
             if (uptodownWebView != null) {
                 uptodownWebContainer.removeView(uptodownWebView);
                 uptodownWebView.destroy();
@@ -2301,8 +2336,6 @@ public class DownloadActivity extends Activity {
             uptodownSection.setVisibility(View.GONE);
             switchingSource = false;
             startResolution(false);
-        } else {
-            switchingSource = false;
         }
     }
 
@@ -2883,8 +2916,22 @@ public class DownloadActivity extends Activity {
                     + " for custom source order");
             GitHubAppStore.put(this, pkg, fallbackRepo, requestedAppName);
         }
-        for (String source : AppSettings.sourceOrder(this)) {
+        List<String> order = AppSettings.sourceOrder(this);
+        boolean forcedOnly = false;
+        for (int index = 0; index < order.size(); index++) {
+            String source = order.get(index);
+            boolean forced = false;
+            String wanted = forcedSource;
+            if (wanted != null) {
+                source = wanted;
+                forcedSource = null;
+                forced = true;
+                forcedOnly = true;
+            }
             if (!sourceAllowed(source)) {
+                if (forced) {
+                    break;
+                }
                 continue;
             }
             File file = null;
@@ -2906,6 +2953,10 @@ public class DownloadActivity extends Activity {
             if (file != null) {
                 return file;
             }
+            if (forced) {
+                switchingSource = false;
+                break;
+            }
         }
 
         // A package/version/signature rejection is not a network problem. Opening
@@ -2915,7 +2966,7 @@ public class DownloadActivity extends Activity {
             throw new IOException(verificationFailure);
         }
 
-        if (allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
+        if (!forcedOnly && allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
                 && (apkPureCanServe(fileType) || isSplitType(fileType))) {
             main.post(() -> {
                 setStatus(R.string.download_opening_apkpure);
@@ -4704,7 +4755,7 @@ public class DownloadActivity extends Activity {
             multiPart.delete();
             throw new IOException("Cancelled");
         }
-        if (switchingSource) {
+        if (switchingSource || forcedSource != null) {
             //noinspection ResultOfMethodCallIgnored
             multiPart.delete();
             throw new IOException("Switched source");
@@ -4737,7 +4788,7 @@ public class DownloadActivity extends Activity {
         long expected = end - start + 1;
         IOException last = null;
         for (int attempt = 0; attempt < 3; attempt++) {
-            if (switchingSource) {
+            if (switchingSource || forcedSource != null) {
                 throw new IOException("Switched source");
             }
             long written = 0;

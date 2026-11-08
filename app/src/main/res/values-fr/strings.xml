@@ -23,6 +23,7 @@
     <string name="main_hero_body">Morphe applique le patch. L’assistant trouve le bon build et le transfère.</string>
     <string name="main_edit_order">Modifier l’ordre</string>
     <string name="main_manage_sources">Gérer</string>
+    <string name="source_manager_hint">Les sources activées sont essayées en premier. Utilisez les flèches pour changer l’ordre ; les sources désactivées restent en bas.</string>
     <string name="settings_test_all">Tester toutes les sources</string>
     <string name="settings_testing_all">Test de toutes les sources…</string>
     <string name="settings_test_all_result">%1$d réussies, %2$d échouées.</string>
@@ -267,7 +268,8 @@
     <string name="download_open_page">Ouvrir la page de téléchargement</string>
     <string name="download_pause">Pause</string>
     <string name="download_switch_source">Arrêter et changer de source</string>
-    <string name="download_switching_source">Arrêt de la source actuelle et essai de la suivante...</string>
+    <string name="download_choose_source">Choisir une source</string>
+    <string name="download_switching_source">Arrêt de la source actuelle et changement...</string>
     <string name="download_resume">Reprendre</string>
     <string name="download_error_no_package">Morphe n’a pas envoyé de nom de paquet.</string>
     <string name="download_opening_uptodown">Ouverture d’Uptodown…</string>
@@ -449,6 +451,11 @@
     <string name="virustotal_configured">Configurée</string>
     <string name="virustotal_not_set">Non configurée</string>
     <string name="virustotal_block_detected">Bloquer les fichiers détectés</string>
+    <string name="virustotal_detection_action">Détections VirusTotal</string>
+    <string name="virustotal_detection_detail">Choisissez ce qui se passe lorsque l’analyse signale une détection.</string>
+    <string name="virustotal_action_ask">Me demander</string>
+    <string name="virustotal_action_block">Toujours bloquer</string>
+    <string name="virustotal_action_continue">Toujours continuer</string>
     <string name="virustotal_block_detail">Ne pas transmettre l’APK à Morphe</string>
     <string name="virustotal_upload_unknown">Envoyer les fichiers inconnus</string>
     <string name="virustotal_upload_unknown_detail">Si aucun hash n’est trouvé, envoyer l’APK pour analyse</string>
@@ -484,6 +491,7 @@
     <string name="virustotal_pending_reason">L’analyse VirusTotal est encore en attente&#160;; transmission abandonnée</string>
     <string name="virustotal_pending_status">L’analyse VirusTotal est encore en attente.</string>
     <string name="virustotal_detected_continue">VirusTotal&#160;: %1$s Poursuite malgré tout.</string>
+    <string name="virustotal_detected_ask">VirusTotal&#160;: %1$s Choisissez Continuer quand même ou Supprimer et annuler.</string>
     <string name="virustotal_detected_block">VirusTotal&#160;: %1$s Transmission bloquée.</string>
     <string name="virustotal_quota_aborting">Quota VirusTotal dépassé. Transmission abandonnée.</string>
     <string name="virustotal_clean_continue">VirusTotal&#160;: aucune détection. Poursuite...</string>

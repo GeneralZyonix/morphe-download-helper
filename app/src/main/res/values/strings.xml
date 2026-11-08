@@ -22,6 +22,7 @@
     <string name="main_hero_body">Morphe patches the app. The helper finds the right build and hands it over.</string>
     <string name="main_edit_order">Edit order</string>
     <string name="main_manage_sources">Manage</string>
+    <string name="source_manager_hint">Enabled sources are tried first. Use the arrows to reorder; disabled sources stay at the bottom.</string>
     <string name="settings_test_all">Test all sources</string>
     <string name="settings_testing_all">Testing all sources…</string>
     <string name="settings_test_all_result">%1$d passed, %2$d failed.</string>
@@ -278,7 +279,8 @@
     <string name="download_open_page">Open download page</string>
     <string name="download_pause">Pause</string>
     <string name="download_switch_source">Stop &amp; switch source</string>
-    <string name="download_switching_source">Stopping the current source and trying the next one...</string>
+    <string name="download_choose_source">Switch to source</string>
+    <string name="download_switching_source">Stopping the current source and switching...</string>
     <string name="download_resume">Resume</string>
     <string name="download_error_no_package">Morphe did not send a package name.</string>
     <string name="download_opening_uptodown">Opening Uptodown…</string>
@@ -465,6 +467,11 @@
     <string name="virustotal_configured">Configured</string>
     <string name="virustotal_not_set">Not set</string>
     <string name="virustotal_block_detected">Block detected files</string>
+    <string name="virustotal_detection_action">VirusTotal detections</string>
+    <string name="virustotal_detection_detail">Choose what happens when the scan reports a detection.</string>
+    <string name="virustotal_action_ask">Ask me</string>
+    <string name="virustotal_action_block">Always block</string>
+    <string name="virustotal_action_continue">Always continue</string>
     <string name="virustotal_block_detail">Stop handing the APK to Morphe</string>
     <string name="virustotal_upload_unknown">Upload unknown files</string>
     <string name="virustotal_upload_unknown_detail">If no hash is found, send the APK for analysis</string>
@@ -500,6 +507,7 @@
     <string name="virustotal_pending_reason">VirusTotal analysis still pending; handoff aborted</string>
     <string name="virustotal_pending_status">VirusTotal analysis still pending.</string>
     <string name="virustotal_detected_continue">VirusTotal: %1$s Continuing anyway.</string>
+    <string name="virustotal_detected_ask">VirusTotal: %1$s Choose Continue anyway or Delete and cancel.</string>
     <string name="virustotal_detected_block">VirusTotal: %1$s Blocking handoff.</string>
     <string name="virustotal_quota_aborting">VirusTotal quota exceeded. Aborting handoff.</string>
     <string name="virustotal_clean_continue">VirusTotal: no detections found. Continuing...</string>

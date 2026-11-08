@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.security.MessageDigest;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -426,7 +427,7 @@ final class VirusTotalScanner {
                 HelperLog.info("VirusTotal file report is older than this upload");
                 return null;
             }
-            return statsResult(hash, stats);
+            return statsResult(hash, attributes);
         } catch (Exception error) {
             HelperLog.error("VirusTotal file report poll failed", error);
             return null;
@@ -467,7 +468,7 @@ final class VirusTotalScanner {
             if ("completed".equalsIgnoreCase(state)) {
                 JSONObject stats = attributes.optJSONObject("stats");
                 if (stats != null) {
-                    return statsResult(hash, stats);
+                    return statsResult(hash, attributes);
                 }
             }
             return null;
@@ -488,14 +489,23 @@ final class VirusTotalScanner {
                 return new Result(Status.UNKNOWN, hash, 0, 0,
                         "VirusTotal returned no analysis yet.");
             }
-            return statsResult(hash, stats);
+            return statsResult(hash, attributes);
         } catch (Exception error) {
             return new Result(Status.ERROR, hash, 0, 0,
                     "VirusTotal response could not be parsed.");
         }
     }
 
-    private static Result statsResult(String hash, JSONObject stats) {
+    static Result statsResult(String hash, JSONObject attributes) {
+        JSONObject stats = attributes == null
+                ? null : attributes.optJSONObject("last_analysis_stats");
+        if (stats == null && attributes != null) {
+            stats = attributes.optJSONObject("stats");
+        }
+        if (stats == null) {
+            return new Result(Status.UNKNOWN, hash, 0, 0,
+                    "VirusTotal returned no analysis yet.");
+        }
         int malicious = stats.optInt("malicious", 0);
         int suspicious = stats.optInt("suspicious", 0);
         int harmless = stats.optInt("harmless", 0);
@@ -506,9 +516,50 @@ final class VirusTotalScanner {
                         + suspicious + " suspicious"
                 : "No detections (" + harmless + " harmless, "
                         + undetected + " undetected)";
+        if (detections > 0) {
+            String engines = engineDetails(attributes);
+            if (!engines.isEmpty()) {
+                summary += "\n" + engines;
+            }
+        }
         HelperLog.info("VirusTotal " + hash + ": " + summary);
         return new Result(detections > 0 ? Status.DETECTED : Status.CLEAN,
                 hash, malicious, suspicious, summary);
+    }
+
+    private static String engineDetails(JSONObject attributes) {
+        JSONObject results = attributes == null
+                ? null : attributes.optJSONObject("last_analysis_results");
+        if (results == null && attributes != null) {
+            results = attributes.optJSONObject("results");
+        }
+        if (results == null) {
+            return "";
+        }
+        StringBuilder text = new StringBuilder();
+        int count = 0;
+        Iterator<String> keys = results.keys();
+        while (keys.hasNext() && count < 6) {
+            String engine = keys.next();
+            JSONObject entry = results.optJSONObject(engine);
+            if (entry == null) {
+                continue;
+            }
+            String category = entry.optString("category", "");
+            if (!"malicious".equals(category) && !"suspicious".equals(category)) {
+                continue;
+            }
+            if (count > 0) {
+                text.append(", ");
+            }
+            text.append(engine);
+            String result = entry.optString("result", "").trim();
+            if (!result.isEmpty()) {
+                text.append(": ").append(result);
+            }
+            count++;
+        }
+        return text.length() == 0 ? "" : "Flagged by: " + text;
     }
 
     private static Result denied(String hash, String content, int code) {

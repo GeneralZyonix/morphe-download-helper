@@ -237,8 +237,13 @@ final class PublicSettings {
                 AppSettings::setLiveAdGuardChecks);
         applyBoolean(context, values, "virustotal_enabled",
                 AppSettings::setVirusTotalEnabled);
-        applyBoolean(context, values, "virustotal_block_detections",
-                AppSettings::setVirusTotalBlockDetections);
+        String detectionAction = values.get("virustotal_detection_action");
+        if (detectionAction != null) {
+            AppSettings.setVirusTotalDetectionAction(context, detectionAction);
+        } else {
+            applyBoolean(context, values, "virustotal_block_detections",
+                    AppSettings::setVirusTotalBlockDetections);
+        }
         applyBoolean(context, values, "virustotal_upload_unknown",
                 AppSettings::setVirusTotalUploadUnknown);
         applyBoolean(context, values, "virustotal_always_upload",
@@ -302,6 +307,8 @@ final class PublicSettings {
                 .append(AppSettings.liveAdGuardChecks(context)).append('\n');
         text.append("virustotal_enabled=")
                 .append(AppSettings.virusTotalEnabled(context)).append('\n');
+        text.append("virustotal_detection_action=")
+                .append(AppSettings.virusTotalDetectionAction(context)).append('\n');
         text.append("virustotal_block_detections=")
                 .append(AppSettings.virusTotalBlockDetections(context)).append('\n');
         text.append("virustotal_upload_unknown=")

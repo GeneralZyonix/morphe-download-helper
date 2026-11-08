@@ -62,6 +62,7 @@ final class AppSettings {
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
     private static final String KEY_VT_API_KEY = "virustotal_api_key";
     private static final String KEY_VT_BLOCK = "virustotal_block_detections";
+    private static final String KEY_VT_DETECTION_ACTION = "virustotal_detection_action";
     private static final String KEY_VT_QUOTA_ABORT = "virustotal_quota_abort";
     private static final String KEY_VT_UPLOAD_UNKNOWN = "virustotal_upload_unknown";
     private static final String KEY_VT_ALWAYS_UPLOAD = "virustotal_always_upload";
@@ -256,12 +257,39 @@ final class AppSettings {
                 apiKey == null ? "" : apiKey.trim()).apply();
     }
 
+    static final String VT_ACTION_ASK = "ask";
+    static final String VT_ACTION_BLOCK = "block";
+    static final String VT_ACTION_CONTINUE = "continue";
+
     static boolean virusTotalBlockDetections(Context context) {
-        return prefs(context).getBoolean(KEY_VT_BLOCK, true);
+        return VT_ACTION_BLOCK.equals(virusTotalDetectionAction(context));
     }
 
     static void setVirusTotalBlockDetections(Context context, boolean block) {
-        prefs(context).edit().putBoolean(KEY_VT_BLOCK, block).apply();
+        setVirusTotalDetectionAction(context,
+                block ? VT_ACTION_BLOCK : VT_ACTION_CONTINUE);
+    }
+
+    static String virusTotalDetectionAction(Context context) {
+        SharedPreferences preferences = prefs(context);
+        String value = preferences.getString(KEY_VT_DETECTION_ACTION, "");
+        if (VT_ACTION_ASK.equals(value)
+                || VT_ACTION_BLOCK.equals(value)
+                || VT_ACTION_CONTINUE.equals(value)) {
+            return value;
+        }
+        String migrated = preferences.contains(KEY_VT_BLOCK)
+                ? (preferences.getBoolean(KEY_VT_BLOCK, true)
+                        ? VT_ACTION_BLOCK : VT_ACTION_CONTINUE)
+                : VT_ACTION_ASK;
+        preferences.edit().putString(KEY_VT_DETECTION_ACTION, migrated).apply();
+        return migrated;
+    }
+
+    static void setVirusTotalDetectionAction(Context context, String action) {
+        String value = VT_ACTION_BLOCK.equals(action) || VT_ACTION_CONTINUE.equals(action)
+                ? action : VT_ACTION_ASK;
+        prefs(context).edit().putString(KEY_VT_DETECTION_ACTION, value).apply();
     }
 
     static boolean virusTotalAbortOnQuota(Context context) {
