@@ -11,9 +11,10 @@ Update reliability follow-up.
 
 ### Added
 
-- The Shizuku manager package is now configurable under Settings → Updates.
-  Renamed forks such as Shizuku Next can be detected while they hold a live
-  binder. Leave the field blank for the original Shizuku app.
+- The Shizuku manager package is now configurable under Settings → Updates for
+  forks that use a different package name (for example Shizuku+). Forks that
+  keep the original package, such as Shizuku Next, need no change. A live binder
+  is trusted first, so a running fork with permission granted is recognised.
 
 ### Fixed
 

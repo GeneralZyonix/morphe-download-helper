@@ -50,8 +50,8 @@ Please include:
 - Remembers successful GitHub repositories in Settings; each can be removed with one tap.
 - Keeps a structured, human-readable diagnostic log that can be shared from the app.
 - Built-in update checker with a changelog screen: notify me, or install silently through
-  Shizuku (renamed forks are supported with a configurable manager package) with an
-  optional battery-optimization exemption.
+  Shizuku. Forks that use a different package name are supported with a configurable
+  manager package, with an optional battery-optimization exemption.
 - Optional **VirusTotal hash check** before handing an APK to Morphe. Hash lookup is the
   default; uploading unknown files, always uploading, or falling back to upload when the
   lookup quota is exceeded are separate opt-in settings.

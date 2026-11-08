@@ -188,7 +188,7 @@
     <string name="settings_shizuku_note">Shizuku auto-update requires Shizuku to be installed, running, and approved. If it is unavailable, the helper falls back to a notification.</string>
     <string name="settings_shizuku_package">Shizuku app package</string>
     <string name="settings_shizuku_package_dialog_title">Shizuku app package</string>
-    <string name="settings_shizuku_package_dialog_message">Only needed for renamed Shizuku forks such as Shizuku Next. Leave blank for the original Shizuku app.</string>
+    <string name="settings_shizuku_package_dialog_message">Only needed when a Shizuku fork uses a different package name. Leave blank for the original app or forks that keep its package, such as Shizuku Next.</string>
     <string name="settings_shizuku_package_reset">Use default</string>
     <string name="settings_shizuku_package_save">Save</string>
     <string name="settings_shizuku_package_invalid">Enter a valid package name, for example moe.shizuku.privileged.api.</string>
