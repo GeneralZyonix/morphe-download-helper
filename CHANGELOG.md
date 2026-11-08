@@ -5,6 +5,22 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.0-beta.7] - 2026-11-08
+
+Update network follow-up for GitHub HTTP/2 failures.
+
+### Fixed
+
+- Update checks and downloads now use HTTP/1.1 for GitHub. Mobile networks that
+  reset HTTP/2 streams with `REFUSED_STREAM` no longer break **Check for
+  updates**.
+- Update checks retry up to three times with a short delay before reporting a
+  failure, matching the download retry behaviour.
+- If `api.github.com` is unavailable, update checks fall back to GitHub's release
+  Atom feed, so a working GitHub website is enough to find new versions.
+- Update check attempts are now written to the helper log so future failures are
+  easier to diagnose.
+
 ## [2.0.0-beta.6] - 2026-11-08
 
 Update reliability follow-up.
