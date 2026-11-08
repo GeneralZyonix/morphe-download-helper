@@ -568,9 +568,25 @@ public class UpdateActivity extends Activity {
                     status.setText(getString(R.string.update_error_failed, error.getMessage()));
                     progress.setVisibility(View.GONE);
                     actions.setVisibility(View.VISIBLE);
+                    actions.removeAllViews();
+                    addButton(getString(R.string.update_open_release_page),
+                            this::openReleasePage);
+                    addCloseButton(true);
                 });
             }
         }).start();
+    }
+
+    private void openReleasePage() {
+        if (info == null || info.releaseUrl.isEmpty()) {
+            return;
+        }
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse(info.releaseUrl)));
+        } catch (Exception error) {
+            HelperLog.error("Could not open release page", error);
+        }
     }
 
     private void installWithShizuku(UpdateManager.DownloadedUpdate update) {

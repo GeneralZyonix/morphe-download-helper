@@ -405,25 +405,46 @@ final class UpdateManager {
             throw new IOException("Cannot create update directory");
         }
         File local = new File(dir, "update.apk");
-        //noinspection ResultOfMethodCallIgnored
-        local.delete();
-        Request request = new Request.Builder()
-                .url(info.assetUrl)
-                .header("User-Agent", UpdateChecker.USER_AGENT)
-                .build();
-        try (Response response = HTTP.newCall(request).execute()) {
-            ResponseBody body = response.body();
-            if (!response.isSuccessful() || body == null) {
-                throw new IOException("Update download HTTP " + response.code());
-            }
-            try (InputStream input = body.byteStream();
-                 FileOutputStream stream = new FileOutputStream(local)) {
-                byte[] buffer = new byte[64 * 1024];
-                int read;
-                while ((read = input.read(buffer)) != -1) {
-                    stream.write(buffer, 0, read);
+        IOException last = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            //noinspection ResultOfMethodCallIgnored
+            local.delete();
+            Request request = new Request.Builder()
+                    .url(info.assetUrl)
+                    .header("User-Agent", UpdateChecker.USER_AGENT)
+                    .header("Accept", "application/octet-stream")
+                    .build();
+            try (Response response = HTTP.newCall(request).execute()) {
+                ResponseBody body = response.body();
+                if (!response.isSuccessful() || body == null) {
+                    throw new IOException("Update download HTTP " + response.code());
+                }
+                try (InputStream input = body.byteStream();
+                     FileOutputStream stream = new FileOutputStream(local)) {
+                    byte[] buffer = new byte[64 * 1024];
+                    int read;
+                    while ((read = input.read(buffer)) != -1) {
+                        stream.write(buffer, 0, read);
+                    }
+                }
+                last = null;
+                break;
+            } catch (IOException error) {
+                last = error;
+                HelperLog.info("Update download attempt " + (attempt + 1)
+                        + " failed: " + error.getMessage());
+                if (attempt < 2) {
+                    try {
+                        Thread.sleep(1500L * (attempt + 1));
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw error;
+                    }
                 }
             }
+        }
+        if (last != null) {
+            throw last;
         }
 
         Uri publicUri = null;

@@ -96,6 +96,7 @@
     <string name="update_installing_shizuku">Installation avec Shizuku…</string>
     <string name="update_opening_installer">Ouverture de l’installateur Android…</string>
     <string name="update_error_failed">Échec de la mise à jour&#160;: %1$s</string>
+    <string name="update_open_release_page">Ouvrir la page de publication</string>
     <string name="update_installed">Mise à jour installée. Rouvrez l’assistant.</string>
     <string name="update_error_shizuku">Échec de Shizuku&#160;: %1$s. Ouverture de l’installateur Android…</string>
     <string name="update_installer_opened">Installateur Android ouvert. Suivez les instructions.</string>
@@ -366,7 +367,7 @@
     <string name="update_msg_up_to_date">Vous êtes à jour (v%1$s).</string>
     <string name="update_msg_skipped">La mise à jour v%1$s est ignorée.</string>
     <string name="update_msg_snoozed">Le rappel de mise à jour est reporté.</string>
-    <string name="update_msg_found_installing">Mise à jour v%1$s trouvée. Installation avec Shizuku…</string>
+    <string name="update_msg_found_installing">Mise à jour v%1$s trouvée. Téléchargement pour l’installation avec Shizuku…</string>
     <string name="update_msg_available">Mise à jour v%1$s disponible.</string>
     <string name="update_msg_failed">Échec de la recherche de mise à jour&#160;: %1$s</string>
     <string name="notif_updated_title">Morphe Download Helper mis à jour</string>

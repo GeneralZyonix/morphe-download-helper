@@ -95,6 +95,7 @@
     <string name="update_installing_shizuku">Installing with Shizuku…</string>
     <string name="update_opening_installer">Opening Android installer…</string>
     <string name="update_error_failed">Update failed: %1$s</string>
+    <string name="update_open_release_page">Open release page</string>
     <string name="update_installed">Update installed. Reopen the helper.</string>
     <string name="update_error_shizuku">Shizuku failed: %1$s. Opening Android installer…</string>
     <string name="update_installer_opened">Android installer opened. Follow the prompt.</string>
@@ -377,7 +378,7 @@
     <string name="update_msg_up_to_date">You are up to date (v%1$s).</string>
     <string name="update_msg_skipped">Update v%1$s is skipped.</string>
     <string name="update_msg_snoozed">Update reminder is snoozed.</string>
-    <string name="update_msg_found_installing">Update v%1$s found. Installing with Shizuku…</string>
+    <string name="update_msg_found_installing">Update v%1$s found. Downloading it for Shizuku install…</string>
     <string name="update_msg_available">Update v%1$s available.</string>
     <string name="update_msg_failed">Update check failed: %1$s</string>
     <string name="update_popup_title">Update available</string>

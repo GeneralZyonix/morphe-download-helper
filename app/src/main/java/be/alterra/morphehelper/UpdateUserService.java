@@ -37,8 +37,10 @@ public class UpdateUserService extends IUpdateService.Stub {
             //noinspection ResultOfMethodCallIgnored
             STAGED.setReadable(true, false);
 
-            Process process = Runtime.getRuntime().exec(
-                    new String[]{"pm", "install", "-r", STAGED.getAbsolutePath()});
+            ProcessBuilder builder = new ProcessBuilder(
+                    "pm", "install", "-r", "--user", "0", STAGED.getAbsolutePath());
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
             StringBuilder output = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()))) {

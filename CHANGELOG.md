@@ -5,6 +5,22 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.0-beta.6] - 2026-11-08
+
+Update reliability follow-up.
+
+### Fixed
+
+- Update downloads now retry GitHub asset requests up to three times. A 504 from
+  GitHub’s release CDN no longer leaves the update stuck at “Installing with
+  Shizuku”.
+- The “found update” message now says it is downloading the APK for Shizuku,
+  rather than claiming installation has already started.
+- Failed update downloads now offer **Open release page** so the APK can be
+  downloaded manually.
+- The Shizuku installer now passes `--user 0`, merges stderr into the result,
+  and logs the `pm install` output for diagnosis.
+
 ## [2.0.0-beta.5] - 2026-11-08
 
 Test beta completing the remaining follow-up work from beta.4.
