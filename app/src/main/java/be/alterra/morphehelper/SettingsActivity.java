@@ -151,7 +151,7 @@ public class SettingsActivity extends Activity {
 
         PatchPassLogoView logo = new PatchPassLogoView(this);
         logo.setContentDescription(getString(R.string.app_name));
-        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(64), dp(64));
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(76), dp(76));
         logoParams.setMarginEnd(dp(14));
         header.addView(logo, logoParams);
 

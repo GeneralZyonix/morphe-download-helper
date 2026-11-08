@@ -24,6 +24,8 @@ import android.view.View;
 public class PatchPassLogoView extends View {
 
     private static final int VIEWBOX = 512;
+    /** The sticker fills more of the header slot without changing layout width. */
+    private static final float MARK_SCALE = 1.24f;
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -34,7 +36,6 @@ public class PatchPassLogoView extends View {
     private int startColor;
     private int endColor;
     private int stickerColor;
-    private int tagTextColor;
     private boolean light;
     private LinearGradient gradient;
 
@@ -71,6 +72,9 @@ public class PatchPassLogoView extends View {
         canvas.save();
         canvas.translate((getWidth() - size) / 2f, (getHeight() - size) / 2f);
         canvas.scale(scale, scale);
+        canvas.translate(256f, 256f);
+        canvas.scale(MARK_SCALE, MARK_SCALE);
+        canvas.translate(-256f, -256f);
         canvas.rotate(-4f, 256f, 256f);
 
         // Sticker shadow.
@@ -125,28 +129,33 @@ public class PatchPassLogoView extends View {
         canvas.drawLine(236f, 248f, 276f, 248f, stroke);
 
         // Tag shadow.
-        fill.setColor(0x47000000);
-        rect.set(163f, 370f, 355f, 422f);
-        canvas.drawRoundRect(rect, 26f, 26f, fill);
-
-        // Tag.
-        fill.setShader(gradient);
-        rect.set(160f, 362f, 352f, 414f);
-        canvas.drawRoundRect(rect, 26f, 26f, fill);
         fill.setShader(null);
+        fill.setColor(0x47000000);
+        rect.set(155f, 362f, 363f, 422f);
+        canvas.drawRoundRect(rect, 30f, 30f, fill);
+
+        // Tag: gradient, darkened for guaranteed white-text contrast.
+        fill.setShader(gradient);
+        rect.set(152f, 354f, 360f, 414f);
+        canvas.drawRoundRect(rect, 30f, 30f, fill);
+        fill.setShader(null);
+        fill.setColor(0x73000000);
+        canvas.drawRoundRect(rect, 30f, 30f, fill);
 
         // Subtle tag rim.
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(2f);
-        stroke.setColor(light ? 0x55FFFFFF : 0x55000000);
-        canvas.drawRoundRect(rect, 26f, 26f, stroke);
+        stroke.setColor(0x48FFFFFF);
+        canvas.drawRoundRect(rect, 30f, 30f, stroke);
 
         // Helper wordmark.
-        textPaint.setColor(tagTextColor);
-        textPaint.setTextSize(30f);
+        textPaint.setColor(Color.WHITE);
+        textPaint.setTextSize(40f);
+        textPaint.setShadowLayer(2f, 0f, 1f, 0x66000000);
         Paint.FontMetrics metrics = textPaint.getFontMetrics();
-        float baseline = 388f - (metrics.ascent + metrics.descent) / 2f;
+        float baseline = 384f - (metrics.ascent + metrics.descent) / 2f;
         canvas.drawText("helper", 256f, baseline, textPaint);
+        textPaint.clearShadowLayer();
 
         canvas.restore();
     }
@@ -185,14 +194,8 @@ public class PatchPassLogoView extends View {
         startColor = start;
         endColor = end;
         stickerColor = light ? Color.WHITE : 0xFF0B1220;
-        tagTextColor = contrastText(start, end);
         gradient = new LinearGradient(112f, 104f, 400f, 414f,
                 start, end, Shader.TileMode.CLAMP);
-    }
-
-    private static int contrastText(int start, int end) {
-        float average = (relativeLuminance(start) + relativeLuminance(end)) / 2f;
-        return average > 0.62f ? 0xFF0B1220 : 0xFFFFFFFF;
     }
 
     private static float relativeLuminance(int color) {
