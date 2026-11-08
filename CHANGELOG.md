@@ -5,6 +5,45 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.0-beta.4] - 2026-11-08
+
+Follow-up beta focused on safer downloads, source recovery, and theme polish.
+
+### Added
+
+- **Continue anyway / Delete and cancel** choices after a VirusTotal detection,
+  quota abort, or pending analysis. The fixed five-second wait is gone for clean
+  and unscanned results.
+- A **View on VirusTotal** link and a safer cancel confirmation when a validated
+  file already exists. Back during the result stage no longer deletes the file.
+- **Delete all downloaded APKs** on Main, with a confirmation dialog. Settings
+  backups are preserved.
+- **Expand all / Collapse all** in Settings and a focused Sources view when
+  opening **Manage** from Main.
+- **Stop & switch source** while downloading. It aborts the current attempt and
+  moves to the next enabled source.
+- Download details under the progress ring: package, version/build, format, ABI,
+  size, and whether the transfer used a single stream or multiple connections.
+
+### Changed
+
+- Theme surface tinting now respects the accent's saturation. **Mono** stays
+  neutral grey while **Ice** keeps its blue surfaces.
+- Uptodown CDN downloads use HTTP/1.1, avoiding HTTP/2 header stalls. DoH checks
+  fall back to Google DNS when the AdGuard certificate chain is rejected.
+- Retrying failed sources now re-includes the Morphe fallback when an Uptodown,
+  APKMirror, or APKPure sub-source failed.
+- The custom-scheme HEX field no longer leaves extra scroll space after the
+  keyboard is dismissed.
+- XAPK manifest/APK mismatches now name the field and both values.
+
+### Fixed
+
+- Back during the VirusTotal result message no longer cancels and deletes a
+  finished download.
+- Custom scheme scrolling no longer leaves the Settings page out of view.
+- Failed Uptodown web downloads no longer retry with “Sources tried: None”.
+
 ## [2.0.0-beta.3] - 2026-11-07
 
 Follow-up UI beta with transparent logos, richer themes, and a custom colour
