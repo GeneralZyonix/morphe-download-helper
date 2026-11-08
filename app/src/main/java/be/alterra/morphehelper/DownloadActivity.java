@@ -372,6 +372,8 @@ public class DownloadActivity extends Activity {
 
     /** Active WebView source: "uptodown" or "apkpure". */
     private String webSource;
+    /** Top-level source row that should show NOW while a WebView flow runs. */
+    private volatile String pendingSourceKey;
 
     /** True when the current WebView may block known ad/tracker hosts. */
     private volatile boolean blockWebAds;
@@ -554,6 +556,7 @@ public class DownloadActivity extends Activity {
         switchingSource = false;
         verificationFailure = null;
         webRetries = 0;
+        pendingSourceKey = null;
         String abi = (requestAbis != null && requestAbis.length > 0)
                 ? requestAbis[0] : "unknown";
         report = new ResolutionReport(this, requestedAppName, requestPkg, requestVersion,
@@ -880,6 +883,9 @@ public class DownloadActivity extends Activity {
     private void startWebFlow(String source, String url, String pkg, String version,
                               String fileType) {
         webSource = source;
+        pendingSourceKey = "uptodown".equals(source)
+                ? SourceSettings.FALLBACK : webSourceKey();
+        main.post(this::renderSourceSteps);
         setSourceLabel("apkpure".equals(source)
                 ? getString(R.string.source_label_apkpure_webview)
                 : "apkmirror".equals(source)
@@ -1070,7 +1076,6 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         uptodownSection.setVisibility(View.VISIBLE);
-        scrollView.post(() -> scrollView.smoothScrollTo(0, uptodownSection.getTop()));
         scheduleWebFlowTimeout(web);
         web.loadUrl(url);
         scheduleAdBlockRetry(web);
@@ -1335,7 +1340,7 @@ public class DownloadActivity extends Activity {
             }
             uptodownHandled = true;
             HelperLog.info(webSource + " timed out waiting for the download page");
-            markSource(webSourceKey(), false,
+            markWebFlowResult(false,
                     getString(R.string.download_error_page_timeout_detail));
             if (report != null) {
                 report.finishFailure(getString(R.string.download_error_page_timeout_detail));
@@ -1536,14 +1541,14 @@ public class DownloadActivity extends Activity {
                             downloadType,
                             cookie
                     );
-                    markSource(webSourceKey(), true, getString(R.string.source_detail_webview));
+                    markWebFlowResult(true, getString(R.string.source_detail_webview));
                     if (!cancelled) {
                         deliverFile(file);
                     }
                 } catch (Exception e) {
                     if (switchingSource) {
                         switchingSource = false;
-                        markSource(webSourceKey(), false,
+                        markWebFlowResult(false,
                                 getString(R.string.download_switching_source));
                         main.post(() -> startResolution(false));
                         return;
@@ -1562,13 +1567,13 @@ public class DownloadActivity extends Activity {
                         verificationFailure = e.getMessage();
                         HelperLog.info(webSourceName() + " build rejected: "
                                 + e.getMessage() + "; retrying other sources");
-                        markSource(webSourceKey(), false, e.getMessage());
+                        markWebFlowResult(false, e.getMessage());
                         if (cancelled) {
                             return;
                         }
                         main.post(() -> {
                             startResolution(false);
-                            markSource(webSourceKey(), false, e.getMessage());
+                            markWebFlowResult(false, e.getMessage());
                         });
                         return;
                     }
@@ -1581,7 +1586,7 @@ public class DownloadActivity extends Activity {
                                 uptodownPkg, uptodownVersion, uptodownFileType));
                         return;
                     }
-                    markSource(webSourceKey(), false, e.getMessage());
+                    markWebFlowResult(false, e.getMessage());
                     if (cancelled) {
                         return;
                     }
@@ -2354,6 +2359,24 @@ public class DownloadActivity extends Activity {
                     progress.getProgress(), false);
         }
     }
+    private void markWebFlowResult(boolean ok, String message) {
+        pendingSourceKey = null;
+        if ("uptodown".equals(webSource)) {
+            // Uptodown is reached through the Morphe link, so it shares that
+            // top-level row in the visible source list. Keep the sub-source in
+            // the report and health history without adding a second row.
+            if (report != null) {
+                report.record(SourceSettings.UPTODOWN, ok,
+                        message == null ? "" : message);
+            }
+            SourceHealth.record(this, SourceSettings.UPTODOWN, ok,
+                    message == null ? "" : message);
+            markSource(SourceSettings.FALLBACK, ok, message);
+        } else {
+            markSource(webSourceKey(), ok, message);
+        }
+    }
+
     private void markSource(String key, boolean ok, String message) {
         if (report != null) {
             report.record(key, ok, message);
@@ -2388,7 +2411,9 @@ public class DownloadActivity extends Activity {
                     break;
                 }
             }
-            boolean current = !finished && latest == null && !currentMarked;
+            boolean current = !finished && (pendingSourceKey != null
+                    ? pendingSourceKey.equals(key)
+                    : latest == null && !currentMarked);
             if (current) {
                 currentMarked = true;
             }
@@ -3070,7 +3095,6 @@ public class DownloadActivity extends Activity {
             setStatus(getString(R.string.download_resolver_found, host));
             if (isHost(host, "uptodown.com") && pathOf(url).trim().endsWith("-x")
                     && sourceAllowed(SourceSettings.UPTODOWN)) {
-                markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_opened_uptodown));
                 final String resolved = url;
                 main.post(() -> {
                     setStatus(R.string.download_opening_uptodown);
