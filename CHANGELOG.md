@@ -5,6 +5,46 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0] - 2026-11-08
+
+First stable release of the 2.0 redesign. Further fixes will be handled in a
+2.0.1 beta if needed.
+
+### Added
+
+- **Patch Pass launcher icon**, with adaptive foreground/background/monochrome
+  layers and a fixed cyan → purple → magenta palette.
+- **Theme-aware in-app logo**: the Main and Settings headers, the Appearance
+  preview, and each accent option render Patch Pass in the selected scheme.
+- Theme overhaul: AMOLED, light, dark, and system modes; accent presets, custom
+  scheme HEX, custom accent HEX, tinted surfaces, and consistent dialog/theming.
+- Focused source manager on Main, arbitrary **Stop & switch source** picker,
+  multi-connection downloads, detailed download information, and the
+  Morphe-style gradient progress ring.
+- VirusTotal three-way detection action (**Ask / Always block / Always
+  continue**), flagged engine names, report link, and explicit
+  **Continue anyway / Delete and cancel** decisions.
+- Shizuku fork support via a configurable manager package, with live-binder
+  status detection before package checks.
+- Update reliability: HTTP/1.1 GitHub traffic, retries, release-feed fallback,
+  raw-changelog fallback, and **Open release page**.
+- Uptodown WebView improvements: HTTP/1.1 CDN downloads, automatic cookie
+  banner rejection, no automatic scroll away from the download screen, and a
+  verification hint when the page is still waiting.
+- XAPK/APKS validation hardening and fixture tests, including manifest/APK
+  cross-checks and package checks for unversioned requests.
+
+### Fixed
+
+- Exact `versionCode` matching when Morphe supplies one, including APKMirror
+  and split-archive paths.
+- Retry failed sources re-includes the parent Morphe link after a failed
+  Uptodown/APKMirror/APKPure attempt.
+- Uptodown now keeps **Morphe link** marked as the active source instead of
+  advancing the list to APKMirror while the WebView is still working.
+- Automatic update checks and downloads no longer depend on a healthy
+  `api.github.com` or `github.com` connection.
+
 ## [2.0.0-beta.8] - 2026-11-08
 
 Update check recovery when GitHub's API and website are both unavailable.
