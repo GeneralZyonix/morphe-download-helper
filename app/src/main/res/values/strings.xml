@@ -504,6 +504,9 @@
     <string name="update_loading_versions">Loading versions...</string>
     <string name="update_versions_unavailable">Version history unavailable</string>
     <string name="update_choose_version">Choose a version</string>
+    <string name="update_version_limit">Only the 20 newest versions are shown.</string>
+    <string name="update_stable">Stable</string>
+    <string name="update_prerelease">Pre-release</string>
     <string name="update_release_notes_for">Release notes for v%1$s.</string>
     <string name="update_viewing_versions">Current v%1$s  •  Viewing v%2$s</string>
 

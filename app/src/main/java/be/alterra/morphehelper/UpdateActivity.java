@@ -3,15 +3,17 @@ package be.alterra.morphehelper;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
-import android.graphics.Color;
+import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -22,9 +24,12 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 public class UpdateActivity extends Activity {
+
+    private static final int MAX_VERSION_HISTORY = 20;
 
     public static final String EXTRA_METHOD = "method";
     public static final String EXTRA_CHANGELOG = "changelog";
@@ -36,6 +41,7 @@ public class UpdateActivity extends Activity {
     private TextView status;
     private TextView notesTitle;
     private TextView notes;
+    private LinearLayout notesCard;
     private ProgressBar progress;
     private LinearLayout actions;
     private UpdateInfo info;
@@ -47,6 +53,9 @@ public class UpdateActivity extends Activity {
 
     private int BG_TOP;
     private int BG_BOTTOM;
+    private int CARD_TOP;
+    private int CARD_BOTTOM;
+    private int BORDER;
     private int TEXT;
     private int MUTED;
     private int STEPS;
@@ -54,6 +63,7 @@ public class UpdateActivity extends Activity {
     private int PRIMARY_END;
     private int ON_PRIMARY;
     private int ACCENT_TEXT;
+    private int RIPPLE;
     private int SECONDARY;
     private int SECONDARY_BORDER;
     private String themeSignature;
@@ -71,6 +81,9 @@ public class UpdateActivity extends Activity {
         ThemePalette palette = ThemeManager.palette(this);
         BG_TOP = palette.bgTop;
         BG_BOTTOM = palette.bgBottom;
+        CARD_TOP = palette.cardTop;
+        CARD_BOTTOM = palette.cardBottom;
+        BORDER = palette.border;
         TEXT = palette.text;
         MUTED = palette.muted;
         STEPS = palette.steps;
@@ -78,6 +91,7 @@ public class UpdateActivity extends Activity {
         PRIMARY_END = palette.primaryEnd;
         ON_PRIMARY = palette.onPrimary;
         ACCENT_TEXT = palette.accentText;
+        RIPPLE = palette.ripple;
         SECONDARY = palette.secondary;
         SECONDARY_BORDER = palette.secondaryBorder;
         themeSignature = ThemeManager.signature(this);
@@ -89,6 +103,8 @@ public class UpdateActivity extends Activity {
         PublicSettings.apply(this);
         AppSettings.ensureLauncherIconState(this);
         applyPalette();
+
+        changelogOnly = getIntent().getBooleanExtra(EXTRA_CHANGELOG, false);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -111,60 +127,83 @@ public class UpdateActivity extends Activity {
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text(getString(R.string.app_name), 24, TEXT, true);
+        TextView title = text(getString(changelogOnly
+                ? R.string.settings_changelog : R.string.app_name), 24, TEXT, true);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
+        LinearLayout header = card();
+        root.addView(header, topMarginParams(18));
+
         version = text(getString(R.string.update_current_version), 14, MUTED, false);
         version.setGravity(Gravity.CENTER);
-        version.setPadding(0, dp(8), 0, 0);
-        root.addView(version);
+        header.addView(version);
 
         releasePicker = text("", 13, ACCENT_TEXT, true);
         releasePicker.setGravity(Gravity.CENTER);
-        releasePicker.setPadding(0, dp(8), 0, 0);
+        releasePicker.setSingleLine(true);
+        releasePicker.setPadding(dp(14), dp(8), dp(10), dp(8));
+        releasePicker.setCompoundDrawablesWithIntrinsicBounds(
+                0, 0, R.drawable.ic_chevron_right, 0);
+        releasePicker.setCompoundDrawablePadding(dp(2));
+        releasePicker.setCompoundDrawableTintList(ColorStateList.valueOf(ACCENT_TEXT));
+        GradientDrawable pickerBackground = rounded(SECONDARY, 12);
+        pickerBackground.setStroke(dp(1), SECONDARY_BORDER);
+        releasePicker.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), pickerBackground, null));
+        releasePicker.setClickable(true);
+        releasePicker.setFocusable(true);
         releasePicker.setVisibility(View.GONE);
         releasePicker.setOnClickListener(v -> showVersionPicker());
-        root.addView(releasePicker);
+        LinearLayout.LayoutParams pickerParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        pickerParams.gravity = Gravity.CENTER_HORIZONTAL;
+        pickerParams.topMargin = dp(10);
+        header.addView(releasePicker, pickerParams);
 
         status = text(getString(R.string.update_loading), 15, STEPS, false);
         status.setGravity(Gravity.CENTER);
-        status.setPadding(0, dp(18), 0, dp(12));
-        root.addView(status);
+        status.setPadding(0, dp(14), 0, dp(10));
+        header.addView(status);
 
         progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setIndeterminate(true);
-        progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(
-                PRIMARY_START));
-        progress.setProgressTintList(android.content.res.ColorStateList.valueOf(
-                PRIMARY_START));
-        progress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(
-                SECONDARY_BORDER));
-        root.addView(progress, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        progress.setIndeterminateTintList(ColorStateList.valueOf(PRIMARY_START));
+        progress.setProgressTintList(ColorStateList.valueOf(PRIMARY_START));
+        progress.setProgressBackgroundTintList(ColorStateList.valueOf(SECONDARY_BORDER));
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        progressParams.topMargin = dp(4);
+        header.addView(progress, progressParams);
 
-        actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.VERTICAL);
-        actions.setPadding(0, dp(12), 0, dp(6));
-        root.addView(actions, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
+        notesCard = card();
         notesTitle = text(getString(R.string.update_whats_new), 16, TEXT, true);
-        notesTitle.setPadding(0, dp(18), 0, dp(8));
+        notesTitle.setPadding(0, 0, 0, dp(8));
         notesTitle.setVisibility(View.GONE);
-        root.addView(notesTitle);
+        notesCard.addView(notesTitle);
 
         notes = text("", 14, STEPS, false);
         notes.setTextIsSelectable(true);
         notes.setLineSpacing(dp(4), 1f);
-        notes.setPadding(0, 0, 0, dp(12));
         notes.setVisibility(View.GONE);
-        root.addView(notes);
+        notesCard.addView(notes);
+        notesCard.setVisibility(View.GONE);
+
+        actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.VERTICAL);
+        actions.setVisibility(View.GONE);
+
+        if (changelogOnly) {
+            root.addView(notesCard, topMarginParams(12));
+            root.addView(actions, topMarginParams(12));
+        } else {
+            root.addView(actions, topMarginParams(12));
+            root.addView(notesCard, topMarginParams(12));
+        }
 
         setContentView(scroll);
         ThemeManager.applySystemBars(this);
 
-        changelogOnly = getIntent().getBooleanExtra(EXTRA_CHANGELOG, false);
         info = UpdateManager.cachedLatest(this);
         if (info == null) {
             loadLatest();
@@ -188,7 +227,7 @@ public class UpdateActivity extends Activity {
             progress.setVisibility(View.GONE);
             if (latest == null) {
                 status.setText(getString(R.string.update_error_loading, error));
-                addCloseButton();
+                addCloseButton(true);
                 return;
             }
             info = latest;
@@ -212,7 +251,9 @@ public class UpdateActivity extends Activity {
                 releasePicker.setEnabled(false);
                 return;
             }
-            releases = list;
+            releases = list.size() > MAX_VERSION_HISTORY
+                    ? new ArrayList<>(list.subList(0, MAX_VERSION_HISTORY))
+                    : list;
             updateReleasePicker();
         });
     }
@@ -230,8 +271,7 @@ public class UpdateActivity extends Activity {
             }
             return;
         }
-        releasePicker.setText(getString(R.string.update_change_version)
-                + "  \u203A");
+        releasePicker.setText(R.string.update_change_version);
         releasePicker.setEnabled(true);
     }
 
@@ -240,22 +280,88 @@ public class UpdateActivity extends Activity {
             loadReleaseHistory();
             return;
         }
-        String[] labels = new String[releases.size()];
         int selected = 0;
         for (int i = 0; i < releases.size(); i++) {
-            labels[i] = "v" + releases.get(i).version;
             if (info != null && releases.get(i).version.equals(info.version)) {
                 selected = i;
             }
         }
+        final int selectedIndex = selected;
+        BaseAdapter adapter = new BaseAdapter() {
+            @Override
+            public int getCount() {
+                return releases.size() + 1;
+            }
+
+            @Override
+            public Object getItem(int position) {
+                return position == 0 ? null : releases.get(position - 1);
+            }
+
+            @Override
+            public long getItemId(int position) {
+                return position;
+            }
+
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                if (position == 0) {
+                    TextView note = text(getString(R.string.update_version_limit),
+                            12, MUTED, false);
+                    note.setPadding(dp(20), dp(8), dp(12), dp(8));
+                    return note;
+                }
+                LinearLayout row = new LinearLayout(UpdateActivity.this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setMinimumHeight(dp(52));
+                row.setPadding(dp(20), dp(10), dp(12), dp(10));
+
+                int releaseIndex = position - 1;
+                UpdateInfo release = releases.get(releaseIndex);
+                row.addView(text("v" + release.version, 16, TEXT, false));
+
+                TextView pill = releasePill(UpdateInfo.isPrerelease(release.version));
+                LinearLayout.LayoutParams pillParams = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                pillParams.setMarginStart(dp(10));
+                row.addView(pill, pillParams);
+
+                row.addView(new View(UpdateActivity.this),
+                        new LinearLayout.LayoutParams(0, 1, 1f));
+
+                TextView check = text("\u2713", 14, ACCENT_TEXT, true);
+                check.setGravity(Gravity.CENTER);
+                check.setVisibility(releaseIndex == selectedIndex
+                        ? View.VISIBLE : View.INVISIBLE);
+                row.addView(check, new LinearLayout.LayoutParams(dp(24), dp(24)));
+                return row;
+            }
+        };
         ThemeManager.dialog(this)
                 .setTitle(R.string.update_choose_version)
-                .setSingleChoiceItems(labels, selected, (dialog, which) -> {
-                    info = releases.get(which);
+                .setAdapter(adapter, (dialog, which) -> {
+                    if (which <= 0 || which > releases.size()) {
+                        return;
+                    }
+                    info = releases.get(which - 1);
                     dialog.dismiss();
                     showInfo();
+                    updateReleasePicker();
                 })
                 .show();
+    }
+
+    private TextView releasePill(boolean prerelease) {
+        TextView pill = text(getString(prerelease
+                        ? R.string.update_prerelease : R.string.update_stable),
+                10, prerelease ? 0xFF1F1300 : 0xFFFFFFFF, true);
+        pill.setGravity(Gravity.CENTER);
+        pill.setSingleLine(true);
+        pill.setPadding(dp(8), dp(3), dp(8), dp(3));
+        pill.setBackground(rounded(prerelease ? 0xFFBF8700 : 0xFF1F883D, 50));
+        return pill;
     }
 
     private void showInfo() {
@@ -287,9 +393,11 @@ public class UpdateActivity extends Activity {
                     ? getString(R.string.update_whats_new_in, info.version)
                     : getString(R.string.update_whats_new));
             notes.setText(cleanNotes(info.notes));
+            notesCard.setVisibility(View.VISIBLE);
             notesTitle.setVisibility(View.VISIBLE);
             notes.setVisibility(View.VISIBLE);
         } else {
+            notesCard.setVisibility(View.GONE);
             notesTitle.setVisibility(View.GONE);
             notes.setVisibility(View.GONE);
             if (info.notes.isEmpty() && !loaded) {
@@ -313,8 +421,10 @@ public class UpdateActivity extends Activity {
     private void buildActions(boolean newer) {
         actions.removeAllViews();
         actions.setVisibility(View.VISIBLE);
-        if (newer && !info.assetUrl.isEmpty()) {
-            addButton(getString(R.string.update_install_normal), () -> startUpdate(false));
+        boolean install = newer && !info.assetUrl.isEmpty();
+        if (install) {
+            addPrimaryButton(getString(R.string.update_install_normal),
+                    () -> startUpdate(false));
             if (ShizukuHelper.status(this) == ShizukuHelper.READY) {
                 addButton(getString(R.string.update_install_shizuku), () -> startUpdate(true));
             }
@@ -329,30 +439,37 @@ public class UpdateActivity extends Activity {
                 finish();
             });
         }
-        addCloseButton();
+        addCloseButton(!install);
     }
 
-    private void addCloseButton() {
-        addButton(getString(R.string.common_close), this::finish);
+    private void addCloseButton(boolean primary) {
+        if (primary) {
+            addPrimaryButton(getString(R.string.common_close), this::finish);
+        } else {
+            addButton(getString(R.string.common_close), this::finish);
+        }
     }
 
     private String cleanNotes(String value) {
         return value.replace("\r\n", "\n")
                 .replaceAll("(?m)^#{1,6}\\s*", "")
+                .replaceAll("\\[([^\\]]+)\\]\\([^)]+\\)", "$1")
                 .replace("**", "")
                 .replace("__", "")
+                .replace("`", "")
+                .replaceAll("(?m)^- ", "• ")
+                .replaceAll("\\n{3,}", "\n\n")
                 .trim();
     }
 
     private void addButton(String label, Runnable action) {
-        TextView button = text(label, 16, TEXT, true);
+        TextView button = text(label, 15, TEXT, true);
         button.setGravity(Gravity.CENTER);
         button.setPadding(dp(16), dp(14), dp(16), dp(14));
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(SECONDARY);
-        background.setCornerRadius(dp(14));
+        GradientDrawable background = rounded(SECONDARY, 14);
         background.setStroke(dp(1), SECONDARY_BORDER);
-        button.setBackground(background);
+        button.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), background, null));
         button.setClickable(true);
         button.setFocusable(true);
         button.setOnClickListener(v -> action.run());
@@ -360,6 +477,57 @@ public class UpdateActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
         params.topMargin = dp(8);
         actions.addView(button, params);
+    }
+
+    private void addPrimaryButton(String label, Runnable action) {
+        TextView button = text(label, 16, ON_PRIMARY, true);
+        button.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(16), dp(14), dp(16), dp(14));
+        GradientDrawable fill = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{PRIMARY_START, PRIMARY_END});
+        fill.setCornerRadius(dp(16));
+        button.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(0x33FFFFFF), fill, null));
+        button.setClickable(true);
+        button.setFocusable(true);
+        button.setOnClickListener(v -> action.run());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        params.topMargin = dp(8);
+        actions.addView(button, params);
+    }
+
+    private LinearLayout card() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(cardBackground());
+        return card;
+    }
+
+    private GradientDrawable cardBackground() {
+        GradientDrawable background = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{CARD_TOP, CARD_BOTTOM});
+        background.setCornerRadius(dp(20));
+        background.setStroke(dp(1), BORDER);
+        return background;
+    }
+
+    private GradientDrawable rounded(int color, int radiusDp) {
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(color);
+        background.setCornerRadius(dp(radiusDp));
+        return background;
+    }
+
+    private LinearLayout.LayoutParams topMarginParams(int topMarginDp) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(topMarginDp);
+        return params;
     }
 
     private void startUpdate(boolean useShizuku) {

@@ -234,7 +234,7 @@ final class UpdateManager {
     static void fetchReleasesAsync(ReleasesCallback callback) {
         new Thread(() -> {
             try {
-                List<UpdateInfo> releases = UpdateChecker.releases();
+                List<UpdateInfo> releases = UpdateChecker.releases(true);
                 MAIN.post(() -> callback.done(releases, null));
             } catch (Exception error) {
                 HelperLog.error("Could not load release history", error);

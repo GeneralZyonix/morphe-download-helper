@@ -99,6 +99,9 @@
     <string name="update_loading_versions">Chargement des versions…</string>
     <string name="update_versions_unavailable">Historique des versions indisponible</string>
     <string name="update_choose_version">Choisir une version</string>
+    <string name="update_version_limit">Seules les 20 versions les plus récentes sont affichées.</string>
+    <string name="update_stable">Stable</string>
+    <string name="update_prerelease">Pré-version</string>
     <string name="update_release_notes_for">Notes de version de la v%1$s.</string>
     <string name="update_viewing_versions">Actuelle&#160;: v%1$s  •  Consultation&#160;: v%2$s</string>
     <string name="update_popup_title">Mise à jour disponible</string>
