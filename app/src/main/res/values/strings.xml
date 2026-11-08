@@ -186,6 +186,12 @@
     <string name="settings_changelog">Changelog</string>
     <string name="settings_view_update">View update v%1$s</string>
     <string name="settings_shizuku_note">Shizuku auto-update requires Shizuku to be installed, running, and approved. If it is unavailable, the helper falls back to a notification.</string>
+    <string name="settings_shizuku_package">Shizuku app package</string>
+    <string name="settings_shizuku_package_dialog_title">Shizuku app package</string>
+    <string name="settings_shizuku_package_dialog_message">Only needed for renamed Shizuku forks such as Shizuku Next. Leave blank for the original Shizuku app.</string>
+    <string name="settings_shizuku_package_reset">Use default</string>
+    <string name="settings_shizuku_package_save">Save</string>
+    <string name="settings_shizuku_package_invalid">Enter a valid package name, for example moe.shizuku.privileged.api.</string>
     <string name="settings_background">Background</string>
     <string name="settings_battery_optimization">Battery optimization</string>
     <string name="settings_battery_unrestricted">Unrestricted</string>

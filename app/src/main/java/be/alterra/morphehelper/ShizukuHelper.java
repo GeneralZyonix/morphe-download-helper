@@ -30,23 +30,51 @@ final class ShizukuHelper {
     }
 
     static boolean isInstalled(Context context) {
+        if (pingBinder()) {
+            return true;
+        }
+        String configured = AppSettings.shizukuPackage(context);
+        if (packageExists(context, configured)) {
+            return true;
+        }
+        return !AppSettings.SHIZUKU_PACKAGE.equals(configured)
+                && packageExists(context, AppSettings.SHIZUKU_PACKAGE);
+    }
+
+    private static boolean packageExists(Context context, String packageName) {
         try {
-            context.getPackageManager().getPackageInfo(
-                    "moe.shizuku.privileged.api", 0);
+            context.getPackageManager().getPackageInfo(packageName, 0);
             return true;
         } catch (Exception ignored) {
             return false;
         }
     }
 
+    private static boolean pingBinder() {
+        try {
+            return Shizuku.pingBinder();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** Package that should be opened to start or configure Shizuku. */
+    static String managerPackage(Context context) {
+        String configured = AppSettings.shizukuPackage(context);
+        if (packageExists(context, configured)) {
+            return configured;
+        }
+        return AppSettings.SHIZUKU_PACKAGE;
+    }
+
     static int status(Context context) {
-        if (!isInstalled(context)) {
-            return NOT_INSTALLED;
+        // A renamed fork (for example Shizuku Next) can hold a live binder
+        // under a different package name. Trust the binder first; the package
+        // name only tells us whether Shizuku is installed when nothing runs.
+        if (!pingBinder()) {
+            return isInstalled(context) ? NOT_RUNNING : NOT_INSTALLED;
         }
         try {
-            if (!Shizuku.pingBinder()) {
-                return NOT_RUNNING;
-            }
             if (Shizuku.isPreV11()) {
                 return UNSUPPORTED;
             }

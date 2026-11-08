@@ -43,6 +43,9 @@ final class AppSettings {
 
     static final String SNAPTUBE_PACKAGE = "com.snaptube.premium";
 
+    /** Package name of the original Shizuku app; forks can be configured instead. */
+    static final String SHIZUKU_PACKAGE = "moe.shizuku.privileged.api";
+
     private static final String PREFS = "app_settings";
     private static final String KEY_LOCATION = "download_location";
     private static final String KEY_CUSTOM_TREE = "custom_tree_uri";
@@ -58,6 +61,7 @@ final class AppSettings {
     private static final String KEY_THEME_CUSTOM_HEX = "theme_custom_hex";
     private static final String KEY_THEME_SCHEME_HEX = "theme_scheme_hex";
     private static final String KEY_THEME_TINT_SURFACES = "theme_tint_surfaces";
+    private static final String KEY_SHIZUKU_PACKAGE = "shizuku_package";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
     private static final String KEY_VT_API_KEY = "virustotal_api_key";
@@ -238,6 +242,55 @@ final class AppSettings {
 
     static void setThemeTintSurfaces(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_THEME_TINT_SURFACES, enabled).apply();
+    }
+
+    /**
+     * Package name of the Shizuku manager. Renamed forks such as Shizuku Next
+     * use their own package, so this is configurable.
+     */
+    static String shizukuPackage(Context context) {
+        String value = prefs(context).getString(KEY_SHIZUKU_PACKAGE, "");
+        value = value == null ? "" : value.trim();
+        return value.isEmpty() ? SHIZUKU_PACKAGE : value;
+    }
+
+    static void setShizukuPackage(Context context, String packageName) {
+        String value = packageName == null ? "" : packageName.trim();
+        if (value.isEmpty() || SHIZUKU_PACKAGE.equals(value)) {
+            prefs(context).edit().remove(KEY_SHIZUKU_PACKAGE).apply();
+        } else {
+            prefs(context).edit().putString(KEY_SHIZUKU_PACKAGE, value).apply();
+        }
+    }
+
+    static boolean isValidPackageName(String packageName) {
+        if (packageName == null) {
+            return false;
+        }
+        String value = packageName.trim();
+        if (value.length() < 3 || value.length() > 255) {
+            return false;
+        }
+        String[] segments = value.split("\\.", -1);
+        if (segments.length < 2) {
+            return false;
+        }
+        for (String segment : segments) {
+            if (segment.isEmpty()) {
+                return false;
+            }
+            char first = segment.charAt(0);
+            if (!Character.isLetter(first) && first != '_') {
+                return false;
+            }
+            for (int i = 1; i < segment.length(); i++) {
+                char c = segment.charAt(i);
+                if (!Character.isLetterOrDigit(c) && c != '_') {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     static boolean virusTotalEnabled(Context context) {

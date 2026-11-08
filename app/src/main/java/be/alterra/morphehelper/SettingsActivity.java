@@ -836,6 +836,12 @@ public class SettingsActivity extends Activity {
         shizukuRow.setOnClickListener(v -> requestShizukuMode());
         card.addView(shizukuRow);
 
+        LinearLayout packageRow = settingRow(
+                getString(R.string.settings_shizuku_package),
+                AppSettings.shizukuPackage(this));
+        packageRow.setOnClickListener(v -> showShizukuPackageDialog());
+        card.addView(packageRow);
+
         TextView check = actionButton(getString(R.string.settings_check_now), PRIMARY_START);
         check.setOnClickListener(v -> {
             Toast.makeText(this, R.string.settings_checking, Toast.LENGTH_SHORT).show();
@@ -1322,6 +1328,41 @@ public class SettingsActivity extends Activity {
                 .show();
     }
 
+    private void showShizukuPackageDialog() {
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        input.setSingleLine(true);
+        input.setHint(AppSettings.SHIZUKU_PACKAGE);
+        String current = AppSettings.shizukuPackage(this);
+        input.setText(AppSettings.SHIZUKU_PACKAGE.equals(current) ? "" : current);
+        input.setSelection(input.getText().length());
+        int padding = dp(16);
+        input.setPadding(padding, padding, padding, padding);
+
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_shizuku_package_dialog_title)
+                .setMessage(R.string.settings_shizuku_package_dialog_message)
+                .setView(input)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setNeutralButton(R.string.settings_shizuku_package_reset, (dialog, which) -> {
+                    AppSettings.setShizukuPackage(this, "");
+                    PublicSettings.write(this);
+                    recreate();
+                })
+                .setPositiveButton(R.string.settings_shizuku_package_save, (dialog, which) -> {
+                    String value = input.getText().toString().trim();
+                    if (!value.isEmpty() && !AppSettings.isValidPackageName(value)) {
+                        Toast.makeText(this, R.string.settings_shizuku_package_invalid,
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    AppSettings.setShizukuPackage(this, value);
+                    PublicSettings.write(this);
+                    recreate();
+                })
+                .show();
+    }
+
     private void requestShizukuMode() {
         int status = ShizukuHelper.status(this);
         if (status == ShizukuHelper.READY) {
@@ -1376,7 +1417,7 @@ public class SettingsActivity extends Activity {
 
     private void openShizuku() {
         Intent launch = getPackageManager()
-                .getLaunchIntentForPackage("moe.shizuku.privileged.api");
+                .getLaunchIntentForPackage(ShizukuHelper.managerPackage(this));
         if (launch != null) {
             startActivity(launch);
         } else {

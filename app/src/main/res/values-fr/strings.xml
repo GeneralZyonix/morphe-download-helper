@@ -175,6 +175,12 @@
     <string name="settings_changelog">Journal des modifications</string>
     <string name="settings_view_update">Voir la mise à jour v%1$s</string>
     <string name="settings_shizuku_note">La mise à jour automatique via Shizuku exige que Shizuku soit installé, démarré et autorisé. S’il est indisponible, l’assistant revient à une notification.</string>
+    <string name="settings_shizuku_package">Paquet de l’application Shizuku</string>
+    <string name="settings_shizuku_package_dialog_title">Paquet de l’application Shizuku</string>
+    <string name="settings_shizuku_package_dialog_message">Nécessaire uniquement pour les forks renommés de Shizuku, comme Shizuku Next. Laissez vide pour l’application Shizuku d’origine.</string>
+    <string name="settings_shizuku_package_reset">Utiliser par défaut</string>
+    <string name="settings_shizuku_package_save">Enregistrer</string>
+    <string name="settings_shizuku_package_invalid">Saisissez un nom de paquet valide, par exemple moe.shizuku.privileged.api.</string>
     <string name="settings_background">Arrière-plan</string>
     <string name="settings_battery_optimization">Optimisation de la batterie</string>
     <string name="settings_battery_unrestricted">Sans restriction</string>

@@ -9,12 +9,20 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 
 Update reliability follow-up.
 
+### Added
+
+- The Shizuku manager package is now configurable under Settings → Updates.
+  Renamed forks such as Shizuku Next can be detected while they hold a live
+  binder. Leave the field blank for the original Shizuku app.
+
 ### Fixed
 
+- Shizuku status now trusts a live Shizuku binder before checking the manager
+  package name, so a renamed fork is recognised even though its package differs.
 - Update downloads now retry GitHub asset requests up to three times. A 504 from
-  GitHub’s release CDN no longer leaves the update stuck at “Installing with
-  Shizuku”.
-- The “found update” message now says it is downloading the APK for Shizuku,
+  GitHub's release CDN no longer leaves the update stuck at "Installing with
+  Shizuku".
+- The "found update" message now says it is downloading the APK for Shizuku,
   rather than claiming installation has already started.
 - Failed update downloads now offer **Open release page** so the APK can be
   downloaded manually.

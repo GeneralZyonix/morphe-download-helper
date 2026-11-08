@@ -164,6 +164,15 @@ final class PublicSettings {
         } else if ("shizuku".equalsIgnoreCase(updateMode)) {
             UpdateManager.setMode(context, UpdateManager.MODE_SHIZUKU);
         }
+        String shizukuPackage = values.get("shizuku_package");
+        if (shizukuPackage != null) {
+            String trimmed = shizukuPackage.trim();
+            if (trimmed.isEmpty() || AppSettings.isValidPackageName(trimmed)) {
+                AppSettings.setShizukuPackage(context, trimmed);
+            } else {
+                HelperLog.info("Ignoring invalid public setting shizuku_package=" + trimmed);
+            }
+        }
         Boolean updatePopup = bool(values, "update_popup");
         if (updatePopup != null) {
             UpdateManager.setInAppPopupEnabled(context, updatePopup);
@@ -289,7 +298,9 @@ final class PublicSettings {
         text.append("update_mode=")
                 .append(UpdateManager.mode(context)).append('\n');
         text.append("update_popup=")
-                .append(UpdateManager.isInAppPopupEnabled(context)).append("\n\n");
+                .append(UpdateManager.isInAppPopupEnabled(context)).append('\n');
+        text.append("shizuku_package=")
+                .append(AppSettings.shizukuPackage(context)).append("\n\n");
 
         for (String key : SOURCE_KEYS) {
             text.append("source_").append(key).append('=')
