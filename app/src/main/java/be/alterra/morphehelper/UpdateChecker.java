@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
@@ -36,8 +37,17 @@ final class UpdateChecker {
      */
     private static final String FEED =
             "https://github.com/" + REPO + "/releases.atom";
+    /**
+     * raw.githubusercontent.com is served separately from github.com and the
+     * API. It often stays reachable when both of those are failing, so the
+     * changelog is used as the first update source.
+     */
+    private static final String CHANGELOG_RAW =
+            "https://raw.githubusercontent.com/" + REPO + "/main/CHANGELOG.md";
     private static final String ASSET_PREFIX = "MorpheDownloadHelper-v";
     private static final String ASSET_SUFFIX = "-universal.apk";
+    private static final Pattern CHANGELOG_HEADING =
+            Pattern.compile("^##\\s+\\[([^\\]]+)\\](?:\\s+-\\s+.*)?$");
     static final String USER_AGENT = "Morphe-Download-Helper/1.6.10";
 
     // GitHub's HTTP/2 edge occasionally resets streams with REFUSED_STREAM on
@@ -82,6 +92,17 @@ final class UpdateChecker {
     }
 
     static UpdateInfo check() throws IOException {
+        IOException changelogError = null;
+        try {
+            UpdateInfo best = best(changelogReleases(false));
+            HelperLog.info("Update check succeeded via raw changelog");
+            return best;
+        } catch (IOException error) {
+            changelogError = error;
+            HelperLog.error("Changelog update check failed; trying GitHub API",
+                    error);
+        }
+
         IOException apiError = null;
         try {
             String body = fetch(LATEST_RELEASE, "update check",
@@ -94,20 +115,11 @@ final class UpdateChecker {
         }
 
         try {
-            UpdateInfo best = null;
-            for (UpdateInfo candidate : feedReleases(false)) {
-                if (best == null || candidate.isNewerThan(best.version)) {
-                    best = candidate;
-                }
-            }
-            if (best != null) {
-                return best;
-            }
-            throw new IOException("Release feed contains no stable release");
+            UpdateInfo best = best(feedReleases(false));
+            HelperLog.info("Update check succeeded via release feed");
+            return best;
         } catch (IOException feedError) {
-            if (apiError != null) {
-                feedError.addSuppressed(apiError);
-            }
+            addSuppressed(feedError, changelogError, apiError);
             throw new IOException("GitHub update services are not responding; "
                     + "try again later", feedError);
         }
@@ -118,6 +130,17 @@ final class UpdateChecker {
     }
 
     static List<UpdateInfo> releases(boolean includePrereleases) throws IOException {
+        IOException changelogError = null;
+        try {
+            List<UpdateInfo> result = changelogReleases(includePrereleases);
+            HelperLog.info("Release list loaded via raw changelog");
+            return result;
+        } catch (IOException error) {
+            changelogError = error;
+            HelperLog.error("Changelog release list failed; trying GitHub API",
+                    error);
+        }
+
         IOException apiError = null;
         try {
             String body = fetch(RELEASES, "releases",
@@ -130,14 +153,81 @@ final class UpdateChecker {
         }
 
         try {
-            return feedReleases(includePrereleases);
+            List<UpdateInfo> result = feedReleases(includePrereleases);
+            HelperLog.info("Release list loaded via release feed");
+            return result;
         } catch (IOException feedError) {
-            if (apiError != null) {
-                feedError.addSuppressed(apiError);
-            }
+            addSuppressed(feedError, changelogError, apiError);
             throw new IOException("GitHub release services are not responding; "
                     + "try again later", feedError);
         }
+    }
+
+    private static UpdateInfo best(List<UpdateInfo> releases) throws IOException {
+        UpdateInfo best = null;
+        for (UpdateInfo candidate : releases) {
+            if (best == null || candidate.isNewerThan(best.version)) {
+                best = candidate;
+            }
+        }
+        if (best == null) {
+            throw new IOException("No releases found");
+        }
+        return best;
+    }
+
+    private static void addSuppressed(IOException target,
+                                      IOException... suppressed) {
+        for (IOException error : suppressed) {
+            if (error != null) {
+                target.addSuppressed(error);
+            }
+        }
+    }
+
+    private static List<UpdateInfo> changelogReleases(boolean includePrereleases)
+            throws IOException {
+        String text = fetch(CHANGELOG_RAW, "changelog", "text/plain", 2);
+        return parseChangelog(text, includePrereleases);
+    }
+
+    static List<UpdateInfo> parseChangelog(String text, boolean includePrereleases) {
+        List<UpdateInfo> result = new ArrayList<>();
+        String version = null;
+        StringBuilder notes = null;
+        for (String line : text.split("\n", -1)) {
+            java.util.regex.Matcher heading = CHANGELOG_HEADING.matcher(line.trim());
+            if (heading.matches()) {
+                addChangelogEntry(result, version, notes, includePrereleases);
+                version = heading.group(1).trim();
+                notes = new StringBuilder();
+            } else if (notes != null) {
+                notes.append(line).append('\n');
+            }
+        }
+        addChangelogEntry(result, version, notes, includePrereleases);
+        return result;
+    }
+
+    private static void addChangelogEntry(List<UpdateInfo> result, String version,
+                                          StringBuilder notes,
+                                          boolean includePrereleases) {
+        if (version == null || version.isEmpty()
+                || "Unreleased".equalsIgnoreCase(version)) {
+            return;
+        }
+        String cleanVersion = version.startsWith("v") || version.startsWith("V")
+                ? version.substring(1) : version;
+        if (!includePrereleases && UpdateInfo.isPrerelease(cleanVersion)) {
+            return;
+        }
+        String tag = "v" + cleanVersion;
+        String assetName = ASSET_PREFIX + cleanVersion + ASSET_SUFFIX;
+        String releaseUrl = "https://github.com/" + REPO + "/releases/tag/" + tag;
+        String assetUrl = "https://github.com/" + REPO
+                + "/releases/download/" + tag + "/" + assetName;
+        result.add(new UpdateInfo(cleanVersion, releaseUrl, assetUrl,
+                assetName, 0L, notes == null ? "" : notes.toString().trim()));
     }
 
     private static List<UpdateInfo> parseReleases(String body,

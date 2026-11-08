@@ -5,6 +5,15 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Fixed
+
+- Update checks now fall back to the `CHANGELOG.md` served by
+  `raw.githubusercontent.com` when both the GitHub API and `github.com` are
+  unreachable. This keeps update checks working on networks where only the API
+  and release pages fail.
+
 ## [2.0.0-beta.7] - 2026-11-08
 
 Update network follow-up for GitHub HTTP/2 failures.

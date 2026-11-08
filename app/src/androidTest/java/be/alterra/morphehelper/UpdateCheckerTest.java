@@ -57,4 +57,41 @@ public class UpdateCheckerTest {
         assertEquals(1, stable.size());
         assertEquals("1.6.15", stable.get(0).version);
     }
+
+    private static final String CHANGELOG = """
+            # Changelog
+
+            ## [Unreleased]
+
+            ## [2.0.0-beta.8] - 2026-11-09
+
+            Beta notes.
+
+            ## [1.6.16] - 2026-11-08
+
+            Stable notes.
+            """;
+
+    @Test
+    public void changelogParsesVersionsNotesAndAssetUrl() {
+        List<UpdateInfo> releases = UpdateChecker.parseChangelog(CHANGELOG, true);
+
+        assertEquals(2, releases.size());
+        UpdateInfo beta = releases.get(0);
+        assertEquals("2.0.0-beta.8", beta.version);
+        assertEquals("https://github.com/GeneralZyonix/morphe-download-helper/"
+                        + "releases/download/v2.0.0-beta.8/"
+                        + "MorpheDownloadHelper-v2.0.0-beta.8-universal.apk",
+                beta.assetUrl);
+        assertTrue(beta.notes.contains("Beta notes."));
+    }
+
+    @Test
+    public void changelogFiltersPrereleasesForStableChannel() {
+        List<UpdateInfo> stable = UpdateChecker.parseChangelog(CHANGELOG, false);
+
+        assertEquals(1, stable.size());
+        assertEquals("1.6.16", stable.get(0).version);
+        assertTrue(stable.get(0).notes.contains("Stable notes."));
+    }
 }
