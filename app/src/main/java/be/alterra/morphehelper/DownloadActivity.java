@@ -997,10 +997,25 @@ public class DownloadActivity extends Activity {
                 uptodownReferer = url;
                 if ("uptodown".equals(webSource)) {
                     scheduleUptodownReload(view);
-                    // Uptodown's button starts Turnstile and then triggers the download.
+                    // Dismiss Uptodown's cookie banner by choosing Reject all,
+                    // then start Turnstile and tap the download button.
                     view.evaluateJavascript(
-                            "(function(){var n=0;var t=setInterval(function(){"
-                                    + "n++;var b=document.getElementById('detail-download-button');"
+                            "(function(){var n=0;"
+                                    + "function clickReject(doc){try{"
+                                    + "var els=doc.querySelectorAll('button,a,[role=button],[role=link]');"
+                                    + "for(var i=0;i<els.length;i++){var e=els[i];"
+                                    + "var t=(e.innerText||e.textContent||'').replace(/\\s+/g,' ').trim().toLowerCase();"
+                                    + "if(!t||t.length>40)continue;"
+                                    + "if(t==='reject all'||t==='reject'||t==='decline'||t==='refuse'"
+                                    + "||t==='only necessary'||t==='necessary only'"
+                                    + "||t.indexOf('reject all')>=0||t.indexOf('only necessary')>=0){"
+                                    + "e.click();return true;}}"
+                                    + "var fs=doc.querySelectorAll('iframe');"
+                                    + "for(var j=0;j<fs.length;j++){try{if(fs[j].contentDocument"
+                                    + "&&clickReject(fs[j].contentDocument))return true;}catch(err){}}"
+                                    + "}catch(err){}return false;}"
+                                    + "var t=setInterval(function(){n++;clickReject(document);"
+                                    + "var b=document.getElementById('detail-download-button');"
                                     + "if(b){clearInterval(t);b.scrollIntoView({block:'center'});"
                                     + "setTimeout(function(){b.click();},300);}"
                                     + "if(n>60)clearInterval(t);},500);})();",
