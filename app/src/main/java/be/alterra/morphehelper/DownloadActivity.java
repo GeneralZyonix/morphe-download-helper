@@ -323,16 +323,21 @@ public class DownloadActivity extends Activity {
 
     /** Aborts the current source and lets the resolver try the next one. */
     private TextView switchSourceButton;
+    private LinearLayout downloadButtonsRow;
     private volatile Call activeCall;
     private final Set<Call> activeCalls = Collections.synchronizedSet(new HashSet<>());
     private volatile boolean switchingSource;
     private volatile String forcedSource;
+    /** Source selected while another attempt is still unwinding. */
+    private volatile String pendingSwitchKey;
 
     /** Label above the progress bar naming the active source. */
     private TextView sourceLabel;
 
     /** Compact request/size/connection details. */
     private TextView downloadDetails;
+    /** Large app name shown above the progress ring. */
+    private TextView downloadName;
     private volatile String downloadMode = "";
     private volatile long downloadTotalBytes = -1;
 
@@ -341,6 +346,8 @@ public class DownloadActivity extends Activity {
 
     /** Set while the user has paused an active download. */
     private volatile boolean paused = false;
+    /** True when the source picker paused an active download. */
+    private boolean pickerPausedDownload = false;
 
     /** Set while a downloaded file is being checked by VirusTotal. */
     private volatile boolean scanInProgress = false;
@@ -378,6 +385,8 @@ public class DownloadActivity extends Activity {
     private String webSource;
     /** Top-level source row that should show NOW while a WebView flow runs. */
     private volatile String pendingSourceKey;
+    /** True once a source returned a file; the source list should stop advancing. */
+    private volatile boolean resolutionComplete;
 
     /** True when the current WebView may block known ad/tracker hosts. */
     private volatile boolean blockWebAds;
@@ -423,6 +432,7 @@ public class DownloadActivity extends Activity {
     private LinearLayout diagnosticsRows;
     private TextView diagnosticsSummary;
     private TextView retryButton;
+    private TextView retryAllButton;
     private TextView copyButton;
     private TextView editSourcesButton;
     private TextView screenTitle;
@@ -558,9 +568,11 @@ public class DownloadActivity extends Activity {
         }
         retrySources = retryOnly ? failed : null;
         switchingSource = false;
+        pendingSwitchKey = null;
         verificationFailure = null;
         webRetries = 0;
         pendingSourceKey = null;
+        resolutionComplete = false;
         hideVerificationHint();
         String abi = (requestAbis != null && requestAbis.length > 0)
                 ? requestAbis[0] : "unknown";
@@ -586,6 +598,7 @@ public class DownloadActivity extends Activity {
         updateRequestHeader();
         main.post(this::renderSourceSteps);
         setPauseVisible(false);
+        setSwitchSourceVisible(true);
         if (retryOnly) {
             setStatus(R.string.download_retrying);
         }
@@ -602,8 +615,15 @@ public class DownloadActivity extends Activity {
                 }
                 deliverFile(file);
             } catch (UptodownHandoffException ignored) {
+                if (!cancelled && pendingSwitchKey != null) {
+                    restartAfterSwitch();
+                }
             } catch (Exception e) {
                 if (cancelled) {
+                    return;
+                }
+                if (pendingSwitchKey != null) {
+                    restartAfterSwitch();
                     return;
                 }
                 report.finishFailure(e.getMessage());
@@ -626,6 +646,7 @@ public class DownloadActivity extends Activity {
             return VirusTotalScanner.scan(this, file);
         }
         setPauseVisible(false);
+        setSwitchSourceVisible(false);
         scanInProgress = true;
         skipScanRequested = false;
         runOnUiThread(() -> {
@@ -635,14 +656,23 @@ public class DownloadActivity extends Activity {
         VirusTotalScanner.Result result;
         try {
             result = VirusTotalScanner.scan(this, file,
-                    (message, percent) -> runOnUiThread(() -> {
+                    (message, percent, stage) -> runOnUiThread(() -> {
                         setStatus(message);
                         progress.setVisibility(View.VISIBLE);
-                        if (percent < 0) {
-                            progress.setIndeterminate(true);
+                        if (stage == VirusTotalScanner.Stage.CHECKING) {
+                            progress.setIndeterminateCaption(
+                                    R.string.download_progress_checking);
+                        } else if (stage == VirusTotalScanner.Stage.UPLOADING) {
+                            if (percent < 0) {
+                                progress.setIndeterminateCaption(
+                                        R.string.download_progress_uploading);
+                            } else {
+                                progress.setProgressWithCaption(
+                                        R.string.download_progress_uploading, percent);
+                            }
                         } else {
-                            progress.setIndeterminate(false);
-                            progress.setProgress(percent);
+                            progress.setIndeterminateCaption(
+                                    R.string.download_progress_scanning);
                         }
                     }),
                     () -> skipScanRequested);
@@ -672,6 +702,12 @@ public class DownloadActivity extends Activity {
      * {@link Intent#FLAG_GRANT_READ_URI_PERMISSION}.</p>
      */
     private void deliverFile(File file) {
+        if (pendingSwitchKey != null) {
+            restartAfterSwitch();
+            return;
+        }
+        resolutionComplete = true;
+        main.post(this::renderSourceSteps);
         try {
             pendingFile = file;
             VirusTotalScanner.Result scan = scanWithVirusTotal(file);
@@ -1725,9 +1761,19 @@ public class DownloadActivity extends Activity {
         stateIcon.setVisibility(View.GONE);
         card.addView(stateIcon);
 
+        downloadName = text("", 20, TEXT, true);
+        downloadName.setGravity(Gravity.CENTER);
+        downloadName.setSingleLine(true);
+        downloadName.setEllipsize(TextUtils.TruncateAt.END);
+        downloadName.setVisibility(View.GONE);
+        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        nameParams.topMargin = dp(4);
+        card.addView(downloadName, nameParams);
+
         progress = new ProgressDisplay(this);
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
-                dp(180), dp(180));
+                dp(200), dp(200));
         progressParams.gravity = Gravity.CENTER_HORIZONTAL;
         progressParams.topMargin = dp(4);
         card.addView(progress, progressParams);
@@ -1748,7 +1794,7 @@ public class DownloadActivity extends Activity {
         sourceLabelParams.topMargin = dp(8);
         card.addView(sourceLabel, sourceLabelParams);
 
-        downloadDetails = text("", 11, MUTED, false);
+        downloadDetails = text("", 13, MUTED, false);
         downloadDetails.setGravity(Gravity.CENTER);
         downloadDetails.setLineSpacing(dp(2), 1f);
         downloadDetails.setPadding(0, dp(8), 0, 0);
@@ -1815,6 +1861,43 @@ public class DownloadActivity extends Activity {
         resultReportParams.topMargin = dp(8);
         resultActions.addView(resultReport, resultReportParams);
 
+        // Keep the active-flow controls directly under the ring.
+        LinearLayout progressControls = new LinearLayout(this);
+        progressControls.setOrientation(LinearLayout.VERTICAL);
+        progressControls.setPadding(0, dp(12), 0, 0);
+        card.addView(progressControls);
+
+        downloadButtonsRow = new LinearLayout(this);
+        downloadButtonsRow.setOrientation(LinearLayout.HORIZONTAL);
+        downloadButtonsRow.setGravity(Gravity.CENTER_VERTICAL);
+        downloadButtonsRow.setVisibility(View.GONE);
+        progressControls.addView(downloadButtonsRow, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        pauseButton = secondaryButton(getString(R.string.download_pause));
+        pauseButton.setVisibility(View.GONE);
+        pauseButton.setOnClickListener(v -> togglePause());
+        LinearLayout.LayoutParams pauseParams = new LinearLayout.LayoutParams(
+                0, dp(48), 1f);
+        pauseParams.setMarginEnd(dp(6));
+        downloadButtonsRow.addView(pauseButton, pauseParams);
+
+        switchSourceButton = secondaryButton(getString(R.string.download_switch_source_short));
+        switchSourceButton.setVisibility(View.GONE);
+        switchSourceButton.setOnClickListener(v -> showSwitchSourcePicker());
+        LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
+                0, dp(48), 1f);
+        switchParams.setMarginStart(dp(6));
+        downloadButtonsRow.addView(switchSourceButton, switchParams);
+
+        // Cancel/Close stays available while the flow is active.
+        cancelButton = secondaryButton(getString(R.string.common_cancel));
+        cancelButton.setOnClickListener(v -> cancel());
+        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
+        cancelParams.topMargin = dp(8);
+        progressControls.addView(cancelButton, cancelParams);
+
         // Compact resolver steps while the helper is working.
         sourceStepsCard = new LinearLayout(this);
         sourceStepsCard.setOrientation(LinearLayout.VERTICAL);
@@ -1854,12 +1937,20 @@ public class DownloadActivity extends Activity {
         diagnosticsRows.setOrientation(LinearLayout.VERTICAL);
         diagnosticsCard.addView(diagnosticsRows);
 
+        retryAllButton = secondaryButton(getString(R.string.download_retry_all));
+        retryAllButton.setVisibility(View.GONE);
+        retryAllButton.setOnClickListener(v -> retryAllSources());
+        LinearLayout.LayoutParams retryAllParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        retryAllParams.topMargin = dp(10);
+        diagnosticsCard.addView(retryAllButton, retryAllParams);
+
         retryButton = secondaryButton(getString(R.string.download_retry_failed));
         retryButton.setVisibility(View.GONE);
         retryButton.setOnClickListener(v -> retryFailedSources());
         LinearLayout.LayoutParams retryParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-        retryParams.topMargin = dp(10);
+        retryParams.topMargin = dp(8);
         diagnosticsCard.addView(retryButton, retryParams);
 
         copyButton = secondaryButton(getString(R.string.download_copy_details));
@@ -1872,10 +1963,8 @@ public class DownloadActivity extends Activity {
 
         editSourcesButton = secondaryButton(getString(R.string.download_edit_sources));
         editSourcesButton.setVisibility(View.GONE);
-        editSourcesButton.setOnClickListener(v -> startActivity(new Intent(
-                this, SettingsActivity.class)
-                .putExtra(SettingsActivity.EXTRA_SECTION,
-                        SettingsActivity.EXTRA_SECTION_SOURCES)));
+        editSourcesButton.setOnClickListener(v ->
+                SourceManagerDialog.show(this, null));
         LinearLayout.LayoutParams editSourcesParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         editSourcesParams.topMargin = dp(8);
@@ -1925,31 +2014,6 @@ public class DownloadActivity extends Activity {
                 dp(52));
         fallbackParams.topMargin = dp(16);
         root.addView(fallbackButton, fallbackParams);
-
-        pauseButton = secondaryButton(getString(R.string.download_pause));
-        pauseButton.setVisibility(View.GONE);
-        pauseButton.setOnClickListener(v -> togglePause());
-        LinearLayout.LayoutParams pauseParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
-        pauseParams.topMargin = dp(10);
-        root.addView(pauseButton, pauseParams);
-
-        switchSourceButton = secondaryButton(getString(R.string.download_switch_source));
-        switchSourceButton.setVisibility(View.GONE);
-        switchSourceButton.setOnClickListener(v -> showSwitchSourcePicker());
-        LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-        switchParams.topMargin = dp(8);
-        root.addView(switchSourceButton, switchParams);
-
-        // Cancel/Close button is always visible.
-        cancelButton = secondaryButton(getString(R.string.common_cancel));
-        cancelButton.setOnClickListener(v -> cancel());
-        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(50));
-        cancelParams.topMargin = dp(10);
-        root.addView(cancelButton, cancelParams);
 
         // Attach the content column to the ScrollView and show it.
         scroll.addView(root, new ScrollView.LayoutParams(
@@ -2018,6 +2082,22 @@ public class DownloadActivity extends Activity {
                 percent.setText(value + "%");
                 caption.setText(R.string.download_progress_downloading);
             }
+        }
+
+        void setIndeterminateCaption(int captionRes) {
+            indeterminate = true;
+            ring.setIndeterminate(true);
+            caption.setText(captionRes);
+            percent.setText("\u2026");
+        }
+
+        void setProgressWithCaption(int captionRes, int progress) {
+            indeterminate = false;
+            value = Math.max(0, Math.min(100, progress));
+            ring.setIndeterminate(false);
+            ring.setProgress(value);
+            caption.setText(captionRes);
+            percent.setText(value + "%");
         }
 
         int getProgress() {
@@ -2227,18 +2307,22 @@ public class DownloadActivity extends Activity {
         if (downloadDetails == null) {
             return;
         }
-        StringBuilder text = new StringBuilder();
-        if (!TextUtils.isEmpty(requestPkg)) {
-            text.append(requestPkg);
+        String app = TextUtils.isEmpty(requestedAppName)
+                ? requestPkg : requestedAppName;
+        if (downloadName != null) {
+            downloadName.setText(app);
+            downloadName.setVisibility(TextUtils.isEmpty(app) ? View.GONE : View.VISIBLE);
         }
+
+        StringBuilder text = new StringBuilder();
         if (!TextUtils.isEmpty(requestVersion)) {
-            if (text.length() > 0) {
-                text.append('\n');
-            }
             text.append(requestVersion);
-            if (requestVersionCodes != null && requestVersionCodes.length > 0) {
-                text.append(" (").append(requestVersionCodes[0]).append(')');
+        }
+        if (requestVersionCodes != null && requestVersionCodes.length > 0) {
+            if (text.length() > 0) {
+                text.append(" \u00B7 ");
             }
+            text.append("build ").append(requestVersionCodes[0]);
         }
         if (!TextUtils.isEmpty(requestFileType)) {
             if (text.length() > 0) {
@@ -2249,8 +2333,17 @@ public class DownloadActivity extends Activity {
         if (requestAbis != null && requestAbis.length > 0) {
             text.append(" \u00B7 ").append(requestAbis[0]);
         }
+        if (!TextUtils.isEmpty(requestPkg)) {
+            if (text.length() > 0) {
+                text.append('\n');
+            }
+            text.append(requestPkg);
+        }
         if (downloadTotalBytes > 0) {
-            text.append('\n').append(formatBytes(downloadTotalBytes));
+            if (text.length() > 0) {
+                text.append('\n');
+            }
+            text.append(formatBytes(downloadTotalBytes));
         }
         if (!downloadMode.isEmpty()) {
             if (downloadTotalBytes > 0) {
@@ -2329,17 +2422,40 @@ public class DownloadActivity extends Activity {
     private void setPauseVisible(boolean visible) {
         main.post(() -> {
             pauseButton.setVisibility(visible ? View.VISIBLE : View.GONE);
-            switchSourceButton.setVisibility(visible ? View.VISIBLE : View.GONE);
             if (!visible) {
                 paused = false;
                 pauseButton.setText(R.string.download_pause);
             }
+            updateDownloadButtonsRow();
         });
+    }
+
+    private void setSwitchSourceVisible(boolean visible) {
+        main.post(() -> {
+            switchSourceButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+            updateDownloadButtonsRow();
+        });
+    }
+
+    private void updateDownloadButtonsRow() {
+        if (downloadButtonsRow == null) {
+            return;
+        }
+        boolean any = (pauseButton != null && pauseButton.getVisibility() == View.VISIBLE)
+                || (switchSourceButton != null
+                && switchSourceButton.getVisibility() == View.VISIBLE);
+        downloadButtonsRow.setVisibility(any ? View.VISIBLE : View.GONE);
     }
 
     private void showSwitchSourcePicker() {
         List<String> keys = new ArrayList<>();
         List<String> labels = new ArrayList<>();
+        GitHubAppStore.Entry userEntry = requestPkg == null
+                ? null : GitHubAppStore.get(this, requestPkg);
+        if (userEntry != null && userEntry.manual) {
+            keys.add(GitHubAppStore.SOURCE_KEY);
+            labels.add(getString(R.string.source_github_user_picker, userEntry.repo));
+        }
         for (String key : AppSettings.sourceOrder(this)) {
             if (SourceSettings.isEnabled(this, key)) {
                 keys.add(key);
@@ -2349,20 +2465,49 @@ public class DownloadActivity extends Activity {
         if (keys.isEmpty()) {
             return;
         }
+
+        boolean canPause = pauseButton != null
+                && pauseButton.getVisibility() == View.VISIBLE
+                && !paused;
+        pickerPausedDownload = canPause;
+        if (canPause) {
+            paused = true;
+            pauseButton.setText(R.string.download_resume);
+            setStatus(R.string.download_paused);
+            updateDownloadService(getString(R.string.download_paused),
+                    progress.getProgress(), false);
+        }
+
+        boolean[] selected = {false};
         ThemeManager.dialog(this)
                 .setTitle(R.string.download_choose_source)
                 .setSingleChoiceItems(labels.toArray(new String[0]), -1,
                         (dialog, which) -> {
+                            selected[0] = true;
+                            pickerPausedDownload = false;
                             dialog.dismiss();
                             switchToSource(keys.get(which));
                         })
+                .setOnDismissListener(dialog -> {
+                    if (!selected[0] && pickerPausedDownload) {
+                        paused = false;
+                        pauseButton.setText(R.string.download_pause);
+                        setStatus(R.string.download_resuming);
+                        updateDownloadService(getString(R.string.download_resuming),
+                                progress.getProgress(), false);
+                    }
+                    pickerPausedDownload = false;
+                })
                 .show();
     }
 
     private void switchToSource(String key) {
-        forcedSource = key;
         retrySources = null;
         switchingSource = true;
+        paused = false;
+        if (pauseButton != null) {
+            pauseButton.setText(R.string.download_pause);
+        }
         setStatus(R.string.download_switching_source);
         Call call = activeCall;
         if (call != null) {
@@ -2372,16 +2517,44 @@ public class DownloadActivity extends Activity {
             running.cancel();
         }
         cancelWebFlowTimeout();
-        if (uptodownSection != null && uptodownSection.getVisibility() == View.VISIBLE) {
+        boolean webFlow = uptodownSection != null
+                && uptodownSection.getVisibility() == View.VISIBLE;
+        if (webFlow) {
             if (uptodownWebView != null) {
                 uptodownWebContainer.removeView(uptodownWebView);
                 uptodownWebView.destroy();
                 uptodownWebView = null;
             }
             uptodownSection.setVisibility(View.GONE);
-            switchingSource = false;
-            startResolution(false);
         }
+
+        pendingSwitchKey = key;
+        boolean workerActive = report != null && !report.isFinished();
+        if (webFlow || !workerActive) {
+            // Nothing is left to unwind: start the selected source now.
+            restartAfterSwitch();
+        }
+    }
+
+    /** Restarts resolution with the source picked while the previous attempt ran. */
+    private void restartAfterSwitch() {
+        String key = pendingSwitchKey;
+        if (key == null) {
+            return;
+        }
+        pendingSwitchKey = null;
+        forcedSource = key;
+        switchingSource = false;
+        paused = false;
+        runOnUiThread(() -> {
+            if (cancelled) {
+                return;
+            }
+            if (pauseButton != null) {
+                pauseButton.setText(R.string.download_pause);
+            }
+            startResolution(false);
+        });
     }
 
     private void togglePause() {
@@ -2454,6 +2627,10 @@ public class DownloadActivity extends Activity {
     }
 
     private void markSource(String key, boolean ok, String message) {
+        if (switchingSource) {
+            // The user is switching away; a cancelled attempt is not a source failure.
+            return;
+        }
         if (report != null) {
             report.record(key, ok, message);
         }
@@ -2471,25 +2648,51 @@ public class DownloadActivity extends Activity {
         List<ResolutionReport.Attempt> attempts = report == null
                 ? Collections.emptyList() : report.attempts();
         boolean finished = report != null && report.isFinished();
+
+        GitHubAppStore.Entry userEntry = requestPkg == null
+                ? null : GitHubAppStore.get(this, requestPkg);
+        boolean manualUser = userEntry != null && userEntry.manual;
+        ResolutionReport.Attempt userLatest = latestAttempt(
+                attempts, GitHubAppStore.SOURCE_KEY);
+        boolean userActive = GitHubAppStore.SOURCE_KEY.equals(pendingSourceKey);
+        boolean showUser = manualUser
+                && (userEntry.preferFirst || userLatest != null || userActive);
+
+        if (manualUser && !userEntry.preferFirst && userLatest == null && !userActive) {
+            TextView fallbackNote = text(getString(
+                    R.string.download_user_github_available, userEntry.repo),
+                    11, MUTED, false);
+            fallbackNote.setLineSpacing(dp(2), 1f);
+            fallbackNote.setPadding(0, dp(4), 0, dp(2));
+            sourceStepsList.addView(fallbackNote);
+        }
+
+        List<String> display = new ArrayList<>();
+        if (showUser) {
+            display.add(GitHubAppStore.SOURCE_KEY);
+        }
+        for (String key : order) {
+            if (SourceSettings.isEnabled(this, key)) {
+                display.add(key);
+            }
+        }
+
         boolean currentMarked = false;
         int position = 0;
 
-        for (String key : order) {
-            if (!SourceSettings.isEnabled(this, key)) {
-                continue;
-            }
+        for (String key : display) {
             position++;
 
-            ResolutionReport.Attempt latest = null;
-            for (int i = attempts.size() - 1; i >= 0; i--) {
-                if (key.equals(attempts.get(i).key)) {
-                    latest = attempts.get(i);
-                    break;
-                }
+            ResolutionReport.Attempt latest = latestAttempt(attempts, key);
+            boolean current;
+            if (GitHubAppStore.SOURCE_KEY.equals(key)) {
+                current = !finished && !resolutionComplete && (userActive
+                        || (pendingSourceKey == null && latest == null && !currentMarked));
+            } else {
+                current = !finished && !resolutionComplete && (pendingSourceKey != null
+                        ? pendingSourceKey.equals(key)
+                        : latest == null && !currentMarked);
             }
-            boolean current = !finished && (pendingSourceKey != null
-                    ? pendingSourceKey.equals(key)
-                    : latest == null && !currentMarked);
             if (current) {
                 currentMarked = true;
             }
@@ -2516,14 +2719,23 @@ public class DownloadActivity extends Activity {
             marker.setBackground(rounded(SECONDARY, 999));
             row.addView(marker, new LinearLayout.LayoutParams(dp(24), dp(24)));
 
-            String name = SourceSettings.APPTEKA.equals(key)
-                    ? getString(R.string.main_source_appteka)
-                    : AppSettings.sourceLabel(this, key);
-            TextView label = text(name, 13,
-                    latest != null || current ? TEXT : MUTED,
-                    latest != null || current);
-            label.setPadding(dp(10), 0, 0, 0);
-            row.addView(label, new LinearLayout.LayoutParams(
+            String name;
+            if (GitHubAppStore.SOURCE_KEY.equals(key)) {
+                name = getString(R.string.source_github_user);
+            } else if (SourceSettings.APPTEKA.equals(key)) {
+                name = getString(R.string.main_source_appteka);
+            } else {
+                name = AppSettings.sourceLabel(this, key);
+            }
+            boolean strong = latest != null || current;
+            LinearLayout labelColumn = new LinearLayout(this);
+            labelColumn.setOrientation(LinearLayout.VERTICAL);
+            labelColumn.setPadding(dp(10), 0, 0, 0);
+            labelColumn.addView(text(name, 13, strong ? TEXT : MUTED, strong));
+            if (GitHubAppStore.SOURCE_KEY.equals(key) && userEntry != null) {
+                labelColumn.addView(text(userEntry.repo, 10, MUTED, false));
+            }
+            row.addView(labelColumn, new LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             String stateText;
@@ -2549,6 +2761,16 @@ public class DownloadActivity extends Activity {
         }
     }
 
+    private ResolutionReport.Attempt latestAttempt(
+            List<ResolutionReport.Attempt> attempts, String key) {
+        for (int i = attempts.size() - 1; i >= 0; i--) {
+            if (key.equals(attempts.get(i).key)) {
+                return attempts.get(i);
+            }
+        }
+        return null;
+    }
+
     private void showFallback() {
         showFailure();
     }
@@ -2556,6 +2778,7 @@ public class DownloadActivity extends Activity {
     private void showFailure() {
         cancelAdBlockRetry();
         setPauseVisible(false);
+        setSwitchSourceVisible(false);
         main.post(() -> {
             progress.setVisibility(View.GONE);
             sourceLabel.setVisibility(View.GONE);
@@ -2619,10 +2842,20 @@ public class DownloadActivity extends Activity {
                     ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
         }
 
+        retryAllButton.setVisibility(View.VISIBLE);
+        retryAllButton.setEnabled(true);
         retryButton.setVisibility(failed.isEmpty() ? View.GONE : View.VISIBLE);
         retryButton.setEnabled(true);
         copyButton.setVisibility(View.VISIBLE);
         editSourcesButton.setVisibility(View.VISIBLE);
+    }
+
+    /** Restarts the complete ordered search from the first source. */
+    private void retryAllSources() {
+        retryAllButton.setEnabled(false);
+        forcedSource = null;
+        retrySources = null;
+        startResolution(false);
     }
 
     private void retryFailedSources() {
@@ -2630,6 +2863,7 @@ public class DownloadActivity extends Activity {
             return;
         }
         retryButton.setEnabled(false);
+        forcedSource = null;
         startResolution(true);
     }
 
@@ -2819,6 +3053,11 @@ public class DownloadActivity extends Activity {
     }
 
     private boolean sourceAllowed(String key) {
+        if (GitHubAppStore.SOURCE_KEY.equals(key)) {
+            GitHubAppStore.Entry entry = requestPkg == null
+                    ? null : GitHubAppStore.get(this, requestPkg);
+            return entry != null && entry.manual;
+        }
         if (SourceSettings.UPTODOWN.equals(key) && uptodownRejected) {
             return false;
         }
@@ -2926,7 +3165,8 @@ public class DownloadActivity extends Activity {
         setStatus(R.string.download_checking_github_release);
         try {
             GitHubAppStore.Entry entry = new GitHubAppStore.Entry(
-                    pkg, repo, requestedAppName, System.currentTimeMillis());
+                    pkg, repo, requestedAppName, System.currentTimeMillis(),
+                    false, "", false);
             File file = downloadFromRememberedGitHub(entry, pkg, version, fileType, abis);
             markSource(SourceSettings.FALLBACK, true,
                     getString(R.string.source_detail_resolver_github));
@@ -2946,7 +3186,7 @@ public class DownloadActivity extends Activity {
     private File tryGitHubFallback(String pkg, String version, String fileType,
                                    String[] abis) {
         GitHubAppStore.Entry remembered = GitHubAppStore.get(this, pkg);
-        if (remembered != null) {
+        if (remembered != null && !remembered.manual) {
             setSourceLabel(R.string.source_label_github);
             setStatus(R.string.download_checking_github_releases);
             HelperLog.info("Trying remembered GitHub repo " + remembered.repo);
@@ -2984,7 +3224,8 @@ public class DownloadActivity extends Activity {
                                                String version, String fileType,
                                                String[] abis) throws IOException {
         List<GitHubReleaseResolver.Candidate> candidates =
-                GitHubReleaseResolver.findInRepo(entry.repo, version, fileType, abis);
+                GitHubReleaseResolver.findInRepo(entry.repo, version, fileType, abis,
+                        entry.assetFilter);
         if (candidates.isEmpty()) {
             throw new IOException("No matching release in " + entry.repo);
         }
@@ -3008,6 +3249,40 @@ public class DownloadActivity extends Activity {
         throw last == null ? new IOException("No matching GitHub asset") : last;
     }
 
+    /**
+     * Tries the GitHub repository the user explicitly mapped to this package.
+     * Used both as the preferred automatic source and when forced from the
+     * Switch source picker.
+     */
+    private File customUserGitHub(GitHubAppStore.Entry entry, String pkg, String version,
+                                  String fileType, String[] abis) {
+        if (entry == null || !entry.manual) {
+            entry = GitHubAppStore.get(this, pkg);
+        }
+        if (entry == null || !entry.manual) {
+            markSource(GitHubAppStore.SOURCE_KEY, false,
+                    getString(R.string.source_detail_user_github_missing));
+            return null;
+        }
+        pendingSourceKey = GitHubAppStore.SOURCE_KEY;
+        main.post(this::renderSourceSteps);
+        setSourceLabel(getString(R.string.source_label_user_github, entry.repo));
+        setStatus(R.string.download_checking_user_github);
+        HelperLog.info("Trying user GitHub repo " + entry.repo + " for " + pkg);
+        try {
+            File file = downloadFromRememberedGitHub(entry, pkg, version, fileType, abis);
+            markSource(GitHubAppStore.SOURCE_KEY, true, entry.repo);
+            return file;
+        } catch (Exception error) {
+            HelperLog.error("User GitHub repo failed", error);
+            markSource(GitHubAppStore.SOURCE_KEY, false, error.getMessage());
+            return null;
+        } finally {
+            pendingSourceKey = null;
+            main.post(this::renderSourceSteps);
+        }
+    }
+
     private File resolveCustom(String pkg, String version, long[] codes, boolean hasCodes,
                                String fileType, String[] abis) throws IOException {
         String fallbackRepo = githubRepoFromUrl(fallbackUrl);
@@ -3018,25 +3293,38 @@ public class DownloadActivity extends Activity {
             GitHubAppStore.put(this, pkg, fallbackRepo, requestedAppName);
         }
         List<String> order = AppSettings.sourceOrder(this);
+        GitHubAppStore.Entry userGitHub = GitHubAppStore.get(this, pkg);
+        boolean userFirst = userGitHub != null && userGitHub.manual && userGitHub.preferFirst;
+
+        List<String> sequence = new ArrayList<>();
+        if (userFirst) {
+            sequence.add(GitHubAppStore.SOURCE_KEY);
+        }
+        sequence.addAll(order);
+
         boolean forcedOnly = false;
-        for (int index = 0; index < order.size(); index++) {
-            String source = order.get(index);
-            boolean forced = false;
-            String wanted = forcedSource;
-            if (wanted != null) {
-                source = wanted;
-                forcedSource = null;
-                forced = true;
-                forcedOnly = true;
+        String wanted = forcedSource;
+        forcedSource = null;
+        if (wanted != null) {
+            sequence.clear();
+            sequence.add(wanted);
+            forcedOnly = true;
+        }
+
+        for (String source : sequence) {
+            if (pendingSwitchKey != null) {
+                throw new IOException("Switched source");
             }
             if (!sourceAllowed(source)) {
-                if (forced) {
+                if (forcedOnly) {
                     break;
                 }
                 continue;
             }
             File file = null;
-            if (SourceSettings.APKPURE.equals(source)) {
+            if (GitHubAppStore.SOURCE_KEY.equals(source)) {
+                file = customUserGitHub(userGitHub, pkg, version, fileType, abis);
+            } else if (SourceSettings.APKPURE.equals(source)) {
                 file = customApkPure(pkg, version, codes, hasCodes, fileType, abis);
             } else if (SourceSettings.FALLBACK.equals(source)) {
                 file = customMorphe(pkg, version, codes, fileType, abis);
@@ -3051,10 +3339,13 @@ public class DownloadActivity extends Activity {
             } else if (SourceSettings.GITHUB.equals(source)) {
                 file = tryGitHubFallback(pkg, version, fileType, abis);
             }
+            if (pendingSwitchKey != null) {
+                throw new IOException("Switched source");
+            }
             if (file != null) {
                 return file;
             }
-            if (forced) {
+            if (forcedOnly) {
                 switchingSource = false;
                 break;
             }
@@ -3067,6 +3358,9 @@ public class DownloadActivity extends Activity {
             throw new IOException(verificationFailure);
         }
 
+        if (pendingSwitchKey != null) {
+            throw new IOException("Switched source");
+        }
         if (!forcedOnly && allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
                 && (apkPureCanServe(fileType) || isSplitType(fileType))) {
             main.post(() -> {

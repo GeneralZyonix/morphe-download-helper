@@ -5,6 +5,34 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.1-beta.1] - 2026-11-08
+
+First 2.0.1 beta with per-app GitHub sources and download-flow fixes.
+
+### Added
+
+- **Per-app GitHub sources**: map a package name to a GitHub repository, with an
+  optional asset-name filter and a **Try this repo first** switch. Preferred
+  mappings run before the Morphe link; fallback mappings stay available in
+  **Switch source**. User-added entries are marked **USER** and exported
+  configurations import them back as user-added.
+- Download screen: stage captions inside the progress ring, larger app details,
+  and **Cancel / Switch source** controls directly under the ring. The source
+  picker pauses an active download and resumes it when dismissed.
+
+### Fixed
+
+- **Switch source** now aborts the current attempt and immediately retries with
+  the selected source, including during resolution and WebView handoffs.
+- General source descriptions in Settings use the neutral muted colour again;
+  warning colours are reserved for real warnings (issue #26). The
+  APKPure/Uptodown WebView note now sits below the source list as normal
+  information instead of appearing as a yellow warning at the top.
+- The download failure screen's **Edit sources** button now opens the same
+  **Download sources** popup as the main screen instead of switching to
+  Settings, and the failure screen offers **Retry all sources** to restart the
+  complete ordered search.
+
 ## [2.0] - 2026-11-08
 
 First stable release of the 2.0 redesign. Further fixes will be handled in a

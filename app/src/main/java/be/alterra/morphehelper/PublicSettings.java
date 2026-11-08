@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -82,7 +83,7 @@ final class PublicSettings {
             write(context);
             return;
         }
-        applyText(context, text);
+        applyValues(context, text, false);
     }
 
     /** Applies settings from an imported configuration file. */
@@ -92,10 +93,10 @@ final class PublicSettings {
             HelperLog.info("Imported settings are empty");
             return;
         }
-        applyValues(context, text);
+        applyValues(context, text, true);
     }
 
-    private static void applyValues(Context context, String text) {
+    private static void applyValues(Context context, String text, boolean replaceGitHubApps) {
         Map<String, String> values = parse(text);
         if (values.isEmpty()) {
             HelperLog.info("Public settings file is empty");
@@ -213,6 +214,8 @@ final class PublicSettings {
             }
         }
 
+        applyGitHubApps(context, values, replaceGitHubApps);
+
         String apiKey = values.get("virustotal_api_key");
         if (apiKey != null) {
             AppSettings.setVirusTotalApiKey(context, apiKey.trim());
@@ -265,6 +268,58 @@ final class PublicSettings {
                 AppSettings::setApptekaSnapTubeOnly);
     }
 
+    /**
+     * Imports user-added GitHub mappings from a shared configuration. Every
+     * imported entry is treated as user-added so a shared file cannot make a
+     * custom repository look official.
+     */
+    private static void applyGitHubApps(Context context, Map<String, String> values,
+                                        boolean replace) {
+        String raw = values.get("github_apps");
+        if (raw == null) {
+            return;
+        }
+        int count;
+        try {
+            count = Integer.parseInt(raw.trim());
+        } catch (NumberFormatException error) {
+            HelperLog.info("Ignoring invalid github_apps=" + raw);
+            return;
+        }
+        if (count < 0 || count > 200) {
+            HelperLog.info("Ignoring out-of-range github_apps=" + count);
+            return;
+        }
+        Map<String, GitHubAppStore.Entry> imported = new LinkedHashMap<>();
+        for (int i = 0; i < count; i++) {
+            String prefix = "github_app_" + (i + 1) + "_";
+            String packageName = values.get(prefix + "package");
+            String repo = GitHubAppStore.normalizeRepo(values.get(prefix + "repo"));
+            if (packageName == null || !AppSettings.isValidPackageName(packageName.trim())
+                    || repo.isEmpty()) {
+                HelperLog.info("Ignoring invalid GitHub app import " + (i + 1));
+                continue;
+            }
+            packageName = packageName.trim();
+            String label = values.get(prefix + "label");
+            if (label == null || label.trim().isEmpty()) {
+                label = packageName;
+            }
+            String filter = values.get(prefix + "filter");
+            Boolean preferFirst = bool(values, prefix + "prefer_first");
+            imported.put(packageName, new GitHubAppStore.Entry(
+                    packageName, repo, label.trim(), System.currentTimeMillis(),
+                    preferFirst != null && preferFirst,
+                    filter == null ? "" : filter.trim(), true));
+        }
+        if (replace) {
+            GitHubAppStore.replaceManual(context, new ArrayList<>(imported.values()));
+        } else {
+            GitHubAppStore.mergeMissingManual(context, new ArrayList<>(imported.values()));
+        }
+        HelperLog.info("Imported " + imported.size() + " user GitHub app mappings");
+    }
+
     /** Rewrites the public file from the current settings. */
     static void write(Context context) {
         writeText(context, buildText(context, false));
@@ -310,6 +365,8 @@ final class PublicSettings {
                 .append(TextUtils.join(",", AppSettings.sourceOrder(context)))
                 .append("\n\n");
 
+        appendGitHubApps(text, context);
+
         text.append("block_web_ads=")
                 .append(AppSettings.blockWebAds(context)).append('\n');
         text.append("multi_thread_downloads=")
@@ -351,6 +408,38 @@ final class PublicSettings {
         }
 
         return text.toString();
+    }
+
+    /** Exports only mappings the user added by hand, never auto-remembered ones. */
+    private static void appendGitHubApps(StringBuilder text, Context context) {
+        List<GitHubAppStore.Entry> entries = new ArrayList<>();
+        for (GitHubAppStore.Entry entry : GitHubAppStore.all(context)) {
+            if (entry.manual) {
+                entries.add(entry);
+            }
+        }
+        text.append("# App-specific GitHub sources added by the user.\n");
+        text.append("# Imported entries stay marked as user-added.\n");
+        text.append("github_apps=").append(entries.size()).append('\n');
+        for (int i = 0; i < entries.size(); i++) {
+            GitHubAppStore.Entry entry = entries.get(i);
+            int index = i + 1;
+            text.append("github_app_").append(index).append("_package=")
+                    .append(entry.packageName).append('\n');
+            text.append("github_app_").append(index).append("_repo=")
+                    .append(entry.repo).append('\n');
+            text.append("github_app_").append(index).append("_label=")
+                    .append(singleLine(entry.label)).append('\n');
+            text.append("github_app_").append(index).append("_filter=")
+                    .append(singleLine(entry.assetFilter)).append('\n');
+            text.append("github_app_").append(index).append("_prefer_first=")
+                    .append(entry.preferFirst).append('\n');
+        }
+        text.append('\n');
+    }
+
+    private static String singleLine(String value) {
+        return value == null ? "" : value.replace('\r', ' ').replace('\n', ' ').trim();
     }
 
     private static String read(Context context) throws IOException {

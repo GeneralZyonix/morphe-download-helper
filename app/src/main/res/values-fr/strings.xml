@@ -14,6 +14,7 @@
     <string name="common_done">Terminé</string>
     <string name="common_back">Retour</string>
     <string name="common_ok">OK</string>
+    <string name="common_save">Enregistrer</string>
     <string name="common_failed">ÉCHEC</string>
 
     <!-- Écran d'accueil. -->
@@ -229,10 +230,34 @@
     <string name="settings_appteka_all_apps_warning">Appteka est désormais une source supplémentaire pour toutes les applis. À utiliser à vos risques et périls.</string>
     <string name="settings_appteka_off_note">Lorsque cette option est désactivée, Appteka est essayé dans l’ordre des sources pour toutes les applis, pas seulement SnapTube.</string>
     <string name="settings_github_apps">Applis GitHub</string>
-    <string name="settings_github_apps_note">Sources de versions GitHub mémorisées. Supprimez une appli si elle devient disponible sur une source d’APK classique.</string>
-    <string name="settings_github_apps_empty">Aucune appli GitHub mémorisée. Utilisez la recherche dans les versions GitHub après un téléchargement échoué pour en ajouter une.</string>
+    <string name="settings_github_apps_note">Correspondances de versions GitHub par appli. Les entrées utilisateur sont marquées et ne s’exécutent que pour le paquet saisi ; vous êtes responsable des dépôts que vous ajoutez. Les entrées auto sont mémorisées après un téléchargement GitHub réussi.</string>
+    <string name="settings_github_apps_empty">Aucune appli GitHub pour le moment. Ajoutez-en une pour essayer d’abord un dépôt précis pour ce paquet.</string>
     <string name="settings_remove_github_app">Supprimer l’appli GitHub %1$s</string>
     <string name="settings_github_app_removed">%1$s supprimé des applis GitHub.</string>
+    <string name="settings_github_app_add">Ajouter une appli GitHub</string>
+    <string name="settings_github_app_edit">Modifier l’appli GitHub</string>
+    <string name="settings_github_app_new">Nouvelle appli GitHub</string>
+    <string name="settings_github_app_package">Nom du paquet</string>
+    <string name="settings_github_app_package_hint">com.example.app</string>
+    <string name="settings_github_app_package_locked">Le nom du paquet ne peut pas être modifié après l’enregistrement.</string>
+    <string name="settings_github_app_label">Nom affiché</string>
+    <string name="settings_github_app_label_hint">Appli exemple</string>
+    <string name="settings_github_app_repo">Dépôt GitHub</string>
+    <string name="settings_github_app_repo_hint">propriétaire/dépôt</string>
+    <string name="settings_github_app_filter">Le nom du fichier contient (facultatif)</string>
+    <string name="settings_github_app_filter_hint">universal, foss, arm64</string>
+    <string name="settings_github_app_filter_help">Facultatif. N’utilise que les fichiers de version dont le nom contient ce texte, sans tenir compte de la casse. Laissez vide pour utiliser le choix normal.</string>
+    <string name="settings_github_app_prefer">Essayer ce dépôt en premier</string>
+    <string name="settings_github_app_prefer_detail">Rechercher ce dépôt avant le lien Morphe lorsque ce paquet est demandé. Si désactivé, l’entrée reste disponible dans Changer de source.</string>
+    <string name="settings_github_app_badge_user">USER</string>
+    <string name="settings_github_app_badge_auto">AUTO</string>
+    <string name="settings_github_app_badge_preferred">PRIORITAIRE</string>
+    <string name="settings_github_app_badge_fallback">SECOURS</string>
+    <string name="settings_github_app_badge_filter">FILTRE : %1$s</string>
+    <string name="settings_github_app_saved">Appli GitHub enregistrée.</string>
+    <string name="settings_github_app_package_invalid">Saisissez un nom de paquet Android valide.</string>
+    <string name="settings_github_app_package_in_use">Une entrée existe déjà pour ce paquet.</string>
+    <string name="settings_github_app_repo_invalid">Saisissez un dépôt GitHub au format propriétaire/dépôt.</string>
     <string name="settings_source_order">Ordre des sources</string>
     <string name="settings_drag_source">Faire glisser pour réordonner</string>
     <string name="settings_source_order_note">Utilisez les flèches pour changer la source essayée en premier.</string>
@@ -252,7 +277,8 @@
     <string name="download_subtitle">Récupération de l’APK d’origine</string>
     <string name="download_title_progress">Téléchargement pour Morphe</string>
     <string name="download_title_failure">Aucun APK trouvé</string>
-    <string name="download_subtitle_failure">Toutes les sources actives ont été vérifiées</string>
+    <string name="download_subtitle_failure">Aucune source n’a produit d’APK correspondant</string>
+    <string name="download_retry_all">Réessayer toutes les sources</string>
     <string name="download_steps_title">Sources</string>
     <string name="download_what_happened">Ce qui s’est passé</string>
     <string name="download_nothing_matched">Aucun résultat.</string>
@@ -302,6 +328,7 @@
     <string name="source_label_apkmirror_webview">APKMirror (WebView)</string>
     <string name="source_label_uptodown_webview">Uptodown (WebView)</string>
     <string name="source_label_github">GitHub</string>
+    <string name="source_label_user_github">GitHub utilisateur (%1$s)</string>
     <string name="source_label_morphe_resolver">Résolveur Morphe</string>
     <string name="source_label_morphe_fallback">Repli Morphe</string>
     <string name="source_label_fdroid">F-Droid</string>
@@ -324,6 +351,7 @@
     <string name="download_searching_aptoide">Recherche sur Aptoide…</string>
     <string name="download_searching_appteka">Recherche sur Appteka…</string>
     <string name="download_checking_github_releases">Vérification des versions GitHub…</string>
+    <string name="download_checking_user_github">Vérification de la version GitHub utilisateur…</string>
     <string name="download_searching_github">Recherche sur GitHub…</string>
     <string name="download_opening_apkpure">Ouverture de la page APKPure…</string>
     <string name="download_checking_apkmirror_page">Vérification de la page APKMirror…</string>
@@ -366,6 +394,10 @@
     <string name="source_aptoide">Aptoide</string>
     <string name="source_appteka">Appteka</string>
     <string name="source_github_releases">Versions GitHub</string>
+    <string name="source_github_user">GitHub (utilisateur)</string>
+    <string name="source_github_user_picker">GitHub (utilisateur) - %1$s</string>
+    <string name="download_user_github_available">Source GitHub utilisateur disponible via Changer de source : %1$s</string>
+    <string name="source_detail_user_github_missing">Aucune correspondance GitHub utilisateur</string>
 
     <!-- Notifications et messages du gestionnaire de mises à jour. -->
     <string name="update_msg_checks_disabled">La recherche de mises à jour est désactivée.</string>

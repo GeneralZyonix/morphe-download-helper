@@ -44,10 +44,11 @@ Please include:
 - Returns a `content://` URI with read permission so Morphe can validate and use the file.
 - Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a source list and clear limitations.
-- Shows per-source failure details and offers **Retry failed sources** and **Copy details**.
+- Shows per-source failure details and offers **Retry all sources**, **Retry failed sources**, **Copy details**, and the same **Download sources** manager used on the main screen.
 - Uses GitHub automatically: immediately when Morphe's resolver points to a release, or as
   the final fallback when normal APK sources fail. There is no separate GitHub button.
-- Remembers successful GitHub repositories in Settings; each can be removed with one tap.
+- Remembers successful GitHub repositories, and lets you pin a repository to a
+  package with an optional asset filter and **Try this repo first**.
 - Keeps a structured, human-readable diagnostic log that can be shared from the app.
 - Built-in update checker with a changelog screen: notify me, or install silently through
   Shizuku. Forks that use a different package name are supported with a configurable
@@ -109,16 +110,28 @@ The helper never installs anything.
 | 5 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
 | 6 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
 | 7 | Appteka | Resolves the exact version by package and version code. SnapTube only by default; the source is marked as hazardous because it hosts modded APKs. |
-| 8 | GitHub releases | Uses the release immediately when Morphe's resolver points to GitHub. Otherwise it is the automatic last resort: tries a remembered repository or searches GitHub, checks the requested version, prefers the matching ABI, and remembers the repository. |
+| 8 | GitHub releases | Uses the release immediately when Morphe's resolver points to GitHub. Otherwise it is the automatic last resort: tries a remembered repository or searches GitHub, checks the requested version, prefers the matching ABI, and remembers the repository. A user-added per-app mapping can run before the Morphe link instead. |
 | WebView | Uptodown / APKPure | Uptodown opens from the resolver. APKPure's page is the last resort so it cannot block the other sources. |
 
 The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
 sources above. GitHub is automatic: there is no **Search GitHub releases** button anymore.
 When Morphe's resolver points to a GitHub release, the helper uses that release immediately
 for the patch source. Otherwise GitHub is the final fallback. It stores the repository name
-(`owner/repo`), not a fixed APK, and selects the matching release version each time. Manage
-remembered repositories in **Settings → GitHub apps**. If no downloadable APK is found, the
-helper returns `RESULT_CANCELED` and Morphe shows its own default download button.
+(`owner/repo`), not a fixed APK, and selects the matching release version each time.
+
+**Settings → GitHub apps** accepts user-added per-package mappings:
+
+- **Try this repo first** (default on) inserts the mapping before the Morphe link.
+- With it off, the mapping is fallback-only and appears in **Switch source** plus a note on
+  the download screen.
+- The optional asset-name filter is a case-insensitive `contains` match, for example
+  `universal`, `foss`, or `arm64`.
+- User-added entries are marked **USER**; auto-remembered entries are marked **AUTO**. You
+  are responsible for repositories you add. Configuration export/import includes user-added
+  mappings and imports them as user-added.
+
+If no downloadable APK is found, the helper returns `RESULT_CANCELED` and Morphe shows its
+own default download button.
 
 ## Limitations
 

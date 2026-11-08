@@ -78,9 +78,15 @@ final class GitHubReleaseResolver {
 
     static List<Candidate> findInRepo(String repo, String version, String fileType,
                                       String[] abis) throws IOException {
+        return findInRepo(repo, version, fileType, abis, "");
+    }
+
+    static List<Candidate> findInRepo(String repo, String version, String fileType,
+                                      String[] abis, String assetFilter) throws IOException {
         String url = API + "/repos/" + repo + "/releases?per_page=100";
         JSONArray releases = getArray(url);
         List<Candidate> candidates = new ArrayList<>();
+        String filter = assetFilter == null ? "" : assetFilter.trim().toLowerCase(Locale.US);
         for (int i = 0; i < releases.length(); i++) {
             JSONObject release = releases.optJSONObject(i);
             if (release == null || release.optBoolean("draft", false)) {
@@ -90,7 +96,7 @@ final class GitHubReleaseResolver {
                     release.optString("name"), version)) {
                 continue;
             }
-            Candidate candidate = assetFor(release, repo, fileType, abis);
+            Candidate candidate = assetFor(release, repo, fileType, abis, filter);
             if (candidate != null) {
                 candidates.add(candidate);
                 if (noVersion(version)) {
@@ -102,7 +108,7 @@ final class GitHubReleaseResolver {
     }
 
     private static Candidate assetFor(JSONObject release, String repo, String fileType,
-                                      String[] abis) {
+                                      String[] abis, String assetFilter) {
         JSONArray assets = release.optJSONArray("assets");
         if (assets == null) {
             return null;
@@ -131,6 +137,10 @@ final class GitHubReleaseResolver {
                 String url = asset.optString("browser_download_url", "");
                 if (!name.toLowerCase(Locale.US).endsWith("." + extension)
                         || !url.startsWith("https://")) {
+                    continue;
+                }
+                if (!assetFilter.isEmpty()
+                        && !name.toLowerCase(Locale.US).contains(assetFilter)) {
                     continue;
                 }
                 int score = abiScore(name, abis);

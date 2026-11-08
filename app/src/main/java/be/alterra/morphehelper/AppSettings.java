@@ -867,6 +867,8 @@ final class AppSettings {
                 return context.getString(R.string.source_appteka);
             case SourceSettings.GITHUB:
                 return context.getString(R.string.source_github_releases);
+            case GitHubAppStore.SOURCE_KEY:
+                return context.getString(R.string.source_github_user);
             default:
                 return key;
         }

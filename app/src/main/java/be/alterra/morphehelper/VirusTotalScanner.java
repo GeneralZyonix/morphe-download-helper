@@ -45,7 +45,13 @@ final class VirusTotalScanner {
 
     interface ProgressCallback {
         /** Percent is -1 for an indeterminate step. */
-        void onProgress(String message, int percent);
+        void onProgress(String message, int percent, Stage stage);
+    }
+
+    enum Stage {
+        CHECKING,
+        UPLOADING,
+        WAITING
     }
 
     interface CancelCheck {
@@ -127,7 +133,8 @@ final class VirusTotalScanner {
                     "No VirusTotal API key configured.");
         }
 
-        progress(callback, context.getString(R.string.virustotal_checking), -1);
+        progress(callback, context.getString(R.string.virustotal_checking), -1,
+                Stage.CHECKING);
         String hash;
         try {
             hash = sha256(file);
@@ -208,7 +215,8 @@ final class VirusTotalScanner {
 
         String uploadUrl = API + "files";
         if (file.length() > DIRECT_UPLOAD_LIMIT) {
-            progress(callback, context.getString(R.string.virustotal_preparing_upload), -1);
+            progress(callback, context.getString(R.string.virustotal_preparing_upload), -1,
+                Stage.UPLOADING);
             Result urlResult = uploadUrl(apiKey);
             if (urlResult != null) {
                 return urlResult;
@@ -221,7 +229,8 @@ final class VirusTotalScanner {
             return cancelled(hash);
         }
 
-        progress(callback, context.getString(R.string.virustotal_uploading, 0), 0);
+        progress(callback, context.getString(R.string.virustotal_uploading, 0), 0,
+                Stage.UPLOADING);
         RequestBody fileBody = new ProgressRequestBody(context, file,
                 RequestBody.create(OCTET_STREAM, file), file.length(), callback, cancel);
         MultipartBody body = new MultipartBody.Builder()
@@ -313,7 +322,8 @@ final class VirusTotalScanner {
     private static Result waitForAnalysis(Context context, String hash, String analysisId,
                                           String apiKey, long uploadStartedAt,
                                           ProgressCallback callback, CancelCheck cancel) {
-        progress(callback, context.getString(R.string.virustotal_waiting_analysis), -1);
+        progress(callback, context.getString(R.string.virustotal_waiting_analysis), -1,
+                Stage.WAITING);
         long startedAt = System.currentTimeMillis();
         long deadline = startedAt + ANALYSIS_TIMEOUT_MS;
         int attempt = 0;
@@ -381,7 +391,8 @@ final class VirusTotalScanner {
             }
             long elapsed = (System.currentTimeMillis() - startedAt) / 1000L;
             progress(callback, context.getString(
-                    R.string.virustotal_waiting_analysis_seconds, elapsed), -1);
+                    R.string.virustotal_waiting_analysis_seconds, elapsed), -1,
+                    Stage.WAITING);
         }
         return true;
     }
@@ -626,9 +637,10 @@ final class VirusTotalScanner {
                 "VirusTotal scan skipped.");
     }
 
-    private static void progress(ProgressCallback callback, String message, int percent) {
+    private static void progress(ProgressCallback callback, String message,
+                                 int percent, Stage stage) {
         if (callback != null) {
-            callback.onProgress(message, percent);
+            callback.onProgress(message, percent, stage);
         }
     }
 
@@ -679,12 +691,13 @@ final class VirusTotalScanner {
                         lastPercent = percent;
                         progress(callback,
                                 context.getString(R.string.virustotal_uploading, percent),
-                                percent);
+                                percent, Stage.UPLOADING);
                     }
                 }
             }
             sink.flush();
-            progress(callback, context.getString(R.string.virustotal_uploading, 100), 100);
+            progress(callback, context.getString(R.string.virustotal_uploading, 100), 100,
+                    Stage.UPLOADING);
         }
     }
 

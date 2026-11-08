@@ -13,6 +13,7 @@
     <string name="common_done">Done</string>
     <string name="common_back">Back</string>
     <string name="common_ok">OK</string>
+    <string name="common_save">Save</string>
     <string name="common_failed">FAILED</string>
 
     <!-- Launcher screen. -->
@@ -240,10 +241,34 @@
     <string name="settings_appteka_all_apps_warning">Appteka is now an extra source for every app. Use at your own risk.</string>
     <string name="settings_appteka_off_note">When this is off, Appteka is tried in the source order for all apps, not just SnapTube.</string>
     <string name="settings_github_apps">GitHub apps</string>
-    <string name="settings_github_apps_note">Remembered GitHub release sources. Remove an app if it becomes available on a regular APK source.</string>
-    <string name="settings_github_apps_empty">No GitHub apps remembered yet. Use Search GitHub releases on a failed download to add one.</string>
+    <string name="settings_github_apps_note">Per-app GitHub release mappings. User entries are marked and only run for the package you enter; you are responsible for the repositories you add. Auto entries are remembered after a successful GitHub download.</string>
+    <string name="settings_github_apps_empty">No GitHub apps yet. Add one to try a specific repository first for that package.</string>
     <string name="settings_remove_github_app">Remove GitHub app %1$s</string>
     <string name="settings_github_app_removed">%1$s removed from GitHub apps.</string>
+    <string name="settings_github_app_add">Add GitHub app</string>
+    <string name="settings_github_app_edit">Edit GitHub app</string>
+    <string name="settings_github_app_new">New GitHub app</string>
+    <string name="settings_github_app_package">Package name</string>
+    <string name="settings_github_app_package_hint">com.example.app</string>
+    <string name="settings_github_app_package_locked">The package name cannot be changed after saving.</string>
+    <string name="settings_github_app_label">Display name</string>
+    <string name="settings_github_app_label_hint">Example app</string>
+    <string name="settings_github_app_repo">GitHub repository</string>
+    <string name="settings_github_app_repo_hint">owner/repo</string>
+    <string name="settings_github_app_filter">Asset name contains (optional)</string>
+    <string name="settings_github_app_filter_hint">universal, foss, arm64</string>
+    <string name="settings_github_app_filter_help">Optional. Only use release assets whose filename contains this text, ignoring case. Leave blank to use the normal asset choice.</string>
+    <string name="settings_github_app_prefer">Try this repo first</string>
+    <string name="settings_github_app_prefer_detail">Search this repository before the Morphe link when this package is requested. When off, the entry stays available in Switch source.</string>
+    <string name="settings_github_app_badge_user">USER</string>
+    <string name="settings_github_app_badge_auto">AUTO</string>
+    <string name="settings_github_app_badge_preferred">PREFERRED</string>
+    <string name="settings_github_app_badge_fallback">FALLBACK</string>
+    <string name="settings_github_app_badge_filter">FILTER: %1$s</string>
+    <string name="settings_github_app_saved">GitHub app saved.</string>
+    <string name="settings_github_app_package_invalid">Enter a valid Android package name.</string>
+    <string name="settings_github_app_package_in_use">An entry for this package already exists.</string>
+    <string name="settings_github_app_repo_invalid">Enter a GitHub repository as owner/repo.</string>
     <string name="settings_source_order">Source order</string>
     <string name="settings_drag_source">Drag to reorder</string>
     <string name="settings_source_order_note">Use the arrows to change which source is tried first. This is the same order shown on the main screen. Disabled sources are skipped. Uptodown follows a Morphe link and is not part of the ordered list.</string>
@@ -263,7 +288,8 @@
     <string name="download_subtitle">Fetching the original APK</string>
     <string name="download_title_progress">Downloading for Morphe</string>
     <string name="download_title_failure">No APK found</string>
-    <string name="download_subtitle_failure">Checked every enabled source</string>
+    <string name="download_subtitle_failure">No source produced a matching APK</string>
+    <string name="download_retry_all">Retry all sources</string>
     <string name="download_steps_title">Sources</string>
     <string name="download_what_happened">What happened</string>
     <string name="download_nothing_matched">Nothing matched.</string>
@@ -274,6 +300,9 @@
     <string name="download_edit_sources">Edit sources</string>
     <string name="download_progress_preparing">PREPARING</string>
     <string name="download_progress_downloading">DOWNLOADING</string>
+    <string name="download_progress_checking">CHECKING</string>
+    <string name="download_progress_uploading">UPLOADING</string>
+    <string name="download_progress_scanning">SCANNING</string>
     <string name="download_mode_single">single stream</string>
     <string name="download_mode_multi">%1$d connections</string>
     <string name="download_sources_summary">Sources: %1$s</string>
@@ -287,6 +316,7 @@
     <string name="download_open_page">Open download page</string>
     <string name="download_pause">Pause</string>
     <string name="download_switch_source">Stop &amp; switch source</string>
+    <string name="download_switch_source_short">Switch source</string>
     <string name="download_choose_source">Switch to source</string>
     <string name="download_switching_source">Stopping the current source and switching...</string>
     <string name="download_resume">Resume</string>
@@ -314,6 +344,7 @@
     <string name="source_label_apkmirror_webview">APKMirror WebView</string>
     <string name="source_label_uptodown_webview">Uptodown WebView</string>
     <string name="source_label_github">GitHub</string>
+    <string name="source_label_user_github">User GitHub (%1$s)</string>
     <string name="source_label_morphe_resolver">Morphe resolver</string>
     <string name="source_label_morphe_fallback">Morphe fallback</string>
     <string name="source_label_fdroid">F-Droid</string>
@@ -378,6 +409,11 @@
     <string name="source_aptoide">Aptoide</string>
     <string name="source_appteka">Appteka</string>
     <string name="source_github_releases">GitHub releases</string>
+    <string name="source_github_user">GitHub (user)</string>
+    <string name="source_github_user_picker">GitHub (user) - %1$s</string>
+    <string name="download_user_github_available">User GitHub source available via Switch source: %1$s</string>
+    <string name="download_checking_user_github">Checking user GitHub release.</string>
+    <string name="source_detail_user_github_missing">No user GitHub mapping</string>
 
     <!-- Update manager notifications and messages. -->
     <string name="update_msg_checks_disabled">Update checks are disabled.</string>

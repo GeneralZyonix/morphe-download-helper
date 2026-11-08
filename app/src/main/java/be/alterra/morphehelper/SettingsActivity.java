@@ -2,6 +2,7 @@ package be.alterra.morphehelper;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.LocaleManager;
 import android.content.ClipData;
 import android.content.Intent;
@@ -466,12 +467,6 @@ public class SettingsActivity extends Activity {
         sourceHint.setPadding(0, dp(4), 0, dp(6));
         card.addView(sourceHint);
 
-        TextView sourceWebViewHint = text(
-                getString(R.string.settings_webview_hint), 11, WARN_TEXT, false);
-        sourceWebViewHint.setLineSpacing(dp(2), 1f);
-        sourceWebViewHint.setPadding(0, 0, 0, dp(4));
-        card.addView(sourceWebViewHint);
-
         TextView dragHint = text(
                 getString(R.string.settings_source_drag_hint), 11, MUTED, false);
         dragHint.setLineSpacing(dp(2), 1f);
@@ -481,6 +476,13 @@ public class SettingsActivity extends Activity {
         for (String key : sourceDisplayOrder()) {
             addSourceRow(card, key, sourceTitle(key), sourceDescription(key));
         }
+
+        // General information, not a warning: keep it neutral and below the list.
+        TextView sourceWebViewHint = text(
+                getString(R.string.settings_webview_hint), 11, MUTED, false);
+        sourceWebViewHint.setLineSpacing(dp(2), 1f);
+        sourceWebViewHint.setPadding(0, dp(10), 0, 0);
+        card.addView(sourceWebViewHint);
 
         TextView testAll = secondaryButton(getString(R.string.settings_test_all));
         testAll.setOnClickListener(v -> testAllSources(testAll));
@@ -1706,46 +1708,252 @@ public class SettingsActivity extends Activity {
             empty.setLineSpacing(dp(3), 1f);
             empty.setPadding(0, dp(8), 0, 0);
             card.addView(empty);
-            return;
+        } else {
+            for (GitHubAppStore.Entry entry : entries) {
+                addGitHubAppRow(card, entry);
+                View divider = new View(this);
+                divider.setBackgroundColor(BORDER);
+                card.addView(divider, new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+            }
         }
 
-        for (GitHubAppStore.Entry entry : entries) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, dp(10), 0, dp(10));
+        TextView add = secondaryButton(getString(R.string.settings_github_app_add));
+        add.setOnClickListener(v -> showGitHubAppDialog(null));
+        LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        addParams.topMargin = dp(12);
+        card.addView(add, addParams);
+    }
 
-            LinearLayout labels = new LinearLayout(this);
-            labels.setOrientation(LinearLayout.VERTICAL);
-            labels.addView(text(entry.label, 14, TEXT, true));
-            TextView repo = text(entry.repo, 12, MUTED, false);
-            repo.setPadding(0, dp(3), 0, 0);
-            labels.addView(repo);
-            row.addView(labels, new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+    private void addGitHubAppRow(LinearLayout card, GitHubAppStore.Entry entry) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(10), 0, dp(10));
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setOnClickListener(v -> showGitHubAppDialog(entry));
 
-            TextView remove = text("X", 16, RED, true);
-            remove.setGravity(Gravity.CENTER);
-            remove.setPadding(dp(12), dp(8), dp(12), dp(8));
-            remove.setContentDescription(
-                    getString(R.string.settings_remove_github_app, entry.label));
-            remove.setClickable(true);
-            remove.setFocusable(true);
-            remove.setOnClickListener(v -> {
-                GitHubAppStore.remove(this, entry.packageName);
-                Toast.makeText(this,
-                        getString(R.string.settings_github_app_removed, entry.label),
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        titleRow.addView(text(entry.label, 14, TEXT, true));
+        TextView userBadge = githubBadge(
+                getString(entry.manual
+                        ? R.string.settings_github_app_badge_user
+                        : R.string.settings_github_app_badge_auto),
+                entry.manual ? ACCENT_TEXT : MUTED);
+        LinearLayout.LayoutParams userBadgeParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        userBadgeParams.setMarginStart(dp(8));
+        titleRow.addView(userBadge, userBadgeParams);
+        labels.addView(titleRow);
+
+        TextView repo = text(entry.repo, 12, MUTED, false);
+        repo.setPadding(0, dp(3), 0, 0);
+        labels.addView(repo);
+
+        LinearLayout badges = new LinearLayout(this);
+        badges.setOrientation(LinearLayout.HORIZONTAL);
+        badges.setPadding(0, dp(6), 0, 0);
+        badges.addView(githubBadge(
+                getString(entry.preferFirst
+                        ? R.string.settings_github_app_badge_preferred
+                        : R.string.settings_github_app_badge_fallback),
+                entry.preferFirst ? GREEN : MUTED));
+        if (!entry.assetFilter.isEmpty()) {
+            LinearLayout.LayoutParams filterParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            filterParams.setMarginStart(dp(6));
+            badges.addView(githubBadge(
+                    getString(R.string.settings_github_app_badge_filter,
+                            entry.assetFilter),
+                    MUTED), filterParams);
+        }
+        labels.addView(badges);
+
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView remove = text("X", 16, RED, true);
+        remove.setGravity(Gravity.CENTER);
+        remove.setPadding(dp(12), dp(8), dp(12), dp(8));
+        remove.setContentDescription(
+                getString(R.string.settings_remove_github_app, entry.label));
+        remove.setClickable(true);
+        remove.setFocusable(true);
+        remove.setOnClickListener(v -> {
+            GitHubAppStore.remove(this, entry.packageName);
+            PublicSettings.write(this);
+            Toast.makeText(this,
+                    getString(R.string.settings_github_app_removed, entry.label),
+                    Toast.LENGTH_SHORT).show();
+            recreate();
+        });
+        row.addView(remove, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        card.addView(row);
+    }
+
+    private TextView githubBadge(String label, int color) {
+        TextView badge = text(label, 9, color, true);
+        badge.setLetterSpacing(0.04f);
+        badge.setPadding(dp(7), dp(3), dp(7), dp(3));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(SECONDARY);
+        background.setCornerRadius(dp(999));
+        background.setStroke(dp(1), SECONDARY_BORDER);
+        badge.setBackground(background);
+        return badge;
+    }
+
+    private void showGitHubAppDialog(GitHubAppStore.Entry existing) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(20);
+        content.setPadding(padding, dp(8), padding, dp(4));
+
+        content.addView(dialogFieldLabel(getString(R.string.settings_github_app_package)));
+        EditText packageInput = dialogFieldInput(
+                getString(R.string.settings_github_app_package_hint));
+        packageInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        if (existing != null) {
+            packageInput.setText(existing.packageName);
+            packageInput.setEnabled(false);
+        }
+        content.addView(packageInput);
+        if (existing != null) {
+            content.addView(dialogFieldHelp(
+                    getString(R.string.settings_github_app_package_locked)));
+        }
+
+        content.addView(dialogFieldLabel(getString(R.string.settings_github_app_label)));
+        EditText labelInput = dialogFieldInput(
+                getString(R.string.settings_github_app_label_hint));
+        labelInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        if (existing != null) {
+            labelInput.setText(existing.label);
+            labelInput.setSelection(labelInput.getText().length());
+        }
+        content.addView(labelInput);
+
+        content.addView(dialogFieldLabel(getString(R.string.settings_github_app_repo)));
+        EditText repoInput = dialogFieldInput(
+                getString(R.string.settings_github_app_repo_hint));
+        repoInput.setInputType(InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_VARIATION_URI);
+        if (existing != null) {
+            repoInput.setText(existing.repo);
+            repoInput.setSelection(repoInput.getText().length());
+        }
+        content.addView(repoInput);
+
+        content.addView(dialogFieldLabel(getString(R.string.settings_github_app_filter)));
+        EditText filterInput = dialogFieldInput(
+                getString(R.string.settings_github_app_filter_hint));
+        filterInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        if (existing != null) {
+            filterInput.setText(existing.assetFilter);
+            filterInput.setSelection(filterInput.getText().length());
+        }
+        content.addView(filterInput);
+        content.addView(dialogFieldHelp(
+                getString(R.string.settings_github_app_filter_help)));
+
+        LinearLayout preferRow = new LinearLayout(this);
+        preferRow.setOrientation(LinearLayout.HORIZONTAL);
+        preferRow.setGravity(Gravity.CENTER_VERTICAL);
+        preferRow.setPadding(0, dp(14), 0, 0);
+        LinearLayout preferLabels = new LinearLayout(this);
+        preferLabels.setOrientation(LinearLayout.VERTICAL);
+        preferLabels.addView(text(getString(R.string.settings_github_app_prefer),
+                14, TEXT, true));
+        TextView preferDetail = text(
+                getString(R.string.settings_github_app_prefer_detail),
+                11, MUTED, false);
+        preferDetail.setLineSpacing(dp(2), 1f);
+        preferDetail.setPadding(0, dp(3), 0, 0);
+        preferLabels.addView(preferDetail);
+        preferRow.addView(preferLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch preferSwitch = new Switch(this);
+        preferSwitch.setChecked(existing == null || existing.preferFirst);
+        styleSwitch(preferSwitch);
+        preferRow.addView(preferSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        content.addView(preferRow);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(content);
+
+        AlertDialog dialog = ThemeManager.dialog(this)
+                .setTitle(existing == null
+                        ? R.string.settings_github_app_new
+                        : R.string.settings_github_app_edit)
+                .setView(scroll)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.common_save, null)
+                .show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String packageName = packageInput.getText().toString().trim();
+            String repo = GitHubAppStore.normalizeRepo(repoInput.getText().toString());
+            if (!AppSettings.isValidPackageName(packageName)) {
+                Toast.makeText(this, R.string.settings_github_app_package_invalid,
                         Toast.LENGTH_SHORT).show();
-                recreate();
-            });
-            row.addView(remove, new LinearLayout.LayoutParams(dp(48), dp(48)));
-            card.addView(row);
+                return;
+            }
+            if (repo.isEmpty()) {
+                Toast.makeText(this, R.string.settings_github_app_repo_invalid,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (existing == null && GitHubAppStore.get(this, packageName) != null) {
+                Toast.makeText(this, R.string.settings_github_app_package_in_use,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String label = labelInput.getText().toString().trim();
+            if (label.isEmpty()) {
+                label = packageName;
+            }
+            GitHubAppStore.put(this, packageName, repo, label,
+                    preferSwitch.isChecked(),
+                    filterInput.getText().toString().trim(), true);
+            PublicSettings.write(this);
+            Toast.makeText(this, R.string.settings_github_app_saved,
+                    Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+            recreate();
+        });
+    }
 
-            View divider = new View(this);
-            divider.setBackgroundColor(BORDER);
-            card.addView(divider, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
-        }
+    private TextView dialogFieldLabel(String label) {
+        TextView view = text(label, 12, TEXT, true);
+        view.setPadding(0, dp(10), 0, dp(4));
+        return view;
+    }
+
+    private EditText dialogFieldInput(String hint) {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        input.setTextColor(TEXT);
+        input.setHintTextColor(MUTED);
+        input.setHint(hint);
+        int padding = dp(12);
+        input.setPadding(padding, dp(8), padding, dp(8));
+        return input;
+    }
+
+    private TextView dialogFieldHelp(String help) {
+        TextView view = text(help, 11, MUTED, false);
+        view.setLineSpacing(dp(2), 1f);
+        view.setPadding(0, dp(4), 0, 0);
+        return view;
     }
 
     private void addOrderCard(LinearLayout card) {
@@ -1984,10 +2192,7 @@ public class SettingsActivity extends Activity {
         labels.setOrientation(LinearLayout.VERTICAL);
         labels.addView(text(title, 15, enabled ? TEXT : MUTED, true));
         int descColor = !enabled ? MUTED
-                : SourceSettings.APPTEKA.equals(key) ? RED
-                : (SourceSettings.APKPURE.equals(key)
-                || SourceSettings.UPTODOWN.equals(key)
-                || SourceSettings.GITHUB.equals(key)) ? WARN_TEXT : MUTED;
+                : SourceSettings.APPTEKA.equals(key) ? RED : MUTED;
         TextView desc = text(description, 12, descColor, false);
         desc.setPadding(0, dp(3), 0, 0);
         labels.addView(desc);
