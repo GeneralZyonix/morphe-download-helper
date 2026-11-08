@@ -5,14 +5,22 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [2.0.0-beta.8] - 2026-11-08
+
+Update check recovery when GitHub's API and website are both unavailable.
 
 ### Fixed
 
-- Update checks now fall back to the `CHANGELOG.md` served by
-  `raw.githubusercontent.com` when both the GitHub API and `github.com` are
-  unreachable. This keeps update checks working on networks where only the API
-  and release pages fail.
+- Update checks now read the `CHANGELOG.md` served by
+  `raw.githubusercontent.com` as their first source. That host is separate from
+  both `api.github.com` and `github.com`.
+- Beta.7 could still fail on networks where the GitHub API returned 503/504 and
+  `github.com` itself could not be resolved or served the Atom feed. Update
+  checks now succeed through the raw changelog in that situation.
+- Release notes and the APK URL are reconstructed from the changelog when the
+  GitHub API is unavailable.
+- The HTTP/1.1, retry, release-feed, **Open release page**, and Shizuku fork
+  fixes from beta.6/beta.7 remain in place.
 
 ## [2.0.0-beta.7] - 2026-11-08
 
