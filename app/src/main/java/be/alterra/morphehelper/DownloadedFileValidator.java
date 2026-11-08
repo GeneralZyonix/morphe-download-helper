@@ -294,8 +294,9 @@ final class DownloadedFileValidator {
     private static void crossCheckManifest(XapkManifest manifest, PackageInfo info,
                                            String pkg) throws IOException {
         if (!pkg.equals(manifest.packageName)) {
-            throw new VersionMismatchException("Downloaded XAPK manifest is for "
-                    + manifest.packageName + " instead of " + pkg);
+            throw new VersionMismatchException("XAPK manifest package is "
+                    + manifest.packageName + " but the APK package is "
+                    + info.packageName + " (requested " + pkg + ")");
         }
         String apkName = info.versionName == null ? "" : info.versionName.trim();
         String manifestName = manifest.versionName == null

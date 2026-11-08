@@ -1,6 +1,7 @@
 package be.alterra.morphehelper;
 
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import android.content.Context;
@@ -70,6 +71,17 @@ public class DownloadedFileValidatorTest {
                 Map.of());
         assertThrows(IOException.class, () ->
                 validate(archive, "com.example.fixture", "1.2.3", new long[]{123}));
+    }
+
+    @Test
+    public void lyingManifestMessageNamesVersionField() throws Exception {
+        File archive = archive("lying-manifest-message.xapk",
+                manifest("com.example.fixture", "9.9.9", 999),
+                Map.of("base.apk", asset("correct.apk")));
+        IOException error = assertThrows(IOException.class, () ->
+                validate(archive, "com.example.fixture", "1.2.3", new long[]{123}));
+        assertTrue(error.getMessage().contains("manifest says version"));
+        assertTrue(error.getMessage().contains("9.9.9"));
     }
 
     @Test

@@ -45,6 +45,10 @@
     <string name="main_sources_note">Enabled sources are tried top to bottom. This matches Settings → Source order. Uptodown is used only when a Morphe link opens its WebView fallback. Appteka is limited to SnapTube by default.</string>
     <string name="main_open_morphe">Open Morphe</string>
     <string name="main_share_log">Share log</string>
+    <string name="main_delete_all_downloads">Delete all downloaded APKs</string>
+    <string name="main_delete_all_title">Delete all downloads?</string>
+    <string name="main_delete_all_message">This removes downloaded APKs from the cache, public Downloads folder, and custom folder. Settings backups are kept.</string>
+    <string name="main_delete_all_done">Deleted %1$d files.</string>
     <string name="main_clear_log">Clear log</string>
     <string name="main_log_cleared">Log cleared.</string>
     <string name="main_uninstall">Uninstall helper</string>
@@ -97,6 +101,8 @@
 
     <!-- Settings screen. -->
     <string name="settings_subtitle">Appearance and download settings</string>
+    <string name="settings_expand_all">Expand all</string>
+    <string name="settings_collapse_all">Collapse all</string>
     <string name="settings_sources">Sources</string>
     <string name="settings_sources_hint">Disabled sources are skipped completely. At least one source must stay enabled.</string>
     <string name="settings_webview_hint">APKPure may use an in-app WebView. Uptodown uses an in-app verification page.</string>
@@ -260,6 +266,8 @@
     <string name="download_edit_sources">Edit sources</string>
     <string name="download_progress_preparing">PREPARING</string>
     <string name="download_progress_downloading">DOWNLOADING</string>
+    <string name="download_mode_single">single stream</string>
+    <string name="download_mode_multi">%1$d connections</string>
     <string name="download_sources_summary">Sources: %1$s</string>
     <string name="download_sources_none">No download sources are enabled.</string>
     <string name="download_tried_title">What was tried</string>
@@ -269,6 +277,8 @@
     <string name="download_uptodown_explanation">Uptodown needs a quick Cloudflare check. The official download page is shown below. Wait for the download button, then tap it if the download does not start automatically. The APK will be returned to Morphe.</string>
     <string name="download_open_page">Open download page</string>
     <string name="download_pause">Pause</string>
+    <string name="download_switch_source">Stop &amp; switch source</string>
+    <string name="download_switching_source">Stopping the current source and trying the next one...</string>
     <string name="download_resume">Resume</string>
     <string name="download_error_no_package">Morphe did not send a package name.</string>
     <string name="download_opening_uptodown">Opening Uptodown…</string>
@@ -493,6 +503,13 @@
     <string name="virustotal_detected_block">VirusTotal: %1$s Blocking handoff.</string>
     <string name="virustotal_quota_aborting">VirusTotal quota exceeded. Aborting handoff.</string>
     <string name="virustotal_clean_continue">VirusTotal: no detections found. Continuing...</string>
+    <string name="virustotal_continue_anyway">Continue anyway</string>
+    <string name="virustotal_delete_cancel">Delete and cancel</string>
+    <string name="virustotal_view_report">View on VirusTotal</string>
+    <string name="download_cancel_title">Cancel download?</string>
+    <string name="download_cancel_message">A validated APK has already been downloaded. Keep it for cleanup, or discard it now?</string>
+    <string name="download_keep_file">Keep file</string>
+    <string name="download_discard_file">Discard file</string>
     <string name="virustotal_unscanned_continue">VirusTotal: %1$s Continuing unscanned.</string>
     <string name="virustotal_blocked_signatures">VirusTotal found malware signatures.</string>
     <string name="virustotal_blocked_reason">VirusTotal blocked this file: %1$s</string>

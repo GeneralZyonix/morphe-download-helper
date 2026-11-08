@@ -287,6 +287,23 @@ public class DownloadActivity extends Activity {
     /** Visible skip control shown while VirusTotal is scanning. */
     private TextView skipScanButton;
 
+    /** Result-stage decision controls. */
+    private LinearLayout resultActions;
+    private TextView resultContinue;
+    private TextView resultDelete;
+    private TextView resultReport;
+
+    /** A validated file that has not been handed off yet. */
+    private volatile File pendingFile;
+    private volatile boolean keepPendingFile;
+    private volatile boolean resultStage;
+    private volatile int resultDecision = DECISION_NONE;
+    private final Object resultLock = new Object();
+
+    private static final int DECISION_NONE = 0;
+    private static final int DECISION_CONTINUE = 1;
+    private static final int DECISION_DELETE = 2;
+
     /** Download progress bar. Indeterminate while resolving, determinate while downloading. */
     private ProgressDisplay progress;
 
@@ -299,8 +316,19 @@ public class DownloadActivity extends Activity {
     /** Pause/Resume button, shown once a download starts. */
     private TextView pauseButton;
 
+    /** Aborts the current source and lets the resolver try the next one. */
+    private TextView switchSourceButton;
+    private volatile Call activeCall;
+    private final Set<Call> activeCalls = Collections.synchronizedSet(new HashSet<>());
+    private volatile boolean switchingSource;
+
     /** Label above the progress bar naming the active source. */
     private TextView sourceLabel;
+
+    /** Compact request/size/connection details. */
+    private TextView downloadDetails;
+    private volatile String downloadMode = "";
+    private volatile long downloadTotalBytes = -1;
 
     /** Set to true when the user backs out or the activity is destroyed. */
     private volatile boolean cancelled = false;
@@ -509,11 +537,19 @@ public class DownloadActivity extends Activity {
 
     private void startResolution(boolean retryOnly) {
         Set<String> failed = retryOnly && report != null
-                ? report.failedKeys() : Collections.emptySet();
+                ? new HashSet<>(report.failedKeys()) : Collections.emptySet();
+        if (retryOnly) {
+            if (failed.contains(SourceSettings.UPTODOWN)
+                    || failed.contains(SourceSettings.APKMIRROR)
+                    || failed.contains(SourceSettings.APKPURE)) {
+                failed.add(SourceSettings.FALLBACK);
+            }
+        }
         if (retryOnly && failed.isEmpty()) {
             return;
         }
         retrySources = retryOnly ? failed : null;
+        switchingSource = false;
         verificationFailure = null;
         webRetries = 0;
         String abi = (requestAbis != null && requestAbis.length > 0)
@@ -627,36 +663,29 @@ public class DownloadActivity extends Activity {
      */
     private void deliverFile(File file) {
         try {
+            pendingFile = file;
             VirusTotalScanner.Result scan = scanWithVirusTotal(file);
             if (cancelled) {
-                //noinspection ResultOfMethodCallIgnored
-                file.delete();
+                discardPending(file);
                 return;
             }
 
             if (scan.status == VirusTotalScanner.Status.UPLOAD_PENDING) {
-                showScanOutcomeForFiveSeconds(
-                        getString(R.string.virustotal_pending_abort));
-                if (!cancelled) {
+                if (awaitResultDecision(
+                        getString(R.string.virustotal_pending_abort), scan)
+                        != DECISION_CONTINUE) {
                     abortHandoff(file,
                             getString(R.string.virustotal_pending_reason),
                             getString(R.string.virustotal_pending_status));
-                }
-                return;
-            }
-
-            if (scan.isDetection()) {
-                boolean block = AppSettings.virusTotalBlockDetections(this);
-                showScanOutcomeForFiveSeconds(getString(
-                        block ? R.string.virustotal_detected_block
-                                : R.string.virustotal_detected_continue,
-                        scan.message));
-                if (cancelled) {
-                    //noinspection ResultOfMethodCallIgnored
-                    file.delete();
                     return;
                 }
-                if (block) {
+            } else if (scan.isDetection()) {
+                boolean block = AppSettings.virusTotalBlockDetections(this);
+                String message = getString(
+                        block ? R.string.virustotal_detected_block
+                                : R.string.virustotal_detected_continue,
+                        scan.message);
+                if (awaitResultDecision(message, scan) != DECISION_CONTINUE) {
                     abortHandoff(file,
                             getString(R.string.virustotal_blocked_reason, scan.message),
                             getString(R.string.virustotal_blocked_signatures));
@@ -664,26 +693,25 @@ public class DownloadActivity extends Activity {
                 }
             } else if (scan.status == VirusTotalScanner.Status.QUOTA_EXCEEDED
                     && AppSettings.virusTotalAbortOnQuota(this)) {
-                showScanOutcomeForFiveSeconds(
-                        getString(R.string.virustotal_quota_aborting));
-                if (!cancelled) {
+                if (awaitResultDecision(
+                        getString(R.string.virustotal_quota_aborting), scan)
+                        != DECISION_CONTINUE) {
                     abortHandoff(file,
                             getString(R.string.virustotal_quota_reason, scan.message),
                             getString(R.string.virustotal_quota_status));
+                    return;
                 }
-                return;
             } else if (scan.status == VirusTotalScanner.Status.CLEAN) {
-                showScanOutcomeForFiveSeconds(
-                        getString(R.string.virustotal_clean_continue));
+                runOnUiThread(() -> setStatus(
+                        getString(R.string.virustotal_clean_continue)));
             } else if (scan.status != VirusTotalScanner.Status.CANCELLED
                     && scan.status != VirusTotalScanner.Status.DISABLED) {
-                showScanOutcomeForFiveSeconds(
-                        getString(R.string.virustotal_unscanned_continue, scan.message));
+                runOnUiThread(() -> setStatus(
+                        getString(R.string.virustotal_unscanned_continue, scan.message)));
             }
 
             if (cancelled) {
-                //noinspection ResultOfMethodCallIgnored
-                file.delete();
+                discardPending(file);
                 return;
             }
 
@@ -701,6 +729,7 @@ public class DownloadActivity extends Activity {
                 report.finishSuccess(file);
                 HelperLog.info(report.resultBlock());
             }
+            pendingFile = null;
             HelperLog.info("Returning file " + file.getAbsolutePath()
                     + " (" + file.length() + " bytes)");
             stopDownloadService();
@@ -727,17 +756,64 @@ public class DownloadActivity extends Activity {
         }
     }
 
-    private void showScanOutcomeForFiveSeconds(String message) {
+    private int awaitResultDecision(String message, VirusTotalScanner.Result scan) {
+        synchronized (resultLock) {
+            resultDecision = DECISION_NONE;
+        }
         runOnUiThread(() -> {
+            resultStage = true;
+            scanNote.setVisibility(View.GONE);
+            skipScanButton.setVisibility(View.GONE);
             setStatus(message);
             progress.setVisibility(View.VISIBLE);
             progress.setIndeterminate(true);
+            resultActions.setVisibility(View.VISIBLE);
+            boolean hasReport = scan.hash != null && !scan.hash.isEmpty();
+            resultReport.setVisibility(hasReport ? View.VISIBLE : View.GONE);
+            if (hasReport) {
+                resultReport.setOnClickListener(v -> openVirusTotalReport(scan.hash));
+            }
         });
-        try {
-            Thread.sleep(5000L);
-        } catch (InterruptedException error) {
-            Thread.currentThread().interrupt();
+        int decision;
+        synchronized (resultLock) {
+            while (resultDecision == DECISION_NONE && !cancelled) {
+                try {
+                    resultLock.wait(200L);
+                } catch (InterruptedException error) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            decision = resultDecision;
+            resultDecision = DECISION_NONE;
         }
+        resultStage = false;
+        runOnUiThread(() -> resultActions.setVisibility(View.GONE));
+        return decision == DECISION_NONE ? DECISION_DELETE : decision;
+    }
+
+    private void completeResultDecision(int decision) {
+        synchronized (resultLock) {
+            resultDecision = decision;
+            resultLock.notifyAll();
+        }
+    }
+
+    private void openVirusTotalReport(String hash) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse("https://www.virustotal.com/gui/file/" + hash)));
+        } catch (Exception error) {
+            HelperLog.error("Could not open VirusTotal report", error);
+        }
+    }
+
+    private void discardPending(File file) {
+        if (!keepPendingFile) {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+        }
+        pendingFile = null;
     }
 
     private void abortHandoff(File file, String reason, String status) {
@@ -1456,6 +1532,13 @@ public class DownloadActivity extends Activity {
                         deliverFile(file);
                     }
                 } catch (Exception e) {
+                    if (switchingSource) {
+                        switchingSource = false;
+                        markSource(webSourceKey(), false,
+                                getString(R.string.download_switching_source));
+                        main.post(() -> startResolution(false));
+                        return;
+                    }
                     if ((e instanceof DownloadedFileValidator.IncompatibleSdkException
                             || e instanceof DownloadedFileValidator.VersionMismatchException)
                             && ("uptodown".equals(source) || "apkmirror".equals(source))) {
@@ -1629,6 +1712,13 @@ public class DownloadActivity extends Activity {
         sourceLabelParams.topMargin = dp(8);
         card.addView(sourceLabel, sourceLabelParams);
 
+        downloadDetails = text("", 11, MUTED, false);
+        downloadDetails.setGravity(Gravity.CENTER);
+        downloadDetails.setLineSpacing(dp(2), 1f);
+        downloadDetails.setPadding(0, dp(8), 0, 0);
+        downloadDetails.setVisibility(View.GONE);
+        card.addView(downloadDetails);
+
         scanNote = text(getString(R.string.virustotal_scan_note), 12, MUTED, false);
         scanNote.setGravity(Gravity.CENTER);
         scanNote.setLineSpacing(dp(3), 1f);
@@ -1642,6 +1732,34 @@ public class DownloadActivity extends Activity {
         skipScanButton.setVisibility(View.GONE);
         skipScanButton.setOnClickListener(v -> skipVirusTotalScan());
         card.addView(skipScanButton);
+
+        resultActions = new LinearLayout(this);
+        resultActions.setOrientation(LinearLayout.VERTICAL);
+        resultActions.setVisibility(View.GONE);
+        resultActions.setPadding(0, dp(10), 0, 0);
+        card.addView(resultActions);
+
+        resultContinue = secondaryButton(getString(R.string.virustotal_continue_anyway));
+        resultContinue.setOnClickListener(v -> completeResultDecision(DECISION_CONTINUE));
+        resultActions.addView(resultContinue, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+
+        resultDelete = secondaryButton(getString(R.string.virustotal_delete_cancel));
+        resultDelete.setTextColor(RED);
+        resultDelete.setOnClickListener(v -> completeResultDecision(DECISION_DELETE));
+        LinearLayout.LayoutParams resultDeleteParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        resultDeleteParams.topMargin = dp(8);
+        resultActions.addView(resultDelete, resultDeleteParams);
+
+        resultReport = secondaryButton(getString(R.string.virustotal_view_report));
+        resultReport.setOnClickListener(v -> {
+            // Replaced when a decision is shown.
+        });
+        LinearLayout.LayoutParams resultReportParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        resultReportParams.topMargin = dp(8);
+        resultActions.addView(resultReport, resultReportParams);
 
         // Compact resolver steps while the helper is working.
         sourceStepsCard = new LinearLayout(this);
@@ -1761,6 +1879,14 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
         pauseParams.topMargin = dp(10);
         root.addView(pauseButton, pauseParams);
+
+        switchSourceButton = secondaryButton(getString(R.string.download_switch_source));
+        switchSourceButton.setVisibility(View.GONE);
+        switchSourceButton.setOnClickListener(v -> stopAndSwitchSource());
+        LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        switchParams.topMargin = dp(8);
+        root.addView(switchSourceButton, switchParams);
 
         // Cancel/Close button is always visible.
         cancelButton = secondaryButton(getString(R.string.common_cancel));
@@ -2026,14 +2152,71 @@ public class DownloadActivity extends Activity {
             if (screenSubtitle != null) {
                 String app = TextUtils.isEmpty(requestedAppName)
                         ? requestPkg : requestedAppName;
-                if (TextUtils.isEmpty(app)) {
-                    return;
-                }
                 String version = TextUtils.isEmpty(requestVersion) ? "" : requestVersion;
-                screenSubtitle.setText(version.isEmpty()
-                        ? app : app + " \u00B7 " + version);
+                if (!TextUtils.isEmpty(app)) {
+                    screenSubtitle.setText(version.isEmpty()
+                            ? app : app + " \u00B7 " + version);
+                }
             }
+            updateDownloadDetails();
         });
+    }
+
+    private void updateDownloadDetails() {
+        if (downloadDetails == null) {
+            return;
+        }
+        StringBuilder text = new StringBuilder();
+        if (!TextUtils.isEmpty(requestPkg)) {
+            text.append(requestPkg);
+        }
+        if (!TextUtils.isEmpty(requestVersion)) {
+            if (text.length() > 0) {
+                text.append('\n');
+            }
+            text.append(requestVersion);
+            if (requestVersionCodes != null && requestVersionCodes.length > 0) {
+                text.append(" (").append(requestVersionCodes[0]).append(')');
+            }
+        }
+        if (!TextUtils.isEmpty(requestFileType)) {
+            if (text.length() > 0) {
+                text.append(" \u00B7 ");
+            }
+            text.append(requestFileType.toUpperCase(Locale.US));
+        }
+        if (requestAbis != null && requestAbis.length > 0) {
+            text.append(" \u00B7 ").append(requestAbis[0]);
+        }
+        if (downloadTotalBytes > 0) {
+            text.append('\n').append(formatBytes(downloadTotalBytes));
+        }
+        if (!downloadMode.isEmpty()) {
+            if (downloadTotalBytes > 0) {
+                text.append(" \u00B7 ");
+            } else if (text.length() > 0) {
+                text.append('\n');
+            }
+            text.append(downloadMode);
+        }
+        downloadDetails.setText(text);
+        downloadDetails.setVisibility(text.length() > 0 ? View.VISIBLE : View.GONE);
+    }
+
+    private void setDownloadInfo(long totalBytes, String mode) {
+        downloadTotalBytes = totalBytes;
+        downloadMode = mode == null ? "" : mode;
+        main.post(this::updateDownloadDetails);
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        if (bytes < 1024 * 1024) {
+            return String.format(Locale.US, "%.1f KB", bytes / 1024.0);
+        }
+        return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0));
     }
 
     /** Updates the status line from any thread. */
@@ -2085,11 +2268,42 @@ public class DownloadActivity extends Activity {
     private void setPauseVisible(boolean visible) {
         main.post(() -> {
             pauseButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+            switchSourceButton.setVisibility(visible ? View.VISIBLE : View.GONE);
             if (!visible) {
                 paused = false;
                 pauseButton.setText(R.string.download_pause);
             }
         });
+    }
+
+    private void stopAndSwitchSource() {
+        switchingSource = true;
+        setStatus(R.string.download_switching_source);
+        Call call = activeCall;
+        if (call != null) {
+            call.cancel();
+        }
+        for (Call running : new ArrayList<>(activeCalls)) {
+            running.cancel();
+        }
+        cancelWebFlowTimeout();
+        if (uptodownSection != null && uptodownSection.getVisibility() == View.VISIBLE) {
+            if ("uptodown".equals(webSource)) {
+                uptodownRejected = true;
+            } else if ("apkmirror".equals(webSource)) {
+                apkmirrorRejected = true;
+            }
+            if (uptodownWebView != null) {
+                uptodownWebContainer.removeView(uptodownWebView);
+                uptodownWebView.destroy();
+                uptodownWebView = null;
+            }
+            uptodownSection.setVisibility(View.GONE);
+            switchingSource = false;
+            startResolution(false);
+        } else {
+            switchingSource = false;
+        }
     }
 
     private void togglePause() {
@@ -2336,12 +2550,39 @@ public class DownloadActivity extends Activity {
 
     /** Cancels background work and returns RESULT_CANCELED to Morphe. */
     private void cancel() {
+        if (resultStage) {
+            return;
+        }
+        if (pendingFile != null && pendingFile.exists()) {
+            confirmCancelWithFile();
+            return;
+        }
+        cancelInternal(false);
+    }
+
+    private void confirmCancelWithFile() {
+        ThemeManager.dialog(this)
+                .setTitle(R.string.download_cancel_title)
+                .setMessage(R.string.download_cancel_message)
+                .setNegativeButton(R.string.download_keep_file,
+                        (dialog, which) -> cancelInternal(true))
+                .setPositiveButton(R.string.download_discard_file,
+                        (dialog, which) -> cancelInternal(false))
+                .show();
+    }
+
+    private void cancelInternal(boolean keepFile) {
+        keepPendingFile = keepFile;
         cancelled = true;
         setPauseVisible(false);
         cancelWebFlowTimeout();
         cancelAdBlockRetry();
         stopDownloadService();
         executor.shutdownNow();
+        if (!keepFile && pendingFile != null && pendingFile.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            pendingFile.delete();
+        }
         setResult(RESULT_CANCELED);
         finish();
     }
@@ -2361,6 +2602,9 @@ public class DownloadActivity extends Activity {
     public void onBackPressed() {
         if (scanInProgress) {
             skipVirusTotalScan();
+            return;
+        }
+        if (resultStage) {
             return;
         }
         // Back behaves exactly like Cancel: no partial file is returned to Morphe.
@@ -4128,6 +4372,7 @@ public class DownloadActivity extends Activity {
             partBase = "download-" + Math.abs(url.hashCode());
         }
         File part = new File(dir, partBase + ".part");
+        setDownloadInfo(-1, getString(R.string.download_mode_single));
         if (AppSettings.multiThreadDownloads(this)) {
             File multi = segmentedDownload(url, referer, pkg, versionName,
                     fileType, cookie, dir, partBase);
@@ -4135,6 +4380,7 @@ public class DownloadActivity extends Activity {
                 return multi;
             }
             HelperLog.info("Multi-connection download unavailable; using single stream");
+            setDownloadInfo(-1, getString(R.string.download_mode_single));
         }
         long existing = part.length();
         boolean append = existing > 0;
@@ -4159,15 +4405,25 @@ public class DownloadActivity extends Activity {
                 + (referer != null ? " (referer=" + referer + ")" : ""));
         logDownloadContext(dir);
         DownloadTimingListener timing = new DownloadTimingListener();
-        OkHttpClient downloadClient = HTTP.newBuilder()
-                .eventListener(timing)
-                .build();
-        try (Response response = downloadClient.newCall(builder.build()).execute()) {
+        OkHttpClient.Builder downloadBuilder = HTTP.newBuilder()
+                .eventListener(timing);
+        String downloadHost = hostOf(url);
+        if (isHost(downloadHost, "uptodown.com")
+                || isHost(downloadHost, "uptodown.net")) {
+            // Some Uptodown CDN edges open an HTTP/2 stream but never send headers.
+            // HTTP/1.1 avoids that stall and is also better for Range requests.
+            downloadBuilder.protocols(Collections.singletonList(Protocol.HTTP_1_1));
+        }
+        OkHttpClient downloadClient = downloadBuilder.build();
+        Call call = downloadClient.newCall(builder.build());
+        activeCall = call;
+        try (Response response = call.execute()) {
             String contentType = response.header("Content-Type");
             ResponseBody body = response.body();
             long bodyLength = body != null ? body.contentLength() : -1;
             long total = append && response.code() == 206 && bodyLength >= 0
                     ? existing + bodyLength : bodyLength;
+            setDownloadInfo(total, getString(R.string.download_mode_single));
             HelperLog.info("DOWNLOAD " + url + " -> HTTP " + response.code()
                     + " type=" + contentType
                     + " length=" + total);
@@ -4274,6 +4530,8 @@ public class DownloadActivity extends Activity {
                 throw new IOException("Cancelled");
             }
             return finalizeDownloadedFile(part, dir, filename, pkg, versionName);
+        } finally {
+            activeCall = null;
         }
     }
 
@@ -4286,7 +4544,12 @@ public class DownloadActivity extends Activity {
     private File segmentedDownload(String url, String referer, String pkg,
                                    String versionName, String fileType, String cookie,
                                    File dir, String partBase) throws IOException {
-        OkHttpClient client = HTTP.newBuilder().build();
+        OkHttpClient.Builder clientBuilder = HTTP.newBuilder();
+        if (isHost(hostOf(url), "uptodown.com")
+                || isHost(hostOf(url), "uptodown.net")) {
+            clientBuilder.protocols(Collections.singletonList(Protocol.HTTP_1_1));
+        }
+        OkHttpClient client = clientBuilder.build();
         Request.Builder base = new Request.Builder()
                 .url(url)
                 .header("User-Agent", USER_AGENT)
@@ -4344,6 +4607,7 @@ public class DownloadActivity extends Activity {
 
         HelperLog.info("MULTI download " + url + " total=" + total
                 + " segments=" + segments + " finalUrl=" + segmentUrl);
+        setDownloadInfo(total, getString(R.string.download_mode_multi, segments));
         main.post(() -> {
             setPauseVisible(true);
             progress.setVisibility(View.VISIBLE);
@@ -4440,6 +4704,11 @@ public class DownloadActivity extends Activity {
             multiPart.delete();
             throw new IOException("Cancelled");
         }
+        if (switchingSource) {
+            //noinspection ResultOfMethodCallIgnored
+            multiPart.delete();
+            throw new IOException("Switched source");
+        }
         if (failed || multiPart.length() != total) {
             HelperLog.error("Multi download failed; falling back to single stream", null);
             //noinspection ResultOfMethodCallIgnored
@@ -4468,11 +4737,16 @@ public class DownloadActivity extends Activity {
         long expected = end - start + 1;
         IOException last = null;
         for (int attempt = 0; attempt < 3; attempt++) {
+            if (switchingSource) {
+                throw new IOException("Switched source");
+            }
             long written = 0;
             waitForResume();
-            try (Response response = client.newCall(base.newBuilder()
+            Call call = client.newCall(base.newBuilder()
                     .header("Range", "bytes=" + start + "-" + end)
-                    .build()).execute()) {
+                    .build());
+            activeCalls.add(call);
+            try (Response response = call.execute()) {
                 if (response.code() != 206) {
                     throw new IOException("HTTP " + response.code());
                 }
@@ -4510,11 +4784,13 @@ public class DownloadActivity extends Activity {
             } catch (IOException error) {
                 last = error;
                 downloaded.addAndGet(-written);
-                if (cancelled) {
+                if (cancelled || switchingSource) {
                     throw error;
                 }
                 HelperLog.info("Segment " + start + "-" + end + " retry "
                         + (attempt + 1) + ": " + error.getMessage());
+            } finally {
+                activeCalls.remove(call);
             }
         }
         throw last != null ? last : new IOException("Segment failed");

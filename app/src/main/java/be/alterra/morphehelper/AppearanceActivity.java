@@ -97,8 +97,11 @@ public class AppearanceActivity extends Activity {
 
         setContentView(scrollView);
         ViewCompat.setOnApplyWindowInsetsListener(scrollView, (view, insets) -> {
-            if (insets.isVisible(WindowInsetsCompat.Type.ime())
-                    && schemeHex != null && schemeHex.hasFocus()) {
+            int ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            if (view.getPaddingBottom() != ime) {
+                view.setPadding(0, 0, 0, ime);
+            }
+            if (ime > 0 && schemeHex != null && schemeHex.hasFocus()) {
                 view.postDelayed(this::scrollSchemeFieldIntoView, 60);
             }
             return insets;
@@ -425,7 +428,6 @@ public class AppearanceActivity extends Activity {
         }
         if (!show) {
             schemeEditor.setVisibility(View.GONE);
-            scrollView.setPadding(0, 0, 0, 0);
             schemeHex.clearFocus();
             InputMethodManager keyboard = (InputMethodManager)
                     getSystemService(INPUT_METHOD_SERVICE);
@@ -434,7 +436,6 @@ public class AppearanceActivity extends Activity {
             }
             return;
         }
-        scrollView.setPadding(0, 0, 0, dp(300));
         schemeEditor.setAlpha(0f);
         schemeEditor.setVisibility(View.VISIBLE);
         schemeEditor.animate().alpha(1f).setDuration(180).start();

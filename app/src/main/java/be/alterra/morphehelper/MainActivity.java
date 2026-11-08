@@ -271,6 +271,14 @@ public class MainActivity extends Activity {
         shareParams.setMarginStart(dp(6));
         actions.addView(shareLog, shareParams);
 
+        TextView deleteAll = secondaryButton(getString(R.string.main_delete_all_downloads),
+                TEXT, SECONDARY_BORDER);
+        deleteAll.setOnClickListener(v -> confirmDeleteAllDownloads());
+        LinearLayout.LayoutParams deleteParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, dp(48));
+        deleteParams.topMargin = dp(10);
+        root.addView(deleteAll, deleteParams);
+
         // -----------------------------------------------------------------
         // Download sources card: the order used by DownloadActivity.resolve()
         // -----------------------------------------------------------------
@@ -418,8 +426,21 @@ public class MainActivity extends Activity {
      * MAIN/LAUNCHER intent in case the package is installed but its launcher entry is
      * hidden by the user's launcher.</p>
      */
-    private void openMorphe() {
-        Intent launch = getPackageManager().getLaunchIntentForPackage(MORPHE_PACKAGE);
+    private void confirmDeleteAllDownloads() {
+        ThemeManager.dialog(this)
+                .setTitle(R.string.main_delete_all_title)
+                .setMessage(R.string.main_delete_all_message)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.common_delete, (dialog, which) -> {
+                    int deleted = AppSettings.deleteAllDownloads(this);
+                    Toast.makeText(this,
+                            getString(R.string.main_delete_all_done, deleted),
+                            Toast.LENGTH_SHORT).show();
+                })
+                .show();
+    }
+
+    private void openMorphe() {        Intent launch = getPackageManager().getLaunchIntentForPackage(MORPHE_PACKAGE);
         if (launch == null) {
             launch = new Intent(Intent.ACTION_MAIN);
             launch.addCategory(Intent.CATEGORY_LAUNCHER);

@@ -39,6 +39,7 @@ final class WebAdBlocker {
 
     private static final String ASSET = "ad_hosts.txt";
     private static final String DOH_ENDPOINT = "https://dns.adguard-dns.com/resolve";
+    private static final String DOH_FALLBACK = "https://dns.google/resolve";
     private static final long LIVE_BLOCK_TTL_MS = 30L * 60L * 1000L;
     private static final long LIVE_ALLOW_TTL_MS = 10L * 60L * 1000L;
     private static final long LIVE_DISABLED_MS = 60L * 1000L;
@@ -156,50 +157,60 @@ final class WebAdBlocker {
 
     private static boolean queryAdGuard(String host) {
         try {
-            HttpUrl url = HttpUrl.get(DOH_ENDPOINT).newBuilder()
-                    .addQueryParameter("name", host)
-                    .addQueryParameter("type", "A")
-                    .build();
-            Request request = new Request.Builder()
-                    .url(url)
-                    .header("Accept", "application/dns-json")
-                    .header("User-Agent", "Morphe-Download-Helper/1.6.15")
-                    .build();
-            try (Response response = DOH_HTTP.newCall(request).execute()) {
-                if (!response.isSuccessful()) {
-                    disableLive();
-                    return false;
-                }
-                ResponseBody body = response.body();
-                if (body == null) {
-                    disableLive();
-                    return false;
-                }
-                JSONObject root = new JSONObject(body.string());
-                if (root.optInt("Status", -1) != 0) {
-                    return false;
-                }
-                JSONArray answers = root.optJSONArray("Answer");
-                if (answers == null) {
-                    return false;
-                }
-                for (int i = 0; i < answers.length(); i++) {
-                    JSONObject answer = answers.optJSONObject(i);
-                    if (answer == null || answer.optInt("type", -1) != 1) {
-                        continue;
-                    }
-                    String data = answer.optString("data", "");
-                    if ("0.0.0.0".equals(data)
-                            || "::".equals(data)
-                            || "0:0:0:0:0:0:0:0".equals(data)) {
-                        return true;
-                    }
-                }
+            return queryDoh(DOH_ENDPOINT, host);
+        } catch (Exception first) {
+            HelperLog.error("AdGuard DoH check failed for " + host, first);
+            try {
+                boolean blocked = queryDoh(DOH_FALLBACK, host);
+                HelperLog.info("Fallback DoH check " + host + " -> "
+                        + (blocked ? "blocked" : "allowed"));
+                return blocked;
+            } catch (Exception second) {
+                disableLive();
+                HelperLog.error("Fallback DoH check failed for " + host, second);
                 return false;
             }
-        } catch (Exception error) {
-            disableLive();
-            HelperLog.error("AdGuard DoH check failed for " + host, error);
+        }
+    }
+
+    private static boolean queryDoh(String endpoint, String host) throws Exception {
+        HttpUrl url = HttpUrl.get(endpoint).newBuilder()
+                .addQueryParameter("name", host)
+                .addQueryParameter("type", "A")
+                .build();
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Accept", "application/dns-json")
+                .header("User-Agent", "Morphe-Download-Helper/1.6.15")
+                .build();
+        try (Response response = DOH_HTTP.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("DoH HTTP " + response.code());
+            }
+            ResponseBody body = response.body();
+            if (body == null) {
+                throw new IOException("DoH response was empty");
+            }
+            JSONObject root = new JSONObject(body.string());
+            if (root.optInt("Status", -1) != 0) {
+                return false;
+            }
+            JSONArray answers = root.optJSONArray("Answer");
+            if (answers == null) {
+                return false;
+            }
+            for (int i = 0; i < answers.length(); i++) {
+                JSONObject answer = answers.optJSONObject(i);
+                if (answer == null || answer.optInt("type", -1) != 1) {
+                    continue;
+                }
+                String data = answer.optString("data", "");
+                if ("0.0.0.0".equals(data)
+                        || "::".equals(data)
+                        || "0:0:0:0:0:0:0:0".equals(data)) {
+                    return true;
+                }
+            }
             return false;
         }
     }

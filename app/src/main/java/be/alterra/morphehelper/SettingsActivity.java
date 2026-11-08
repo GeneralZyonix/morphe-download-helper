@@ -96,6 +96,9 @@ public class SettingsActivity extends Activity {
     private String pendingLocation;
     private boolean exportIncludeSecrets;
     private final Map<String, View> sectionCards = new HashMap<>();
+    private final Map<String, LinearLayout> sectionBodies = new HashMap<>();
+    private final Map<String, TextView> sectionChevrons = new HashMap<>();
+    private TextView expandAllButton;
     private View sourceOrderTarget;
 
     private final Shizuku.OnRequestPermissionResultListener shizukuListener =
@@ -143,6 +146,9 @@ public class SettingsActivity extends Activity {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
+        boolean openSources = EXTRA_SECTION_SOURCES.equals(
+                getIntent().getStringExtra(EXTRA_SECTION));
+
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.ic_logo_mark);
         LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(64), dp(64));
@@ -151,35 +157,55 @@ public class SettingsActivity extends Activity {
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(text(getString(R.string.common_settings), 24, TEXT, true));
-        TextView subtitle = text(getString(R.string.settings_subtitle), 13, MUTED, false);
+        titles.addView(text(getString(openSources
+                ? R.string.settings_sources : R.string.common_settings), 24, TEXT, true));
+        TextView subtitle = text(getString(openSources
+                ? R.string.settings_sources_summary : R.string.settings_subtitle),
+                13, MUTED, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        if (!openSources) {
+            expandAllButton = text(getString(R.string.settings_expand_all),
+                    10, ACCENT_TEXT, true);
+            expandAllButton.setGravity(Gravity.CENTER);
+            expandAllButton.setPadding(dp(8), dp(6), dp(8), dp(6));
+            expandAllButton.setClickable(true);
+            expandAllButton.setFocusable(true);
+            GradientDrawable expandBackground = new GradientDrawable();
+            expandBackground.setColor(SECONDARY);
+            expandBackground.setCornerRadius(dp(10));
+            expandBackground.setStroke(dp(1), SECONDARY_BORDER);
+            expandAllButton.setBackground(new RippleDrawable(
+                    ColorStateList.valueOf(RIPPLE), expandBackground, null));
+            expandAllButton.setOnClickListener(v -> toggleAllSections());
+            header.addView(expandAllButton);
+        }
         root.addView(header);
 
-        boolean openSources = EXTRA_SECTION_SOURCES.equals(
-                getIntent().getStringExtra(EXTRA_SECTION));
         if (openSources) {
             setSectionExpanded(SECTION_SOURCES, true);
         }
 
-        LinearLayout general = addSection(root, SECTION_GENERAL,
-                R.string.settings_general, R.string.settings_general_summary,
-                R.drawable.ic_section_general);
-        addLanguageRow(general);
-        addAppearanceRow(general);
-        addLauncherIconCard(general);
+        if (!openSources) {
+            LinearLayout general = addSection(root, SECTION_GENERAL,
+                    R.string.settings_general, R.string.settings_general_summary,
+                    R.drawable.ic_section_general);
+            addLanguageRow(general);
+            addAppearanceRow(general);
+            addLauncherIconCard(general);
 
-        LinearLayout updates = addSection(root, SECTION_UPDATES,
-                R.string.settings_updates, R.string.settings_updates_summary,
-                R.drawable.ic_section_updates);
-        addUpdatesCard(updates);
+            LinearLayout updates = addSection(root, SECTION_UPDATES,
+                    R.string.settings_updates, R.string.settings_updates_summary,
+                    R.drawable.ic_section_updates);
+            addUpdatesCard(updates);
 
-        LinearLayout web = addSection(root, SECTION_WEB,
-                R.string.settings_web_pages, R.string.settings_web_pages_summary,
-                R.drawable.ic_section_web);
-        addWebPagesCard(web);
+            LinearLayout web = addSection(root, SECTION_WEB,
+                    R.string.settings_web_pages, R.string.settings_web_pages_summary,
+                    R.drawable.ic_section_web);
+            addWebPagesCard(web);
+        }
 
         LinearLayout sources = addSection(root, SECTION_SOURCES,
                 R.string.settings_sources, R.string.settings_sources_summary,
@@ -188,25 +214,29 @@ public class SettingsActivity extends Activity {
         addApptekaWarningCard(sources);
         addGitHubAppsCard(sources);
 
-        LinearLayout storage = addSection(root, SECTION_STORAGE,
-                R.string.settings_storage, R.string.settings_storage_summary,
-                R.drawable.ic_section_storage);
-        addStorageCard(storage);
+        if (!openSources) {
+            LinearLayout storage = addSection(root, SECTION_STORAGE,
+                    R.string.settings_storage, R.string.settings_storage_summary,
+                    R.drawable.ic_section_storage);
+            addStorageCard(storage);
 
-        LinearLayout security = addSection(root, SECTION_SECURITY,
-                R.string.virustotal_security, R.string.settings_security_summary,
-                R.drawable.ic_section_security);
-        addSecurityCard(security);
+            LinearLayout security = addSection(root, SECTION_SECURITY,
+                    R.string.virustotal_security, R.string.settings_security_summary,
+                    R.drawable.ic_section_security);
+            addSecurityCard(security);
 
-        LinearLayout battery = addSection(root, SECTION_BATTERY,
-                R.string.settings_background, R.string.settings_background_summary,
-                R.drawable.ic_section_battery);
-        addBatteryCard(battery);
+            LinearLayout battery = addSection(root, SECTION_BATTERY,
+                    R.string.settings_background, R.string.settings_background_summary,
+                    R.drawable.ic_section_battery);
+            addBatteryCard(battery);
 
-        LinearLayout backup = addSection(root, SECTION_BACKUP,
-                R.string.settings_backup, R.string.settings_backup_summary,
-                R.drawable.ic_section_backup);
-        addBackupCard(backup);
+            LinearLayout backup = addSection(root, SECTION_BACKUP,
+                    R.string.settings_backup, R.string.settings_backup_summary,
+                    R.drawable.ic_section_backup);
+            addBackupCard(backup);
+        }
+
+        updateExpandAllLabel();
 
         TextView done = primaryButton(getString(R.string.common_done));
         done.setOnClickListener(v -> finish());
@@ -350,6 +380,8 @@ public class SettingsActivity extends Activity {
         body.setOrientation(LinearLayout.VERTICAL);
         body.setPadding(dp(18), 0, dp(18), dp(16));
         card.addView(body);
+        sectionBodies.put(key, body);
+        sectionChevrons.put(key, chevron);
 
         boolean expanded = isSectionExpanded(key);
         applySectionState(body, chevron, expanded);
@@ -357,8 +389,44 @@ public class SettingsActivity extends Activity {
             boolean next = body.getVisibility() != View.VISIBLE;
             applySectionState(body, chevron, next);
             setSectionExpanded(key, next);
+            updateExpandAllLabel();
         });
         return body;
+    }
+
+    private void toggleAllSections() {
+        boolean expand = false;
+        for (LinearLayout body : sectionBodies.values()) {
+            if (body.getVisibility() != View.VISIBLE) {
+                expand = true;
+                break;
+            }
+        }
+        for (Map.Entry<String, LinearLayout> entry : sectionBodies.entrySet()) {
+            LinearLayout body = entry.getValue();
+            TextView chevron = sectionChevrons.get(entry.getKey());
+            if (chevron == null) {
+                continue;
+            }
+            applySectionState(body, chevron, expand);
+            setSectionExpanded(entry.getKey(), expand);
+        }
+        updateExpandAllLabel();
+    }
+
+    private void updateExpandAllLabel() {
+        if (expandAllButton == null) {
+            return;
+        }
+        boolean allExpanded = true;
+        for (LinearLayout body : sectionBodies.values()) {
+            if (body.getVisibility() != View.VISIBLE) {
+                allExpanded = false;
+                break;
+            }
+        }
+        expandAllButton.setText(allExpanded
+                ? R.string.settings_collapse_all : R.string.settings_expand_all);
     }
 
     private void applySectionState(LinearLayout body, TextView chevron, boolean expanded) {

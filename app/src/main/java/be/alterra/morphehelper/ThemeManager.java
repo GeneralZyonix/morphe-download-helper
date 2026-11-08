@@ -182,6 +182,9 @@ final class ThemeManager {
         boolean light = MODE_LIGHT.equals(mode);
         float tintStrength = ACCENT_SCHEME.equals(accent) ? 1f : 0.82f;
         float textTint = ACCENT_SCHEME.equals(accent) ? 1f : 0.55f;
+        float accentSaturation = toHsl(start)[1];
+        float surfaceChroma = ACCENT_MONO.equals(accent)
+                ? 0.05f : 0.25f + 0.75f * accentSaturation;
         boolean tintSurfaces = ACCENT_SCHEME.equals(accent)
                 || AppSettings.themeTintSurfaces(context);
 
@@ -225,17 +228,17 @@ final class ThemeManager {
             warnBorder = Color.parseColor("#FDE68A");
             if (tintSurfaces) {
                 float hue = toHsl(start)[0];
-                bgTop = fromHsl(hue, 0.55f * tintStrength, 0.84f);
-                bgBottom = fromHsl(hue, 0.62f * tintStrength, 0.78f);
-                cardTop = fromHsl(hue, 0.38f * tintStrength, 0.95f);
-                cardBottom = fromHsl(hue, 0.45f * tintStrength, 0.91f);
-                border = fromHsl(hue, 0.50f * tintStrength, 0.68f);
-                secondary = fromHsl(hue, 0.45f * tintStrength, 0.84f);
-                secondaryBorder = fromHsl(hue, 0.40f * tintStrength, 0.68f);
-                text = fromHsl(hue, 0.32f * textTint, 0.08f);
-                muted = fromHsl(hue, 0.14f * textTint, 0.32f);
-                steps = fromHsl(hue, 0.18f * textTint, 0.20f);
-                footer = fromHsl(hue, 0.12f * textTint, 0.46f);
+                bgTop = fromHsl(hue, 0.55f * tintStrength * surfaceChroma, 0.84f);
+                bgBottom = fromHsl(hue, 0.62f * tintStrength * surfaceChroma, 0.78f);
+                cardTop = fromHsl(hue, 0.38f * tintStrength * surfaceChroma, 0.95f);
+                cardBottom = fromHsl(hue, 0.45f * tintStrength * surfaceChroma, 0.91f);
+                border = fromHsl(hue, 0.50f * tintStrength * surfaceChroma, 0.68f);
+                secondary = fromHsl(hue, 0.45f * tintStrength * surfaceChroma, 0.84f);
+                secondaryBorder = fromHsl(hue, 0.40f * tintStrength * surfaceChroma, 0.68f);
+                text = fromHsl(hue, 0.32f * textTint * surfaceChroma, 0.08f);
+                muted = fromHsl(hue, 0.14f * textTint * surfaceChroma, 0.32f);
+                steps = fromHsl(hue, 0.18f * textTint * surfaceChroma, 0.20f);
+                footer = fromHsl(hue, 0.12f * textTint * surfaceChroma, 0.46f);
             }
         } else {
             bgTop = amoled ? Color.BLACK : Color.parseColor("#0B1220");
@@ -259,21 +262,21 @@ final class ThemeManager {
             warnBorder = Color.parseColor("#78350F");
             if (tintSurfaces && !amoled) {
                 float hue = toHsl(start)[0];
-                bgTop = fromHsl(hue, 0.30f * tintStrength, 0.07f);
-                bgBottom = fromHsl(hue, 0.34f * tintStrength, 0.10f);
-                cardTop = fromHsl(hue, 0.26f * tintStrength, 0.12f);
-                cardBottom = fromHsl(hue, 0.30f * tintStrength, 0.10f);
-                border = fromHsl(hue, 0.22f * tintStrength, 0.23f);
-                secondary = fromHsl(hue, 0.24f * tintStrength, 0.17f);
-                secondaryBorder = fromHsl(hue, 0.20f * tintStrength, 0.29f);
-                text = fromHsl(hue, 0.15f * textTint, 0.97f);
-                muted = fromHsl(hue, 0.14f * textTint, 0.68f);
-                steps = fromHsl(hue, 0.12f * textTint, 0.85f);
-                footer = fromHsl(hue, 0.12f * textTint, 0.48f);
+                bgTop = fromHsl(hue, 0.30f * tintStrength * surfaceChroma, 0.07f);
+                bgBottom = fromHsl(hue, 0.34f * tintStrength * surfaceChroma, 0.10f);
+                cardTop = fromHsl(hue, 0.26f * tintStrength * surfaceChroma, 0.12f);
+                cardBottom = fromHsl(hue, 0.30f * tintStrength * surfaceChroma, 0.10f);
+                border = fromHsl(hue, 0.22f * tintStrength * surfaceChroma, 0.23f);
+                secondary = fromHsl(hue, 0.24f * tintStrength * surfaceChroma, 0.17f);
+                secondaryBorder = fromHsl(hue, 0.20f * tintStrength * surfaceChroma, 0.29f);
+                text = fromHsl(hue, 0.15f * textTint * surfaceChroma, 0.97f);
+                muted = fromHsl(hue, 0.14f * textTint * surfaceChroma, 0.68f);
+                steps = fromHsl(hue, 0.12f * textTint * surfaceChroma, 0.85f);
+                footer = fromHsl(hue, 0.12f * textTint * surfaceChroma, 0.48f);
             }
         }
 
-        border = accentBorder(start, light, amoled);
+        border = accentBorder(accent, start, light, amoled);
 
         return new ThemePalette(
                 amoled, light,
@@ -530,12 +533,15 @@ final class ThemeManager {
     }
 
     /** A muted accent-tinted edge that stays visible without becoming a bright line. */
-    private static int accentBorder(int accent, boolean light, boolean amoled) {
-        float hue = toHsl(accent)[0];
+    private static int accentBorder(String accent, int color, boolean light, boolean amoled) {
+        float hue = toHsl(color)[0];
+        float chroma = ACCENT_MONO.equals(accent)
+                ? 0.05f : 0.25f + 0.75f * toHsl(color)[1];
         if (light) {
-            return fromHsl(hue, 0.42f, 0.74f);
+            return fromHsl(hue, 0.42f * chroma, 0.74f);
         }
-        return fromHsl(hue, amoled ? 0.18f : 0.30f, amoled ? 0.25f : 0.28f);
+        return fromHsl(hue, (amoled ? 0.18f : 0.30f) * chroma,
+                amoled ? 0.25f : 0.28f);
     }
 
     /** A nearby hue for the second stop of a custom-scheme gradient. */

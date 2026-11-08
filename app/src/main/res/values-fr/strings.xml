@@ -46,6 +46,10 @@
     <string name="main_sources_note">Les sources sont essayées dans cet ordre. Appteka est limité à SnapTube par défaut&#160;; les détails des sources et les solutions de repli via navigateur se trouvent dans les paramètres.</string>
     <string name="main_open_morphe">Ouvrir Morphe</string>
     <string name="main_share_log">Partager le journal</string>
+    <string name="main_delete_all_downloads">Supprimer tous les APK téléchargés</string>
+    <string name="main_delete_all_title">Supprimer tous les téléchargements&#160;?</string>
+    <string name="main_delete_all_message">Supprime les APK téléchargés du cache, du dossier Téléchargements public et du dossier personnalisé. Les sauvegardes de paramètres sont conservées.</string>
+    <string name="main_delete_all_done">%1$d fichiers supprimés.</string>
     <string name="main_clear_log">Effacer le journal</string>
     <string name="main_log_cleared">Journal effacé.</string>
     <string name="main_uninstall">Désinstaller l’assistant</string>
@@ -112,6 +116,8 @@
 
     <!-- Écran des paramètres. -->
     <string name="settings_subtitle">Apparence et paramètres de téléchargement</string>
+    <string name="settings_expand_all">Tout développer</string>
+    <string name="settings_collapse_all">Tout réduire</string>
     <string name="settings_sources">Sources</string>
     <string name="settings_sources_hint">Les sources désactivées sont entièrement ignorées. Au moins une source doit rester activée.</string>
     <string name="settings_web_pages">Pages de téléchargement</string>
@@ -249,6 +255,8 @@
     <string name="download_edit_sources">Modifier les sources</string>
     <string name="download_progress_preparing">PRÉPARATION</string>
     <string name="download_progress_downloading">TÉLÉCHARGEMENT</string>
+    <string name="download_mode_single">flux unique</string>
+    <string name="download_mode_multi">%1$d connexions</string>
     <string name="download_sources_summary">Sources&#160;: %1$s</string>
     <string name="download_sources_none">Aucune source de téléchargement n’est activée.</string>
     <string name="download_tried_title">Ce qui a été essayé</string>
@@ -258,6 +266,8 @@
     <string name="download_uptodown_explanation">Uptodown nécessite une rapide vérification Cloudflare. La page de téléchargement officielle est affichée ci-dessous. Attendez le bouton de téléchargement, puis touchez-le si le téléchargement ne démarre pas automatiquement. L’APK sera renvoyé à Morphe.</string>
     <string name="download_open_page">Ouvrir la page de téléchargement</string>
     <string name="download_pause">Pause</string>
+    <string name="download_switch_source">Arrêter et changer de source</string>
+    <string name="download_switching_source">Arrêt de la source actuelle et essai de la suivante...</string>
     <string name="download_resume">Reprendre</string>
     <string name="download_error_no_package">Morphe n’a pas envoyé de nom de paquet.</string>
     <string name="download_opening_uptodown">Ouverture d’Uptodown…</string>
@@ -477,6 +487,13 @@
     <string name="virustotal_detected_block">VirusTotal&#160;: %1$s Transmission bloquée.</string>
     <string name="virustotal_quota_aborting">Quota VirusTotal dépassé. Transmission abandonnée.</string>
     <string name="virustotal_clean_continue">VirusTotal&#160;: aucune détection. Poursuite...</string>
+    <string name="virustotal_continue_anyway">Continuer quand même</string>
+    <string name="virustotal_delete_cancel">Supprimer et annuler</string>
+    <string name="virustotal_view_report">Voir sur VirusTotal</string>
+    <string name="download_cancel_title">Annuler le téléchargement&#160;?</string>
+    <string name="download_cancel_message">Un APK validé a déjà été téléchargé. Le conserver pour le nettoyage ou le supprimer maintenant&#160;?</string>
+    <string name="download_keep_file">Conserver le fichier</string>
+    <string name="download_discard_file">Supprimer le fichier</string>
     <string name="virustotal_unscanned_continue">VirusTotal&#160;: %1$s Poursuite sans analyse.</string>
     <string name="virustotal_blocked_signatures">VirusTotal a trouvé des signatures de malware.</string>
     <string name="virustotal_blocked_reason">VirusTotal a bloqué ce fichier&#160;: %1$s</string>
