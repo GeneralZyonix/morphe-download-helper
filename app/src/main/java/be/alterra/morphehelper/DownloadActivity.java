@@ -288,6 +288,10 @@ public class DownloadActivity extends Activity {
     /** Visible skip control shown while VirusTotal is scanning. */
     private TextView skipScanButton;
 
+    /** Appears when a source WebView is still waiting for verification. */
+    private TextView verificationHint;
+    private Runnable verificationHintRunnable;
+
     /** Result-stage decision controls. */
     private LinearLayout resultActions;
     private TextView resultContinue;
@@ -557,6 +561,7 @@ public class DownloadActivity extends Activity {
         verificationFailure = null;
         webRetries = 0;
         pendingSourceKey = null;
+        hideVerificationHint();
         String abi = (requestAbis != null && requestAbis.length > 0)
                 ? requestAbis[0] : "unknown";
         report = new ResolutionReport(this, requestedAppName, requestPkg, requestVersion,
@@ -1076,6 +1081,7 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         uptodownSection.setVisibility(View.VISIBLE);
+        scheduleVerificationHint();
         scheduleWebFlowTimeout(web);
         web.loadUrl(url);
         scheduleAdBlockRetry(web);
@@ -1502,6 +1508,7 @@ public class DownloadActivity extends Activity {
         cancelWebFlowTimeout();
         cancelAdBlockRetry();
         uptodownHandled = true;
+        hideVerificationHint();
         HelperLog.info(webSource + " download URL: " + url);
 
         final String source = webSource;
@@ -1732,6 +1739,24 @@ public class DownloadActivity extends Activity {
         downloadDetails.setPadding(0, dp(8), 0, 0);
         downloadDetails.setVisibility(View.GONE);
         card.addView(downloadDetails);
+
+        verificationHint = text(getString(R.string.download_verification_attention),
+                12, ACCENT_TEXT, true);
+        verificationHint.setGravity(Gravity.CENTER);
+        verificationHint.setPadding(dp(14), dp(10), dp(14), dp(10));
+        GradientDrawable hintBackground = rounded(SECONDARY, 999);
+        hintBackground.setStroke(dp(1), SECONDARY_BORDER);
+        verificationHint.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), hintBackground, null));
+        verificationHint.setClickable(true);
+        verificationHint.setFocusable(true);
+        verificationHint.setVisibility(View.GONE);
+        verificationHint.setOnClickListener(v -> scrollToVerification());
+        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hintParams.gravity = Gravity.CENTER_HORIZONTAL;
+        hintParams.topMargin = dp(10);
+        card.addView(verificationHint, hintParams);
 
         scanNote = text(getString(R.string.virustotal_scan_note), 12, MUTED, false);
         scanNote.setGravity(Gravity.CENTER);
@@ -2359,7 +2384,43 @@ public class DownloadActivity extends Activity {
                     progress.getProgress(), false);
         }
     }
+    /** Shows a tap-to-open hint only after a WebView has been waiting a while. */
+    private void scheduleVerificationHint() {
+        hideVerificationHint();
+        verificationHintRunnable = () -> {
+            if (cancelled || uptodownWebView == null || pendingSourceKey == null
+                    || uptodownHandled) {
+                return;
+            }
+            if (verificationHint != null) {
+                verificationHint.setVisibility(View.VISIBLE);
+            }
+        };
+        main.postDelayed(verificationHintRunnable, 8_000);
+    }
+
+    private void hideVerificationHint() {
+        if (verificationHintRunnable != null) {
+            main.removeCallbacks(verificationHintRunnable);
+            verificationHintRunnable = null;
+        }
+        if (verificationHint != null) {
+            verificationHint.setVisibility(View.GONE);
+        }
+    }
+
+    /** User-initiated jump to the verification WebView. */
+    private void scrollToVerification() {
+        if (uptodownSection == null
+                || uptodownSection.getVisibility() != View.VISIBLE
+                || scrollView == null) {
+            return;
+        }
+        scrollView.post(() -> scrollView.smoothScrollTo(0, uptodownSection.getTop()));
+    }
+
     private void markWebFlowResult(boolean ok, String message) {
+        hideVerificationHint();
         pendingSourceKey = null;
         if ("uptodown".equals(webSource)) {
             // Uptodown is reached through the Morphe link, so it shares that
