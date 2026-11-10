@@ -289,6 +289,9 @@
     <string name="download_edit_sources">Modifier les sources</string>
     <string name="download_progress_preparing">PRÉPARATION</string>
     <string name="download_progress_downloading">TÉLÉCHARGEMENT</string>
+    <string name="download_progress_checking">VÉRIFICATION</string>
+    <string name="download_progress_uploading">ENVOI</string>
+    <string name="download_progress_scanning">ANALYSE</string>
     <string name="download_mode_single">flux unique</string>
     <string name="download_mode_multi">%1$d connexions</string>
     <string name="download_sources_summary">Sources&#160;: %1$s</string>
@@ -298,9 +301,11 @@
     <string name="download_copy_details">Copier les détails</string>
     <string name="download_uptodown_title">Vérification Uptodown</string>
     <string name="download_uptodown_explanation">Uptodown nécessite une rapide vérification Cloudflare. La page de téléchargement officielle est affichée ci-dessous. Attendez le bouton de téléchargement, puis touchez-le si le téléchargement ne démarre pas automatiquement. L’APK sera renvoyé à Morphe.</string>
+    <string name="download_verification_attention">La vérification demande votre attention — touchez pour ouvrir</string>
     <string name="download_open_page">Ouvrir la page de téléchargement</string>
     <string name="download_pause">Pause</string>
     <string name="download_switch_source">Arrêter et changer de source</string>
+    <string name="download_switch_source_short">Changer de source</string>
     <string name="download_choose_source">Choisir une source</string>
     <string name="download_switching_source">Arrêt de la source actuelle et changement...</string>
     <string name="download_resume">Reprendre</string>
