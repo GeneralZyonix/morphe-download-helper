@@ -49,6 +49,7 @@ final class SourceBadge {
             case SourceSettings.APTOIDE: return R.drawable.source_logo_aptoide;
             case SourceSettings.APPTEKA: return R.drawable.source_logo_appteka;
             case SourceSettings.GITHUB: return R.drawable.source_logo_github;
+            case GitHubAppStore.SOURCE_KEY: return R.drawable.source_logo_github;
             case SourceSettings.FALLBACK: return R.drawable.source_logo_morphe_link;
             default: return R.drawable.ic_logo_mark;
         }

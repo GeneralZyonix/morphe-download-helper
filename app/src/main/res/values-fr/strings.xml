@@ -280,6 +280,9 @@
     <string name="download_subtitle_failure">Aucune source n’a produit d’APK correspondant</string>
     <string name="download_retry_all">Réessayer toutes les sources</string>
     <string name="download_steps_title">Sources</string>
+    <string name="download_metric_source">Source</string>
+    <string name="download_metric_size">Taille</string>
+    <string name="download_metric_connections">Connexions</string>
     <string name="download_what_happened">Ce qui s’est passé</string>
     <string name="download_nothing_matched">Aucun résultat.</string>
     <string name="download_step_ok">OK</string>
@@ -318,6 +321,8 @@
     <string name="download_apkmirror_explanation">APKMirror nécessite une rapide vérification Cloudflare. La page de téléchargement exacte est affichée ci-dessous. L’assistant appuiera automatiquement sur le bouton de téléchargement dès que la page sera prête.</string>
     <string name="download_error_page_timeout">La page de téléchargement a mis trop de temps à répondre.</string>
     <string name="download_error_page_timeout_detail">Délai dépassé en attendant la page de téléchargement</string>
+    <string name="download_error_page_failed">La page de téléchargement n’a pas pu être chargée.</string>
+    <string name="download_retry_resume">Connexion perdue. Reprise (%1$d/%2$d)…</string>
     <string name="download_downloading_from">Téléchargement depuis %1$s…</string>
     <string name="download_source_label">Source&#160;: %1$s</string>
     <string name="source_label_apkpure_direct">APKPure (direct)</string>

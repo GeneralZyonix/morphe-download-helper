@@ -31,6 +31,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -226,10 +228,11 @@ public class DownloadActivity extends Activity {
     // ---------------------------------------------------------------------
 
     /**
-     * Shared OkHttp client.
+     * Shared OkHttp base client.
      *
      * <p>OkHttp is used instead of {@link java.net.HttpURLConnection} because it handles
-     * redirects, cookies, and Cloudflare challenges much more reliably on Android.</p>
+     * redirects, cookies, and Cloudflare challenges much more reliably on Android.
+     * The derived clients below apply shorter, purpose-specific timeouts.</p>
      */
     private static final OkHttpClient HTTP = new OkHttpClient.Builder()
             .followRedirects(true)
@@ -237,6 +240,29 @@ public class DownloadActivity extends Activity {
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .cookieJar(new MemoryCookieJar())
+            .build();
+
+    /** Metadata requests: fail fast so one dead host cannot block the source chain. */
+    private static final OkHttpClient METADATA_HTTP = HTTP.newBuilder()
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .callTimeout(30, TimeUnit.SECONDS)
+            .build();
+
+    /** APKMirror pages get a little more room because Cloudflare can be slow. */
+    private static final OkHttpClient APKMIRROR_HTTP = HTTP.newBuilder()
+            .connectTimeout(12, TimeUnit.SECONDS)
+            .readTimeout(25, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
+            .build();
+
+    /**
+     * File downloads: the read timeout is the stall timeout. No call timeout,
+     * because that would cap the whole transfer.
+     */
+    private static final OkHttpClient DOWNLOAD_HTTP = HTTP.newBuilder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
             .build();
 
     /**
@@ -334,12 +360,27 @@ public class DownloadActivity extends Activity {
     /** Label above the progress bar naming the active source. */
     private TextView sourceLabel;
 
-    /** Compact request/size/connection details. */
-    private TextView downloadDetails;
     /** Large app name shown above the progress ring. */
     private TextView downloadName;
-    private volatile String downloadMode = "";
+    /** App icon and metadata chips shown above the progress ring. */
+    private LinearLayout appHeader;
+    private ImageView appIcon;
+    private LinearLayout appChips;
+    private TextView appVersionChip;
+    private TextView appFormatChip;
+    private TextView appAbiChip;
+
+    /** Source / Size / Connections metrics and the package pill. */
+    private LinearLayout metricsRow;
+    private TextView metricSource;
+    private TextView metricSize;
+    private TextView metricConnections;
+    private TextView packagePill;
+    private String activeSourceName = "";
+    private volatile int downloadConnections = 1;
     private volatile long downloadTotalBytes = -1;
+    /** ETag/Last-Modified from the first response, used by If-Range on resume. */
+    private volatile String downloadIfRange;
 
     /** Set to true when the user backs out or the activity is destroyed. */
     private volatile boolean cancelled = false;
@@ -385,6 +426,8 @@ public class DownloadActivity extends Activity {
     private String webSource;
     /** Top-level source row that should show NOW while a WebView flow runs. */
     private volatile String pendingSourceKey;
+    /** Start time of the current WebView flow, used for state logging. */
+    private long webFlowStartedAt;
     /** True once a source returned a file; the source list should stop advancing. */
     private volatile boolean resolutionComplete;
 
@@ -583,7 +626,7 @@ public class DownloadActivity extends Activity {
         diagnosticsCard.setVisibility(View.GONE);
         fallbackButton.setVisibility(View.GONE);
         sourceLabel.setVisibility(View.GONE);
-        cancelButton.setText(R.string.common_cancel);
+        cancelButton.setText("\u2715  " + getString(R.string.common_cancel));
         progress.setVisibility(View.VISIBLE);
         progress.setIndeterminate(true);
         progress.setProgress(0);
@@ -768,12 +811,12 @@ public class DownloadActivity extends Activity {
                 return;
             }
 
+            long handoffStarted = System.currentTimeMillis();
             Uri uri = FileProvider.getUriForFile(
                     DownloadActivity.this,
                     getPackageName() + ".fileprovider",
                     file
             );
-            AppSettings.publishDownload(this, file);
             Intent result = new Intent();
             result.setData(uri);
             result.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -785,13 +828,14 @@ public class DownloadActivity extends Activity {
             pendingFile = null;
             HelperLog.info("Returning file " + file.getAbsolutePath()
                     + " (" + file.length() + " bytes)");
-            stopDownloadService();
-
             setPauseVisible(false);
             runOnUiThread(() -> {
                 setResult(RESULT_OK, result);
                 setStatus(getString(R.string.download_done, file.getName()));
                 finish();
+                HelperLog.info("Hand-off complete in "
+                        + (System.currentTimeMillis() - handoffStarted) + "ms");
+                startPublicCopy(file);
             });
         } catch (Exception e) {
             if (report != null) {
@@ -807,6 +851,26 @@ public class DownloadActivity extends Activity {
                 showFailure();
             });
         }
+    }
+
+    /**
+     * Copies a validated file to the public/custom folder after the
+     * FileProvider URI has been handed to Morphe. The copy runs on its own
+     * thread and keeps the foreground service alive until it finishes.
+     */
+    private void startPublicCopy(File file) {
+        Context app = getApplicationContext();
+        new Thread(() -> {
+            long started = System.currentTimeMillis();
+            try {
+                AppSettings.publishDownload(app, file);
+            } finally {
+                HelperLog.info("Public copy finished in "
+                        + (System.currentTimeMillis() - started) + "ms");
+                app.startService(new Intent(app, DownloadService.class)
+                        .setAction(DownloadService.ACTION_STOP));
+            }
+        }, "publish-download").start();
     }
 
     private int awaitResultDecision(String message, VirusTotalScanner.Result scan) {
@@ -924,6 +988,8 @@ public class DownloadActivity extends Activity {
     private void startWebFlow(String source, String url, String pkg, String version,
                               String fileType) {
         webSource = source;
+        webFlowStartedAt = System.currentTimeMillis();
+        logWebFlowState("LOADING", url);
         pendingSourceKey = "uptodown".equals(source)
                 ? SourceSettings.FALLBACK : webSourceKey();
         main.post(this::renderSourceSteps);
@@ -982,6 +1048,11 @@ public class DownloadActivity extends Activity {
 
         web.setWebViewClient(new WebViewClient() {
             @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                logWebFlowState("PAGE_STARTED", url);
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 if (blockWebAds && WebAdBlocker.shouldBlock(DownloadActivity.this,
                         request.getUrl().getHost())) {
@@ -1022,6 +1093,7 @@ public class DownloadActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 HelperLog.info(webSource + " page finished: " + url);
+                logWebFlowState("PAGE_FINISHED", url);
                 if (blockWebAds) {
                     view.evaluateJavascript(WebAdBlocker.cosmeticScript(), null);
                     String summary = adBlockerSummary();
@@ -1107,6 +1179,44 @@ public class DownloadActivity extends Activity {
                             null);
                 }
             }
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request,
+                                        WebResourceError error) {
+                if (request == null || !request.isForMainFrame()) {
+                    return;
+                }
+                int code = error == null ? -1 : error.getErrorCode();
+                String description = error == null
+                        ? "unknown error" : String.valueOf(error.getDescription());
+                logWebFlowState("ERROR", "code=" + code + " " + description
+                        + " " + request.getUrl());
+                failWebFlowFast(description);
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request,
+                                           WebResourceResponse response) {
+                if (request == null || !request.isForMainFrame() || response == null) {
+                    return;
+                }
+                int status = response.getStatusCode();
+                logWebFlowState("HTTP_ERROR", "status=" + status
+                        + " " + request.getUrl());
+                // 403/429/5xx can be a Cloudflare challenge or a transient page;
+                // only fail immediately for a permanently missing page.
+                if (status == 404 || status == 410) {
+                    failWebFlowFast("HTTP " + status);
+                }
+            }
+
+            @Override
+            public boolean onRenderProcessGone(WebView view,
+                                               RenderProcessGoneDetail detail) {
+                logWebFlowState("RENDERER_GONE", detail != null
+                        && detail.didCrash() ? "crashed" : "stopped");
+                failWebFlowFast("WebView renderer stopped");
+                return true;
+            }
         });
 
         web.setDownloadListener((downloadUrl, userAgent, contentDisposition,
@@ -1174,9 +1284,15 @@ public class DownloadActivity extends Activity {
                     return p.length>2&&p!=='com'&&p!=='org'&&p!=='net'&&p!=='android';
                 });
                 var verSlug=(ver||'').toLowerCase().split('.').join('-');
+                var verCore=(ver||'').split('-')[0];
+                var verCoreSlug=(verCore||'').toLowerCase().split('.').join('-');
                 function txt(el){return (el&&el.innerText||'').trim();}
                 function digits(s){return (s||'').replace(/[^0-9]/g,'');}
-                function hasVer(s){return ver&&digits(s).indexOf(digits(ver))>=0;}
+                function hasVer(s){
+                    var d=digits(s);
+                    if(ver&&d.indexOf(digits(ver))>=0)return true;
+                    return verCore&&verCore!==ver&&d.indexOf(digits(verCore))>=0;
+                }
                 function pathOf(href){
                     try{return new URL(href,location.href).pathname.toLowerCase();}
                     catch(e){return (href||'').toLowerCase();}
@@ -1245,12 +1361,15 @@ public class DownloadActivity extends Activity {
                     var p=location.pathname.toLowerCase();
                     var q=location.search.toLowerCase();
                     if(q.indexOf('searchtype=')>=0){
-                        var best=null,bestScore=-1,ls=document.querySelectorAll('a');
+                        var best=null,bestScore=-1,bestRelease=null,bestReleaseScore=-1;
+                        var bestApp=null,bestAppScore=-1,firstRel=null,ls=document.querySelectorAll('a');
                         for(var i=0;i<ls.length;i++){
                             var a=ls[i],h=a.href||'';
                             if(!h||h.indexOf('#')>=0)continue;
                             var hp=pathOf(h);
                             if(!isApkPath(hp))continue;
+                            var rel=isRelease(hp),appPage=isAppPage(hp);
+                            if(!rel&&!appPage)continue;
                             var t=txt(a).toLowerCase();
                             if(!t)continue;
                             var seg=segments(hp);
@@ -1263,14 +1382,28 @@ public class DownloadActivity extends Activity {
                                 else if(app.indexOf(pkgParts[j])>=0)score+=30;
                             }
                             if(nameLower&&t.indexOf(nameLower)>=0)score+=60;
-                            if(isRelease(hp))score+=20;
-                            if(/(alpha|beta)/.test(app)&&!/(alpha|beta)/.test(nameLower))score-=20;
+                            if(rel){
+                                if(!firstRel)firstRel=a;
+                                if(ver&&!(hp.indexOf(verSlug)>=0||hp.indexOf(verCoreSlug)>=0||hasVer(t)||hasVer(hp)))continue;
+                                score+=20;
+                                if(score>bestReleaseScore){bestReleaseScore=score;bestRelease=a;}
+                            }else if(appPage){
+                                if(score>bestAppScore){bestAppScore=score;bestApp=a;}
+                            }
                             if(score>bestScore){bestScore=score;best=a;}
                         }
-                        if(best&&bestScore>=60)return best;
+                        if(bestRelease&&bestReleaseScore>=60)return bestRelease;
+                        if(bestApp&&bestAppScore>=60)return bestApp;
+                        if(!ver&&best&&bestScore>=60)return best;
+                        if(firstRel){
+                            var relPath=pathOf(firstRel.href);
+                            var slash=relPath.lastIndexOf('/');
+                            if(slash>0)return relPath.substring(0,slash+1);
+                        }
                         return null;
                     }
                     if(isRelease(p)){
+                        if(ver&&!(p.indexOf(verSlug)>=0||p.indexOf(verCoreSlug)>=0||hasVer(p)))return null;
                         var vs=document.querySelectorAll('a');
                         var fallback=null,plain=null,plainAbi=null,plainExact=null;
                         var plainExactAbi=null,plainUniversal=null,bundle=null,bundleAbi=null;
@@ -1329,11 +1462,13 @@ public class DownloadActivity extends Activity {
                             if(!rh||rh.indexOf('#')>=0)continue;
                             if(!isRelease(pathOf(rh)))continue;
                             if(!first)first=ra;
-                            if(ver&&(rh.toLowerCase().indexOf(verSlug)>=0||hasVer(txt(ra)))){
+                            if(ver&&(rh.toLowerCase().indexOf(verSlug)>=0
+                                ||rh.toLowerCase().indexOf(verCoreSlug)>=0
+                                ||hasVer(txt(ra)))){
                                 picked=ra;break;
                             }
                         }
-                        return picked||first;
+                        return picked||(ver?null:first);
                     }
                     if(isVariant(p)){
                         var ds=document.querySelectorAll('a,button');
@@ -1370,6 +1505,7 @@ public class DownloadActivity extends Activity {
                     var target=pick();
                     if(target){
                         clearInterval(t);
+                        if(typeof target==='string'){location.href=target;return;}
                         try{target.scrollIntoView({block:'center'});}catch(e){}
                         setTimeout(function(){try{target.click();}catch(e){}},300);
                         return;
@@ -1396,6 +1532,7 @@ public class DownloadActivity extends Activity {
                 return;
             }
             uptodownHandled = true;
+            logWebFlowState("TIMEOUT", "");
             HelperLog.info(webSource + " timed out waiting for the download page");
             markWebFlowResult(false,
                     getString(R.string.download_error_page_timeout_detail));
@@ -1558,6 +1695,7 @@ public class DownloadActivity extends Activity {
         }
         cancelWebFlowTimeout();
         cancelAdBlockRetry();
+        logWebFlowState("CAPTURED", url);
         uptodownHandled = true;
         hideVerificationHint();
         HelperLog.info(webSource + " download URL: " + url);
@@ -1761,15 +1899,46 @@ public class DownloadActivity extends Activity {
         stateIcon.setVisibility(View.GONE);
         card.addView(stateIcon);
 
-        downloadName = text("", 20, TEXT, true);
-        downloadName.setGravity(Gravity.CENTER);
+        appHeader = new LinearLayout(this);
+        appHeader.setOrientation(LinearLayout.HORIZONTAL);
+        appHeader.setGravity(Gravity.CENTER_VERTICAL);
+        appHeader.setPadding(0, dp(2), 0, dp(8));
+        appHeader.setVisibility(View.GONE);
+
+        appIcon = new ImageView(this);
+        appIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        appHeader.addView(appIcon, new LinearLayout.LayoutParams(dp(52), dp(52)));
+
+        LinearLayout appLabels = new LinearLayout(this);
+        appLabels.setOrientation(LinearLayout.VERTICAL);
+        appLabels.setPadding(dp(12), 0, 0, 0);
+
+        downloadName = text("", 18, TEXT, true);
         downloadName.setSingleLine(true);
         downloadName.setEllipsize(TextUtils.TruncateAt.END);
-        downloadName.setVisibility(View.GONE);
-        LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        nameParams.topMargin = dp(4);
-        card.addView(downloadName, nameParams);
+        appLabels.addView(downloadName);
+
+        appChips = new LinearLayout(this);
+        appChips.setOrientation(LinearLayout.HORIZONTAL);
+        appChips.setPadding(0, dp(5), 0, 0);
+        appVersionChip = chip("", ACCENT_TEXT);
+        appFormatChip = chip("", MUTED);
+        appAbiChip = chip("", MUTED);
+        appChips.addView(appVersionChip, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams formatChipParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        formatChipParams.setMarginStart(dp(6));
+        appChips.addView(appFormatChip, formatChipParams);
+        LinearLayout.LayoutParams abiChipParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        abiChipParams.setMarginStart(dp(6));
+        appChips.addView(appAbiChip, abiChipParams);
+        appLabels.addView(appChips);
+
+        appHeader.addView(appLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        card.addView(appHeader);
 
         progress = new ProgressDisplay(this);
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
@@ -1794,12 +1963,38 @@ public class DownloadActivity extends Activity {
         sourceLabelParams.topMargin = dp(8);
         card.addView(sourceLabel, sourceLabelParams);
 
-        downloadDetails = text("", 13, MUTED, false);
-        downloadDetails.setGravity(Gravity.CENTER);
-        downloadDetails.setLineSpacing(dp(2), 1f);
-        downloadDetails.setPadding(0, dp(8), 0, 0);
-        downloadDetails.setVisibility(View.GONE);
-        card.addView(downloadDetails);
+        metricsRow = new LinearLayout(this);
+        metricsRow.setOrientation(LinearLayout.HORIZONTAL);
+        metricsRow.setPadding(0, dp(14), 0, 0);
+        metricsRow.setVisibility(View.GONE);
+        metricSource = metricValue();
+        metricSize = metricValue();
+        metricConnections = metricValue();
+        metricsRow.addView(metricColumn(
+                        getString(R.string.download_metric_source), metricSource),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        metricsRow.addView(metricColumn(
+                        getString(R.string.download_metric_size), metricSize),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        metricsRow.addView(metricColumn(
+                        getString(R.string.download_metric_connections), metricConnections),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        card.addView(metricsRow);
+
+        packagePill = text("", 11, MUTED, false);
+        packagePill.setGravity(Gravity.CENTER);
+        packagePill.setSingleLine(true);
+        packagePill.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        packagePill.setPadding(dp(12), dp(6), dp(12), dp(6));
+        GradientDrawable packageBackground = rounded(SECONDARY, 999);
+        packageBackground.setStroke(dp(1), SECONDARY_BORDER);
+        packagePill.setBackground(packageBackground);
+        packagePill.setVisibility(View.GONE);
+        LinearLayout.LayoutParams packageParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        packageParams.gravity = Gravity.CENTER_HORIZONTAL;
+        packageParams.topMargin = dp(10);
+        card.addView(packagePill, packageParams);
 
         verificationHint = text(getString(R.string.download_verification_attention),
                 12, ACCENT_TEXT, true);
@@ -1874,7 +2069,7 @@ public class DownloadActivity extends Activity {
         progressControls.addView(downloadButtonsRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        pauseButton = secondaryButton(getString(R.string.download_pause));
+        pauseButton = actionButton(pauseLabel(false), ACCENT_TEXT, ACCENT_TEXT);
         pauseButton.setVisibility(View.GONE);
         pauseButton.setOnClickListener(v -> togglePause());
         LinearLayout.LayoutParams pauseParams = new LinearLayout.LayoutParams(
@@ -1882,7 +2077,9 @@ public class DownloadActivity extends Activity {
         pauseParams.setMarginEnd(dp(6));
         downloadButtonsRow.addView(pauseButton, pauseParams);
 
-        switchSourceButton = secondaryButton(getString(R.string.download_switch_source_short));
+        switchSourceButton = actionButton(
+                "\u21C4  " + getString(R.string.download_switch_source_short),
+                WARN_TEXT, WARN_TEXT);
         switchSourceButton.setVisibility(View.GONE);
         switchSourceButton.setOnClickListener(v -> showSwitchSourcePicker());
         LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
@@ -1891,7 +2088,8 @@ public class DownloadActivity extends Activity {
         downloadButtonsRow.addView(switchSourceButton, switchParams);
 
         // Cancel/Close stays available while the flow is active.
-        cancelButton = secondaryButton(getString(R.string.common_cancel));
+        cancelButton = actionButton(
+                "\u2715  " + getString(R.string.common_cancel), RED, RED);
         cancelButton.setOnClickListener(v -> cancel());
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
@@ -1910,7 +2108,7 @@ public class DownloadActivity extends Activity {
         root.addView(sourceStepsCard, stepsParams);
 
         sourceStepsCard.addView(text(
-                getString(R.string.download_steps_title), 15, TEXT, true));
+                getString(R.string.main_sources_title), 15, TEXT, true));
         sourceStepsList = new LinearLayout(this);
         sourceStepsList.setOrientation(LinearLayout.VERTICAL);
         sourceStepsList.setPadding(0, dp(4), 0, 0);
@@ -2236,6 +2434,55 @@ public class DownloadActivity extends Activity {
     }
 
     /** Creates the dark outlined Cancel/Close button. */
+    private TextView chip(String value, int textColor) {
+        TextView chip = text(value, 9, textColor, true);
+        chip.setSingleLine(true);
+        chip.setEllipsize(TextUtils.TruncateAt.END);
+        chip.setPadding(dp(8), dp(3), dp(8), dp(3));
+        GradientDrawable background = rounded(SECONDARY, 999);
+        background.setStroke(dp(1), SECONDARY_BORDER);
+        chip.setBackground(background);
+        return chip;
+    }
+
+    private TextView metricValue() {
+        return text("\u2014", 12, TEXT, true);
+    }
+
+    private LinearLayout metricColumn(String label, TextView value) {
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setGravity(Gravity.CENTER_HORIZONTAL);
+        TextView caption = text(label.toUpperCase(Locale.US), 9, MUTED, true);
+        caption.setLetterSpacing(0.12f);
+        caption.setGravity(Gravity.CENTER);
+        column.addView(caption);
+        value.setGravity(Gravity.CENTER);
+        value.setSingleLine(true);
+        value.setEllipsize(TextUtils.TruncateAt.END);
+        value.setPadding(0, dp(3), 0, 0);
+        column.addView(value);
+        return column;
+    }
+
+    private TextView actionButton(String label, int textColor, int borderColor) {
+        TextView view = text(label, 13, textColor, true);
+        view.setGravity(Gravity.CENTER);
+        view.setPadding(dp(12), dp(12), dp(12), dp(12));
+        GradientDrawable background = rounded(SECONDARY, 14);
+        background.setStroke(dp(1), borderColor);
+        view.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), background, null));
+        view.setClickable(true);
+        view.setFocusable(true);
+        return view;
+    }
+
+    private String pauseLabel(boolean isPaused) {
+        return (isPaused ? "\u25B6  " : "\u275A\u275A  ")
+                + getString(isPaused ? R.string.download_resume : R.string.download_pause);
+    }
+
     private TextView secondaryButton(String label) {
         TextView view = new TextView(this);
         view.setText(label);
@@ -2304,62 +2551,80 @@ public class DownloadActivity extends Activity {
     }
 
     private void updateDownloadDetails() {
-        if (downloadDetails == null) {
+        if (appHeader == null) {
             return;
         }
         String app = TextUtils.isEmpty(requestedAppName)
                 ? requestPkg : requestedAppName;
-        if (downloadName != null) {
-            downloadName.setText(app);
-            downloadName.setVisibility(TextUtils.isEmpty(app) ? View.GONE : View.VISIBLE);
+        appHeader.setVisibility(TextUtils.isEmpty(app) ? View.GONE : View.VISIBLE);
+        downloadName.setText(app);
+
+        if (appIcon != null) {
+            if (TextUtils.isEmpty(requestPkg)) {
+                appIcon.setVisibility(View.GONE);
+            } else {
+                try {
+                    appIcon.setImageDrawable(
+                            getPackageManager().getApplicationIcon(requestPkg));
+                } catch (Exception ignored) {
+                    appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+                }
+                appIcon.setVisibility(View.VISIBLE);
+            }
         }
 
-        StringBuilder text = new StringBuilder();
-        if (!TextUtils.isEmpty(requestVersion)) {
-            text.append(requestVersion);
+        String version = requestVersion == null ? "" : requestVersion.trim();
+        if (!version.isEmpty() && !version.toLowerCase(Locale.US).startsWith("v")) {
+            version = "v" + version;
         }
-        if (requestVersionCodes != null && requestVersionCodes.length > 0) {
-            if (text.length() > 0) {
-                text.append(" \u00B7 ");
-            }
-            text.append("build ").append(requestVersionCodes[0]);
+        setChip(appVersionChip, version);
+        setChip(appFormatChip, TextUtils.isEmpty(requestFileType)
+                ? "" : requestFileType.toUpperCase(Locale.US));
+        setChip(appAbiChip, requestAbis != null && requestAbis.length > 0
+                ? requestAbis[0] : "");
+
+        boolean hasPackage = !TextUtils.isEmpty(requestPkg);
+        if (metricsRow != null) {
+            metricsRow.setVisibility(hasPackage ? View.VISIBLE : View.GONE);
         }
-        if (!TextUtils.isEmpty(requestFileType)) {
-            if (text.length() > 0) {
-                text.append(" \u00B7 ");
-            }
-            text.append(requestFileType.toUpperCase(Locale.US));
+        if (metricSource != null) {
+            metricSource.setText(activeSourceName.isEmpty()
+                    ? "\u2014" : shortSourceName(activeSourceName));
         }
-        if (requestAbis != null && requestAbis.length > 0) {
-            text.append(" \u00B7 ").append(requestAbis[0]);
+        if (metricSize != null) {
+            metricSize.setText(downloadTotalBytes > 0
+                    ? formatBytes(downloadTotalBytes) : "\u2014");
         }
-        if (!TextUtils.isEmpty(requestPkg)) {
-            if (text.length() > 0) {
-                text.append('\n');
-            }
-            text.append(requestPkg);
+        if (metricConnections != null) {
+            metricConnections.setText(downloadConnections > 0
+                    ? String.valueOf(downloadConnections) : "\u2014");
         }
-        if (downloadTotalBytes > 0) {
-            if (text.length() > 0) {
-                text.append('\n');
-            }
-            text.append(formatBytes(downloadTotalBytes));
+        if (packagePill != null) {
+            packagePill.setText(requestPkg);
+            packagePill.setVisibility(hasPackage ? View.VISIBLE : View.GONE);
         }
-        if (!downloadMode.isEmpty()) {
-            if (downloadTotalBytes > 0) {
-                text.append(" \u00B7 ");
-            } else if (text.length() > 0) {
-                text.append('\n');
-            }
-            text.append(downloadMode);
-        }
-        downloadDetails.setText(text);
-        downloadDetails.setVisibility(text.length() > 0 ? View.VISIBLE : View.GONE);
     }
 
-    private void setDownloadInfo(long totalBytes, String mode) {
+    private void setChip(TextView chip, String value) {
+        if (chip == null) {
+            return;
+        }
+        chip.setText(value == null ? "" : value);
+        chip.setVisibility(TextUtils.isEmpty(value) ? View.GONE : View.VISIBLE);
+    }
+
+    /** Shortens labels such as "User GitHub (owner/repo)" for the metric column. */
+    private static String shortSourceName(String label) {
+        if (label == null) {
+            return "";
+        }
+        int details = label.indexOf(" (");
+        return details > 0 ? label.substring(0, details) : label;
+    }
+
+    private void setDownloadInfo(long totalBytes, int connections) {
         downloadTotalBytes = totalBytes;
-        downloadMode = mode == null ? "" : mode;
+        downloadConnections = Math.max(1, connections);
         main.post(this::updateDownloadDetails);
     }
 
@@ -2409,8 +2674,13 @@ public class DownloadActivity extends Activity {
     }
     private void setSourceLabel(String label) {
         main.post(() -> {
+            activeSourceName = label == null ? "" : label;
             sourceLabel.setText(getString(R.string.download_source_label, label));
-            sourceLabel.setVisibility(View.VISIBLE);
+            sourceLabel.setVisibility(View.GONE);
+            if (metricSource != null) {
+                metricSource.setText(activeSourceName.isEmpty()
+                        ? "\u2014" : shortSourceName(activeSourceName));
+            }
             renderSourceSteps();
         });
     }
@@ -2424,7 +2694,7 @@ public class DownloadActivity extends Activity {
             pauseButton.setVisibility(visible ? View.VISIBLE : View.GONE);
             if (!visible) {
                 paused = false;
-                pauseButton.setText(R.string.download_pause);
+                pauseButton.setText(pauseLabel(false));
             }
             updateDownloadButtonsRow();
         });
@@ -2472,7 +2742,7 @@ public class DownloadActivity extends Activity {
         pickerPausedDownload = canPause;
         if (canPause) {
             paused = true;
-            pauseButton.setText(R.string.download_resume);
+            pauseButton.setText(pauseLabel(true));
             setStatus(R.string.download_paused);
             updateDownloadService(getString(R.string.download_paused),
                     progress.getProgress(), false);
@@ -2491,7 +2761,7 @@ public class DownloadActivity extends Activity {
                 .setOnDismissListener(dialog -> {
                     if (!selected[0] && pickerPausedDownload) {
                         paused = false;
-                        pauseButton.setText(R.string.download_pause);
+                        pauseButton.setText(pauseLabel(false));
                         setStatus(R.string.download_resuming);
                         updateDownloadService(getString(R.string.download_resuming),
                                 progress.getProgress(), false);
@@ -2506,7 +2776,7 @@ public class DownloadActivity extends Activity {
         switchingSource = true;
         paused = false;
         if (pauseButton != null) {
-            pauseButton.setText(R.string.download_pause);
+            pauseButton.setText(pauseLabel(false));
         }
         setStatus(R.string.download_switching_source);
         Call call = activeCall;
@@ -2529,6 +2799,12 @@ public class DownloadActivity extends Activity {
         }
 
         pendingSwitchKey = key;
+        if (SourceSettings.APKMIRROR.equals(key)) {
+            apkmirrorRejected = false;
+        }
+        if (SourceSettings.UPTODOWN.equals(key)) {
+            uptodownRejected = false;
+        }
         boolean workerActive = report != null && !report.isFinished();
         if (webFlow || !workerActive) {
             // Nothing is left to unwind: start the selected source now.
@@ -2551,7 +2827,7 @@ public class DownloadActivity extends Activity {
                 return;
             }
             if (pauseButton != null) {
-                pauseButton.setText(R.string.download_pause);
+                pauseButton.setText(pauseLabel(false));
             }
             startResolution(false);
         });
@@ -2560,18 +2836,67 @@ public class DownloadActivity extends Activity {
     private void togglePause() {
         if (paused) {
             paused = false;
-            pauseButton.setText(R.string.download_pause);
+            pauseButton.setText(pauseLabel(false));
             setStatus(R.string.download_resuming);
             updateDownloadService(getString(R.string.download_resuming),
                     progress.getProgress(), false);
         } else {
             paused = true;
-            pauseButton.setText(R.string.download_resume);
+            pauseButton.setText(pauseLabel(true));
             setStatus(R.string.download_paused);
             updateDownloadService(getString(R.string.download_paused),
                     progress.getProgress(), false);
         }
     }
+    /** Logs a WebView state transition with elapsed time for diagnostics. */
+    private void logWebFlowState(String state, String detail) {
+        long elapsed = webFlowStartedAt > 0
+                ? System.currentTimeMillis() - webFlowStartedAt : 0;
+        String source = webSource == null ? "web" : webSource;
+        HelperLog.info("webflow state " + source + " " + state
+                + (TextUtils.isEmpty(detail) ? "" : " " + detail)
+                + " (+" + elapsed + "ms)");
+    }
+
+    /**
+     * Fails the current WebView flow immediately instead of waiting for the
+     * 90-second watchdog. Used for main-frame load errors and renderer crashes.
+     */
+    private void failWebFlowFast(String detail) {
+        if (cancelled || uptodownHandled || switchingSource
+                || pendingSwitchKey != null) {
+            return;
+        }
+        uptodownHandled = true;
+        logWebFlowState("FAILED", detail);
+        cancelWebFlowTimeout();
+        hideVerificationHint();
+        cancelAdBlockRetry();
+        if (uptodownWebView != null) {
+            uptodownWebView.stopLoading();
+            uptodownWebContainer.removeView(uptodownWebView);
+            uptodownWebView.destroy();
+            uptodownWebView = null;
+        }
+        if (uptodownSection != null) {
+            uptodownSection.setVisibility(View.GONE);
+        }
+        String message = getString(R.string.download_error_page_failed);
+        if (!TextUtils.isEmpty(detail)) {
+            message += " (" + detail + ")";
+        }
+        markWebFlowResult(false, message);
+        if (report != null) {
+            report.finishFailure(message);
+            HelperLog.info(report.resultBlock());
+        }
+        stopDownloadService();
+        setPauseVisible(false);
+        setSwitchSourceVisible(false);
+        setStatus(R.string.download_error_page_failed);
+        showFailure();
+    }
+
     /** Shows a tap-to-open hint only after a WebView has been waiting a while. */
     private void scheduleVerificationHint() {
         hideVerificationHint();
@@ -2700,24 +3025,15 @@ public class DownloadActivity extends Activity {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(0, dp(7), 0, dp(7));
-
-            String symbol;
-            int color;
-            if (latest != null) {
-                symbol = latest.success ? "\u2713" : "\u2715";
-                color = latest.success ? GREEN : RED;
-            } else if (current) {
-                symbol = "\u25CF";
-                color = ACCENT_TEXT;
-            } else {
-                symbol = String.valueOf(position);
-                color = MUTED;
+            row.setPadding(dp(8), dp(7), dp(8), dp(7));
+            if (current) {
+                GradientDrawable currentBackground = rounded(SECONDARY, 12);
+                currentBackground.setStroke(dp(1), SECONDARY_BORDER);
+                row.setBackground(currentBackground);
             }
-            TextView marker = text(symbol, 12, color, true);
-            marker.setGravity(Gravity.CENTER);
-            marker.setBackground(rounded(SECONDARY, 999));
-            row.addView(marker, new LinearLayout.LayoutParams(dp(24), dp(24)));
+
+            View badge = SourceBadge.create(this, key);
+            row.addView(badge, new LinearLayout.LayoutParams(dp(28), dp(28)));
 
             String name;
             if (GitHubAppStore.SOURCE_KEY.equals(key)) {
@@ -2746,12 +3062,19 @@ public class DownloadActivity extends Activity {
                 stateColor = latest.success ? GREEN : RED;
             } else if (current) {
                 stateText = getString(R.string.download_step_current);
-                stateColor = ACCENT_TEXT;
+                stateColor = GREEN;
             } else {
                 stateText = getString(R.string.download_step_next);
                 stateColor = MUTED;
             }
-            row.addView(text(stateText, 10, stateColor, true));
+            TextView stateView = text(stateText, 10, stateColor, true);
+            if (current) {
+                stateView.setPadding(dp(7), dp(3), dp(7), dp(3));
+                GradientDrawable currentPill = rounded(SECONDARY, 999);
+                currentPill.setStroke(dp(1), GREEN);
+                stateView.setBackground(currentPill);
+            }
+            row.addView(stateView);
             sourceStepsList.addView(row);
         }
 
@@ -2799,7 +3122,7 @@ public class DownloadActivity extends Activity {
             if (!TextUtils.isEmpty(fallbackUrl)) {
                 fallbackButton.setVisibility(View.VISIBLE);
             }
-            cancelButton.setText(R.string.common_close);
+            cancelButton.setText("\u2715  " + getString(R.string.common_close));
             if (report != null) {
                 populateDiagnostics(report);
             }
@@ -2855,6 +3178,8 @@ public class DownloadActivity extends Activity {
         retryAllButton.setEnabled(false);
         forcedSource = null;
         retrySources = null;
+        apkmirrorRejected = false;
+        uptodownRejected = false;
         startResolution(false);
     }
 
@@ -3126,7 +3451,11 @@ public class DownloadActivity extends Activity {
         File file = null;
         try {
             file = downloadFile(url, referer, pkg, version, fileType);
-            DownloadedFileValidator.verifyInstalledSignature(this, file, pkg);
+            // GitHub APKs are official builds, but the installed app is often a
+            // patched build signed with a different key. Morphe handles signing
+            // and patching, so do not reject the APK based on the installed
+            // signature here. Package/version validation still runs in
+            // downloadFile/DownloadedFileValidator.
             return file;
         } catch (IOException error) {
             if (file != null) {
@@ -3140,14 +3469,9 @@ public class DownloadActivity extends Activity {
         }
     }
 
-    /** True for a package/version/signature rejection rather than a network error. */
+    /** True for a package/version rejection rather than a network error. */
     private boolean isVerificationFailure(IOException error) {
-        if (error instanceof DownloadedFileValidator.VersionMismatchException) {
-            return true;
-        }
-        String message = error.getMessage();
-        return message != null
-                && message.toLowerCase(Locale.US).contains("signature");
+        return error instanceof DownloadedFileValidator.VersionMismatchException;
     }
 
     /**
@@ -3482,8 +3806,11 @@ public class DownloadActivity extends Activity {
                 } catch (Exception failed) {
                     HelperLog.error("Morphe resolver APKPure link failed", failed);
                 }
+            // A resolver-supplied APKMirror link is an exact page, not the
+            // automatic search. Do not let an earlier automatic APKMirror
+            // mismatch block this exact link.
             } else if (isHost(host, "apkmirror.com")
-                    && sourceAllowed(SourceSettings.APKMIRROR)) {
+                    && SourceSettings.isEnabled(this, SourceSettings.APKMIRROR)) {
                 try {
                     File file = downloadFromFallback(url, pkg, version, fileType, abis);
                     markSource(SourceSettings.FALLBACK, true, getString(R.string.source_detail_resolver_apkmirror));
@@ -4154,7 +4481,7 @@ public class DownloadActivity extends Activity {
 
         HelperLog.info("APKPure API " + url);
         String body;
-        try (Response response = HTTP.newCall(request).execute()) {
+        try (Response response = METADATA_HTTP.newCall(request).execute()) {
             HelperLog.info("APKPure API -> HTTP " + response.code());
             if (!response.isSuccessful()) {
                 throw new IOException("HTTP " + response.code() + " from APKPure API");
@@ -4565,12 +4892,14 @@ public class DownloadActivity extends Activity {
             builder.header("Referer", referer);
         }
 
-        int attempts = isHost(hostOf(url), "apkmirror.com") ? 2 : 1;
+        boolean apkmirror = isHost(hostOf(url), "apkmirror.com");
+        OkHttpClient client = apkmirror ? APKMIRROR_HTTP : METADATA_HTTP;
+        int attempts = apkmirror ? 2 : 1;
         IOException last = null;
         for (int attempt = 1; attempt <= attempts; attempt++) {
             HelperLog.info("GET " + url + (referer != null ? " (referer=" + referer + ")" : "")
                     + (attempt > 1 ? " attempt=" + attempt : ""));
-            try (Response response = HTTP.newCall(builder.build()).execute()) {
+            try (Response response = client.newCall(builder.build()).execute()) {
                 HelperLog.info("GET " + url + " -> HTTP " + response.code()
                         + " type=" + response.header("Content-Type")
                         + " length=" + response.header("Content-Length"));
@@ -4583,6 +4912,11 @@ public class DownloadActivity extends Activity {
                 if (attempt >= attempts || (code != 429 && code < 500)) {
                     throw last;
                 }
+            } catch (IOException error) {
+                HelperLog.info("GET " + url + " failed using "
+                        + (apkmirror ? "APKMirror" : "metadata")
+                        + " client: " + error.getMessage());
+                throw error;
             }
             try {
                 Thread.sleep(700L * attempt);
@@ -4817,7 +5151,7 @@ public class DownloadActivity extends Activity {
             partBase = "download-" + Math.abs(url.hashCode());
         }
         File part = new File(dir, partBase + ".part");
-        setDownloadInfo(-1, getString(R.string.download_mode_single));
+        setDownloadInfo(-1, 1);
         if (AppSettings.multiThreadDownloads(this)) {
             File multi = segmentedDownload(url, referer, pkg, versionName,
                     fileType, cookie, dir, partBase);
@@ -4825,8 +5159,44 @@ public class DownloadActivity extends Activity {
                 return multi;
             }
             HelperLog.info("Multi-connection download unavailable; using single stream");
-            setDownloadInfo(-1, getString(R.string.download_mode_single));
+            setDownloadInfo(-1, 1);
         }
+        downloadIfRange = null;
+        IOException last = null;
+        for (int attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt++) {
+            try {
+                return downloadSingleStreamAttempt(url, referer, pkg, versionName,
+                        fileType, cookie, dir, part);
+            } catch (IOException error) {
+                last = error;
+                if (cancelled || switchingSource || forcedSource != null
+                        || pendingSwitchKey != null) {
+                    throw error;
+                }
+                if (attempt >= MAX_DOWNLOAD_ATTEMPTS
+                        || !isRetryableDownloadError(error)) {
+                    throw error;
+                }
+                HelperLog.info("Download interrupted; retrying from "
+                        + part.length() + " bytes (attempt " + (attempt + 1)
+                        + "/" + MAX_DOWNLOAD_ATTEMPTS + "): " + error.getMessage());
+                setStatus(getString(R.string.download_retry_resume,
+                        attempt + 1, MAX_DOWNLOAD_ATTEMPTS));
+                try {
+                    Thread.sleep(1000L * attempt);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted", interrupted);
+                }
+            }
+        }
+        throw last == null ? new IOException("Download failed") : last;
+    }
+
+    private File downloadSingleStreamAttempt(String url, String referer, String pkg,
+                                              String versionName, String fileType,
+                                              String cookie, File dir, File part)
+            throws IOException {
         long existing = part.length();
         boolean append = existing > 0;
 
@@ -4844,13 +5214,16 @@ public class DownloadActivity extends Activity {
         if (append) {
             HelperLog.info("Resuming download at " + existing + " bytes");
             builder.header("Range", "bytes=" + existing + "-");
+            if (downloadIfRange != null) {
+                builder.header("If-Range", downloadIfRange);
+            }
         }
 
         HelperLog.info("DOWNLOAD " + url
                 + (referer != null ? " (referer=" + referer + ")" : ""));
         logDownloadContext(dir);
         DownloadTimingListener timing = new DownloadTimingListener();
-        OkHttpClient.Builder downloadBuilder = HTTP.newBuilder()
+        OkHttpClient.Builder downloadBuilder = DOWNLOAD_HTTP.newBuilder()
                 .eventListener(timing);
         String downloadHost = hostOf(url);
         if (isHost(downloadHost, "uptodown.com")
@@ -4868,7 +5241,7 @@ public class DownloadActivity extends Activity {
             long bodyLength = body != null ? body.contentLength() : -1;
             long total = append && response.code() == 206 && bodyLength >= 0
                     ? existing + bodyLength : bodyLength;
-            setDownloadInfo(total, getString(R.string.download_mode_single));
+            setDownloadInfo(total, 1);
             HelperLog.info("DOWNLOAD " + url + " -> HTTP " + response.code()
                     + " type=" + contentType
                     + " length=" + total);
@@ -4894,6 +5267,19 @@ public class DownloadActivity extends Activity {
             }
             if (body == null) {
                 throw new IOException("Empty response");
+            }
+            if (response.code() == 206
+                    && !contentRangeStartsAt(response.header("Content-Range"), existing)) {
+                // The partial file no longer matches the server's range; start clean.
+                //noinspection ResultOfMethodCallIgnored
+                part.delete();
+                throw new IOException("Unexpected Content-Range");
+            }
+            if (downloadIfRange == null) {
+                downloadIfRange = response.header("ETag");
+                if (downloadIfRange == null) {
+                    downloadIfRange = response.header("Last-Modified");
+                }
             }
 
             setPauseVisible(true);
@@ -4974,13 +5360,73 @@ public class DownloadActivity extends Activity {
             if (cancelled) {
                 throw new IOException("Cancelled");
             }
+            if (total > 0 && readTotal < total) {
+                throw new IOException("Incomplete download: "
+                        + readTotal + "/" + total + " bytes");
+            }
             return finalizeDownloadedFile(part, dir, filename, pkg, versionName);
+        } catch (IOException error) {
+            HelperLog.info("DOWNLOAD attempt failed (download client connect=15s read=20s): "
+                    + error.getMessage());
+            throw error;
         } finally {
             activeCall = null;
         }
     }
 
+    /** True for transient network/read failures that are safe to retry. */
+    static boolean isRetryableDownloadError(IOException error) {
+        if (error instanceof java.net.SocketTimeoutException
+                || error instanceof java.net.SocketException
+                || error instanceof java.net.UnknownHostException
+                || error instanceof java.io.EOFException) {
+            return true;
+        }
+        String message = error.getMessage();
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase(Locale.US);
+        if (lower.contains("incomplete download")
+                || lower.contains("unexpected end")
+                || lower.contains("connection reset")
+                || lower.contains("connection timed out")
+                || lower.contains("timeout")
+                || lower.contains("broken pipe")
+                || lower.contains("stream was reset")) {
+            return true;
+        }
+        if (lower.startsWith("http ")) {
+            String codeText = lower.substring(5).trim();
+            try {
+                int code = Integer.parseInt(codeText.split(" ", 2)[0]);
+                return code == 408 || code == 429 || code >= 500;
+            } catch (NumberFormatException ignored) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /** True when a Content-Range header starts at the expected offset. */
+    static boolean contentRangeStartsAt(String value, long expectedStart) {
+        if (value == null || !value.startsWith("bytes ")) {
+            return false;
+        }
+        int dash = value.indexOf('-', 6);
+        if (dash < 0) {
+            return false;
+        }
+        try {
+            return Long.parseLong(value.substring(6, dash).trim()) == expectedStart;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
+    }
+
     private static final long MULTI_MIN_BYTES = 5L * 1024L * 1024L;
+    /** Number of in-attempt retries for a dropped single-stream download. */
+    private static final int MAX_DOWNLOAD_ATTEMPTS = 3;
 
     /**
      * Attempts a segmented HTTP Range download. Returns null when the server or
@@ -4989,7 +5435,7 @@ public class DownloadActivity extends Activity {
     private File segmentedDownload(String url, String referer, String pkg,
                                    String versionName, String fileType, String cookie,
                                    File dir, String partBase) throws IOException {
-        OkHttpClient.Builder clientBuilder = HTTP.newBuilder();
+        OkHttpClient.Builder clientBuilder = DOWNLOAD_HTTP.newBuilder();
         if (isHost(hostOf(url), "uptodown.com")
                 || isHost(hostOf(url), "uptodown.net")) {
             clientBuilder.protocols(Collections.singletonList(Protocol.HTTP_1_1));
@@ -5052,7 +5498,7 @@ public class DownloadActivity extends Activity {
 
         HelperLog.info("MULTI download " + url + " total=" + total
                 + " segments=" + segments + " finalUrl=" + segmentUrl);
-        setDownloadInfo(total, getString(R.string.download_mode_multi, segments));
+        setDownloadInfo(total, segments);
         main.post(() -> {
             setPauseVisible(true);
             progress.setVisibility(View.VISIBLE);
@@ -5180,15 +5626,19 @@ public class DownloadActivity extends Activity {
                                  long start, long end, long total,
                                  AtomicLong downloaded) throws IOException {
         long expected = end - start + 1;
+        long segmentStart = start;
         IOException last = null;
         for (int attempt = 0; attempt < 3; attempt++) {
             if (switchingSource || forcedSource != null) {
                 throw new IOException("Switched source");
             }
+            if (segmentStart > end) {
+                return;
+            }
             long written = 0;
             waitForResume();
             Call call = client.newCall(base.newBuilder()
-                    .header("Range", "bytes=" + start + "-" + end)
+                    .header("Range", "bytes=" + segmentStart + "-" + end)
                     .build());
             activeCalls.add(call);
             try (Response response = call.execute()) {
@@ -5200,7 +5650,7 @@ public class DownloadActivity extends Activity {
                     throw new IOException("Unexpected Content-Encoding " + encoding);
                 }
                 if (!rangeMatches(response.header("Content-Range"),
-                        start, end, total)) {
+                        segmentStart, end, total)) {
                     throw new IOException("Unexpected Content-Range");
                 }
                 ResponseBody body = response.body();
@@ -5209,21 +5659,23 @@ public class DownloadActivity extends Activity {
                 }
                 try (RandomAccessFile output = new RandomAccessFile(part, "rw");
                      InputStream input = new BufferedInputStream(body.byteStream())) {
-                    output.seek(start);
+                    output.seek(segmentStart);
                     byte[] buffer = new byte[64 * 1024];
                     int read;
                     while ((read = input.read(buffer)) != -1) {
                         waitForResume();
                         output.write(buffer, 0, read);
+                        segmentStart += read;
                         written += read;
                         downloaded.addAndGet(read);
-                        if (written > expected) {
+                        if (segmentStart > end + 1) {
                             throw new IOException("Segment overflow");
                         }
                     }
                 }
-                if (written != expected) {
-                    throw new IOException("Short segment " + written + "/" + expected);
+                if (segmentStart != end + 1) {
+                    throw new IOException("Short segment "
+                            + (segmentStart - start) + "/" + expected);
                 }
                 return;
             } catch (IOException error) {
@@ -5233,7 +5685,8 @@ public class DownloadActivity extends Activity {
                     throw error;
                 }
                 HelperLog.info("Segment " + start + "-" + end + " retry "
-                        + (attempt + 1) + ": " + error.getMessage());
+                        + (attempt + 1) + " from " + segmentStart
+                        + ": " + error.getMessage());
             } finally {
                 activeCalls.remove(call);
             }
@@ -5274,7 +5727,7 @@ public class DownloadActivity extends Activity {
         }
     }
 
-    private static boolean rangeMatches(String value, long start, long end,
+    static boolean rangeMatches(String value, long start, long end,
                                         long total) {
         if (value == null || !value.startsWith("bytes ")) {
             return false;
@@ -5560,6 +6013,3 @@ public class DownloadActivity extends Activity {
                 || "apkm".equalsIgnoreCase(fileType);
     }
 }
-
-
-

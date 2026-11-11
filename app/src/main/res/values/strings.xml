@@ -291,6 +291,9 @@
     <string name="download_subtitle_failure">No source produced a matching APK</string>
     <string name="download_retry_all">Retry all sources</string>
     <string name="download_steps_title">Sources</string>
+    <string name="download_metric_source">Source</string>
+    <string name="download_metric_size">Size</string>
+    <string name="download_metric_connections">Connections</string>
     <string name="download_what_happened">What happened</string>
     <string name="download_nothing_matched">Nothing matched.</string>
     <string name="download_step_ok">OK</string>
@@ -334,6 +337,8 @@
     <string name="download_apkmirror_explanation">APKMirror needs a quick Cloudflare check. The helper will navigate to the download page and press the download button automatically once the page is ready.</string>
     <string name="download_error_page_timeout">The download page took too long to respond.</string>
     <string name="download_error_page_timeout_detail">Timed out waiting for the download page</string>
+    <string name="download_error_page_failed">The download page failed to load.</string>
+    <string name="download_retry_resume">Connection lost. Resuming (%1$d/%2$d)…</string>
     <string name="download_downloading_from">Downloading from %1$s…</string>
     <string name="download_source_label">Source: %1$s</string>
     <string name="source_label_apkpure_direct">APKPure direct</string>

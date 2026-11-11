@@ -45,6 +45,9 @@ Please include:
 - Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a source list and clear limitations.
 - Shows per-source failure details and offers **Retry all sources**, **Retry failed sources**, **Copy details**, and the same **Download sources** manager used on the main screen.
+- Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, package pill, source logos, and distinct Pause/Switch/Cancel actions.
+- Single-stream downloads retry a dropped connection and resume from the `.part` offset with `Range`/`If-Range`; multi-connection segments resume from their written offset.
+- WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors.
 - Uses GitHub automatically: immediately when Morphe's resolver points to a release, or as
   the final fallback when normal APK sources fail. There is no separate GitHub button.
 - Remembers successful GitHub repositories, and lets you pin a repository to a

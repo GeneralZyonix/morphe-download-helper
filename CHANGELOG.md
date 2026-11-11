@@ -5,6 +5,41 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.0.1-beta.2] - 2026-11-11
+
+Second 2.0.1 beta: download-screen redesign, automatic resume, WebView
+fail-fast, and source fixes.
+
+### Added
+
+- Download screen redesign: target app icon and name, version/format/ABI
+  chips, Source/Size/Connections metrics, a package pill, source logos with an
+  active **Now** pill, and distinct Pause/Switch/Cancel action styling.
+- Single-stream downloads now retry a dropped connection up to three times and
+  resume from the `.part` offset with `Range` and `If-Range`. Multi-connection
+  segments also resume from their written offset instead of starting over.
+
+### Fixed
+
+- GitHub downloads no longer reject an official APK because the installed app
+  has a different signature. Patched apps are normally signed with a different
+  key; package and version validation still run, and Morphe handles the patch
+  signature step.
+- APKMirror WebView navigation now prefers the requested version (or the app
+  page that lists it) instead of silently downloading the newest release. A
+  rejected automatic APKMirror build also no longer blocks an exact
+  resolver-supplied APKMirror link, and **Retry all sources** clears the
+  per-request source rejection flags.
+- Morphe receives the APK before the helper copies it to
+  `Downloads/Morphe Helper` or a custom folder. The copy runs in the background
+  while the foreground service stays alive, and the log records hand-off and
+  copy timings.
+- Metadata requests use shorter fail-fast timeouts, and file downloads use a
+  tighter stall timeout. APKMirror pages keep a little more room for Cloudflare.
+- WebView flows log their state transitions and fail fast on main-frame load
+  errors, renderer crashes, and permanent HTTP errors instead of waiting for
+  the 90-second watchdog.
+
 ## [2.0.1-beta.1] - 2026-11-08
 
 First 2.0.1 beta with per-app GitHub sources and download-flow fixes.
