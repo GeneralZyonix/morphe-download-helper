@@ -483,6 +483,11 @@ public class DownloadActivity extends Activity {
     private TextView stateIcon;
     private LinearLayout sourceStepsCard;
     private LinearLayout sourceStepsList;
+    private TextView sourceStepsSummary;
+    private TextView sourceStepsChevron;
+    private boolean sourceStepsExpanded = true;
+    private boolean sourceStepsManualOverride;
+    private String sourceSummaryText = "";
     private ResolutionReport report;
     private Set<String> retrySources;
     private String requestPkg;
@@ -639,7 +644,11 @@ public class DownloadActivity extends Activity {
         scanNote.setVisibility(View.GONE);
         skipScanButton.setVisibility(View.GONE);
         updateRequestHeader();
-        main.post(this::renderSourceSteps);
+        main.post(() -> {
+            sourceStepsManualOverride = false;
+            setSourceCardExpanded(true);
+            renderSourceSteps();
+        });
         setPauseVisible(false);
         setSwitchSourceVisible(true);
         if (retryOnly) {
@@ -2107,12 +2116,37 @@ public class DownloadActivity extends Activity {
         stepsParams.topMargin = dp(14);
         root.addView(sourceStepsCard, stepsParams);
 
-        sourceStepsCard.addView(text(
-                getString(R.string.main_sources_title), 15, TEXT, true));
+        LinearLayout sourceHeader = new LinearLayout(this);
+        sourceHeader.setOrientation(LinearLayout.HORIZONTAL);
+        sourceHeader.setGravity(Gravity.CENTER_VERTICAL);
+        sourceHeader.setClickable(true);
+        sourceHeader.setFocusable(true);
+        sourceHeader.setContentDescription(getString(R.string.main_sources_title));
+        sourceHeader.addView(text(getString(R.string.main_sources_title), 15, TEXT, true),
+                new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        sourceStepsSummary = text("", 10, MUTED, false);
+        sourceStepsSummary.setSingleLine(true);
+        sourceStepsSummary.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        sourceStepsSummary.setVisibility(View.GONE);
+        sourceHeader.addView(sourceStepsSummary);
+
+        sourceStepsChevron = text("\u25BE", 16, MUTED, true);
+        sourceStepsChevron.setPadding(dp(8), 0, 0, 0);
+        sourceHeader.addView(sourceStepsChevron);
+
+        sourceHeader.setOnClickListener(v -> {
+            sourceStepsManualOverride = true;
+            setSourceCardExpanded(!sourceStepsExpanded);
+        });
+        sourceStepsCard.addView(sourceHeader);
+
         sourceStepsList = new LinearLayout(this);
         sourceStepsList.setOrientation(LinearLayout.VERTICAL);
         sourceStepsList.setPadding(0, dp(4), 0, 0);
         sourceStepsCard.addView(sourceStepsList);
+        setSourceCardExpanded(true);
         renderSourceSteps();
 
         diagnosticsCard = new LinearLayout(this);
@@ -2695,6 +2729,10 @@ public class DownloadActivity extends Activity {
             if (!visible) {
                 paused = false;
                 pauseButton.setText(pauseLabel(false));
+            } else if (!sourceStepsManualOverride) {
+                // The download has started; keep the source details compact
+                // until the user opens them or a source needs attention.
+                setSourceCardExpanded(false);
             }
             updateDownloadButtonsRow();
         });
@@ -2718,6 +2756,8 @@ public class DownloadActivity extends Activity {
     }
 
     private void showSwitchSourcePicker() {
+        sourceStepsManualOverride = true;
+        setSourceCardExpanded(true);
         List<String> keys = new ArrayList<>();
         List<String> labels = new ArrayList<>();
         GitHubAppStore.Entry userEntry = requestPkg == null
@@ -2960,7 +3000,28 @@ public class DownloadActivity extends Activity {
             report.record(key, ok, message);
         }
         SourceHealth.record(this, key, ok, message == null ? "" : message);
+        if (!ok) {
+            main.post(() -> {
+                sourceStepsManualOverride = true;
+                setSourceCardExpanded(true);
+            });
+        }
         main.post(this::renderSourceSteps);
+    }
+
+    /** Shows or hides the source rows, keeping a compact summary visible. */
+    private void setSourceCardExpanded(boolean expanded) {
+        sourceStepsExpanded = expanded;
+        if (sourceStepsList != null) {
+            sourceStepsList.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        }
+        if (sourceStepsSummary != null) {
+            sourceStepsSummary.setText(sourceSummaryText);
+            sourceStepsSummary.setVisibility(expanded ? View.GONE : View.VISIBLE);
+        }
+        if (sourceStepsChevron != null) {
+            sourceStepsChevron.setText(expanded ? "\u25B4" : "\u25BE");
+        }
     }
 
     /** Rebuilds the compact source progress list from the current report. */
@@ -2990,6 +3051,10 @@ public class DownloadActivity extends Activity {
             fallbackNote.setLineSpacing(dp(2), 1f);
             fallbackNote.setPadding(0, dp(4), 0, dp(2));
             sourceStepsList.addView(fallbackNote);
+            if (!sourceStepsExpanded) {
+                sourceStepsManualOverride = true;
+                setSourceCardExpanded(true);
+            }
         }
 
         List<String> display = new ArrayList<>();
@@ -3004,6 +3069,10 @@ public class DownloadActivity extends Activity {
 
         boolean currentMarked = false;
         int position = 0;
+        int total = display.size();
+        int currentPosition = 0;
+        String currentName = "";
+        String currentState = "";
 
         for (String key : display) {
             position++;
@@ -3069,6 +3138,9 @@ public class DownloadActivity extends Activity {
             }
             TextView stateView = text(stateText, 10, stateColor, true);
             if (current) {
+                currentPosition = position;
+                currentName = name;
+                currentState = stateText;
                 stateView.setPadding(dp(7), dp(3), dp(7), dp(3));
                 GradientDrawable currentPill = rounded(SECONDARY, 999);
                 currentPill.setStroke(dp(1), GREEN);
@@ -3081,6 +3153,18 @@ public class DownloadActivity extends Activity {
         if (position == 0) {
             sourceStepsList.addView(text(
                     getString(R.string.download_sources_none), 12, MUTED, false));
+        }
+
+        if (currentPosition > 0) {
+            sourceSummaryText = getString(R.string.download_sources_collapsed_summary,
+                    currentPosition, total, currentName, currentState);
+        } else if (total > 0) {
+            sourceSummaryText = getString(R.string.download_sources_collapsed_count, total);
+        } else {
+            sourceSummaryText = "";
+        }
+        if (sourceStepsSummary != null) {
+            sourceStepsSummary.setText(sourceSummaryText);
         }
     }
 

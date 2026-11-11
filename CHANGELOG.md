@@ -5,6 +5,16 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Changed
+
+- The download source card collapses to a compact summary while a download is
+  active. It expands automatically on a source failure, a fallback note, or
+  **Switch source**, and can be toggled by tapping its header.
+- The main screen no longer lists sources. A **Sources** button opens the
+  Sources section in Settings directly.
+
 ## [2.0.1-beta.2] - 2026-11-11
 
 Second 2.0.1 beta: download-screen redesign, automatic resume, WebView

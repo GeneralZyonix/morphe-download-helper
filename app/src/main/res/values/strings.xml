@@ -21,19 +21,12 @@
     <string name="main_hero_kicker">READY WHEN YOU ARE</string>
     <string name="main_hero_title">Fetch the original APK.</string>
     <string name="main_hero_body">Morphe patches the app. The helper finds the right build and hands it over.</string>
-    <string name="main_edit_order">Edit order</string>
-    <string name="main_manage_sources">Manage</string>
     <string name="source_manager_hint">Enabled sources are tried first. Use the arrows to reorder; disabled sources stay at the bottom.</string>
     <string name="settings_test_all">Test all sources</string>
     <string name="settings_testing_all">Testing all sources…</string>
     <string name="settings_test_all_result">%1$d passed, %2$d failed.</string>
     <string name="settings_source_drag_hint">Drag the handle to change which source is tried first. Disabled sources stay at the bottom.</string>
-    <string name="main_sources_note_short">Uptodown follows a Morphe link. Appteka is limited to SnapTube.</string>
     <string name="main_logs_local">Logs stay on this device</string>
-    <plurals name="main_sources_more">
-        <item quantity="one">%1$d more source enabled</item>
-        <item quantity="other">%1$d more sources enabled</item>
-    </plurals>
     <string name="main_status_detected">Morphe detected</string>
     <string name="main_status_missing">Morphe not installed</string>
     <string name="main_how_to_use">How to use</string>
@@ -42,9 +35,6 @@
     <string name="main_sources_title">Download sources</string>
     <string name="main_source_morphe_link">Morphe link</string>
     <string name="main_source_appteka">\u26A0 Appteka</string>
-    <string name="main_source_rank">%1$d. %2$s</string>
-    <string name="main_no_sources">No sources are enabled. Open Settings to enable at least one.</string>
-    <string name="main_sources_note">Enabled sources are tried top to bottom. This matches Settings → Source order. Uptodown is used only when a Morphe link opens its WebView fallback. Appteka is limited to SnapTube by default.</string>
     <string name="main_open_morphe">Open Morphe</string>
     <string name="main_share_log">Share log</string>
     <string name="main_delete_all_downloads">Delete all downloaded APKs</string>
@@ -294,6 +284,8 @@
     <string name="download_metric_source">Source</string>
     <string name="download_metric_size">Size</string>
     <string name="download_metric_connections">Connections</string>
+    <string name="download_sources_collapsed_summary">%1$d/%2$d &#183; %3$s &#183; %4$s</string>
+    <string name="download_sources_collapsed_count">%1$d sources</string>
     <string name="download_what_happened">What happened</string>
     <string name="download_nothing_matched">Nothing matched.</string>
     <string name="download_step_ok">OK</string>

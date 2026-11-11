@@ -22,19 +22,12 @@
     <string name="main_hero_kicker">PRÊT QUAND VOUS VOULEZ</string>
     <string name="main_hero_title">Récupérez l’APK d’origine.</string>
     <string name="main_hero_body">Morphe applique le patch. L’assistant trouve le bon build et le transfère.</string>
-    <string name="main_edit_order">Modifier l’ordre</string>
-    <string name="main_manage_sources">Gérer</string>
     <string name="source_manager_hint">Les sources activées sont essayées en premier. Utilisez les flèches pour changer l’ordre ; les sources désactivées restent en bas.</string>
     <string name="settings_test_all">Tester toutes les sources</string>
     <string name="settings_testing_all">Test de toutes les sources…</string>
     <string name="settings_test_all_result">%1$d réussies, %2$d échouées.</string>
     <string name="settings_source_drag_hint">Faites glisser la poignée pour choisir la source essayée en premier. Les sources désactivées restent en bas.</string>
-    <string name="main_sources_note_short">Uptodown suit un lien Morphe. Appteka est limité à SnapTube.</string>
     <string name="main_logs_local">Les journaux restent sur cet appareil</string>
-    <plurals name="main_sources_more">
-        <item quantity="one">%1$d autre source activée</item>
-        <item quantity="other">%1$d autres sources activées</item>
-    </plurals>
     <string name="main_status_detected">Morphe détecté</string>
     <string name="main_status_missing">Morphe non installé</string>
     <string name="main_how_to_use">Mode d’emploi</string>
@@ -43,9 +36,6 @@
     <string name="main_sources_title">Sources de téléchargement</string>
     <string name="main_source_morphe_link">Lien Morphe</string>
     <string name="main_source_appteka">\u26A0 Appteka</string>
-    <string name="main_source_rank">%1$d. %2$s</string>
-    <string name="main_no_sources">Aucune source n’est activée. Ouvrez les paramètres pour en activer au moins une.</string>
-    <string name="main_sources_note">Les sources sont essayées dans cet ordre. Appteka est limité à SnapTube par défaut&#160;; les détails des sources et les solutions de repli via navigateur se trouvent dans les paramètres.</string>
     <string name="main_open_morphe">Ouvrir Morphe</string>
     <string name="main_share_log">Partager le journal</string>
     <string name="main_delete_all_downloads">Supprimer tous les APK téléchargés</string>
@@ -283,6 +273,8 @@
     <string name="download_metric_source">Source</string>
     <string name="download_metric_size">Taille</string>
     <string name="download_metric_connections">Connexions</string>
+    <string name="download_sources_collapsed_summary">%1$d/%2$d &#183; %3$s &#183; %4$s</string>
+    <string name="download_sources_collapsed_count">%1$d sources</string>
     <string name="download_what_happened">Ce qui s’est passé</string>
     <string name="download_nothing_matched">Aucun résultat.</string>
     <string name="download_step_ok">OK</string>

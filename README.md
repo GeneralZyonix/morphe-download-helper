@@ -43,9 +43,9 @@ Please include:
 - Opens Uptodown or APKPure in an inline WebView when a site needs a browser check.
 - Returns a `content://` URI with read permission so Morphe can validate and use the file.
 - Rejects downloaded APKs whose package or version does not match the request.
-- Shows a dark, modern UI with a source list and clear limitations.
-- Shows per-source failure details and offers **Retry all sources**, **Retry failed sources**, **Copy details**, and the same **Download sources** manager used on the main screen.
-- Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, package pill, source logos, and distinct Pause/Switch/Cancel actions.
+- Shows a dark, modern UI with a **Sources** shortcut that opens source settings.
+- Shows per-source failure details and offers **Retry all sources**, **Retry failed sources**, and **Copy details**.
+- Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, package pill, source logos, and distinct Pause/Switch/Cancel actions. The source card collapses to a compact summary during the download and expands automatically on a failure, a fallback note, or **Switch source**.
 - Single-stream downloads retry a dropped connection and resume from the `.part` offset with `Range`/`If-Range`; multi-connection segments resume from their written offset.
 - WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors.
 - Uses GitHub automatically: immediately when Morphe's resolver points to a release, or as
@@ -197,7 +197,7 @@ use **Use a helper app** during patching.
 
 ```text
 app/src/main/java/be/alterra/morphehelper/
-  MainActivity.java      Launcher screen, source list, log actions
+  MainActivity.java      Launcher screen, log and source shortcuts
   DownloadActivity.java  Morphe intent contract, resolver, source parsers, WebView fallback
   SettingsActivity.java  Download source toggles
   SourceSettings.java    Persisted source preferences

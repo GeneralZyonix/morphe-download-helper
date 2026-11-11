@@ -26,8 +26,6 @@ import android.widget.Toast;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -79,12 +77,6 @@ public class MainActivity extends Activity {
 
     private String themeSignature;
 
-    /** Focused source manager dialog opened from Manage. */
-    private SourceManagerDialog sourceManager;
-
-    /** Container rebuilt in onResume so it always matches the saved order. */
-    private LinearLayout sourcesList;
-
     @Override
     protected void onResume() {
         super.onResume();
@@ -93,7 +85,6 @@ public class MainActivity extends Activity {
             recreate();
             return;
         }
-        renderSources();
         UpdateManager.showInAppUpdatePopupIfAvailable(this);
     }
 
@@ -278,6 +269,21 @@ public class MainActivity extends Activity {
         shareParams.setMarginStart(dp(6));
         actions.addView(shareLog, shareParams);
 
+        // Sources opens Settings directly on the Sources section, where the
+        // enabled sources, their order, and GitHub apps are managed.
+        TextView sourcesButton = secondaryButton(getString(R.string.settings_sources),
+                ACCENT_TEXT, SECONDARY_BORDER);
+        sourcesButton.setOnClickListener(v -> {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            intent.putExtra(SettingsActivity.EXTRA_SECTION,
+                    SettingsActivity.EXTRA_SECTION_SOURCES);
+            startActivity(intent);
+        });
+        LinearLayout.LayoutParams sourcesButtonParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, dp(48));
+        sourcesButtonParams.topMargin = dp(10);
+        root.addView(sourcesButton, sourcesButtonParams);
+
         TextView deleteAll = secondaryButton(getString(R.string.main_delete_all_downloads),
                 TEXT, SECONDARY_BORDER);
         deleteAll.setOnClickListener(v -> confirmDeleteAllDownloads());
@@ -285,59 +291,6 @@ public class MainActivity extends Activity {
                 MATCH_PARENT, dp(48));
         deleteParams.topMargin = dp(10);
         root.addView(deleteAll, deleteParams);
-
-        // -----------------------------------------------------------------
-        // Download sources card: the order used by DownloadActivity.resolve()
-        // -----------------------------------------------------------------
-        LinearLayout sourcesCard = new LinearLayout(this);
-        sourcesCard.setOrientation(LinearLayout.VERTICAL);
-        sourcesCard.setPadding(dp(20), dp(18), dp(20), dp(18));
-        sourcesCard.setBackground(cardBackground());
-        LinearLayout.LayoutParams sourcesParams = new LinearLayout.LayoutParams(
-                MATCH_PARENT, WRAP_CONTENT);
-        sourcesParams.topMargin = dp(12);
-        root.addView(sourcesCard, sourcesParams);
-
-        LinearLayout sourcesHeader = new LinearLayout(this);
-        sourcesHeader.setOrientation(LinearLayout.HORIZONTAL);
-        sourcesHeader.setGravity(Gravity.CENTER_VERTICAL);
-        sourcesHeader.addView(text(getString(R.string.main_sources_title), 16, TEXT, true),
-                new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
-
-        TextView editOrder = text(getString(R.string.main_manage_sources), 12, ACCENT_TEXT, true);
-        editOrder.setGravity(Gravity.CENTER);
-        editOrder.setSingleLine(true);
-        editOrder.setPadding(dp(14), dp(8), dp(10), dp(8));
-        editOrder.setCompoundDrawablesWithIntrinsicBounds(
-                0, 0, R.drawable.ic_chevron_right, 0);
-        editOrder.setCompoundDrawablePadding(dp(2));
-        editOrder.setCompoundDrawableTintList(ColorStateList.valueOf(ACCENT_TEXT));
-        GradientDrawable manageBackground = rounded(SECONDARY, 12);
-        manageBackground.setStroke(dp(1), SECONDARY_BORDER);
-        editOrder.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE), manageBackground, null));
-        editOrder.setClickable(true);
-        editOrder.setFocusable(true);
-        editOrder.setOnClickListener(v -> showSourceManager());
-        sourcesHeader.addView(editOrder);
-        sourcesCard.addView(sourcesHeader);
-
-        // The chips are rebuilt from AppSettings.sourceOrder(). This is the same
-        // list and order used by DownloadActivity, so the screen cannot drift
-        // from the real fallback behaviour again.
-        sourcesList = new LinearLayout(this);
-        sourcesList.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams sourcesListParams = new LinearLayout.LayoutParams(
-                MATCH_PARENT, WRAP_CONTENT);
-        sourcesListParams.topMargin = dp(12);
-        sourcesCard.addView(sourcesList, sourcesListParams);
-        renderSources();
-
-        TextView disabledSource = text(
-                getString(R.string.main_sources_note_short), 11, MUTED, false);
-        disabledSource.setLineSpacing(dp(2), 1f);
-        disabledSource.setPadding(0, dp(12), 0, 0);
-        sourcesCard.addView(disabledSource);
 
         // About the developer.
         LinearLayout about = new LinearLayout(this);
@@ -519,38 +472,6 @@ public class MainActivity extends Activity {
         return view;
     }
 
-    /**
-     * Rebuilds the source chips in the persisted order, skipping disabled
-     * sources. Called on resume so changes made in Settings show immediately.
-     */
-    private void renderSources() {
-        if (sourcesList == null) {
-            return;
-        }
-        sourcesList.removeAllViews();
-        List<String> order = AppSettings.sourceOrder(this);
-        int position = 0;
-        for (String key : order) {
-            if (!SourceSettings.isEnabled(this, key)) {
-                continue;
-            }
-            position++;
-            addSourceRow(key, position);
-        }
-
-        if (position == 0) {
-            sourcesList.addView(text(
-                    getString(R.string.main_no_sources), 13, MUTED, false));
-        }
-    }
-
-    private void showSourceManager() {
-        if (sourceManager != null && sourceManager.isShowing()) {
-            return;
-        }
-        sourceManager = SourceManagerDialog.show(this, this::renderSources);
-    }
-
     private void styleSwitch(Switch toggle) {
         toggle.setThumbTintList(new ColorStateList(
                 new int[][]{
@@ -566,41 +487,6 @@ public class MainActivity extends Activity {
                 },
                 new int[]{PRIMARY_START, SECONDARY_BORDER}
         ));
-    }
-
-    private void addSourceRow(String key, int position) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(10), 0, dp(10));
-
-        View badge = SourceBadge.create(this, key);
-        row.addView(badge, new LinearLayout.LayoutParams(dp(34), dp(34)));
-
-        LinearLayout labels = new LinearLayout(this);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        labels.setPadding(dp(10), 0, 0, 0);
-        String name = SourceSettings.APPTEKA.equals(key)
-                ? getString(R.string.main_source_appteka)
-                : AppSettings.sourceLabel(this, key);
-        labels.addView(text(name, 14, TEXT, true));
-        String description = SourceManagerDialog.description(this, key);
-        if (!description.isEmpty()) {
-            TextView detail = text(description, 11, MUTED, false);
-            detail.setPadding(0, dp(2), 0, 0);
-            labels.addView(detail);
-        }
-        row.addView(labels, new LinearLayout.LayoutParams(
-                0, WRAP_CONTENT, 1f));
-
-        TextView check = text("\u2713", 16, GREEN, true);
-        row.addView(check);
-        sourcesList.addView(row);
-
-        View divider = new View(this);
-        divider.setBackgroundColor(BORDER);
-        sourcesList.addView(divider, new LinearLayout.LayoutParams(
-                MATCH_PARENT, dp(1)));
     }
 
     /** Creates the full-width gradient button used for the main action. */
