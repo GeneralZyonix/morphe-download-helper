@@ -5,6 +5,15 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Fixed
+
+- The final APKPure WebView fallback is now labelled **Opening APKPure as a
+  last resort**, and the source list marks it as the current source instead of
+  showing the previous failed APKPure attempt. WebView source attempts now also
+  update the active source logo and metric.
+
 ## [2.0.1-beta.6] - 2026-11-12
 
 Sixth 2.0.1 beta: fix stale source labels after retrying all sources.

@@ -367,6 +367,7 @@
     <string name="download_checking_github_releases">Checking GitHub releases…</string>
     <string name="download_searching_github">Searching GitHub…</string>
     <string name="download_opening_apkpure">Opening APKPure page…</string>
+    <string name="download_opening_apkpure_last_resort">Opening APKPure as a last resort…</string>
     <string name="download_checking_apkmirror_page">Checking APKMirror page…</string>
     <string name="download_fetching_key">Fetching APKMirror download key…</string>
     <string name="download_starting_apkmirror">Starting APKMirror download…</string>

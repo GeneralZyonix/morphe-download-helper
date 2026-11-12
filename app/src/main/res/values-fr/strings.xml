@@ -357,6 +357,7 @@
     <string name="download_checking_user_github">Vérification de la version GitHub utilisateur…</string>
     <string name="download_searching_github">Recherche sur GitHub…</string>
     <string name="download_opening_apkpure">Ouverture de la page APKPure…</string>
+    <string name="download_opening_apkpure_last_resort">Ouverture d’APKPure en dernier recours…</string>
     <string name="download_checking_apkmirror_page">Vérification de la page APKMirror…</string>
     <string name="download_fetching_key">Récupération de la clé de téléchargement APKMirror…</string>
     <string name="download_starting_apkmirror">Démarrage du téléchargement APKMirror…</string>

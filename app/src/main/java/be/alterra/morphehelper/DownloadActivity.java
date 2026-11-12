@@ -1011,7 +1011,7 @@ public class DownloadActivity extends Activity {
         logWebFlowState("LOADING", url);
         pendingSourceKey = "uptodown".equals(source)
                 ? SourceSettings.FALLBACK : webSourceKey();
-        main.post(this::renderSourceSteps);
+        activeSourceKey = pendingSourceKey;
         setSourceLabel("apkpure".equals(source)
                 ? getString(R.string.source_label_apkpure_webview)
                 : "apkmirror".equals(source)
@@ -3282,13 +3282,13 @@ public class DownloadActivity extends Activity {
 
             String stateText;
             int stateColor;
-            if (latest != null) {
+            if (current) {
+                stateText = getString(R.string.download_step_current);
+                stateColor = GREEN;
+            } else if (latest != null) {
                 stateText = getString(latest.success
                         ? R.string.download_step_ok : R.string.download_step_failed);
                 stateColor = latest.success ? GREEN : RED;
-            } else if (current) {
-                stateText = getString(R.string.download_step_current);
-                stateColor = GREEN;
             } else {
                 stateText = getString(R.string.download_step_next);
                 stateColor = ACCENT_TEXT;
@@ -3960,7 +3960,7 @@ public class DownloadActivity extends Activity {
         if (!forcedOnly && allowSplitArchive && sourceAllowed(SourceSettings.APKPURE)
                 && (apkPureCanServe(fileType) || isSplitType(fileType))) {
             main.post(() -> {
-                setStatus(R.string.download_opening_apkpure);
+                setStatus(R.string.download_opening_apkpure_last_resort);
                 progress.setIndeterminate(true);
                 startApkPureWebFlow(pkg, version, fileType);
             });
