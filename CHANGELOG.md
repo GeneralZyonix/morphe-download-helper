@@ -5,6 +5,14 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Fixed
+
+- The source metric, active-source logo, and source list no longer keep the
+  previous source after **Retry all sources**. They now update as soon as each
+  new source attempt starts.
+
 ## [2.0.1-beta.5] - 2026-11-12
 
 Fifth 2.0.1 beta: complete French translations for the remaining download-screen

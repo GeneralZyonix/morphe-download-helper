@@ -626,6 +626,7 @@ public class DownloadActivity extends Activity {
         switchingSource = false;
         pendingSwitchKey = null;
         activeSourceKey = null;
+        activeSourceName = "";
         verificationFailure = null;
         webRetries = 0;
         pendingSourceKey = null;
@@ -2761,6 +2762,24 @@ public class DownloadActivity extends Activity {
         return null;
     }
 
+    /** Base label for a source key, used as soon as an attempt starts. */
+    private String sourceLabelForKey(String key) {
+        if (TextUtils.isEmpty(key)) {
+            return "";
+        }
+        if (GitHubAppStore.SOURCE_KEY.equals(key)) {
+            GitHubAppStore.Entry entry = requestPkg == null
+                    ? null : GitHubAppStore.get(this, requestPkg);
+            return entry == null
+                    ? getString(R.string.source_github_user)
+                    : getString(R.string.source_label_user_github, entry.repo);
+        }
+        if (SourceSettings.APPTEKA.equals(key)) {
+            return getString(R.string.source_label_appteka);
+        }
+        return AppSettings.sourceLabel(this, key);
+    }
+
     private void setChip(TextView chip, String value) {
         if (chip == null) {
             return;
@@ -2780,7 +2799,9 @@ public class DownloadActivity extends Activity {
         if (lower.startsWith("apkpure")) return "APKPure";
         if (lower.startsWith("apkmirror")) return "APKMirror";
         if (lower.startsWith("uptodown")) return "Uptodown";
-        if (lower.startsWith("morphe")) return "Morphe";
+        if (lower.startsWith("morphe")) {
+            return lower.contains("link") ? "Morphe link" : "Morphe";
+        }
         if (lower.startsWith("github releases")) return "GitHub";
         return base;
     }
@@ -2966,7 +2987,11 @@ public class DownloadActivity extends Activity {
 
         pendingSwitchKey = key;
         activeSourceKey = key;
-        main.post(this::renderSourceSteps);
+        activeSourceName = sourceLabelForKey(key);
+        main.post(() -> {
+            updateDownloadDetails();
+            renderSourceSteps();
+        });
         if (SourceSettings.APKMIRROR.equals(key)) {
             apkmirrorRejected = false;
         }
@@ -3887,7 +3912,11 @@ public class DownloadActivity extends Activity {
                 continue;
             }
             activeSourceKey = source;
-            main.post(this::renderSourceSteps);
+            activeSourceName = sourceLabelForKey(source);
+            main.post(() -> {
+                updateDownloadDetails();
+                renderSourceSteps();
+            });
             File file = null;
             if (GitHubAppStore.SOURCE_KEY.equals(source)) {
                 file = customUserGitHub(userGitHub, pkg, version, fileType, abis);
