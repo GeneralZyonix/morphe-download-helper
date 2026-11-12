@@ -297,6 +297,7 @@
     <string name="download_pause">Pause</string>
     <string name="download_switch_source">Arrêter et changer de source</string>
     <string name="download_choose_source">Choisir une source</string>
+    <string name="download_switch_source_to">Passer à %1$s</string>
     <string name="download_switching_source">Arrêt de la source actuelle et changement...</string>
     <string name="download_resume">Reprendre</string>
     <string name="download_error_no_package">Morphe n’a pas envoyé de nom de paquet.</string>
@@ -357,6 +358,8 @@
     <string name="download_starting">Démarrage du téléchargement…</string>
     <string name="download_progress">Téléchargement… %1$d%% • %2$s</string>
     <string name="download_progress_eta">Téléchargement… %1$d%% • %2$s • %3$ds restantes</string>
+    <string name="download_progress_speed">%1$s</string>
+    <string name="download_progress_speed_eta">%1$s &#183; %2$ds restantes</string>
     <string name="download_diagnostics_copied">Détails copiés.</string>
     <string name="download_diagnostics_clip_label">Diagnostic de Morphe Download Helper</string>
     <string name="download_notification_default">Téléchargement…</string>

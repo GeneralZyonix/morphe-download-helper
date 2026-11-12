@@ -24,6 +24,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.StatFs;
 import android.text.TextUtils;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -356,6 +359,8 @@ public class DownloadActivity extends Activity {
     private volatile String forcedSource;
     /** Source selected while another attempt is still unwinding. */
     private volatile String pendingSwitchKey;
+    /** Source currently being resolved or downloaded. */
+    private volatile String activeSourceKey;
 
     /** Label above the progress bar naming the active source. */
     private TextView sourceLabel;
@@ -365,10 +370,13 @@ public class DownloadActivity extends Activity {
     /** App icon and metadata chips shown above the progress ring. */
     private LinearLayout appHeader;
     private ImageView appIcon;
+    private TextView appIconFallback;
     private LinearLayout appChips;
     private TextView appVersionChip;
     private TextView appFormatChip;
     private TextView appAbiChip;
+    /** Active source logo shown at the right of the app header. */
+    private FrameLayout appSourceHolder;
 
     /** Source / Size / Connections metrics and the package pill. */
     private LinearLayout metricsRow;
@@ -484,10 +492,10 @@ public class DownloadActivity extends Activity {
     private LinearLayout sourceStepsCard;
     private LinearLayout sourceStepsList;
     private TextView sourceStepsSummary;
-    private TextView sourceStepsChevron;
+    private ImageView sourceStepsChevron;
     private boolean sourceStepsExpanded = true;
     private boolean sourceStepsManualOverride;
-    private String sourceSummaryText = "";
+    private CharSequence sourceSummaryText = "";
     private ResolutionReport report;
     private Set<String> retrySources;
     private String requestPkg;
@@ -617,6 +625,7 @@ public class DownloadActivity extends Activity {
         retrySources = retryOnly ? failed : null;
         switchingSource = false;
         pendingSwitchKey = null;
+        activeSourceKey = null;
         verificationFailure = null;
         webRetries = 0;
         pendingSourceKey = null;
@@ -1900,13 +1909,12 @@ public class DownloadActivity extends Activity {
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-        cardParams.topMargin = dp(20);
+        cardParams.topMargin = dp(12);
         root.addView(card, cardParams);
 
         stateIcon = text("\u2715", 56, RED, true);
         stateIcon.setGravity(Gravity.CENTER);
         stateIcon.setVisibility(View.GONE);
-        card.addView(stateIcon);
 
         appHeader = new LinearLayout(this);
         appHeader.setOrientation(LinearLayout.HORIZONTAL);
@@ -1914,9 +1922,22 @@ public class DownloadActivity extends Activity {
         appHeader.setPadding(0, dp(2), 0, dp(8));
         appHeader.setVisibility(View.GONE);
 
+        FrameLayout appIconFrame = new FrameLayout(this);
         appIcon = new ImageView(this);
         appIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        appHeader.addView(appIcon, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        appIconFrame.addView(appIcon, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        appIconFallback = text("", 22, ON_PRIMARY, true);
+        appIconFallback.setGravity(Gravity.CENTER);
+        appIconFallback.setBackground(rounded(PRIMARY_START, 14));
+        appIconFallback.setVisibility(View.GONE);
+        appIconFrame.addView(appIconFallback, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        appHeader.addView(appIconFrame, new LinearLayout.LayoutParams(dp(52), dp(52)));
 
         LinearLayout appLabels = new LinearLayout(this);
         appLabels.setOrientation(LinearLayout.VERTICAL);
@@ -1931,8 +1952,8 @@ public class DownloadActivity extends Activity {
         appChips.setOrientation(LinearLayout.HORIZONTAL);
         appChips.setPadding(0, dp(5), 0, 0);
         appVersionChip = chip("", ACCENT_TEXT);
-        appFormatChip = chip("", MUTED);
-        appAbiChip = chip("", MUTED);
+        appFormatChip = chip("", ACCENT_TEXT);
+        appAbiChip = chip("", ACCENT_TEXT);
         appChips.addView(appVersionChip, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams formatChipParams = new LinearLayout.LayoutParams(
@@ -1947,6 +1968,17 @@ public class DownloadActivity extends Activity {
 
         appHeader.addView(appLabels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        // The active source logo fills the space at the right of the app card.
+        appSourceHolder = new FrameLayout(this);
+        appSourceHolder.setBackground(rounded(SECONDARY, 999));
+        int sourcePad = dp(5);
+        appSourceHolder.setPadding(sourcePad, sourcePad, sourcePad, sourcePad);
+        appSourceHolder.setVisibility(View.GONE);
+        LinearLayout.LayoutParams sourceHolderParams = new LinearLayout.LayoutParams(
+                dp(36), dp(36));
+        sourceHolderParams.setMarginStart(dp(8));
+        appHeader.addView(appSourceHolder, sourceHolderParams);
         card.addView(appHeader);
 
         progress = new ProgressDisplay(this);
@@ -1955,6 +1987,7 @@ public class DownloadActivity extends Activity {
         progressParams.gravity = Gravity.CENTER_HORIZONTAL;
         progressParams.topMargin = dp(4);
         card.addView(progress, progressParams);
+        card.addView(stateIcon);
 
         status = text("", 14, STEPS, false);
         status.setGravity(Gravity.CENTER);
@@ -1979,18 +2012,18 @@ public class DownloadActivity extends Activity {
         metricSource = metricValue();
         metricSize = metricValue();
         metricConnections = metricValue();
-        metricsRow.addView(metricColumn(
+        metricsRow.addView(metricColumn(R.drawable.ic_metric_source,
                         getString(R.string.download_metric_source), metricSource),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        metricsRow.addView(metricColumn(
+        metricsRow.addView(metricColumn(R.drawable.ic_metric_size,
                         getString(R.string.download_metric_size), metricSize),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        metricsRow.addView(metricColumn(
+        metricsRow.addView(metricColumn(R.drawable.ic_metric_connections,
                         getString(R.string.download_metric_connections), metricConnections),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         card.addView(metricsRow);
 
-        packagePill = text("", 11, MUTED, false);
+        packagePill = text("", 11, ACCENT_TEXT, false);
         packagePill.setGravity(Gravity.CENTER);
         packagePill.setSingleLine(true);
         packagePill.setEllipsize(TextUtils.TruncateAt.MIDDLE);
@@ -2132,9 +2165,14 @@ public class DownloadActivity extends Activity {
         sourceStepsSummary.setVisibility(View.GONE);
         sourceHeader.addView(sourceStepsSummary);
 
-        sourceStepsChevron = text("\u25BE", 16, MUTED, true);
-        sourceStepsChevron.setPadding(dp(8), 0, 0, 0);
-        sourceHeader.addView(sourceStepsChevron);
+        sourceStepsChevron = new ImageView(this);
+        sourceStepsChevron.setImageResource(R.drawable.ic_chevron_right);
+        sourceStepsChevron.setColorFilter(MUTED);
+        sourceStepsChevron.setRotation(270f);
+        sourceStepsChevron.setPadding(dp(7), dp(7), dp(7), dp(7));
+        sourceStepsChevron.setBackground(rounded(SECONDARY, 999));
+        sourceHeader.addView(sourceStepsChevron, new LinearLayout.LayoutParams(
+                dp(30), dp(30)));
 
         sourceHeader.setOnClickListener(v -> {
             sourceStepsManualOverride = true;
@@ -2469,7 +2507,7 @@ public class DownloadActivity extends Activity {
 
     /** Creates the dark outlined Cancel/Close button. */
     private TextView chip(String value, int textColor) {
-        TextView chip = text(value, 9, textColor, true);
+        TextView chip = text(value, 10, textColor, true);
         chip.setSingleLine(true);
         chip.setEllipsize(TextUtils.TruncateAt.END);
         chip.setPadding(dp(8), dp(3), dp(8), dp(3));
@@ -2483,13 +2521,18 @@ public class DownloadActivity extends Activity {
         return text("\u2014", 12, TEXT, true);
     }
 
-    private LinearLayout metricColumn(String label, TextView value) {
+    private LinearLayout metricColumn(int iconRes, String label, TextView value) {
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setGravity(Gravity.CENTER_HORIZONTAL);
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(MUTED);
+        column.addView(icon, new LinearLayout.LayoutParams(dp(14), dp(14)));
         TextView caption = text(label.toUpperCase(Locale.US), 9, MUTED, true);
         caption.setLetterSpacing(0.12f);
         caption.setGravity(Gravity.CENTER);
+        caption.setPadding(0, dp(3), 0, 0);
         column.addView(caption);
         value.setGravity(Gravity.CENTER);
         value.setSingleLine(true);
@@ -2572,13 +2615,8 @@ public class DownloadActivity extends Activity {
                 screenTitle.setText(R.string.download_title_progress);
             }
             if (screenSubtitle != null) {
-                String app = TextUtils.isEmpty(requestedAppName)
-                        ? requestPkg : requestedAppName;
-                String version = TextUtils.isEmpty(requestVersion) ? "" : requestVersion;
-                if (!TextUtils.isEmpty(app)) {
-                    screenSubtitle.setText(version.isEmpty()
-                            ? app : app + " \u00B7 " + version);
-                }
+                screenSubtitle.setText("");
+                screenSubtitle.setVisibility(View.GONE);
             }
             updateDownloadDetails();
         });
@@ -2596,14 +2634,26 @@ public class DownloadActivity extends Activity {
         if (appIcon != null) {
             if (TextUtils.isEmpty(requestPkg)) {
                 appIcon.setVisibility(View.GONE);
+                if (appIconFallback != null) {
+                    appIconFallback.setVisibility(View.GONE);
+                }
             } else {
                 try {
                     appIcon.setImageDrawable(
                             getPackageManager().getApplicationIcon(requestPkg));
+                    appIcon.setVisibility(View.VISIBLE);
+                    if (appIconFallback != null) {
+                        appIconFallback.setVisibility(View.GONE);
+                    }
                 } catch (Exception ignored) {
-                    appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+                    // The target app is not installed yet. Show a deliberate
+                    // initial instead of the generic Android icon.
+                    appIcon.setVisibility(View.GONE);
+                    if (appIconFallback != null) {
+                        appIconFallback.setText(appInitial(app));
+                        appIconFallback.setVisibility(View.VISIBLE);
+                    }
                 }
-                appIcon.setVisibility(View.VISIBLE);
             }
         }
 
@@ -2611,7 +2661,7 @@ public class DownloadActivity extends Activity {
         if (!version.isEmpty() && !version.toLowerCase(Locale.US).startsWith("v")) {
             version = "v" + version;
         }
-        setChip(appVersionChip, version);
+        setChip(appVersionChip, displayVersion(version));
         setChip(appFormatChip, TextUtils.isEmpty(requestFileType)
                 ? "" : requestFileType.toUpperCase(Locale.US));
         setChip(appAbiChip, requestAbis != null && requestAbis.length > 0
@@ -2637,6 +2687,78 @@ public class DownloadActivity extends Activity {
             packagePill.setText(requestPkg);
             packagePill.setVisibility(hasPackage ? View.VISIBLE : View.GONE);
         }
+        updateAppSourceBadge();
+    }
+
+    /** Fills the right side of the app card with the active source logo. */
+    private void updateAppSourceBadge() {
+        if (appSourceHolder == null) {
+            return;
+        }
+        String key = sourceKeyForLabel(activeSourceName);
+        appSourceHolder.removeAllViews();
+        if (key == null) {
+            appSourceHolder.setVisibility(View.GONE);
+            return;
+        }
+        View badge = SourceBadge.create(this, key);
+        appSourceHolder.addView(badge, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        appSourceHolder.setContentDescription(
+                getString(R.string.download_metric_source) + ": "
+                        + shortSourceName(activeSourceName));
+        appSourceHolder.setVisibility(View.VISIBLE);
+    }
+
+    private static String appInitial(String app) {
+        if (TextUtils.isEmpty(app)) {
+            return "?";
+        }
+        String trimmed = app.trim();
+        return trimmed.isEmpty()
+                ? "?" : trimmed.substring(0, trimmed.offsetByCodePoints(0, 1));
+    }
+
+    /** Drops build qualifiers such as -release-arm64-v8a from the version chip. */
+    private static String displayVersion(String version) {
+        if (TextUtils.isEmpty(version)) {
+            return version;
+        }
+        String lower = version.toLowerCase(Locale.US);
+        String[] suffixes = {
+                "-release-arm64-v8a", "-release-armeabi-v7a",
+                "-release-x86_64", "-release-x86",
+                "-release", "-arm64-v8a", "-armeabi-v7a",
+                "-x86_64", "-x86"
+        };
+        for (String suffix : suffixes) {
+            if (lower.endsWith(suffix)) {
+                return version.substring(0, version.length() - suffix.length());
+            }
+        }
+        return version;
+    }
+
+    private static String sourceKeyForLabel(String label) {
+        if (TextUtils.isEmpty(label)) {
+            return null;
+        }
+        String value = label.toLowerCase(Locale.US);
+        if (value.contains("github")) {
+            return value.contains("user")
+                    ? GitHubAppStore.SOURCE_KEY : SourceSettings.GITHUB;
+        }
+        if (value.contains("uptodown")) return SourceSettings.UPTODOWN;
+        if (value.contains("apkmirror")) return SourceSettings.APKMIRROR;
+        if (value.contains("apkpure")) return SourceSettings.APKPURE;
+        if (value.contains("f-droid") || value.contains("fdroid")) {
+            return SourceSettings.FDROID;
+        }
+        if (value.contains("aptoide")) return SourceSettings.APTOIDE;
+        if (value.contains("appteka")) return SourceSettings.APPTEKA;
+        if (value.contains("morphe")) return SourceSettings.FALLBACK;
+        return null;
     }
 
     private void setChip(TextView chip, String value) {
@@ -2647,13 +2769,20 @@ public class DownloadActivity extends Activity {
         chip.setVisibility(TextUtils.isEmpty(value) ? View.GONE : View.VISIBLE);
     }
 
-    /** Shortens labels such as "User GitHub (owner/repo)" for the metric column. */
+    /** Shortens source labels for the metric column. */
     private static String shortSourceName(String label) {
         if (label == null) {
             return "";
         }
         int details = label.indexOf(" (");
-        return details > 0 ? label.substring(0, details) : label;
+        String base = details > 0 ? label.substring(0, details) : label;
+        String lower = base.toLowerCase(Locale.US);
+        if (lower.startsWith("apkpure")) return "APKPure";
+        if (lower.startsWith("apkmirror")) return "APKMirror";
+        if (lower.startsWith("uptodown")) return "Uptodown";
+        if (lower.startsWith("morphe")) return "Morphe";
+        if (lower.startsWith("github releases")) return "GitHub";
+        return base;
     }
 
     private void setDownloadInfo(long totalBytes, int connections) {
@@ -2711,10 +2840,7 @@ public class DownloadActivity extends Activity {
             activeSourceName = label == null ? "" : label;
             sourceLabel.setText(getString(R.string.download_source_label, label));
             sourceLabel.setVisibility(View.GONE);
-            if (metricSource != null) {
-                metricSource.setText(activeSourceName.isEmpty()
-                        ? "\u2014" : shortSourceName(activeSourceName));
-            }
+            updateDownloadDetails();
             renderSourceSteps();
         });
     }
@@ -2839,6 +2965,8 @@ public class DownloadActivity extends Activity {
         }
 
         pendingSwitchKey = key;
+        activeSourceKey = key;
+        main.post(this::renderSourceSteps);
         if (SourceSettings.APKMIRROR.equals(key)) {
             apkmirrorRejected = false;
         }
@@ -3020,7 +3148,7 @@ public class DownloadActivity extends Activity {
             sourceStepsSummary.setVisibility(expanded ? View.GONE : View.VISIBLE);
         }
         if (sourceStepsChevron != null) {
-            sourceStepsChevron.setText(expanded ? "\u25B4" : "\u25BE");
+            sourceStepsChevron.setRotation(expanded ? 270f : 90f);
         }
     }
 
@@ -3040,7 +3168,8 @@ public class DownloadActivity extends Activity {
         boolean manualUser = userEntry != null && userEntry.manual;
         ResolutionReport.Attempt userLatest = latestAttempt(
                 attempts, GitHubAppStore.SOURCE_KEY);
-        boolean userActive = GitHubAppStore.SOURCE_KEY.equals(pendingSourceKey);
+        boolean userActive = GitHubAppStore.SOURCE_KEY.equals(pendingSourceKey)
+                || GitHubAppStore.SOURCE_KEY.equals(activeSourceKey);
         boolean showUser = manualUser
                 && (userEntry.preferFirst || userLatest != null || userActive);
 
@@ -3078,12 +3207,15 @@ public class DownloadActivity extends Activity {
             position++;
 
             ResolutionReport.Attempt latest = latestAttempt(attempts, key);
+            boolean resolving = !finished && !resolutionComplete;
             boolean current;
-            if (GitHubAppStore.SOURCE_KEY.equals(key)) {
-                current = !finished && !resolutionComplete && (userActive
-                        || (pendingSourceKey == null && latest == null && !currentMarked));
+            if (activeSourceKey != null) {
+                current = resolving && activeSourceKey.equals(key);
+            } else if (GitHubAppStore.SOURCE_KEY.equals(key)) {
+                current = resolving && (pendingSourceKey == null
+                        && latest == null && !currentMarked);
             } else {
-                current = !finished && !resolutionComplete && (pendingSourceKey != null
+                current = resolving && (pendingSourceKey != null
                         ? pendingSourceKey.equals(key)
                         : latest == null && !currentMarked);
             }
@@ -3134,7 +3266,7 @@ public class DownloadActivity extends Activity {
                 stateColor = GREEN;
             } else {
                 stateText = getString(R.string.download_step_next);
-                stateColor = MUTED;
+                stateColor = ACCENT_TEXT;
             }
             TextView stateView = text(stateText, 10, stateColor, true);
             if (current) {
@@ -3147,6 +3279,16 @@ public class DownloadActivity extends Activity {
                 stateView.setBackground(currentPill);
             }
             row.addView(stateView);
+            if (!current) {
+                row.setClickable(true);
+                row.setFocusable(true);
+                row.setContentDescription(
+                        getString(R.string.download_switch_source_to, name));
+                row.setBackground(new RippleDrawable(
+                        ColorStateList.valueOf(RIPPLE),
+                        rounded(0x00000000, 12), null));
+                row.setOnClickListener(v -> switchToSource(key));
+            }
             sourceStepsList.addView(row);
         }
 
@@ -3156,8 +3298,22 @@ public class DownloadActivity extends Activity {
         }
 
         if (currentPosition > 0) {
-            sourceSummaryText = getString(R.string.download_sources_collapsed_summary,
+            String summary = getString(R.string.download_sources_collapsed_summary,
                     currentPosition, total, currentName, currentState);
+            SpannableString styled = new SpannableString(summary);
+            int nameStart = summary.indexOf(currentName);
+            if (nameStart >= 0) {
+                styled.setSpan(new ForegroundColorSpan(GREEN),
+                        nameStart, nameStart + currentName.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+            int stateStart = summary.lastIndexOf(currentState);
+            if (stateStart >= 0) {
+                styled.setSpan(new ForegroundColorSpan(GREEN),
+                        stateStart, stateStart + currentState.length(),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+            sourceSummaryText = styled;
         } else if (total > 0) {
             sourceSummaryText = getString(R.string.download_sources_collapsed_count, total);
         } else {
@@ -3202,6 +3358,7 @@ public class DownloadActivity extends Activity {
             }
             if (screenSubtitle != null) {
                 screenSubtitle.setText(R.string.download_subtitle_failure);
+                screenSubtitle.setVisibility(View.VISIBLE);
             }
             if (!TextUtils.isEmpty(fallbackUrl)) {
                 fallbackButton.setVisibility(View.VISIBLE);
@@ -3729,6 +3886,8 @@ public class DownloadActivity extends Activity {
                 }
                 continue;
             }
+            activeSourceKey = source;
+            main.post(this::renderSourceSteps);
             File file = null;
             if (GitHubAppStore.SOURCE_KEY.equals(source)) {
                 file = customUserGitHub(userGitHub, pkg, version, fileType, abis);
@@ -5423,10 +5582,14 @@ public class DownloadActivity extends Activity {
                                 ? getString(R.string.download_progress_eta,
                                         p, speedText, left)
                                 : getString(R.string.download_progress, p, speedText);
+                        String statusText = left > 0
+                                ? getString(R.string.download_progress_speed_eta,
+                                        speedText, left)
+                                : getString(R.string.download_progress_speed, speedText);
                         final int progressValue = p;
                         main.post(() -> {
                             progress.setProgress(progressValue);
-                            setStatus(text);
+                            setStatus(statusText);
                         });
                         updateDownloadService(text, p, false);
                     }
@@ -5648,10 +5811,14 @@ public class DownloadActivity extends Activity {
                         ? getString(R.string.download_progress_eta,
                                 percent, speedText, left)
                         : getString(R.string.download_progress, percent, speedText);
+                String statusText = left > 0
+                        ? getString(R.string.download_progress_speed_eta,
+                                speedText, left)
+                        : getString(R.string.download_progress_speed, speedText);
                 final int progressValue = percent;
                 main.post(() -> {
                     progress.setProgress(progressValue);
-                    setStatus(text);
+                    setStatus(statusText);
                 });
                 updateDownloadService(text, percent, false);
                 lastBytes = bytes;

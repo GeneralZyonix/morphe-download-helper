@@ -45,7 +45,7 @@ Please include:
 - Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a **Sources** shortcut that opens source settings.
 - Shows per-source failure details and offers **Retry all sources**, **Retry failed sources**, and **Copy details**.
-- Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, package pill, source logos, and distinct Pause/Switch/Cancel actions. The source card collapses to a compact summary during the download and expands automatically on a failure, a fallback note, or **Switch source**.
+- Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, package pill, active source logo, and distinct Pause/Switch/Cancel actions. The source card collapses to a compact summary during the download, expands automatically on a failure, a fallback note, or **Switch source**, and its rows can be tapped to switch sources.
 - Single-stream downloads retry a dropped connection and resume from the `.part` offset with `Range`/`If-Range`; multi-connection segments resume from their written offset.
 - WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors.
 - Uses GitHub automatically: immediately when Morphe's resolver points to a release, or as

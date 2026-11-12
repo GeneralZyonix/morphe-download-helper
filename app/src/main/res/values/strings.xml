@@ -313,6 +313,7 @@
     <string name="download_switch_source">Stop &amp; switch source</string>
     <string name="download_switch_source_short">Switch source</string>
     <string name="download_choose_source">Switch to source</string>
+    <string name="download_switch_source_to">Switch to %1$s</string>
     <string name="download_switching_source">Stopping the current source and switching...</string>
     <string name="download_resume">Resume</string>
     <string name="download_error_no_package">Morphe did not send a package name.</string>
@@ -372,6 +373,8 @@
     <string name="download_starting">Starting download…</string>
     <string name="download_progress">Downloading… %1$d%% • %2$s</string>
     <string name="download_progress_eta">Downloading… %1$d%% • %2$s • %3$ds left</string>
+    <string name="download_progress_speed">%1$s</string>
+    <string name="download_progress_speed_eta">%1$s &#183; %2$ds left</string>
     <string name="download_diagnostics_copied">Diagnostics copied.</string>
     <string name="download_diagnostics_clip_label">Morphe Download Helper diagnostics</string>
     <string name="download_notification_default">Downloading…</string>

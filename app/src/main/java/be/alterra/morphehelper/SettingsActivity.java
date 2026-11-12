@@ -1321,10 +1321,12 @@ public class SettingsActivity extends Activity {
                 .setNegativeButton(R.string.common_cancel, null)
                 .setNeutralButton(R.string.virustotal_api_key_clear, (dialog, which) -> {
                     AppSettings.setVirusTotalApiKey(this, "");
+                    PublicSettings.write(this);
                     recreate();
                 })
                 .setPositiveButton(R.string.virustotal_api_key_save, (dialog, which) -> {
                     AppSettings.setVirusTotalApiKey(this, input.getText().toString());
+                    PublicSettings.write(this);
                     recreate();
                 })
                 .show();
@@ -1471,6 +1473,7 @@ public class SettingsActivity extends Activity {
                     String[] values = {AppSettings.KEEP, AppSettings.AFTER_HANDOFF,
                             AppSettings.HOUR_1, AppSettings.HOUR_24, AppSettings.DAY_7};
                     AppSettings.setRetention(this, values[which]);
+                    PublicSettings.write(this);
                     dialog.dismiss();
                     recreate();
                 })
@@ -1560,6 +1563,7 @@ public class SettingsActivity extends Activity {
             return;
         }
         AppSettings.setLocation(this, value);
+        PublicSettings.write(this);
         recreate();
     }
 
@@ -1615,6 +1619,7 @@ public class SettingsActivity extends Activity {
         }
         AppSettings.setCustomTreeUri(this, tree.toString());
         AppSettings.setLocation(this, AppSettings.LOCATION_CUSTOM);
+        PublicSettings.write(this);
         recreate();
     }
 
@@ -1629,6 +1634,7 @@ public class SettingsActivity extends Activity {
                 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
         if (granted && pendingLocation != null) {
             AppSettings.setLocation(this, pendingLocation);
+            PublicSettings.write(this);
             recreate();
         } else {
             Toast.makeText(this, R.string.settings_storage_denied,

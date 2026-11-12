@@ -5,6 +5,25 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Changed
+
+- Download screen polish: the active source logo now appears in the app card,
+  chips and package pill are highlighted, metric icons were added, the active
+  source is green in the collapsed summary, source rows can be tapped to
+  switch, the chevron has a proper circular style, source labels are shorter,
+  and the status line shows speed/ETA without a duplicate percentage.
+- The failure screen now uses the same app card layout as the download screen.
+- Missing app icons use an app-initial placeholder instead of the generic
+  Android icon.
+
+### Fixed
+
+- Settings changes to retention, download folder/custom folder, and the
+  VirusTotal API key now persist instead of being overwritten by the public
+  `helper-settings.txt` file when the screen reloads.
+
 ## [2.0.1-beta.3] - 2026-11-11
 
 Third 2.0.1 beta: the download source card collapses during downloads, and
