@@ -5,145 +5,80 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [2.1] - 2026-11-13
 
-### Changed
-
-- Download screen: the active source logo moved beside the **Source** metric,
-  leaving room for all version/format/ABI chips in portrait.
-- The verification hint is now a prominent warning card with a shield icon,
-  title, explanation, and **Verify now** action.
-- The download status line is now a pill with speed and time-left icons.
-- YouTube and YouTube Music use their brand icons when the app is not installed.
-- Dark-theme surfaces are darker and muted text is brighter for better contrast.
-
-## [2.0.1-beta.7] - 2026-11-12
-
-Seventh 2.0.1 beta: clarify the final APKPure WebView fallback.
-
-### Fixed
-
-- The final APKPure WebView fallback is now labelled **Opening APKPure as a
-  last resort**, and the source list marks it as the current source instead of
-  showing the previous failed APKPure attempt. WebView source attempts now also
-  update the active source logo and metric.
-
-## [2.0.1-beta.6] - 2026-11-12
-
-Sixth 2.0.1 beta: fix stale source labels after retrying all sources.
-
-### Fixed
-
-- The source metric, active-source logo, and source list no longer keep the
-  previous source after **Retry all sources**. They now update as soon as each
-  new source attempt starts.
-
-## [2.0.1-beta.5] - 2026-11-12
-
-Fifth 2.0.1 beta: complete French translations for the remaining download-screen
-strings.
-
-### Fixed
-
-- French translations for the remaining download progress captions, the
-  verification attention hint, and the short **Switch source** label.
-
-## [2.0.1-beta.4] - 2026-11-12
-
-Fourth 2.0.1 beta: download-screen polish and a settings persistence fix.
-
-### Changed
-
-- Download screen polish: the active source logo now appears in the app card,
-  chips and package pill are highlighted, metric icons were added, the active
-  source is green in the collapsed summary, source rows can be tapped to
-  switch, the chevron has a proper circular style, source labels are shorter,
-  and the status line shows speed/ETA without a duplicate percentage.
-- The failure screen now uses the same app card layout as the download screen.
-- Missing app icons use an app-initial placeholder instead of the generic
-  Android icon.
-
-### Fixed
-
-- Settings changes to retention, download folder/custom folder, and the
-  VirusTotal API key now persist instead of being overwritten by the public
-  `helper-settings.txt` file when the screen reloads.
-
-## [2.0.1-beta.3] - 2026-11-11
-
-Third 2.0.1 beta: the download source card collapses during downloads, and
-source management moves to a single **Sources** button.
-
-### Changed
-
-- The download source card collapses to a compact summary while a download is
-  active. It expands automatically on a source failure, a fallback note, or
-  **Switch source**, and can be toggled by tapping its header.
-- The main screen no longer lists sources. A **Sources** button opens the
-  Sources section in Settings directly.
-
-## [2.0.1-beta.2] - 2026-11-11
-
-Second 2.0.1 beta: download-screen redesign, automatic resume, WebView
-fail-fast, and source fixes.
-
-### Added
-
-- Download screen redesign: target app icon and name, version/format/ABI
-  chips, Source/Size/Connections metrics, a package pill, source logos with an
-  active **Now** pill, and distinct Pause/Switch/Cancel action styling.
-- Single-stream downloads now retry a dropped connection up to three times and
-  resume from the `.part` offset with `Range` and `If-Range`. Multi-connection
-  segments also resume from their written offset instead of starting over.
-
-### Fixed
-
-- GitHub downloads no longer reject an official APK because the installed app
-  has a different signature. Patched apps are normally signed with a different
-  key; package and version validation still run, and Morphe handles the patch
-  signature step.
-- APKMirror WebView navigation now prefers the requested version (or the app
-  page that lists it) instead of silently downloading the newest release. A
-  rejected automatic APKMirror build also no longer blocks an exact
-  resolver-supplied APKMirror link, and **Retry all sources** clears the
-  per-request source rejection flags.
-- Morphe receives the APK before the helper copies it to
-  `Downloads/Morphe Helper` or a custom folder. The copy runs in the background
-  while the foreground service stays alive, and the log records hand-off and
-  copy timings.
-- Metadata requests use shorter fail-fast timeouts, and file downloads use a
-  tighter stall timeout. APKMirror pages keep a little more room for Cloudflare.
-- WebView flows log their state transitions and fail fast on main-frame load
-  errors, renderer crashes, and permanent HTTP errors instead of waiting for
-  the 90-second watchdog.
-
-## [2.0.1-beta.1] - 2026-11-08
-
-First 2.0.1 beta with per-app GitHub sources and download-flow fixes.
+First 2.1 release. This rolls up all final changes from the 2.0.1 beta series.
 
 ### Added
 
 - **Per-app GitHub sources**: map a package name to a GitHub repository, with an
   optional asset-name filter and a **Try this repo first** switch. Preferred
   mappings run before the Morphe link; fallback mappings stay available in
-  **Switch source**. User-added entries are marked **USER** and exported
-  configurations import them back as user-added.
-- Download screen: stage captions inside the progress ring, larger app details,
-  and **Cancel / Switch source** controls directly under the ring. The source
-  picker pauses an active download and resumes it when dismissed.
+  **Switch source**. User-added entries are marked **USER** and are included in
+  exported configurations.
+- **Download screen redesign**: target app icon and name, version/format/ABI
+  chips, Source/Size/Connections metrics with icons and the active source logo
+  beside the Source value, highlighted package pill, progress ring, source logos
+  with **NOW/NEXT** states, and distinct Pause/Switch/Cancel actions.
+- **Verification warning card** with a shield icon, explanation, and **Verify
+  now** action.
+- **Speed/ETA pill** with speed and time-left icons during active downloads.
+- **Collapsible source card**: expanded while resolving, compact during an
+  active download, auto-expanded on failure, a fallback note, or **Switch
+  source**, and tappable to toggle.
+- **Tappable source rows** in the source card to switch sources directly.
+- **Automatic resume** for single-stream downloads (up to three retries with
+  `Range`/`If-Range`) and segmented downloads (segments resume from their
+  written offsets).
+- **Source switching** during resolution or download, including WebView
+  handoffs; the picker pauses an active download and resumes it when dismissed.
+- **Retry all sources** on the failure screen, plus **Edit sources** from the
+  failure screen.
+- **WebView state logging and fail-fast** for main-frame errors, renderer
+  crashes, and permanent HTTP errors.
+- **YouTube and YouTube Music fallback icons** when those apps are not installed.
+- **Complete French translations** for the download flow and remaining UI
+  strings.
+
+### Changed
+
+- The main screen no longer lists all sources. A **Sources** button opens the
+  Sources section in Settings directly.
+- The failure screen now uses the same app card layout as the download screen.
+- The final APKPure WebView fallback is labelled **Opening APKPure as a last
+  resort** and updates the source list, Source metric, and logo consistently.
+- Source descriptions use neutral colours; warning colours are reserved for
+  real warnings.
+- Source labels are shortened (for example, `Uptodown WebView` becomes
+  `Uptodown`) and long version strings drop build qualifiers such as
+  `-release-arm64-v8a`.
+- The active source and **NOW** are green in the collapsed source summary, and
+  the source-card chevron has a circular style.
+- Download hand-off to Morphe happens before the public/custom-folder copy; the
+  copy continues in the background with the foreground service alive.
+- Metadata and download timeouts are shorter, with a tighter stall timeout;
+  APKMirror keeps extra room for Cloudflare.
+- Dark-theme surfaces are darker and muted text is brighter for better contrast.
 
 ### Fixed
 
-- **Switch source** now aborts the current attempt and immediately retries with
-  the selected source, including during resolution and WebView handoffs.
-- General source descriptions in Settings use the neutral muted colour again;
-  warning colours are reserved for real warnings (issue #26). The
-  APKPure/Uptodown WebView note now sits below the source list as normal
-  information instead of appearing as a yellow warning at the top.
-- The download failure screen's **Edit sources** button now opens the same
-  **Download sources** popup as the main screen instead of switching to
-  Settings, and the failure screen offers **Retry all sources** to restart the
-  complete ordered search.
+- Settings changes to retention, download folder/custom folder, storage
+  permission, and the VirusTotal API key now persist instead of being
+  overwritten by `helper-settings.txt` on reload.
+- GitHub downloads no longer reject an official APK because the installed app is
+  signed with a different key. Package/version/build validation still runs;
+  Morphe handles the patch signature step.
+- APKMirror navigation prefers the exact requested version (or the app page
+  listing it) instead of the newest release. A rejected automatic build no
+  longer blocks an exact resolver-supplied APKMirror link, and **Retry all
+  sources** clears per-request rejection flags.
+- The source metric, active-source logo, and source list no longer keep the
+  previous source after **Retry all sources**; they update as soon as each new
+  source attempt starts.
+- The APKPure last-resort WebView marks APKPure as **NOW** even if the earlier
+  APKPure API/direct attempt failed, and shows the correct source logo.
+- Missing French translations for the final download progress captions, the
+  verification hint, and the short **Switch source** label.
 
 ## [2.0] - 2026-11-08
 
