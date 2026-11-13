@@ -209,7 +209,10 @@ public class DownloadActivity extends Activity {
     private int TEXT;
     private int MUTED;
     private int STEPS;
+    private int WARN_TITLE;
     private int WARN_TEXT;
+    private int WARN_BG;
+    private int WARN_BORDER;
     private int GREEN;
     private int RED;
     private String themeSignature;
@@ -310,6 +313,10 @@ public class DownloadActivity extends Activity {
 
     /** Current status line shown inside the card. */
     private TextView status;
+    private LinearLayout progressInfo;
+    private TextView progressSpeed;
+    private TextView progressEta;
+    private View progressEtaDivider;
 
     /** Extra explanation shown while VirusTotal is scanning. */
     private TextView scanNote;
@@ -318,7 +325,7 @@ public class DownloadActivity extends Activity {
     private TextView skipScanButton;
 
     /** Appears when a source WebView is still waiting for verification. */
-    private TextView verificationHint;
+    private View verificationHint;
     private Runnable verificationHintRunnable;
 
     /** Result-stage decision controls. */
@@ -375,14 +382,14 @@ public class DownloadActivity extends Activity {
     private TextView appVersionChip;
     private TextView appFormatChip;
     private TextView appAbiChip;
-    /** Active source logo shown at the right of the app header. */
-    private FrameLayout appSourceHolder;
 
     /** Source / Size / Connections metrics and the package pill. */
     private LinearLayout metricsRow;
     private TextView metricSource;
     private TextView metricSize;
     private TextView metricConnections;
+    /** Small active-source logo shown beside the Source metric value. */
+    private FrameLayout metricSourceBadge;
     private TextView packagePill;
     private String activeSourceName = "";
     private volatile int downloadConnections = 1;
@@ -1839,7 +1846,10 @@ public class DownloadActivity extends Activity {
         TEXT = palette.text;
         MUTED = palette.muted;
         STEPS = palette.steps;
+        WARN_TITLE = palette.warnTitle;
         WARN_TEXT = palette.warnText;
+        WARN_BG = palette.warnBg;
+        WARN_BORDER = palette.warnBorder;
         GREEN = palette.green;
         RED = palette.red;
         themeSignature = ThemeManager.signature(this);
@@ -1952,9 +1962,9 @@ public class DownloadActivity extends Activity {
         appChips = new LinearLayout(this);
         appChips.setOrientation(LinearLayout.HORIZONTAL);
         appChips.setPadding(0, dp(5), 0, 0);
-        appVersionChip = chip("", ACCENT_TEXT);
-        appFormatChip = chip("", ACCENT_TEXT);
-        appAbiChip = chip("", ACCENT_TEXT);
+        appVersionChip = chip("", TEXT);
+        appFormatChip = chip("", TEXT);
+        appAbiChip = chip("", TEXT);
         appChips.addView(appVersionChip, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams formatChipParams = new LinearLayout.LayoutParams(
@@ -1969,17 +1979,6 @@ public class DownloadActivity extends Activity {
 
         appHeader.addView(appLabels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        // The active source logo fills the space at the right of the app card.
-        appSourceHolder = new FrameLayout(this);
-        appSourceHolder.setBackground(rounded(SECONDARY, 999));
-        int sourcePad = dp(5);
-        appSourceHolder.setPadding(sourcePad, sourcePad, sourcePad, sourcePad);
-        appSourceHolder.setVisibility(View.GONE);
-        LinearLayout.LayoutParams sourceHolderParams = new LinearLayout.LayoutParams(
-                dp(36), dp(36));
-        sourceHolderParams.setMarginStart(dp(8));
-        appHeader.addView(appSourceHolder, sourceHolderParams);
         card.addView(appHeader);
 
         progress = new ProgressDisplay(this);
@@ -1998,6 +1997,44 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        progressInfo = new LinearLayout(this);
+        progressInfo.setOrientation(LinearLayout.HORIZONTAL);
+        progressInfo.setGravity(Gravity.CENTER);
+        progressInfo.setPadding(dp(12), dp(6), dp(12), dp(6));
+        GradientDrawable progressBackground = rounded(SECONDARY, 999);
+        progressBackground.setStroke(dp(1), SECONDARY_BORDER);
+        progressInfo.setBackground(progressBackground);
+        progressInfo.setVisibility(View.GONE);
+
+        progressSpeed = text("", 12, TEXT, true);
+        progressSpeed.setCompoundDrawablesWithIntrinsicBounds(
+                R.drawable.ic_speed, 0, 0, 0);
+        progressSpeed.setCompoundDrawablePadding(dp(5));
+        progressSpeed.setCompoundDrawableTintList(
+                ColorStateList.valueOf(MUTED));
+        progressInfo.addView(progressSpeed);
+
+        progressEtaDivider = new View(this);
+        progressEtaDivider.setBackgroundColor(BORDER);
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+                dp(1), dp(14));
+        dividerParams.setMargins(dp(10), 0, dp(10), 0);
+        progressInfo.addView(progressEtaDivider, dividerParams);
+
+        progressEta = text("", 12, MUTED, true);
+        progressEta.setCompoundDrawablesWithIntrinsicBounds(
+                R.drawable.ic_timer, 0, 0, 0);
+        progressEta.setCompoundDrawablePadding(dp(5));
+        progressEta.setCompoundDrawableTintList(
+                ColorStateList.valueOf(MUTED));
+        progressInfo.addView(progressEta);
+
+        LinearLayout.LayoutParams progressInfoParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        progressInfoParams.gravity = Gravity.CENTER_HORIZONTAL;
+        progressInfoParams.topMargin = dp(12);
+        card.addView(progressInfo, progressInfoParams);
+
         sourceLabel = text("", 12, MUTED, true);
         sourceLabel.setGravity(Gravity.CENTER);
         sourceLabel.setVisibility(View.GONE);
@@ -2013,18 +2050,26 @@ public class DownloadActivity extends Activity {
         metricSource = metricValue();
         metricSize = metricValue();
         metricConnections = metricValue();
+        metricSourceBadge = new FrameLayout(this);
+        metricSourceBadge.setBackground(rounded(SECONDARY, 999));
+        int sourceBadgePad = dp(2);
+        metricSourceBadge.setPadding(
+                sourceBadgePad, sourceBadgePad, sourceBadgePad, sourceBadgePad);
+        metricSourceBadge.setVisibility(View.GONE);
         metricsRow.addView(metricColumn(R.drawable.ic_metric_source,
-                        getString(R.string.download_metric_source), metricSource),
+                        getString(R.string.download_metric_source),
+                        metricSource, metricSourceBadge),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         metricsRow.addView(metricColumn(R.drawable.ic_metric_size,
-                        getString(R.string.download_metric_size), metricSize),
+                        getString(R.string.download_metric_size), metricSize, null),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         metricsRow.addView(metricColumn(R.drawable.ic_metric_connections,
-                        getString(R.string.download_metric_connections), metricConnections),
+                        getString(R.string.download_metric_connections),
+                        metricConnections, null),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         card.addView(metricsRow);
 
-        packagePill = text("", 11, ACCENT_TEXT, false);
+        packagePill = text("", 11, TEXT, false);
         packagePill.setGravity(Gravity.CENTER);
         packagePill.setSingleLine(true);
         packagePill.setEllipsize(TextUtils.TruncateAt.MIDDLE);
@@ -2039,21 +2084,58 @@ public class DownloadActivity extends Activity {
         packageParams.topMargin = dp(10);
         card.addView(packagePill, packageParams);
 
-        verificationHint = text(getString(R.string.download_verification_attention),
-                12, ACCENT_TEXT, true);
-        verificationHint.setGravity(Gravity.CENTER);
-        verificationHint.setPadding(dp(14), dp(10), dp(14), dp(10));
-        GradientDrawable hintBackground = rounded(SECONDARY, 999);
-        hintBackground.setStroke(dp(1), SECONDARY_BORDER);
-        verificationHint.setBackground(new RippleDrawable(
+        LinearLayout verificationCard = new LinearLayout(this);
+        verificationCard.setOrientation(LinearLayout.HORIZONTAL);
+        verificationCard.setGravity(Gravity.CENTER_VERTICAL);
+        verificationCard.setPadding(dp(12), dp(10), dp(12), dp(10));
+        GradientDrawable hintBackground = rounded(WARN_BG, 14);
+        hintBackground.setStroke(dp(1), WARN_BORDER);
+        verificationCard.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE), hintBackground, null));
-        verificationHint.setClickable(true);
-        verificationHint.setFocusable(true);
-        verificationHint.setVisibility(View.GONE);
-        verificationHint.setOnClickListener(v -> scrollToVerification());
-        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
+        verificationCard.setClickable(true);
+        verificationCard.setFocusable(true);
+        verificationCard.setVisibility(View.GONE);
+        verificationCard.setOnClickListener(v -> scrollToVerification());
+        verificationCard.setContentDescription(
+                getString(R.string.download_verification_attention));
+
+        ImageView hintIcon = new ImageView(this);
+        hintIcon.setImageResource(R.drawable.ic_warning);
+        hintIcon.setColorFilter(WARN_TITLE);
+        LinearLayout.LayoutParams hintIconParams = new LinearLayout.LayoutParams(
+                dp(24), dp(24));
+        hintIconParams.setMarginEnd(dp(10));
+        verificationCard.addView(hintIcon, hintIconParams);
+
+        LinearLayout hintLabels = new LinearLayout(this);
+        hintLabels.setOrientation(LinearLayout.VERTICAL);
+        TextView hintTitle = text(getString(R.string.download_verification_title),
+                13, WARN_TITLE, true);
+        hintLabels.addView(hintTitle);
+        TextView hintBody = text(getString(R.string.download_verification_body),
+                11, WARN_TEXT, false);
+        hintBody.setLineSpacing(dp(2), 1f);
+        hintBody.setPadding(0, dp(2), 0, 0);
+        hintLabels.addView(hintBody);
+        verificationCard.addView(hintLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView verifyNow = text(
+                getString(R.string.download_verify_now) + "  \u2192",
+                11, WARN_TITLE, true);
+        verifyNow.setGravity(Gravity.CENTER);
+        verifyNow.setPadding(dp(10), dp(6), dp(10), dp(6));
+        GradientDrawable verifyBackground = rounded(SECONDARY, 999);
+        verifyBackground.setStroke(dp(1), WARN_BORDER);
+        verifyNow.setBackground(verifyBackground);
+        LinearLayout.LayoutParams verifyParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        hintParams.gravity = Gravity.CENTER_HORIZONTAL;
+        verifyParams.setMarginStart(dp(8));
+        verificationCard.addView(verifyNow, verifyParams);
+
+        verificationHint = verificationCard;
+        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hintParams.topMargin = dp(10);
         card.addView(verificationHint, hintParams);
 
@@ -2522,7 +2604,8 @@ public class DownloadActivity extends Activity {
         return text("\u2014", 12, TEXT, true);
     }
 
-    private LinearLayout metricColumn(int iconRes, String label, TextView value) {
+    private LinearLayout metricColumn(int iconRes, String label, TextView value,
+                                      FrameLayout valueIcon) {
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -2535,11 +2618,22 @@ public class DownloadActivity extends Activity {
         caption.setGravity(Gravity.CENTER);
         caption.setPadding(0, dp(3), 0, 0);
         column.addView(caption);
+
+        LinearLayout valueRow = new LinearLayout(this);
+        valueRow.setOrientation(LinearLayout.HORIZONTAL);
+        valueRow.setGravity(Gravity.CENTER);
+        valueRow.setPadding(0, dp(3), 0, 0);
+        if (valueIcon != null) {
+            LinearLayout.LayoutParams valueIconParams = new LinearLayout.LayoutParams(
+                    dp(18), dp(18));
+            valueIconParams.setMarginEnd(dp(4));
+            valueRow.addView(valueIcon, valueIconParams);
+        }
         value.setGravity(Gravity.CENTER);
         value.setSingleLine(true);
         value.setEllipsize(TextUtils.TruncateAt.END);
-        value.setPadding(0, dp(3), 0, 0);
-        column.addView(value);
+        valueRow.addView(value);
+        column.addView(valueRow);
         return column;
     }
 
@@ -2647,12 +2741,21 @@ public class DownloadActivity extends Activity {
                         appIconFallback.setVisibility(View.GONE);
                     }
                 } catch (Exception ignored) {
-                    // The target app is not installed yet. Show a deliberate
-                    // initial instead of the generic Android icon.
-                    appIcon.setVisibility(View.GONE);
-                    if (appIconFallback != null) {
-                        appIconFallback.setText(appInitial(app));
-                        appIconFallback.setVisibility(View.VISIBLE);
+                    // The target app is not installed yet. Use a known brand
+                    // icon when available, otherwise a deliberate initial.
+                    Integer known = knownAppIcon(requestPkg);
+                    if (known != null) {
+                        appIcon.setImageResource(known);
+                        appIcon.setVisibility(View.VISIBLE);
+                        if (appIconFallback != null) {
+                            appIconFallback.setVisibility(View.GONE);
+                        }
+                    } else {
+                        appIcon.setVisibility(View.GONE);
+                        if (appIconFallback != null) {
+                            appIconFallback.setText(appInitial(app));
+                            appIconFallback.setVisibility(View.VISIBLE);
+                        }
                     }
                 }
             }
@@ -2688,28 +2791,28 @@ public class DownloadActivity extends Activity {
             packagePill.setText(requestPkg);
             packagePill.setVisibility(hasPackage ? View.VISIBLE : View.GONE);
         }
-        updateAppSourceBadge();
+        updateSourceMetricBadge();
     }
 
-    /** Fills the right side of the app card with the active source logo. */
-    private void updateAppSourceBadge() {
-        if (appSourceHolder == null) {
+    /** Shows the active source logo beside the Source metric value. */
+    private void updateSourceMetricBadge() {
+        if (metricSourceBadge == null) {
             return;
         }
         String key = sourceKeyForLabel(activeSourceName);
-        appSourceHolder.removeAllViews();
+        metricSourceBadge.removeAllViews();
         if (key == null) {
-            appSourceHolder.setVisibility(View.GONE);
+            metricSourceBadge.setVisibility(View.GONE);
             return;
         }
         View badge = SourceBadge.create(this, key);
-        appSourceHolder.addView(badge, new FrameLayout.LayoutParams(
+        metricSourceBadge.addView(badge, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
-        appSourceHolder.setContentDescription(
+        metricSourceBadge.setContentDescription(
                 getString(R.string.download_metric_source) + ": "
                         + shortSourceName(activeSourceName));
-        appSourceHolder.setVisibility(View.VISIBLE);
+        metricSourceBadge.setVisibility(View.VISIBLE);
     }
 
     private static String appInitial(String app) {
@@ -2719,6 +2822,17 @@ public class DownloadActivity extends Activity {
         String trimmed = app.trim();
         return trimmed.isEmpty()
                 ? "?" : trimmed.substring(0, trimmed.offsetByCodePoints(0, 1));
+    }
+
+    /** Brand icons for common apps that may not be installed on the device. */
+    private static Integer knownAppIcon(String pkg) {
+        if ("com.google.android.youtube".equals(pkg)) {
+            return R.drawable.ic_app_youtube;
+        }
+        if ("com.google.android.apps.youtube.music".equals(pkg)) {
+            return R.drawable.ic_app_youtube_music;
+        }
+        return null;
     }
 
     /** Drops build qualifiers such as -release-arm64-v8a from the version chip. */
@@ -2824,11 +2938,45 @@ public class DownloadActivity extends Activity {
 
     /** Updates the status line from any thread. */
     private void setStatus(String text) {
-        main.post(() -> status.setText(text));
+        main.post(() -> {
+            if (progressInfo != null) {
+                progressInfo.setVisibility(View.GONE);
+            }
+            if (status != null) {
+                status.setVisibility(View.VISIBLE);
+                status.setText(text);
+            }
+        });
     }
 
     private void setStatus(int textRes) {
         setStatus(getString(textRes));
+    }
+
+    /** Shows the compact speed/ETA pill during an active download. */
+    private void setProgressStatus(String speedText, long secondsLeft) {
+        main.post(() -> {
+            if (status != null) {
+                status.setVisibility(View.GONE);
+            }
+            if (progressInfo != null) {
+                progressInfo.setVisibility(View.VISIBLE);
+            }
+            if (progressSpeed != null) {
+                progressSpeed.setText(speedText);
+            }
+            boolean hasEta = secondsLeft > 0;
+            if (progressEtaDivider != null) {
+                progressEtaDivider.setVisibility(hasEta ? View.VISIBLE : View.GONE);
+            }
+            if (progressEta != null) {
+                progressEta.setVisibility(hasEta ? View.VISIBLE : View.GONE);
+                if (hasEta) {
+                    progressEta.setText(getString(
+                            R.string.download_progress_time_left, secondsLeft));
+                }
+            }
+        });
     }
 
     private void startDownloadService(String text) {
@@ -3369,6 +3517,12 @@ public class DownloadActivity extends Activity {
         setSwitchSourceVisible(false);
         main.post(() -> {
             progress.setVisibility(View.GONE);
+            if (progressInfo != null) {
+                progressInfo.setVisibility(View.GONE);
+            }
+            if (status != null) {
+                status.setVisibility(View.VISIBLE);
+            }
             sourceLabel.setVisibility(View.GONE);
             scanNote.setVisibility(View.GONE);
             skipScanButton.setVisibility(View.GONE);
@@ -5611,14 +5765,10 @@ public class DownloadActivity extends Activity {
                                 ? getString(R.string.download_progress_eta,
                                         p, speedText, left)
                                 : getString(R.string.download_progress, p, speedText);
-                        String statusText = left > 0
-                                ? getString(R.string.download_progress_speed_eta,
-                                        speedText, left)
-                                : getString(R.string.download_progress_speed, speedText);
                         final int progressValue = p;
                         main.post(() -> {
                             progress.setProgress(progressValue);
-                            setStatus(statusText);
+                            setProgressStatus(speedText, left);
                         });
                         updateDownloadService(text, p, false);
                     }
@@ -5840,14 +5990,10 @@ public class DownloadActivity extends Activity {
                         ? getString(R.string.download_progress_eta,
                                 percent, speedText, left)
                         : getString(R.string.download_progress, percent, speedText);
-                String statusText = left > 0
-                        ? getString(R.string.download_progress_speed_eta,
-                                speedText, left)
-                        : getString(R.string.download_progress_speed, speedText);
                 final int progressValue = percent;
                 main.post(() -> {
                     progress.setProgress(progressValue);
-                    setStatus(statusText);
+                    setProgressStatus(speedText, left);
                 });
                 updateDownloadService(text, percent, false);
                 lastBytes = bytes;

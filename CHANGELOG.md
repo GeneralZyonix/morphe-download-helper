@@ -5,6 +5,18 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Changed
+
+- Download screen: the active source logo moved beside the **Source** metric,
+  leaving room for all version/format/ABI chips in portrait.
+- The verification hint is now a prominent warning card with a shield icon,
+  title, explanation, and **Verify now** action.
+- The download status line is now a pill with speed and time-left icons.
+- YouTube and YouTube Music use their brand icons when the app is not installed.
+- Dark-theme surfaces are darker and muted text is brighter for better contrast.
+
 ## [2.0.1-beta.7] - 2026-11-12
 
 Seventh 2.0.1 beta: clarify the final APKPure WebView fallback.

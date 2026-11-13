@@ -262,17 +262,17 @@ final class ThemeManager {
             warnBorder = Color.parseColor("#78350F");
             if (tintSurfaces && !amoled) {
                 float hue = toHsl(start)[0];
-                bgTop = fromHsl(hue, 0.30f * tintStrength * surfaceChroma, 0.07f);
-                bgBottom = fromHsl(hue, 0.34f * tintStrength * surfaceChroma, 0.10f);
-                cardTop = fromHsl(hue, 0.26f * tintStrength * surfaceChroma, 0.12f);
-                cardBottom = fromHsl(hue, 0.30f * tintStrength * surfaceChroma, 0.10f);
-                border = fromHsl(hue, 0.22f * tintStrength * surfaceChroma, 0.23f);
-                secondary = fromHsl(hue, 0.24f * tintStrength * surfaceChroma, 0.17f);
-                secondaryBorder = fromHsl(hue, 0.20f * tintStrength * surfaceChroma, 0.29f);
-                text = fromHsl(hue, 0.15f * textTint * surfaceChroma, 0.97f);
-                muted = fromHsl(hue, 0.14f * textTint * surfaceChroma, 0.68f);
-                steps = fromHsl(hue, 0.12f * textTint * surfaceChroma, 0.85f);
-                footer = fromHsl(hue, 0.12f * textTint * surfaceChroma, 0.48f);
+                bgTop = fromHsl(hue, 0.30f * tintStrength * surfaceChroma, 0.04f);
+                bgBottom = fromHsl(hue, 0.34f * tintStrength * surfaceChroma, 0.06f);
+                cardTop = fromHsl(hue, 0.26f * tintStrength * surfaceChroma, 0.09f);
+                cardBottom = fromHsl(hue, 0.30f * tintStrength * surfaceChroma, 0.075f);
+                border = fromHsl(hue, 0.22f * tintStrength * surfaceChroma, 0.20f);
+                secondary = fromHsl(hue, 0.24f * tintStrength * surfaceChroma, 0.14f);
+                secondaryBorder = fromHsl(hue, 0.20f * tintStrength * surfaceChroma, 0.27f);
+                text = fromHsl(hue, 0.15f * textTint * surfaceChroma, 0.98f);
+                muted = fromHsl(hue, 0.14f * textTint * surfaceChroma, 0.74f);
+                steps = fromHsl(hue, 0.12f * textTint * surfaceChroma, 0.90f);
+                footer = fromHsl(hue, 0.12f * textTint * surfaceChroma, 0.56f);
             }
         }
 

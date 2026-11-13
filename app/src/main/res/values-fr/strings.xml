@@ -297,6 +297,9 @@
     <string name="download_uptodown_title">Vérification Uptodown</string>
     <string name="download_uptodown_explanation">Uptodown nécessite une rapide vérification Cloudflare. La page de téléchargement officielle est affichée ci-dessous. Attendez le bouton de téléchargement, puis touchez-le si le téléchargement ne démarre pas automatiquement. L’APK sera renvoyé à Morphe.</string>
     <string name="download_verification_attention">La vérification demande votre attention — touchez pour ouvrir</string>
+    <string name="download_verification_title">Vérification requise</string>
+    <string name="download_verification_body">Une action est requise pour continuer le téléchargement.</string>
+    <string name="download_verify_now">Vérifier maintenant</string>
     <string name="download_open_page">Ouvrir la page de téléchargement</string>
     <string name="download_pause">Pause</string>
     <string name="download_switch_source">Arrêter et changer de source</string>
@@ -364,8 +367,7 @@
     <string name="download_starting">Démarrage du téléchargement…</string>
     <string name="download_progress">Téléchargement… %1$d%% • %2$s</string>
     <string name="download_progress_eta">Téléchargement… %1$d%% • %2$s • %3$ds restantes</string>
-    <string name="download_progress_speed">%1$s</string>
-    <string name="download_progress_speed_eta">%1$s &#183; %2$ds restantes</string>
+    <string name="download_progress_time_left">%1$ds restantes</string>
     <string name="download_diagnostics_copied">Détails copiés.</string>
     <string name="download_diagnostics_clip_label">Diagnostic de Morphe Download Helper</string>
     <string name="download_notification_default">Téléchargement…</string>

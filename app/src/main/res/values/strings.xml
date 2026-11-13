@@ -308,6 +308,9 @@
     <string name="download_uptodown_title">Uptodown verification</string>
     <string name="download_uptodown_explanation">Uptodown needs a quick Cloudflare check. The official download page is shown below. Wait for the download button, then tap it if the download does not start automatically. The APK will be returned to Morphe.</string>
     <string name="download_verification_attention">Verification needs attention — tap to open</string>
+    <string name="download_verification_title">Verification needed</string>
+    <string name="download_verification_body">Action required to continue the download.</string>
+    <string name="download_verify_now">Verify now</string>
     <string name="download_open_page">Open download page</string>
     <string name="download_pause">Pause</string>
     <string name="download_switch_source">Stop &amp; switch source</string>
@@ -374,8 +377,7 @@
     <string name="download_starting">Starting download…</string>
     <string name="download_progress">Downloading… %1$d%% • %2$s</string>
     <string name="download_progress_eta">Downloading… %1$d%% • %2$s • %3$ds left</string>
-    <string name="download_progress_speed">%1$s</string>
-    <string name="download_progress_speed_eta">%1$s &#183; %2$ds left</string>
+    <string name="download_progress_time_left">%1$ds left</string>
     <string name="download_diagnostics_copied">Diagnostics copied.</string>
     <string name="download_diagnostics_clip_label">Morphe Download Helper diagnostics</string>
     <string name="download_notification_default">Downloading…</string>
