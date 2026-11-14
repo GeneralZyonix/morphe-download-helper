@@ -238,6 +238,15 @@
     <string name="settings_remove_github_app">Remove GitHub app %1$s</string>
     <string name="settings_github_app_removed">%1$s removed from GitHub apps.</string>
     <string name="settings_github_app_add">Add GitHub app</string>
+    <string name="settings_github_import_obtainium">Import Obtainium/ObtainX</string>
+    <string name="settings_github_import_hint">Select an Obtainium or ObtainX JSON export. GitHub entries are added as user sources; other sources are skipped.</string>
+    <string name="settings_github_import_result">Imported %1$d GitHub source(s); skipped %2$d.</string>
+    <string name="settings_github_import_empty">The selected file is empty.</string>
+    <string name="settings_github_import_failed">Could not import that configuration file.</string>
+    <string name="settings_github_app_share">Share GitHub source</string>
+    <string name="settings_github_app_share_text">Morphe Download Helper GitHub source\nPackage: %1$s\nRepo: %2$s</string>
+    <string name="settings_github_share_no_repo">No GitHub repository was found in the shared text.</string>
+    <string name="settings_github_share_failed">No app is available to share this source.</string>
     <string name="settings_github_app_edit">Edit GitHub app</string>
     <string name="settings_github_app_new">New GitHub app</string>
     <string name="settings_github_app_package">Package name</string>

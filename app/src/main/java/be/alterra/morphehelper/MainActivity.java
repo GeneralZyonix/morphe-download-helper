@@ -11,6 +11,7 @@ import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -374,6 +375,35 @@ public class MainActivity extends Activity {
         ThemeManager.applySystemBars(this);
         UpdateManager.maybeCheckOnLaunch(this,
                 () -> UpdateManager.showInAppUpdatePopupIfAvailable(this));
+        handleShareIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleShareIntent(intent);
+    }
+
+    /**
+     * Shared GitHub links open the Sources screen with the add dialog prefilled.
+     */
+    private void handleShareIntent(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) {
+            return;
+        }
+        String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if (TextUtils.isEmpty(text)) {
+            return;
+        }
+        Intent settings = new Intent(this, SettingsActivity.class);
+        settings.putExtra(SettingsActivity.EXTRA_SECTION,
+                SettingsActivity.EXTRA_SECTION_SOURCES);
+        settings.putExtra(SettingsActivity.EXTRA_SHARE_TEXT, text);
+        startActivity(settings);
+        // Avoid opening the dialog again after a rotation or resume.
+        intent.setAction(null);
+        intent.removeExtra(Intent.EXTRA_TEXT);
     }
 
     /**

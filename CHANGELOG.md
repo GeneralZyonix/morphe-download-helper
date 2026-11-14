@@ -13,6 +13,11 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   toggle, order entry, health status, and download-screen row. The helper opens
   the requested build and ABI on APKCube; after the page's verification and
   download action, the file is downloaded and validated locally.
+- GitHub repository links can be shared into the helper from Android's share
+  sheet. The Sources screen opens with the repository and package prefilled.
+- GitHub sources can be shared from their row, and Obtainium/ObtainX JSON
+  exports can be imported from Settings → Sources. GitHub entries become user
+  sources; unsupported entries are skipped.
 
 ### Fixed
 

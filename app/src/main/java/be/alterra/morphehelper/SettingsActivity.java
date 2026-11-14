@@ -82,9 +82,11 @@ public class SettingsActivity extends Activity {
     private static final int STORAGE_PERMISSION_CODE = 73;
     private static final int EXPORT_SETTINGS_REQUEST_CODE = 74;
     private static final int IMPORT_SETTINGS_REQUEST_CODE = 75;
+    private static final int IMPORT_GITHUB_REQUEST_CODE = 76;
     private static final String SECTION_PREFS = "settings_sections";
     static final String EXTRA_SECTION = "open_section";
     static final String EXTRA_SECTION_SOURCES = "sources";
+    static final String EXTRA_SHARE_TEXT = "share_text";
     private static final String SECTION_GENERAL = "general";
     private static final String SECTION_UPDATES = "updates";
     private static final String SECTION_WEB = "web";
@@ -263,6 +265,20 @@ public class SettingsActivity extends Activity {
                     scroll.smoothScrollTo(0, Math.max(0, contentTop(target, scroll) - dp(32)));
                 }
             });
+        }
+
+        String sharedText = getIntent().getStringExtra(EXTRA_SHARE_TEXT);
+        if (!TextUtils.isEmpty(sharedText)) {
+            getIntent().removeExtra(EXTRA_SHARE_TEXT);
+            String repo = GitHubSourceImporter.findGitHubRepo(sharedText);
+            if (repo.isEmpty()) {
+                Toast.makeText(this, R.string.settings_github_share_no_repo,
+                        Toast.LENGTH_LONG).show();
+            } else {
+                String packageName = GitHubSourceImporter.findPackageName(sharedText);
+                String label = repo.substring(repo.indexOf('/') + 1);
+                scroll.post(() -> showGitHubAppDialog(null, packageName, repo, label));
+            }
         }
     }
 
@@ -1614,6 +1630,34 @@ public class SettingsActivity extends Activity {
             }
             return;
         }
+        if (requestCode == IMPORT_GITHUB_REQUEST_CODE) {
+            try {
+                String text = readImportedText(uri);
+                if (TextUtils.isEmpty(text)) {
+                    Toast.makeText(this, R.string.settings_github_import_empty,
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                GitHubSourceImporter.Result result =
+                        GitHubSourceImporter.importJson(this, text);
+                if (result.imported == 0 && result.skipped == 0) {
+                    Toast.makeText(this, R.string.settings_github_import_failed,
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                PublicSettings.write(this);
+                Toast.makeText(this,
+                        getString(R.string.settings_github_import_result,
+                                result.imported, result.skipped),
+                        Toast.LENGTH_LONG).show();
+                recreate();
+            } catch (Exception error) {
+                HelperLog.error("Could not import Obtainium configuration", error);
+                Toast.makeText(this, R.string.settings_github_import_failed,
+                        Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         if (requestCode != FOLDER_REQUEST_CODE) {
             return;
         }
@@ -1737,6 +1781,32 @@ public class SettingsActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         addParams.topMargin = dp(12);
         card.addView(add, addParams);
+
+        TextView importButton = secondaryButton(
+                getString(R.string.settings_github_import_obtainium));
+        importButton.setOnClickListener(v -> openGitHubImportPicker());
+        LinearLayout.LayoutParams importParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        importParams.topMargin = dp(8);
+        card.addView(importButton, importParams);
+
+        TextView importHint = text(getString(R.string.settings_github_import_hint),
+                11, MUTED, false);
+        importHint.setLineSpacing(dp(2), 1f);
+        importHint.setPadding(0, dp(6), 0, 0);
+        card.addView(importHint);
+    }
+
+    private void openGitHubImportPicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*");
+        try {
+            startActivityForResult(intent, IMPORT_GITHUB_REQUEST_CODE);
+        } catch (Exception error) {
+            Toast.makeText(this, R.string.settings_github_import_failed,
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void addGitHubAppRow(LinearLayout card, GitHubAppStore.Entry entry) {
@@ -1792,6 +1862,15 @@ public class SettingsActivity extends Activity {
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
+        TextView share = text("\u2197", 16, ACCENT_TEXT, true);
+        share.setGravity(Gravity.CENTER);
+        share.setPadding(dp(8), dp(8), dp(8), dp(8));
+        share.setContentDescription(getString(R.string.settings_github_app_share));
+        share.setClickable(true);
+        share.setFocusable(true);
+        share.setOnClickListener(v -> shareGitHubEntry(entry));
+        row.addView(share, new LinearLayout.LayoutParams(dp(40), dp(44)));
+
         TextView remove = text("X", 16, RED, true);
         remove.setGravity(Gravity.CENTER);
         remove.setPadding(dp(12), dp(8), dp(12), dp(8));
@@ -1811,6 +1890,22 @@ public class SettingsActivity extends Activity {
         card.addView(row);
     }
 
+    private void shareGitHubEntry(GitHubAppStore.Entry entry) {
+        Intent send = new Intent(Intent.ACTION_SEND)
+                .setType("text/plain")
+                .putExtra(Intent.EXTRA_TEXT,
+                        getString(R.string.settings_github_app_share_text,
+                                entry.packageName,
+                                "https://github.com/" + entry.repo));
+        try {
+            startActivity(Intent.createChooser(send,
+                    getString(R.string.settings_github_app_share)));
+        } catch (Exception error) {
+            Toast.makeText(this, R.string.settings_github_share_failed,
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private TextView githubBadge(String label, int color) {
         TextView badge = text(label, 9, color, true);
         badge.setLetterSpacing(0.04f);
@@ -1824,6 +1919,12 @@ public class SettingsActivity extends Activity {
     }
 
     private void showGitHubAppDialog(GitHubAppStore.Entry existing) {
+        showGitHubAppDialog(existing, "", "", "");
+    }
+
+    private void showGitHubAppDialog(GitHubAppStore.Entry existing,
+                                     String initialPackage, String initialRepo,
+                                     String initialLabel) {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         int padding = dp(20);
@@ -1836,6 +1937,9 @@ public class SettingsActivity extends Activity {
         if (existing != null) {
             packageInput.setText(existing.packageName);
             packageInput.setEnabled(false);
+        } else if (!TextUtils.isEmpty(initialPackage)) {
+            packageInput.setText(initialPackage);
+            packageInput.setSelection(packageInput.getText().length());
         }
         content.addView(packageInput);
         if (existing != null) {
@@ -1850,6 +1954,9 @@ public class SettingsActivity extends Activity {
         if (existing != null) {
             labelInput.setText(existing.label);
             labelInput.setSelection(labelInput.getText().length());
+        } else if (!TextUtils.isEmpty(initialLabel)) {
+            labelInput.setText(initialLabel);
+            labelInput.setSelection(labelInput.getText().length());
         }
         content.addView(labelInput);
 
@@ -1860,6 +1967,9 @@ public class SettingsActivity extends Activity {
                 | InputType.TYPE_TEXT_VARIATION_URI);
         if (existing != null) {
             repoInput.setText(existing.repo);
+            repoInput.setSelection(repoInput.getText().length());
+        } else if (!TextUtils.isEmpty(initialRepo)) {
+            repoInput.setText(initialRepo);
             repoInput.setSelection(repoInput.getText().length());
         }
         content.addView(repoInput);

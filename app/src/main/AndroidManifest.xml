@@ -55,6 +55,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.INFO" />
             </intent-filter>
+            <!-- Share a GitHub repository/release link to add it as a source. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <!--
