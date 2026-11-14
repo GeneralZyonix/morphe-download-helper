@@ -7,6 +7,13 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 
 ## [Unreleased]
 
+### Fixed
+
+- Opening Sources from the main screen no longer flickers or shows a black
+  screen on devices where the helper is exempt from battery optimization. The
+  Sources-only screen skipped battery-state initialization, so it recreated
+  itself endlessly.
+
 ### Changed
 
 - When a Morphe fallback link resolves to an incompatible APKMirror build, the

@@ -128,6 +128,10 @@ public class SettingsActivity extends Activity {
         SourceSettings.ensureInitialized(this);
         PublicSettings.apply(this);
         AppSettings.ensureLauncherIconState(this);
+        // Record this before building the screen. The battery card is omitted on
+        // the Sources-only screen, so leaving it unset made onResume() recreate
+        // the activity in an endless loop on battery-whitelisted devices.
+        batteryIgnoring = isIgnoringBatteryOptimizations();
         applyPalette();
         Shizuku.addRequestPermissionResultListener(shizukuListener);
 
@@ -874,7 +878,6 @@ public class SettingsActivity extends Activity {
     }
 
     private void addBatteryCard(LinearLayout card) {
-        batteryIgnoring = isIgnoringBatteryOptimizations();
         LinearLayout row = settingRow(getString(R.string.settings_battery_optimization),
                 getString(batteryIgnoring
                         ? R.string.settings_battery_unrestricted
