@@ -113,6 +113,8 @@
     <string name="settings_source_fallback_title">Morphe fallback link</string>
     <string name="settings_source_fallback_desc">Resolver link supplied by Morphe</string>
     <string name="settings_source_apkmirror_desc">Package and version search</string>
+    <string name="settings_source_apkcube_title">APKCube</string>
+    <string name="settings_source_apkcube_desc">Play catalogue search with a specific build and ABI</string>
     <string name="settings_source_uptodown_title">Uptodown fallback</string>
     <string name="settings_source_uptodown_desc">In-app WebView verification page</string>
     <string name="settings_source_fdroid_desc">Open-source repository; only apps it hosts</string>
@@ -343,6 +345,8 @@
     <string name="source_label_apkpure_webview">APKPure WebView</string>
     <string name="source_label_apkmirror">APKMirror</string>
     <string name="source_label_apkmirror_webview">APKMirror WebView</string>
+    <string name="source_label_apkcube">APKCube</string>
+    <string name="source_label_apkcube_webview">APKCube WebView</string>
     <string name="source_label_uptodown_webview">Uptodown WebView</string>
     <string name="source_label_github">GitHub</string>
     <string name="source_label_user_github">User GitHub (%1$s)</string>
@@ -363,6 +367,10 @@
     <string name="download_checking_github_release">Checking GitHub release…</string>
     <string name="download_trying_fallback">Trying fallback URL…</string>
     <string name="download_searching_apkmirror">Searching APKMirror…</string>
+    <string name="download_searching_apkcube">Searching APKCube…</string>
+    <string name="download_opening_apkcube">Opening APKCube…</string>
+    <string name="download_apkcube_title">APKCube verification</string>
+    <string name="download_apkcube_explanation">Tap Download on the APKCube page. The helper continues automatically when the file link appears.</string>
     <string name="download_trying_xapk">Trying APKPure XAPK fallback…</string>
     <string name="download_checking_fdroid">Checking F-Droid…</string>
     <string name="download_searching_aptoide">Searching Aptoide…</string>
@@ -407,6 +415,7 @@
     <string name="source_apkpure">APKPure</string>
     <string name="source_morphe_link">Morphe link</string>
     <string name="source_apkmirror">APKMirror</string>
+    <string name="source_apkcube">APKCube</string>
     <string name="source_uptodown">Uptodown</string>
     <string name="source_fdroid">F-Droid</string>
     <string name="source_aptoide">Aptoide</string>

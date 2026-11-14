@@ -567,6 +567,7 @@ public class DownloadActivity extends Activity {
                 + " fallback=" + sourceAllowed(SourceSettings.FALLBACK)
                 + " apkmirror=" + sourceAllowed(SourceSettings.APKMIRROR)
                 + " apkpure=" + sourceAllowed(SourceSettings.APKPURE)
+                + " apkcube=" + sourceAllowed(SourceSettings.APKCUBE)
                 + " uptodown=" + sourceAllowed(SourceSettings.UPTODOWN)
                 + " fdroid=" + sourceAllowed(SourceSettings.FDROID)
                 + " aptoide=" + sourceAllowed(SourceSettings.APTOIDE)
@@ -1003,6 +1004,35 @@ public class DownloadActivity extends Activity {
         startWebFlow("apkmirror", url, pkg, version, fileType);
     }
 
+    private void startApkCubeWebFlow(String url, String pkg, String version,
+                                     String fileType) {
+        startWebFlow("apkcube", url, pkg, version, fileType);
+    }
+
+    /**
+     * APKCube's downloader accepts the package, an exact build number, and an
+     * ABI as query parameters, so the WebView opens on the right result.
+     */
+    private String apkCubeUrl(String pkg, long[] codes, String[] abis) {
+        StringBuilder url = new StringBuilder(
+                "https://apkcube.com/apk-downloader?url=");
+        try {
+            url.append(URLEncoder.encode(pkg, "UTF-8"));
+        } catch (Exception ignored) {
+            url.append(pkg);
+        }
+        if (codes != null && codes.length > 0) {
+            url.append("&target=version&vc=").append(codes[0]);
+        }
+        String abi = (abis != null && abis.length > 0) ? abis[0] : "arm64-v8a";
+        if ("armeabi-v7a".equals(abi) || "arm64-v8a".equals(abi)) {
+            url.append("&arch=").append(abi);
+        } else {
+            url.append("&arch=universal");
+        }
+        return url.append("&langs=standard&dpi=all").toString();
+    }
+
     private void handoffToApkMirrorWeb(String url, String pkg, String version,
                                        String fileType) throws UptodownHandoffException {
         main.post(() -> {
@@ -1030,11 +1060,17 @@ public class DownloadActivity extends Activity {
         pendingSourceKey = "uptodown".equals(source)
                 ? SourceSettings.FALLBACK : webSourceKey();
         activeSourceKey = pendingSourceKey;
-        setSourceLabel("apkpure".equals(source)
-                ? getString(R.string.source_label_apkpure_webview)
-                : "apkmirror".equals(source)
-                        ? getString(R.string.source_label_apkmirror_webview)
-                        : getString(R.string.source_label_uptodown_webview));
+        String webLabel;
+        if ("apkpure".equals(source)) {
+            webLabel = getString(R.string.source_label_apkpure_webview);
+        } else if ("apkmirror".equals(source)) {
+            webLabel = getString(R.string.source_label_apkmirror_webview);
+        } else if ("apkcube".equals(source)) {
+            webLabel = getString(R.string.source_label_apkcube_webview);
+        } else {
+            webLabel = getString(R.string.source_label_uptodown_webview);
+        }
+        setSourceLabel(webLabel);
         uptodownPkg = pkg;
         uptodownVersion = version;
         uptodownFileType = fileType;
@@ -1056,6 +1092,9 @@ public class DownloadActivity extends Activity {
         } else if ("apkmirror".equals(source)) {
             uptodownTitle.setText(R.string.download_apkmirror_title);
             uptodownExplanation.setText(R.string.download_apkmirror_explanation);
+        } else if ("apkcube".equals(source)) {
+            uptodownTitle.setText(R.string.download_apkcube_title);
+            uptodownExplanation.setText(R.string.download_apkcube_explanation);
         } else {
             uptodownTitle.setText(R.string.download_uptodown_title);
             uptodownExplanation.setText(R.string.download_uptodown_explanation);
@@ -1097,6 +1136,10 @@ public class DownloadActivity extends Activity {
                             request.getUrl().getQueryParameter("code")));
                     return true;
                 }
+                if ("apkcube".equals(source) && !isApkCubeNavigationAllowed(url)) {
+                    HelperLog.info("APKCube blocked off-site navigation: " + url);
+                    return true;
+                }
                 if (blockWebAds && WebAdBlocker.shouldBlock(DownloadActivity.this,
                         request.getUrl().getHost())) {
                     recordBlockedAd(request.getUrl().getHost());
@@ -1111,6 +1154,10 @@ public class DownloadActivity extends Activity {
                 if (url.startsWith("morphe-helper://build-mismatch")) {
                     rejectWebBuild(source, preDownloadBuildMessage(
                             Uri.parse(url).getQueryParameter("code")));
+                    return true;
+                }
+                if ("apkcube".equals(source) && !isApkCubeNavigationAllowed(url)) {
+                    HelperLog.info("APKCube blocked off-site navigation: " + url);
                     return true;
                 }
                 String host = Uri.parse(url).getHost();
@@ -1178,6 +1225,8 @@ public class DownloadActivity extends Activity {
                             null);
                 } else if ("apkmirror".equals(webSource)) {
                     view.evaluateJavascript(apkMirrorWebScript(), null);
+                } else if ("apkcube".equals(webSource)) {
+                    view.evaluateJavascript(apkCubeWebScript(), null);
                 } else {
                     String pkgJson = JSONObject.quote(uptodownPkg);
                     String versionJson = JSONObject.quote(
@@ -1645,6 +1694,48 @@ public class DownloadActivity extends Activity {
                 .replace("__MH_ALLOW_SPLIT__", allowSplit);
     }
 
+    /**
+     * APKCube renders its downloader with JavaScript. The URL already selects
+     * the requested build and ABI; this script follows the result link to the
+     * exact version page. The final Download button and any Turnstile step are
+     * left to the user, so the helper never presses the site's button itself.
+     */
+    private String apkCubeWebScript() {
+        return """
+                (function(){
+                if(window.__mhApkCubeStarted)return;
+                window.__mhApkCubeStarted=true;
+                var ver=__MH_VER__;
+                var n=0;
+                var timer=setInterval(function(){
+                    n++;
+                    if(n>200){clearInterval(timer);return;}
+                    var path=location.pathname.toLowerCase();
+                    var query=location.search.toLowerCase();
+                    var requestedVersion=ver&&ver!=='any';
+                    if(path.endsWith('/download')&&requestedVersion
+                        &&query.indexOf('version=')<0
+                        &&(query.indexOf('vc=')>=0||query.length===0)){
+                        clearInterval(timer);
+                        location.href=path+'?version='+encodeURIComponent(ver);
+                        return;
+                    }
+                    if(path.indexOf('/apk-downloader')<0)return;
+                    var links=document.querySelectorAll('a[href]');
+                    for(var i=0;i<links.length;i++){
+                        var href=links[i].href||'';
+                        if(href.indexOf('/download?')<0)continue;
+                        clearInterval(timer);
+                        location.href=href;
+                        return;
+                    }
+                },250);
+                })();
+                """
+                .replace("__MH_VER__", JSONObject.quote(
+                        uptodownVersion == null ? "" : uptodownVersion));
+    }
+
     private String preDownloadBuildMessage(String code) {
         String actual = TextUtils.isEmpty(code) ? "unknown" : code;
         return "APKMirror page is build " + actual + ", expected "
@@ -1654,7 +1745,8 @@ public class DownloadActivity extends Activity {
     private void rejectWebBuild(String source, String message) {
         if (webBuildRejected || switchingSource) {
             return;
-        }        webBuildRejected = true;
+        }
+        webBuildRejected = true;
         cancelWebFlowTimeout();
         boolean fromFallback = SourceSettings.FALLBACK.equals(webParentSourceKey);
         if ("uptodown".equals(source)) {
@@ -1795,6 +1887,28 @@ public class DownloadActivity extends Activity {
         return url + (url.contains("?") ? "&" : "?") + "forcebaseapk=true";
     }
 
+    /**
+     * APKCube is ad-supported and some download links open third-party
+     * prelander pages. Keep the flow on APKCube and on direct file URLs.
+     */
+    private boolean isApkCubeNavigationAllowed(String url) {
+        String host = hostOf(url);
+        if (host == null) {
+            return false;
+        }
+        String lowerHost = host.toLowerCase(Locale.US);
+        if (lowerHost.equals("apkcube.com") || lowerHost.endsWith(".apkcube.com")
+                || lowerHost.endsWith("cloudflarestorage.com")
+                || lowerHost.endsWith("r2.dev")) {
+            return true;
+        }
+        String path = pathOf(url).toLowerCase(Locale.US);
+        return path.endsWith(".apk") || path.endsWith(".xapk")
+                || path.endsWith(".apks") || path.endsWith(".apkm")
+                || path.contains("/download/") || path.endsWith("/download")
+                || path.contains("download.php");
+    }
+
     /** Captures the final download URL from navigation or DownloadListener. */
     private boolean handleUptodownUrl(String url) {
         if (url == null) {
@@ -1817,6 +1931,19 @@ public class DownloadActivity extends Activity {
             }
             return false;
         }
+        if ("apkcube".equals(webSource)) {
+            String lower = url.toLowerCase(Locale.US);
+            String path = pathOf(url).toLowerCase(Locale.US);
+            if (path.endsWith(".apk") || path.endsWith(".xapk")
+                    || path.endsWith(".apks") || path.endsWith(".apkm")
+                    || lower.contains("/download/")
+                    || lower.contains("download.php")) {
+                HelperLog.info("APKCube captured " + url);
+                handleUptodownDownload(url);
+                return true;
+            }
+            return false;
+        }
         if (isHost(host, "dw.uptodown.com") || isHost(host, "dw.uptodown.net")) {
             handleUptodownDownload(url);
             return true;
@@ -1831,6 +1958,9 @@ public class DownloadActivity extends Activity {
         if ("apkmirror".equals(webSource)) {
             return SourceSettings.APKMIRROR;
         }
+        if ("apkcube".equals(webSource)) {
+            return SourceSettings.APKCUBE;
+        }
         return SourceSettings.UPTODOWN;
     }
 
@@ -1840,6 +1970,9 @@ public class DownloadActivity extends Activity {
         }
         if ("apkmirror".equals(webSource)) {
             return "APKMirror";
+        }
+        if ("apkcube".equals(webSource)) {
+            return "APKCube";
         }
         return "Uptodown";
     }
@@ -1888,7 +2021,7 @@ public class DownloadActivity extends Activity {
             if (url.toLowerCase(Locale.US).contains("/xapk/")) {
                 type = "xapk";
             }
-        } else if ("apkmirror".equals(source)) {
+        } else if ("apkmirror".equals(source) || "apkcube".equals(source)) {
             type = TextUtils.isEmpty(uptodownFileType) ? "apk" : uptodownFileType;
         } else {
             // Uptodown normally serves a full APK. Requested APKS/APKM can otherwise
@@ -4222,6 +4355,8 @@ public class DownloadActivity extends Activity {
                 file = customUserGitHub(userGitHub, pkg, version, fileType, abis);
             } else if (SourceSettings.APKPURE.equals(source)) {
                 file = customApkPure(pkg, version, codes, hasCodes, fileType, abis);
+            } else if (SourceSettings.APKCUBE.equals(source)) {
+                file = customApkCube(pkg, version, codes, fileType, abis);
             } else if (SourceSettings.FALLBACK.equals(source)) {
                 file = customMorphe(pkg, version, codes, fileType, abis);
             } else if (SourceSettings.APKMIRROR.equals(source)) {
@@ -4468,6 +4603,20 @@ public class DownloadActivity extends Activity {
             }
         }
         return null;
+    }
+
+    private File customApkCube(String pkg, String version, long[] codes,
+                               String fileType, String[] abis) throws IOException {
+        setSourceLabel(R.string.source_label_apkcube);
+        setStatus(R.string.download_searching_apkcube);
+        final String url = apkCubeUrl(pkg, codes, abis);
+        HelperLog.info("APKCube search URL: " + url);
+        main.post(() -> {
+            setStatus(R.string.download_opening_apkcube);
+            progress.setIndeterminate(true);
+            startApkCubeWebFlow(url, pkg, version, fileType);
+        });
+        throw new UptodownHandoffException();
     }
 
     private File customApkMirror(String pkg, String version, String fileType, String[] abis)

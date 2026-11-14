@@ -81,6 +81,7 @@ final class AppSettings {
             SourceSettings.FALLBACK,
             SourceSettings.APKMIRROR,
             SourceSettings.APKPURE,
+            SourceSettings.APKCUBE,
             SourceSettings.FDROID,
             SourceSettings.APTOIDE,
             SourceSettings.APPTEKA,
@@ -803,9 +804,22 @@ final class AppSettings {
             saved.clear();
         }
         for (String key : DEFAULT_ORDER) {
-            if (!saved.contains(key)) {
-                saved.add(key);
+            if (saved.contains(key)) {
+                continue;
             }
+            if (SourceSettings.APKCUBE.equals(key)) {
+                // New source: put it after APKPure in existing orders instead of
+                // silently appending it to the end.
+                int after = saved.indexOf(SourceSettings.APKPURE);
+                if (after < 0) {
+                    after = saved.indexOf(SourceSettings.APKMIRROR);
+                }
+                if (after >= 0) {
+                    saved.add(after + 1, key);
+                    continue;
+                }
+            }
+            saved.add(key);
         }
         return saved;
     }
@@ -857,6 +871,8 @@ final class AppSettings {
                 return context.getString(R.string.source_morphe_link);
             case SourceSettings.APKMIRROR:
                 return context.getString(R.string.source_apkmirror);
+            case SourceSettings.APKCUBE:
+                return context.getString(R.string.source_apkcube);
             case SourceSettings.FDROID:
                 return context.getString(R.string.source_fdroid);
             case SourceSettings.APTOIDE:

@@ -11,6 +11,7 @@ final class SourceSettings {
     static final String FALLBACK = "fallback";
     static final String APKMIRROR = "apkmirror";
     static final String APKPURE = "apkpure";
+    static final String APKCUBE = "apkcube";
     static final String UPTODOWN = "uptodown";
     static final String FDROID = "fdroid";
     static final String APTOIDE = "aptoide";
@@ -35,6 +36,7 @@ final class SourceSettings {
                 .putBoolean(FALLBACK, true)
                 .putBoolean(APKMIRROR, true)
                 .putBoolean(APKPURE, true)
+                .putBoolean(APKCUBE, true)
                 .putBoolean(UPTODOWN, true)
                 .putBoolean(FDROID, true)
                 .putBoolean(APTOIDE, true)
@@ -53,7 +55,7 @@ final class SourceSettings {
 
     static int enabledCount(Context context) {
         int count = 0;
-        for (String key : new String[]{FALLBACK, APKMIRROR, APKPURE, UPTODOWN, FDROID, APTOIDE, APPTEKA, GITHUB}) {
+        for (String key : new String[]{FALLBACK, APKMIRROR, APKPURE, APKCUBE, UPTODOWN, FDROID, APTOIDE, APPTEKA, GITHUB}) {
             if (isEnabled(context, key)) {
                 count++;
             }

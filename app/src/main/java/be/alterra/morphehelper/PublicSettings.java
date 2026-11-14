@@ -53,6 +53,7 @@ final class PublicSettings {
     private static final String MIME_TYPE = "text/plain";
     private static final String[] SOURCE_KEYS = {
             SourceSettings.APKPURE,
+            SourceSettings.APKCUBE,
             SourceSettings.FALLBACK,
             SourceSettings.APKMIRROR,
             SourceSettings.UPTODOWN,

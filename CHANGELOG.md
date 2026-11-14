@@ -7,6 +7,13 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 
 ## [Unreleased]
 
+### Added
+
+- APKCube is available as a dedicated download source with its own source
+  toggle, order entry, health status, and download-screen row. The helper opens
+  the requested build and ABI on APKCube; after the page's verification and
+  download action, the file is downloaded and validated locally.
+
 ### Fixed
 
 - Opening Sources from the main screen no longer flickers or shows a black

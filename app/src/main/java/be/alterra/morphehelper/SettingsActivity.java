@@ -549,6 +549,8 @@ public class SettingsActivity extends Activity {
             case SourceSettings.FALLBACK:
                 return getString(R.string.settings_source_fallback_title);
             case SourceSettings.APKMIRROR: return getString(R.string.source_apkmirror);
+            case SourceSettings.APKCUBE:
+                return getString(R.string.settings_source_apkcube_title);
             case SourceSettings.UPTODOWN:
                 return getString(R.string.settings_source_uptodown_title);
             case SourceSettings.FDROID: return getString(R.string.source_fdroid);
@@ -569,6 +571,8 @@ public class SettingsActivity extends Activity {
                 return getString(R.string.settings_source_fallback_desc);
             case SourceSettings.APKMIRROR:
                 return getString(R.string.settings_source_apkmirror_desc);
+            case SourceSettings.APKCUBE:
+                return getString(R.string.settings_source_apkcube_desc);
             case SourceSettings.UPTODOWN:
                 return getString(R.string.settings_source_uptodown_desc);
             case SourceSettings.FDROID:

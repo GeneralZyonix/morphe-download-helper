@@ -44,6 +44,7 @@ final class SourceBadge {
         switch (key) {
             case SourceSettings.APKMIRROR: return R.drawable.source_logo_apkmirror;
             case SourceSettings.APKPURE: return R.drawable.source_logo_apkpure;
+            case SourceSettings.APKCUBE: return R.drawable.source_logo_apkcube;
             case SourceSettings.UPTODOWN: return R.drawable.source_logo_uptodown;
             case SourceSettings.FDROID: return R.drawable.source_logo_fdroid;
             case SourceSettings.APTOIDE: return R.drawable.source_logo_aptoide;
