@@ -1610,14 +1610,15 @@ public class DownloadActivity extends Activity {
             return;
         }        webBuildRejected = true;
         cancelWebFlowTimeout();
+        boolean fromFallback = SourceSettings.FALLBACK.equals(webParentSourceKey);
         if ("uptodown".equals(source)) {
             uptodownRejected = true;
-        } else {
+        } else if (!fromFallback) {
             apkmirrorRejected = true;
         }
-        if (SourceSettings.FALLBACK.equals(webParentSourceKey)) {
-            // The fallback link itself pointed at this bad build. Reject it too,
-            // otherwise Retry all sources keeps resolving the same link.
+        if (fromFallback) {
+            // The fallback link itself pointed at this bad build. Reject it, but
+            // keep the provider source available for its own catalogue search.
             fallbackRejected = true;
             markSource(SourceSettings.FALLBACK, false, message);
             HelperLog.info("Fallback source rejected after "
