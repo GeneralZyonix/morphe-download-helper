@@ -5,6 +5,23 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Fixed
+
+- The launcher icon now appears immediately after a fresh install or a
+  sideloaded update. The alias starts enabled, and the "Show app icon" setting
+  still hides it when turned off.
+- "Test all sources" now includes APKCube and reports its host as reachable
+  instead of "Unknown source". A Cloudflare 403/429 is shown as a verification
+  page rather than a source failure.
+- Long GitHub app names now ellipsize so the USER/AUTO badge and the
+  share/remove actions keep their layout.
+
+### Changed
+
+- The Sources WebView hint now mentions APKCube.
+
 ## [2.2.0] - 2026-11-14
 
 2.2.0 adds APKCube, GitHub source sharing/import, challenge-aware WebView

@@ -49,6 +49,12 @@ final class SourceTester {
                                 + "?versionCode=350008");
                         expected = 302;
                         break;
+                    case SourceSettings.APKCUBE:
+                        // Reachability only. The actual APKCube download page
+                        // requires its own in-app verification.
+                        builder = request("https://apkcube.com/embed/card/"
+                                + "com.whatsapp.svg");
+                        break;
                     case SourceSettings.UPTODOWN:
                         builder = request("https://alarmy.en.uptodown.com/android/download/1218546104-x");
                         break;
@@ -74,8 +80,16 @@ final class SourceTester {
                 Request request = builder.build();
                 try (Response response = HTTP.newCall(request).execute()) {
                     int code = response.code();
-                    ok = code == expected || (code >= 200 && code < 400);
-                    message = "HTTP " + code;
+                    if (SourceSettings.APKCUBE.equals(key)
+                            && (code == 403 || code == 429)) {
+                        // Cloudflare may challenge a raw HTTP client even when
+                        // the in-app WebView can complete the page.
+                        ok = true;
+                        message = "HTTP " + code + " (verification page)";
+                    } else {
+                        ok = code == expected || (code >= 200 && code < 400);
+                        message = "HTTP " + code;
+                    }
                 }
             } catch (Exception e) {
                 message = e.getMessage() == null

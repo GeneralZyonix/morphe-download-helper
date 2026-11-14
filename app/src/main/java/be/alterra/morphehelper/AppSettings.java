@@ -145,8 +145,9 @@ final class AppSettings {
 
     /**
      * Applies the saved choice at startup, after updates, and after a reboot.
-     * The launcher alias starts disabled in the manifest so a hidden icon does
-     * not leave a synthetic launcher entry behind on Android 10+.
+     * The alias starts enabled in the manifest so a fresh install or sideload
+     * update always has a launcher entry; it is disabled here when the user
+     * has chosen to hide the icon.
      */
     static void ensureLauncherIconState(Context context) {
         applyLauncherAlias(context, isLauncherIconShown(context));
@@ -168,7 +169,7 @@ final class AppSettings {
 
     private static ComponentName launcherAlias(Context context) {
         return new ComponentName(context.getPackageName(),
-                context.getPackageName() + ".Launcher");
+                context.getPackageName() + ".LauncherEntry");
     }
 
     static String customTreeUri(Context context) {

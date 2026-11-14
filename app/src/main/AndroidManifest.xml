@@ -64,14 +64,16 @@
         </activity>
 
         <!--
-            Launcher entry point. It starts disabled so Android 10+ does not
-            substitute a synthetic icon after the user hides it. The app enables
-            it when the saved "Show app icon" setting is on.
+            Launcher entry point. It starts enabled so a fresh install or a
+            sideload update always has a launcher entry. The app disables it
+            when the saved "Show app icon" setting is off, and the receiver
+            restores that choice after updates and reboots. The new component
+            name also resets any previously disabled alias.
         -->
         <activity-alias
-            android:name=".Launcher"
+            android:name=".LauncherEntry"
             android:targetActivity=".MainActivity"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

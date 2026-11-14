@@ -7,9 +7,9 @@ import android.content.Intent;
 /**
  * Restores the saved launcher-icon choice after a reboot or app update.
  *
- * <p>The launcher alias starts disabled in the manifest so Android does not
- * leave a synthetic icon behind when the user hides it. The alias is enabled
- * again when the saved setting says the icon should be visible.</p>
+ * <p>The launcher alias starts enabled in the manifest so a fresh install or
+ * sideload update always has a launcher entry. The receiver disables it again
+ * when the saved setting says the icon should be hidden.</p>
  */
 public class LauncherIconReceiver extends BroadcastReceiver {
 
