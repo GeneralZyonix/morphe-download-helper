@@ -1249,6 +1249,29 @@ public class SettingsActivity extends Activity {
      * content filter, not a DNS/VPN: it adds no permission prompt and only
      * affects the pages the helper opens itself.
      */
+    private void showMaxConnectionsDialog() {
+        int[] values = AppSettings.MAX_CONNECTION_OPTIONS;
+        String[] labels = new String[values.length];
+        int checked = 0;
+        int current = AppSettings.maxConnections(this);
+        for (int i = 0; i < values.length; i++) {
+            labels[i] = getString(R.string.settings_max_connections_value, values[i]);
+            if (values[i] == current) {
+                checked = i;
+            }
+        }
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_max_connections)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    AppSettings.setMaxConnections(this, values[which]);
+                    PublicSettings.write(this);
+                    dialog.dismiss();
+                    recreate();
+                })
+                .setNegativeButton(R.string.common_cancel, null)
+                .show();
+    }
+
     private void addWebPagesCard(LinearLayout card) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -1535,6 +1558,23 @@ public class SettingsActivity extends Activity {
         });
         multiRow.addView(multiSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(multiRow);
+
+        LinearLayout maxRow = settingRow(
+                getString(R.string.settings_max_connections),
+                getString(R.string.settings_max_connections_value,
+                        AppSettings.maxConnections(this)),
+                false);
+        maxRow.setOnClickListener(v -> showMaxConnectionsDialog());
+        LinearLayout.LayoutParams maxParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        maxParams.topMargin = dp(8);
+        card.addView(maxRow, maxParams);
+        TextView maxNote = text(
+                getString(R.string.settings_max_connections_detail), 11, MUTED, false);
+        maxNote.setLineSpacing(dp(2), 1f);
+        maxNote.setPadding(0, dp(6), dp(0), 0);
+        card.addView(maxNote);
 
         TextView delete = actionButton(getString(R.string.settings_delete_all), RED);
         delete.setOnClickListener(v -> ThemeManager.dialog(this)

@@ -55,6 +55,8 @@ final class AppSettings {
     private static final String KEY_SHOW_LAUNCHER_ICON = "show_launcher_icon";
     private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
     private static final String KEY_MULTI_THREAD = "multi_thread_downloads";
+    private static final String KEY_MAX_CONNECTIONS = "max_connections";
+    static final int[] MAX_CONNECTION_OPTIONS = {2, 4, 8, 16, 32};
     private static final String KEY_LIVE_ADGUARD = "live_adguard_checks";
     private static final String KEY_THEME_MODE = "theme_mode";
     private static final String KEY_THEME_ACCENT = "theme_accent";
@@ -201,6 +203,26 @@ final class AppSettings {
 
     static void setMultiThreadDownloads(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_MULTI_THREAD, enabled).apply();
+    }
+
+    static int maxConnections(Context context) {
+        return clampMaxConnections(prefs(context).getInt(KEY_MAX_CONNECTIONS, 4));
+    }
+
+    static void setMaxConnections(Context context, int value) {
+        prefs(context).edit()
+                .putInt(KEY_MAX_CONNECTIONS, clampMaxConnections(value))
+                .apply();
+    }
+
+    static int clampMaxConnections(int value) {
+        int best = MAX_CONNECTION_OPTIONS[0];
+        for (int option : MAX_CONNECTION_OPTIONS) {
+            if (value >= option) {
+                best = option;
+            }
+        }
+        return best;
     }
 
     static String themeMode(Context context) {

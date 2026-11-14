@@ -6304,6 +6304,24 @@ public class DownloadActivity extends Activity {
     }
 
     private static final long MULTI_MIN_BYTES = 5L * 1024L * 1024L;
+    private static final long MIN_SEGMENT_BYTES = 4L * 1024L * 1024L;
+    private static final long SEGMENT_CHUNK_BYTES = 4L * 1024L * 1024L;
+    private static final int MAX_SEGMENT_CONNECTIONS = 32;
+
+    /**
+     * Caps the worker count by the configured maximum, the file size, and the
+     * 4 MiB minimum segment size. Returns 0 when the file is too small.
+     */
+    static int segmentedConnectionCount(long total, int configuredMax) {
+        if (total < MULTI_MIN_BYTES) {
+            return 0;
+        }
+        int max = Math.max(2, Math.min(MAX_SEGMENT_CONNECTIONS, configuredMax));
+        long byMinSegment = Math.max(1, total / MIN_SEGMENT_BYTES);
+        long byChunk = Math.max(1, total / SEGMENT_CHUNK_BYTES);
+        int count = (int) Math.min(max, Math.min(byMinSegment, byChunk));
+        return Math.max(2, count);
+    }
     /** Number of in-attempt retries for a dropped single-stream download. */
     private static final int MAX_DOWNLOAD_ATTEMPTS = 3;
 
@@ -6315,10 +6333,9 @@ public class DownloadActivity extends Activity {
                                    String versionName, String fileType, String cookie,
                                    File dir, String partBase) throws IOException {
         OkHttpClient.Builder clientBuilder = DOWNLOAD_HTTP.newBuilder();
-        if (isHost(hostOf(url), "uptodown.com")
-                || isHost(hostOf(url), "uptodown.net")) {
-            clientBuilder.protocols(Collections.singletonList(Protocol.HTTP_1_1));
-        }
+        // Each segment needs its own TCP connection. HTTP/2 multiplexes all
+        // segments over one connection, which removes the parallel benefit.
+        clientBuilder.protocols(Collections.singletonList(Protocol.HTTP_1_1));
         OkHttpClient client = clientBuilder.build();
         Request.Builder base = new Request.Builder()
                 .url(url)
@@ -6367,7 +6384,8 @@ public class DownloadActivity extends Activity {
                     segmentUrl, pkg, versionName, fileType, contentType);
         }
 
-        int segments = total < 8L * 1024L * 1024L ? 2 : 4;
+        int segments = segmentedConnectionCount(total, AppSettings.maxConnections(this));
+        long chunks = (total + SEGMENT_CHUNK_BYTES - 1) / SEGMENT_CHUNK_BYTES;
         File multiPart = new File(dir, partBase + ".seg.part");
         //noinspection ResultOfMethodCallIgnored
         multiPart.delete();
@@ -6376,7 +6394,9 @@ public class DownloadActivity extends Activity {
         }
 
         HelperLog.info("MULTI download " + url + " total=" + total
-                + " segments=" + segments + " finalUrl=" + segmentUrl);
+                + " connections=" + segments + " chunks=" + chunks
+                + " chunkMiB=" + (SEGMENT_CHUNK_BYTES / (1024 * 1024))
+                + " finalUrl=" + segmentUrl);
         setDownloadInfo(total, segments);
         main.post(() -> {
             setPauseVisible(true);
@@ -6403,12 +6423,19 @@ public class DownloadActivity extends Activity {
             segmentBase = segmentBase.newBuilder().header("Cookie", cookie).build();
         }
         final Request workerBase = segmentBase;
+        AtomicLong nextChunk = new AtomicLong();
         for (int i = 0; i < segments; i++) {
-            long start = i * total / segments;
-            long end = i == segments - 1 ? total - 1 : (i + 1) * total / segments - 1;
             futures.add(pool.submit(() -> {
-                downloadSegment(client, workerBase, multiPart, start, end,
-                        total, downloaded);
+                while (!cancelled && !switchingSource) {
+                    long index = nextChunk.getAndIncrement();
+                    long start = index * SEGMENT_CHUNK_BYTES;
+                    if (start >= total) {
+                        return null;
+                    }
+                    long end = Math.min(start + SEGMENT_CHUNK_BYTES, total) - 1;
+                    downloadSegment(client, workerBase, multiPart, start, end,
+                            total, downloaded);
+                }
                 return null;
             }));
         }
@@ -6486,7 +6513,9 @@ public class DownloadActivity extends Activity {
             return null;
         }
         long elapsed = System.currentTimeMillis() - startedAt;
-        HelperLog.info("MULTI complete bytes=" + total + " elapsedMs=" + elapsed
+        HelperLog.info("MULTI complete bytes=" + total
+                + " connections=" + segments + " chunks=" + chunks
+                + " elapsedMs=" + elapsed
                 + " avg=" + String.format(Locale.US, "%.2f",
                 total * 1000.0 / Math.max(1, elapsed) / (1024.0 * 1024.0))
                 + " MiB/s");
@@ -6563,6 +6592,17 @@ public class DownloadActivity extends Activity {
                 if (cancelled || switchingSource) {
                     throw error;
                 }
+                long backoff = segmentBackoffMs(error, attempt);
+                if (backoff > 0) {
+                    HelperLog.info("Segment " + start + "-" + end + " backoff "
+                            + backoff + "ms: " + error.getMessage());
+                    try {
+                        Thread.sleep(backoff);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw error;
+                    }
+                }
                 HelperLog.info("Segment " + start + "-" + end + " retry "
                         + (attempt + 1) + " from " + segmentStart
                         + ": " + error.getMessage());
@@ -6571,6 +6611,18 @@ public class DownloadActivity extends Activity {
             }
         }
         throw last != null ? last : new IOException("Segment failed");
+    }
+
+    private static long segmentBackoffMs(IOException error, int attempt) {
+        String message = error == null ? null : error.getMessage();
+        if (message == null) {
+            return 250L;
+        }
+        if (message.contains("HTTP 429") || message.contains("HTTP 403")
+                || message.startsWith("HTTP 5")) {
+            return Math.min(8_000L, 1_000L << Math.min(attempt, 3));
+        }
+        return 250L;
     }
 
     private void waitForResume() throws IOException {

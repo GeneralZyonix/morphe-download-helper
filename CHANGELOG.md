@@ -18,6 +18,8 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - GitHub sources can be shared from their row, and Obtainium/ObtainX JSON
   exports can be imported from Settings → Sources. GitHub entries become user
   sources; unsupported entries are skipped.
+- Multi-connection downloads now expose a configurable maximum of 2, 4, 8, 16,
+  or 32 connections in Settings → Web pages. The count is capped by file size.
 
 ### Fixed
 
@@ -40,6 +42,10 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   suspended. Uptodown is reloaded only after a stalled page, and click/poll
   delays were reduced. A challenge that stays open for five minutes now fails
   cleanly instead of waiting forever.
+- Segmented downloads now use HTTP/1.1 and a 4 MiB chunk work queue instead of
+  fixed-size splits. Failed chunks resume from their written offset, 403/429/5xx
+  responses back off before retrying, and a failed segmented download falls
+  back to a single stream.
 - When a Morphe fallback link resolves to an incompatible APKMirror build, the
   APKMirror source is no longer marked exhausted. It is tried independently
   with its own catalogue search before the helper moves on.

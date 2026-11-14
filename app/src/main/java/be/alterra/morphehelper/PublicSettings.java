@@ -246,6 +246,14 @@ final class PublicSettings {
                 AppSettings::setBlockWebAds);
         applyBoolean(context, values, "multi_thread_downloads",
                 AppSettings::setMultiThreadDownloads);
+        String maxConnections = values.get("max_connections");
+        if (maxConnections != null) {
+            try {
+                AppSettings.setMaxConnections(context,
+                        Integer.parseInt(maxConnections.trim()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
         applyBoolean(context, values, "live_adguard_checks",
                 AppSettings::setLiveAdGuardChecks);
         applyBoolean(context, values, "virustotal_enabled",
@@ -372,6 +380,8 @@ final class PublicSettings {
                 .append(AppSettings.blockWebAds(context)).append('\n');
         text.append("multi_thread_downloads=")
                 .append(AppSettings.multiThreadDownloads(context)).append('\n');
+        text.append("max_connections=")
+                .append(AppSettings.maxConnections(context)).append('\n');
         text.append("live_adguard_checks=")
                 .append(AppSettings.liveAdGuardChecks(context)).append('\n');
         text.append("virustotal_enabled=")

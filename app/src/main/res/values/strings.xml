@@ -106,6 +106,9 @@
     <string name="settings_live_adguard_detail">Asks AdGuard DNS about hosts that are not in the bundled list. Adds one lookup per new host and sends that hostname to AdGuard. Off by default.</string>
     <string name="settings_multi_thread">Faster multi-connection downloads</string>
     <string name="settings_multi_thread_detail">Splits large files into up to 4 connections when the server supports HTTP Range. Falls back automatically. Experimental and off by default.</string>
+    <string name="settings_max_connections">Maximum connections</string>
+    <string name="settings_max_connections_value">%1$d connections</string>
+    <string name="settings_max_connections_detail">Only used when multi-connection downloads are on. Larger files are split into 4 MiB chunks, and the count is capped by file size.</string>
     <string name="settings_multi_thread_enabled">Multi-connection downloads enabled.</string>
     <string name="settings_multi_thread_disabled">Multi-connection downloads disabled.</string>
     <string name="settings_block_ads_note">If a verification page stops working, turn this off and retry. It only affects pages opened inside the helper.</string>
