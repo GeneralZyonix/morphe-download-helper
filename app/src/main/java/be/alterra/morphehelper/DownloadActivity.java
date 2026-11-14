@@ -474,6 +474,8 @@ public class DownloadActivity extends Activity {
     private volatile boolean fallbackRejected;
     /** Source that opened the current WebView, before the WebView source key. */
     private volatile String webParentSourceKey;
+    /** Guards against handling the same pre-download build rejection twice. */
+    private volatile boolean webBuildRejected;
 
     /** Request values kept for the WebView download path. */
     private String uptodownPkg;
@@ -1020,6 +1022,7 @@ public class DownloadActivity extends Activity {
                               String fileType) {
         webSource = source;
         webFlowStartedAt = System.currentTimeMillis();
+        webBuildRejected = false;
         logWebFlowState("LOADING", url);
         if (webParentSourceKey == null) {
             webParentSourceKey = activeSourceKey;
@@ -1088,17 +1091,28 @@ public class DownloadActivity extends Activity {
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                String url = request.getUrl().toString();
+                if (url.startsWith("morphe-helper://build-mismatch")) {
+                    rejectWebBuild(source, preDownloadBuildMessage(
+                            request.getUrl().getQueryParameter("code")));
+                    return true;
+                }
                 if (blockWebAds && WebAdBlocker.shouldBlock(DownloadActivity.this,
                         request.getUrl().getHost())) {
                     recordBlockedAd(request.getUrl().getHost());
                     HelperLog.info(webSource + " blocked ad navigation: " + request.getUrl());
                     return true;
                 }
-                return handleUptodownUrl(request.getUrl().toString());
+                return handleUptodownUrl(url);
             }
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (url.startsWith("morphe-helper://build-mismatch")) {
+                    rejectWebBuild(source, preDownloadBuildMessage(
+                            Uri.parse(url).getQueryParameter("code")));
+                    return true;
+                }
                 String host = Uri.parse(url).getHost();
                 if (blockWebAds && WebAdBlocker.shouldBlock(DownloadActivity.this, host)) {
                     recordBlockedAd(host);
@@ -1347,6 +1361,26 @@ public class DownloadActivity extends Activity {
                     }
                     return -1;
                 }
+                function variantBuildCode(){
+                    var body=txt(document.body);
+                    var m=body.match(/(?:Build|Version code|versionCode)\\s*:?\\s*(\\d{6,})/i);
+                    if(m)return parseInt(m[1],10);
+                    // APKMirror variant pages put the selected build code before
+                    // the list of other variants. Use the first long number as a
+                    // fallback when the page has no explicit Build label.
+                    var first=body.match(/\\b\\d{6,}\\b/);
+                    if(first)return parseInt(first[0],10);
+                    var nodes=document.querySelectorAll('.table-row,.table-cell');
+                    for(var i=0;i<nodes.length;i++){
+                        var t=txt(nodes[i]);
+                        if(t.length>160)continue;
+                        if(/Build|Version code|versionCode/i.test(t)){
+                            var n=t.match(/\\b\\d{6,}\\b/);
+                            if(n)return parseInt(n[0],10);
+                        }
+                    }
+                    return -1;
+                }
                 function segments(p){
                     return p.split('/').filter(function(s){return s.length>0;});
                 }
@@ -1505,6 +1539,15 @@ public class DownloadActivity extends Activity {
                         return picked||(ver?null:first);
                     }
                     if(isVariant(p)){
+                        if(codes.length>0){
+                            var vc=variantBuildCode();
+                            if(vc>0&&codes.indexOf(vc)<0){
+                                clearInterval(t);
+                                location.href='morphe-helper://build-mismatch?code='
+                                    +encodeURIComponent(vc);
+                                return null;
+                            }
+                        }
                         var ds=document.querySelectorAll('a,button');
                         for(var d=0;d<ds.length;d++){
                             var dh=ds[d].href||'';
@@ -1554,6 +1597,51 @@ public class DownloadActivity extends Activity {
                 .replace("__MH_ABI__", abi)
                 .replace("__MH_CODES__", codes)
                 .replace("__MH_ALLOW_SPLIT__", allowSplit);
+    }
+
+    private String preDownloadBuildMessage(String code) {
+        String actual = TextUtils.isEmpty(code) ? "unknown" : code;
+        return "APKMirror page is build " + actual + ", expected "
+                + java.util.Arrays.toString(requestVersionCodes);
+    }
+
+    private void rejectWebBuild(String source, String message) {
+        if (webBuildRejected || switchingSource) {
+            return;
+        }        webBuildRejected = true;
+        cancelWebFlowTimeout();
+        if ("uptodown".equals(source)) {
+            uptodownRejected = true;
+        } else {
+            apkmirrorRejected = true;
+        }
+        if (SourceSettings.FALLBACK.equals(webParentSourceKey)) {
+            // The fallback link itself pointed at this bad build. Reject it too,
+            // otherwise Retry all sources keeps resolving the same link.
+            fallbackRejected = true;
+            markSource(SourceSettings.FALLBACK, false, message);
+            HelperLog.info("Fallback source rejected after "
+                    + webSourceName() + " build mismatch");
+        }
+        verificationFailure = message;
+        HelperLog.info(webSourceName() + " build rejected: "
+                + message + "; retrying other sources");
+        markWebFlowResult(false, message);
+        if (cancelled) {
+            return;
+        }
+        main.post(() -> {
+            if (uptodownWebView != null) {
+                uptodownWebContainer.removeView(uptodownWebView);
+                uptodownWebView.destroy();
+                uptodownWebView = null;
+            }
+            if (uptodownSection != null) {
+                uptodownSection.setVisibility(View.GONE);
+            }
+            startResolution(false);
+            markWebFlowResult(false, message);
+        });
     }
 
     private void scheduleWebFlowTimeout(WebView web) {
@@ -1786,34 +1874,7 @@ public class DownloadActivity extends Activity {
                     if ((e instanceof DownloadedFileValidator.IncompatibleSdkException
                             || e instanceof DownloadedFileValidator.VersionMismatchException)
                             && ("uptodown".equals(source) || "apkmirror".equals(source))) {
-                        // Either the build number does not match the request or the
-                        // device cannot parse its minSdk. Neither is usable; keep
-                        // that source out of the retry and let the others try.
-                        if ("uptodown".equals(source)) {
-                            uptodownRejected = true;
-                        } else {
-                            apkmirrorRejected = true;
-                        }
-                        if (SourceSettings.FALLBACK.equals(webParentSourceKey)) {
-                            // The fallback link itself pointed at this bad build.
-                            // Reject it too, otherwise Retry all sources keeps
-                            // resolving the same link and downloads it again.
-                            fallbackRejected = true;
-                            markSource(SourceSettings.FALLBACK, false, e.getMessage());
-                            HelperLog.info("Fallback source rejected after "
-                                    + webSourceName() + " build mismatch");
-                        }
-                        verificationFailure = e.getMessage();
-                        HelperLog.info(webSourceName() + " build rejected: "
-                                + e.getMessage() + "; retrying other sources");
-                        markWebFlowResult(false, e.getMessage());
-                        if (cancelled) {
-                            return;
-                        }
-                        main.post(() -> {
-                            startResolution(false);
-                            markWebFlowResult(false, e.getMessage());
-                        });
+                        rejectWebBuild(source, e.getMessage());
                         return;
                     }
                     if ("apkmirror".equals(source) && isRetryableWebDownload(e)

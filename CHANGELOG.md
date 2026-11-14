@@ -5,6 +5,14 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Changed
+
+- APKMirror WebView pages are checked for their build number before the file is
+  downloaded. If the page build is incompatible, the source is skipped without
+  downloading the APK, and resolution continues with the next source.
+
 ## [2.1.1] - 2026-11-14
 
 First 2.1.1 hotfix: stop repeated fallback downloads after an incompatible
