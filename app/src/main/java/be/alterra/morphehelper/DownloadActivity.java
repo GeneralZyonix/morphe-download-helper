@@ -1353,6 +1353,21 @@ public class DownloadActivity extends Activity {
                 }
                 function rowCode(row){
                     if(!row)return -1;
+                    // The selected build code is the first colorLightBlack cell.
+                    var code=row.querySelector('.colorLightBlack');
+                    if(code){
+                        var ct=(code.innerText||'').trim();
+                        if(/^\\d+$/.test(ct))return parseInt(ct,10);
+                    }
+                    var cells=row.querySelectorAll('.table-cell');
+                    for(var c=0;c<cells.length;c++){
+                        var cellText=(cells[c].innerText||'').trim();
+                        if(/^\\d+$/.test(cellText))return parseInt(cellText,10);
+                    }
+                    for(var k=0;k<codes.length;k++){
+                        if(new RegExp('\\\\b'+codes[k]+'\\\\b').test(row.innerText||''))
+                            return codes[k];
+                    }
                     var m=(row.innerText||'').match(/\\b\\d{6,}\\b/g);
                     if(!m)return -1;
                     for(var i=0;i<m.length;i++){
@@ -1473,9 +1488,7 @@ public class DownloadActivity extends Activity {
                     if(isRelease(p)){
                         if(ver&&!(p.indexOf(verSlug)>=0||p.indexOf(verCoreSlug)>=0||hasVer(p)))return null;
                         var vs=document.querySelectorAll('a');
-                        var fallback=null,plain=null,plainAbi=null,plainExact=null;
-                        var plainExactAbi=null,plainUniversal=null,bundle=null,bundleAbi=null;
-                        var bundleExact=null,bundleExactAbi=null,sawCode=false;
+                        var variants=[];
                         for(var v=0;v<vs.length;v++){
                             var va=vs[v],vh=va.href||'';
                             if(!vh||vh.indexOf('#')>=0)continue;
@@ -1490,38 +1503,71 @@ public class DownloadActivity extends Activity {
                                     par=par.parentElement;
                                 }
                             }
-                            var isBundle=rt.indexOf('bundle')>=0||rt.indexOf('apkm')>=0
-                                ||rt.indexOf('apks')>=0;
-                            var isPlain=!isBundle;
-                            var universal=rt.indexOf('universal')>=0;
-                            var hasAbi=abi&&rt.indexOf(abi.toLowerCase())>=0;
+                            // "BUNDLE n" is APKMirror's split badge, not the file
+                            // format. The URL suffix is the authoritative format.
+                            var isApkm=vp.endsWith('-android-apkm-download/');
+                            var isApks=vp.endsWith('-android-apks-download/');
                             var rc=rowCode(row);
-                            if(rc>0)sawCode=true;
-                            var exact=rc>0&&codes.indexOf(rc)>=0;
-                            if(!fallback)fallback=va;
-                            if(isPlain&&exact&&hasAbi&&!plainExactAbi)plainExactAbi=va;
-                            if(isPlain&&exact&&!plainExact)plainExact=va;
-                            if(isPlain&&universal&&!plainUniversal)plainUniversal=va;
-                            if(isPlain&&hasAbi&&!plainAbi)plainAbi=va;
-                            if(isPlain&&!plain)plain=va;
-                            if(isBundle&&exact&&hasAbi&&!bundleExactAbi)bundleExactAbi=va;
-                            if(isBundle&&exact&&!bundleExact)bundleExact=va;
-                            if(isBundle&&hasAbi&&!bundleAbi)bundleAbi=va;
-                            if(isBundle&&!bundle)bundle=va;
+                            variants.push({
+                                a:va,
+                                apk:!isApkm&&!isApks,
+                                apkm:isApkm,
+                                apks:isApks,
+                                exact:rc>0&&codes.indexOf(rc)>=0,
+                                abi:!!abi&&rt.indexOf(abi.toLowerCase())>=0,
+                                universal:rt.indexOf('universal')>=0
+                            });
                         }
-                        var wantBundle=fileType&&fileType.toLowerCase()!=='apk';
-                        if(wantBundle){
-                            if(bundleExactAbi)return bundleExactAbi;
-                            if(bundleExact)return bundleExact;
-                            if(plainExactAbi)return plainExactAbi;
-                            if(plainExact)return plainExact;
-                            return bundleAbi||bundle||plain||fallback;
+                        var pickVariant=function(wantApkm,wantApks){
+                            var i,c;
+                            var matches=function(x){
+                                return (wantApkm&&x.apkm)||(wantApks&&x.apks)
+                                    ||(!wantApkm&&!wantApks&&x.apk);
+                            };
+                            for(i=0;i<variants.length;i++){
+                                c=variants[i];
+                                if(c.exact&&c.abi&&matches(c))return c.a;
+                            }
+                            for(i=0;i<variants.length;i++){
+                                c=variants[i];
+                                if(c.exact&&matches(c))return c.a;
+                            }
+                            for(i=0;i<variants.length;i++){
+                                c=variants[i];
+                                if(c.exact&&c.abi)return c.a;
+                            }
+                            for(i=0;i<variants.length;i++){
+                                if(variants[i].exact)return variants[i].a;
+                            }
+                            for(i=0;i<variants.length;i++){
+                                c=variants[i];
+                                if(c.universal&&matches(c))return c.a;
+                            }
+                            for(i=0;i<variants.length;i++){
+                                c=variants[i];
+                                if(c.abi&&matches(c))return c.a;
+                            }
+                            for(i=0;i<variants.length;i++){
+                                if(matches(variants[i]))return variants[i].a;
+                            }
+                            return null;
+                        };
+                        var ft=(fileType||'').toLowerCase();
+                        var chosen=null;
+                        if(ft==='apkm'){
+                            chosen=pickVariant(true,false)||pickVariant(false,false)
+                                ||pickVariant(false,true);
+                        }else if(ft==='apks'){
+                            chosen=pickVariant(false,true)||pickVariant(false,false)
+                                ||pickVariant(true,false);
+                        }else{
+                            chosen=pickVariant(false,false);
+                            if(!chosen&&allowSplit){
+                                chosen=pickVariant(true,false)||pickVariant(false,true);
+                            }
                         }
-                        if(plainExactAbi)return plainExactAbi;
-                        if(plainExact)return plainExact;
-                        if(allowSplit&&bundleExactAbi)return bundleExactAbi;
-                        if(allowSplit&&bundleExact)return bundleExact;
-                        return plainUniversal||plainAbi||plain||fallback;
+                        if(!chosen&&variants.length)chosen=variants[0].a;
+                        return chosen;
                     }
                     if(isAppPage(p)){
                         var rs=document.querySelectorAll('a'),picked=null,first=null;
@@ -1736,6 +1782,19 @@ public class DownloadActivity extends Activity {
         main.postDelayed(uptodownReload, 10_000);
     }
 
+    /**
+     * APKMirror's first download link can be the full split bundle even on an
+     * APK variant page. A plain APK request must not hand Morphe an APKM.
+     */
+    private String forceBaseApkUrl(String url, String fileType) {
+        if (!"apk".equalsIgnoreCase(fileType) || allowSplitArchive
+                || url == null || url.toLowerCase(Locale.US).contains("forcebaseapk=")) {
+            return url;
+        }
+        HelperLog.info("APKMirror forcing base APK download");
+        return url + (url.contains("?") ? "&" : "?") + "forcebaseapk=true";
+    }
+
     /** Captures the final download URL from navigation or DownloadListener. */
     private boolean handleUptodownUrl(String url) {
         if (url == null) {
@@ -1753,7 +1812,7 @@ public class DownloadActivity extends Activity {
         if ("apkmirror".equals(webSource)) {
             if (isHost(host, "apkmirror.com")
                     && url.toLowerCase(Locale.US).contains("download.php")) {
-                handleUptodownDownload(url);
+                handleUptodownDownload(forceBaseApkUrl(url, uptodownFileType));
                 return true;
             }
             return false;
@@ -4813,7 +4872,8 @@ public class DownloadActivity extends Activity {
             throw new IOException("APKMirror final download link not found");
         }
         setStatus(R.string.download_starting_apkmirror);
-        return downloadFile(absolute(decodeHtml(fileUrl)), keyUrl, pkg, version, fileType);
+        return downloadFile(forceBaseApkUrl(absolute(decodeHtml(fileUrl)), fileType),
+                keyUrl, pkg, version, fileType);
     }
 
     /**
@@ -5343,11 +5403,12 @@ public class DownloadActivity extends Activity {
         if ("apk".equalsIgnoreCase(fileType) || TextUtils.isEmpty(fileType)) {
             if (plainApkExactAbi != null) return plainApkExactAbi;
             if (plainApkExact != null) return plainApkExact;
-            // A split archive is still usable when Morphe allows one; prefer the
-            // exact build over a plain APK with the wrong build number.
-            if (allowSplitArchive && bundleExactAbi != null) return bundleExactAbi;
-            if (allowSplitArchive && bundleExact != null) return bundleExact;
-            if (wantsExactBuild && sawVersionCode && !exactPlain) return null;
+            // Split-bundle rows still expose an APK variant, and its key page
+            // can serve the base APK. Prefer the exact build over a plain APK
+            // with the wrong build number.
+            if (bundleExactAbi != null) return bundleExactAbi;
+            if (bundleExact != null) return bundleExact;
+            if (wantsExactBuild && sawVersionCode && !exactPlain && !exactBundle) return null;
             if (plainApkUniversal != null) return plainApkUniversal;
             // APKMirror publishes one row per CPU variant. Picking the first plain
             // APK can download a different ABI with a different versionCode, which

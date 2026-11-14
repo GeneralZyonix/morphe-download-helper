@@ -13,6 +13,12 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   screen on devices where the helper is exempt from battery optimization. The
   Sources-only screen skipped battery-state initialization, so it recreated
   itself endlessly.
+- APKMirror release pages now choose a variant by the requested build code.
+  Every row carries a `BUNDLE` badge, which was previously mistaken for the
+  archive type, so the helper fell back to the first variant and downloaded
+  the wrong build.
+- APK requests no longer download the full split bundle from APKMirror when
+  split archives are not allowed; the base APK is requested instead.
 
 ### Changed
 
