@@ -470,6 +470,10 @@ public class DownloadActivity extends Activity {
      */
     private volatile boolean uptodownRejected;
     private volatile boolean apkmirrorRejected;
+    /** The patch/fallback link led to a build that must not be retried. */
+    private volatile boolean fallbackRejected;
+    /** Source that opened the current WebView, before the WebView source key. */
+    private volatile String webParentSourceKey;
 
     /** Request values kept for the WebView download path. */
     private String uptodownPkg;
@@ -634,6 +638,7 @@ public class DownloadActivity extends Activity {
         pendingSwitchKey = null;
         activeSourceKey = null;
         activeSourceName = "";
+        webParentSourceKey = null;
         verificationFailure = null;
         webRetries = 0;
         pendingSourceKey = null;
@@ -1016,6 +1021,9 @@ public class DownloadActivity extends Activity {
         webSource = source;
         webFlowStartedAt = System.currentTimeMillis();
         logWebFlowState("LOADING", url);
+        if (webParentSourceKey == null) {
+            webParentSourceKey = activeSourceKey;
+        }
         pendingSourceKey = "uptodown".equals(source)
                 ? SourceSettings.FALLBACK : webSourceKey();
         activeSourceKey = pendingSourceKey;
@@ -1785,6 +1793,15 @@ public class DownloadActivity extends Activity {
                             uptodownRejected = true;
                         } else {
                             apkmirrorRejected = true;
+                        }
+                        if (SourceSettings.FALLBACK.equals(webParentSourceKey)) {
+                            // The fallback link itself pointed at this bad build.
+                            // Reject it too, otherwise Retry all sources keeps
+                            // resolving the same link and downloads it again.
+                            fallbackRejected = true;
+                            markSource(SourceSettings.FALLBACK, false, e.getMessage());
+                            HelperLog.info("Fallback source rejected after "
+                                    + webSourceName() + " build mismatch");
                         }
                         verificationFailure = e.getMessage();
                         HelperLog.info(webSourceName() + " build rejected: "
@@ -3146,6 +3163,9 @@ public class DownloadActivity extends Activity {
         if (SourceSettings.UPTODOWN.equals(key)) {
             uptodownRejected = false;
         }
+        if (SourceSettings.FALLBACK.equals(key)) {
+            fallbackRejected = false;
+        }
         boolean workerActive = report != null && !report.isFinished();
         if (webFlow || !workerActive) {
             // Nothing is left to unwind: start the selected source now.
@@ -3600,6 +3620,7 @@ public class DownloadActivity extends Activity {
         retrySources = null;
         apkmirrorRejected = false;
         uptodownRejected = false;
+        fallbackRejected = false;
         startResolution(false);
     }
 
@@ -3807,6 +3828,9 @@ public class DownloadActivity extends Activity {
             return false;
         }
         if (SourceSettings.APKMIRROR.equals(key) && apkmirrorRejected) {
+            return false;
+        }
+        if (SourceSettings.FALLBACK.equals(key) && fallbackRejected) {
             return false;
         }
         return SourceSettings.isEnabled(this, key)
@@ -4067,6 +4091,7 @@ public class DownloadActivity extends Activity {
             }
             activeSourceKey = source;
             activeSourceName = sourceLabelForKey(source);
+            webParentSourceKey = null;
             main.post(() -> {
                 updateDownloadDetails();
                 renderSourceSteps();
