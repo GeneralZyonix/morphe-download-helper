@@ -1864,7 +1864,11 @@ public class SettingsActivity extends Activity {
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        titleRow.addView(text(entry.label, 14, TEXT, true));
+        TextView title = text(entry.label, 14, TEXT, true);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        titleRow.addView(title, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView userBadge = githubBadge(
                 getString(entry.manual
                         ? R.string.settings_github_app_badge_user
