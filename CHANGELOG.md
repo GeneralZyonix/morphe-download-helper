@@ -5,13 +5,16 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [2.1.1] - 2026-11-14
+
+First 2.1.1 hotfix: stop repeated fallback downloads after an incompatible
+build.
 
 ### Fixed
 
 - A fallback link that resolves to an incompatible APKMirror/Uptodown build is
-  now marked rejected. **Retry all sources** continues with the other sources
-  instead of resolving the same wrong link and downloading the same APK again.
+  now marked rejected. The helper continues with the other sources instead of
+  resolving the same wrong link and downloading the same APK again.
 
 ## [2.1] - 2026-11-13
 
