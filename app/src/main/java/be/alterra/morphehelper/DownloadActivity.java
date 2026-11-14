@@ -491,6 +491,15 @@ public class DownloadActivity extends Activity {
 
     private Runnable webFlowTimeout;
     private Runnable adBlockRetry;
+    /** Polls the page for a verification challenge and state changes. */
+    private Runnable webFlowProbe;
+    private Runnable challengeTimeout;
+    private static final long CHALLENGE_TIMEOUT_MS = 5 * 60_000L;
+    private volatile boolean webChallenge;
+    private volatile boolean webPageFinished;
+    private volatile long webLastProgressAt;
+    private volatile boolean webHintShown;
+    private volatile boolean webReadyLogged;
 
     private LinearLayout diagnosticsCard;
     private LinearLayout diagnosticsRows;
@@ -1078,6 +1087,12 @@ public class DownloadActivity extends Activity {
         webOriginalUrl = url;
         uptodownHandled = false;
         uptodownReloads = 0;
+        webChallenge = false;
+        webPageFinished = false;
+        webLastProgressAt = System.currentTimeMillis();
+        webHintShown = false;
+        webReadyLogged = false;
+        cancelChallengeTimeout();
         cancelAdBlockRetry();
         blockWebAds = AppSettings.blockWebAds(this);
         liveAdGuard = blockWebAds && AppSettings.liveAdGuardChecks(this);
@@ -1125,6 +1140,9 @@ public class DownloadActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                webPageFinished = false;
+                webLastProgressAt = System.currentTimeMillis();
+                webReadyLogged = false;
                 logWebFlowState("PAGE_STARTED", url);
             }
 
@@ -1187,6 +1205,9 @@ public class DownloadActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                webPageFinished = true;
+                webLastProgressAt = System.currentTimeMillis();
+                webReadyLogged = false;
                 HelperLog.info(webSource + " page finished: " + url);
                 logWebFlowState("PAGE_FINISHED", url);
                 if (blockWebAds) {
@@ -1220,8 +1241,8 @@ public class DownloadActivity extends Activity {
                                     + "var t=setInterval(function(){n++;clickReject(document);"
                                     + "var b=document.getElementById('detail-download-button');"
                                     + "if(b){clearInterval(t);b.scrollIntoView({block:'center'});"
-                                    + "setTimeout(function(){b.click();},300);}"
-                                    + "if(n>60)clearInterval(t);},500);})();",
+                                    + "setTimeout(function(){b.click();},80);}"
+                                    + "if(n>120)clearInterval(t);},250);})();",
                             null);
                 } else if ("apkmirror".equals(webSource)) {
                     view.evaluateJavascript(apkMirrorWebScript(), null);
@@ -1266,13 +1287,13 @@ public class DownloadActivity extends Activity {
                                     + "if(old){old.click();clearInterval(t);return;}}"
                                     + "var a=document.querySelector('a[href*=\"d.apkpure.com\"]');"
                                     + "if(a){clearInterval(t);a.scrollIntoView({block:'center'});"
-                                    + "setTimeout(function(){a.click();},500);return;}"
+                                    + "setTimeout(function(){a.click();},100);return;}"
                                     + "var bs=document.querySelectorAll('a,button');"
                                     + "for(var k=0;k<bs.length;k++){var bt=(bs[k].innerText||'').toLowerCase();"
                                     + "if(bt.indexOf('download apk')>=0&&bt.indexOf('apkpure app')<0){"
                                     + "clearInterval(t);bs[k].scrollIntoView({block:'center'});"
-                                    + "setTimeout(function(){bs[k].click();},500);return;}}"
-                                    + "if(n>50)clearInterval(t);},700);})();",
+                                    + "setTimeout(function(){bs[k].click();},100);return;}}"
+                                    + "if(n>100)clearInterval(t);},350);})();",
                             null);
                 }
             }
@@ -1343,6 +1364,7 @@ public class DownloadActivity extends Activity {
         scheduleWebFlowTimeout(web);
         web.loadUrl(url);
         scheduleAdBlockRetry(web);
+        scheduleWebFlowProbe(web);
     }
 
     /**
@@ -1679,7 +1701,7 @@ public class DownloadActivity extends Activity {
                         clearInterval(t);
                         if(typeof target==='string'){location.href=target;return;}
                         try{target.scrollIntoView({block:'center'});}catch(e){}
-                        setTimeout(function(){try{target.click();}catch(e){}},300);
+                        setTimeout(function(){try{target.click();}catch(e){}},80);
                         return;
                     }
                     if(n>900)clearInterval(t);
@@ -1785,7 +1807,7 @@ public class DownloadActivity extends Activity {
 
     private void scheduleWebFlowTimeout(WebView web) {
         cancelWebFlowTimeout();
-        if (uptodownHandled) {
+        if (uptodownHandled || webChallenge) {
             return;
         }
         webFlowTimeout = () -> {
@@ -1817,11 +1839,122 @@ public class DownloadActivity extends Activity {
         }
     }
 
+    private void scheduleWebFlowProbe(WebView web) {
+        cancelWebFlowProbe();
+        webFlowProbe = new Runnable() {
+            @Override
+            public void run() {
+                if (uptodownHandled || uptodownWebView != web) {
+                    return;
+                }
+                probeWebFlowState(web);
+                main.postDelayed(this, 2_000);
+            }
+        };
+        main.postDelayed(webFlowProbe, 1_200);
+    }
+
+    private void cancelWebFlowProbe() {
+        if (webFlowProbe != null) {
+            main.removeCallbacks(webFlowProbe);
+            webFlowProbe = null;
+        }
+        cancelChallengeTimeout();
+    }
+
+    private void cancelChallengeTimeout() {
+        if (challengeTimeout != null) {
+            main.removeCallbacks(challengeTimeout);
+            challengeTimeout = null;
+        }
+    }
+
+    /** Reads whether the page is a verification challenge or a normal page. */
+    private void probeWebFlowState(WebView web) {
+        web.evaluateJavascript(
+                "(function(){"
+                        + "var fs=document.querySelectorAll('iframe');"
+                        + "for(var i=0;i<fs.length;i++){"
+                        + "var src=(fs[i].src||'').toLowerCase();"
+                        + "if(src.indexOf('challenges.cloudflare.com')<0)continue;"
+                        + "var r=fs[i].getBoundingClientRect();"
+                        + "if(r.width>0&&r.height>0)return 'challenge';}"
+                        + "var t=((document.title||'')+' '"
+                        + "+(document.body?document.body.innerText:''))"
+                        + ".toLowerCase();"
+                        + "if(t.indexOf('verify you are human')>=0"
+                        + "||t.indexOf('security verification')>=0"
+                        + "||t.indexOf('checking your browser')>=0"
+                        + "||t.indexOf('just a moment')>=0"
+                        + "||t.indexOf('attention required')>=0"
+                        + "||t.indexOf('enable javascript and cookies to continue')>=0)"
+                        + "return 'challenge';"
+                        + "return 'ready';})()",
+                value -> onWebFlowProbe(value));
+    }
+
+    private void onWebFlowProbe(String value) {
+        boolean challenge = value != null && value.contains("challenge");
+        if (!challenge && !webReadyLogged && webPageFinished && !uptodownHandled) {
+            webReadyLogged = true;
+            webLastProgressAt = System.currentTimeMillis();
+            logWebFlowState("READY", "");
+        }
+        if (challenge == webChallenge) {
+            return;
+        }
+        webChallenge = challenge;
+        if (challenge) {
+            logWebFlowState("CHALLENGE", "");
+            if (!webHintShown) {
+                showVerificationHintNow();
+            }
+            // A challenge must not race the watchdog, reload, or ad-block
+            // retry. Those are re-armed when the page becomes ready again.
+            cancelWebFlowTimeout();
+            cancelAdBlockRetry();
+            if (uptodownReload != null) {
+                main.removeCallbacks(uptodownReload);
+                uptodownReload = null;
+            }
+            cancelChallengeTimeout();
+            challengeTimeout = () -> {
+                if (!webChallenge || uptodownHandled) {
+                    return;
+                }
+                logWebFlowState("CHALLENGE_TIMEOUT", "");
+                failWebFlowFast(getString(R.string.download_error_page_timeout_detail));
+            };
+            main.postDelayed(challengeTimeout, CHALLENGE_TIMEOUT_MS);
+        } else {
+            logWebFlowState("CHALLENGE_CLEARED", "");
+            cancelChallengeTimeout();
+            hideVerificationHint();
+            if (uptodownWebView != null && !uptodownHandled) {
+                scheduleWebFlowTimeout(uptodownWebView);
+                if ("uptodown".equals(webSource)) {
+                    scheduleUptodownReload(uptodownWebView);
+                }
+                scheduleAdBlockRetry(uptodownWebView);
+            }
+        }
+    }
+
+    private void showVerificationHintNow() {
+        if (verificationHintRunnable != null) {
+            main.removeCallbacks(verificationHintRunnable);
+            verificationHintRunnable = null;
+        }
+        webHintShown = true;
+        if (verificationHint != null) {
+            verificationHint.setVisibility(View.VISIBLE);
+        }
+    }
+
     /**
-     * If a page is still busy after a minute, retry it once with the ad
-     * blocker off. This keeps a conservative block-list from turning into a
-     * dead end on a site that depends on a blocked script. The normal
-     * Uptodown/Cloudflare flow usually finishes well before this.
+     * If a finished page still has no captured download and the blocker
+     * rejected requests, retry once with blocking off. A challenge always
+     * takes precedence and is never interrupted.
      */
     private void scheduleAdBlockRetry(WebView web) {
         cancelAdBlockRetry();
@@ -1833,6 +1966,10 @@ public class DownloadActivity extends Activity {
                     || !hasBlockedAds()) {
                 return;
             }
+            if (webChallenge || !webPageFinished) {
+                main.postDelayed(adBlockRetry, 10_000);
+                return;
+            }
             blockWebAds = false;
             liveAdGuard = false;
             HelperLog.info(webSource
@@ -1840,7 +1977,7 @@ public class DownloadActivity extends Activity {
             web.loadUrl(webOriginalUrl);
             scheduleWebFlowTimeout(web);
         };
-        main.postDelayed(adBlockRetry, 60_000);
+        main.postDelayed(adBlockRetry, 30_000);
     }
 
     private void cancelAdBlockRetry() {
@@ -1851,8 +1988,8 @@ public class DownloadActivity extends Activity {
     }
 
     /**
-     * If the Uptodown button is still loading after ten seconds, refresh the page.
-     * A refresh often clears a stuck Turnstile state. Limit it to two attempts.
+     * Reload Uptodown only when a finished page is stalled: no challenge, no
+     * captured URL, and no progress for ten seconds. Limit it to two attempts.
      */
     private void scheduleUptodownReload(WebView view) {
         if (uptodownReload != null) {
@@ -1862,11 +1999,22 @@ public class DownloadActivity extends Activity {
             if (uptodownHandled || uptodownWebView != view) {
                 return;
             }
+            if (webChallenge) {
+                // The challenge owns the page; do not reload over the user.
+                return;
+            }
+            if (!webPageFinished) {
+                main.postDelayed(uptodownReload, 5_000);
+                return;
+            }
             if (uptodownReloads >= 2) {
                 HelperLog.info("Uptodown still loading after two refreshes");
                 return;
             }
             uptodownReloads++;
+            logWebFlowState("STALLED", "idle="
+                    + (System.currentTimeMillis() - webLastProgressAt)
+                    + "ms reload " + uptodownReloads + "/2");
             HelperLog.info("Uptodown still loading; refreshing page ("
                     + uptodownReloads + "/2)");
             view.reload();
@@ -2012,6 +2160,7 @@ public class DownloadActivity extends Activity {
         cancelAdBlockRetry();
         logWebFlowState("CAPTURED", url);
         uptodownHandled = true;
+        cancelWebFlowProbe();
         hideVerificationHint();
         HelperLog.info(webSource + " download URL: " + url);
 
@@ -3485,6 +3634,7 @@ public class DownloadActivity extends Activity {
         uptodownHandled = true;
         logWebFlowState("FAILED", detail);
         cancelWebFlowTimeout();
+        cancelWebFlowProbe();
         hideVerificationHint();
         cancelAdBlockRetry();
         if (uptodownWebView != null) {
@@ -3512,19 +3662,24 @@ public class DownloadActivity extends Activity {
         showFailure();
     }
 
-    /** Shows a tap-to-open hint only after a WebView has been waiting a while. */
+    /**
+     * Fallback hint for a page that stays busy without a detected challenge.
+     * Detected challenges show the hint immediately from the page probe.
+     */
     private void scheduleVerificationHint() {
         hideVerificationHint();
+        webHintShown = false;
         verificationHintRunnable = () -> {
             if (cancelled || uptodownWebView == null || pendingSourceKey == null
-                    || uptodownHandled) {
+                    || uptodownHandled || webChallenge) {
                 return;
             }
+            webHintShown = true;
             if (verificationHint != null) {
                 verificationHint.setVisibility(View.VISIBLE);
             }
         };
-        main.postDelayed(verificationHintRunnable, 8_000);
+        main.postDelayed(verificationHintRunnable, 10_000);
     }
 
     private void hideVerificationHint() {
@@ -3532,6 +3687,7 @@ public class DownloadActivity extends Activity {
             main.removeCallbacks(verificationHintRunnable);
             verificationHintRunnable = null;
         }
+        webHintShown = false;
         if (verificationHint != null) {
             verificationHint.setVisibility(View.GONE);
         }

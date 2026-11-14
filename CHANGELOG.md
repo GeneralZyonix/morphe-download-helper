@@ -29,6 +29,12 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 
 ### Changed
 
+- WebView source resolution now detects verification challenges and logs the
+  `READY`, `CHALLENGE`, `CHALLENGE_CLEARED`, and `STALLED` states. While a
+  challenge is open, the watchdog, ad-block retry, and Uptodown reload are
+  suspended. Uptodown is reloaded only after a stalled page, and click/poll
+  delays were reduced. A challenge that stays open for five minutes now fails
+  cleanly instead of waiting forever.
 - When a Morphe fallback link resolves to an incompatible APKMirror build, the
   APKMirror source is no longer marked exhausted. It is tried independently
   with its own catalogue search before the helper moves on.
