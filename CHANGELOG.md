@@ -5,7 +5,9 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [2.1.2] - 2026-11-14
+
+2.1.2 hotfix: avoid downloading an incompatible APKMirror WebView build.
 
 ### Changed
 
