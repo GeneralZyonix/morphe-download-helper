@@ -5,6 +5,27 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.2.4] - 2026-11-15
+
+2.2.4 adds a Copy log action so users can paste the diagnostic log into an
+issue without dealing with the Android share sheet or file attachments.
+
+### Added
+
+- **Copy log** button on the main screen, next to **Clear log**. It copies the
+  current log to the clipboard (newest 300k characters) and shows a clipboard
+  preview. This is useful when the share sheet has no GitHub/Files target or
+  when the user cannot attach a `.log` file.
+
+### Notes
+
+- The Play Protect warning on v2.2.3 is not caused by a signing or manifest
+  change. v2.2.2 and v2.2.3 use the same debug certificate
+  (`f3ce4224...`), the same permissions, and the same `targetSdkVersion`.
+  Play Protect warns for new sideloaded APK hashes that it has not scanned
+  before; tap **More details → Install anyway**. The helper is distributed
+  outside the Play Store and is debug-signed.
+
 ## [2.2.3] - 2026-11-15
 
 2.2.3 restores the Uptodown fallback entry, makes the Uptodown verification

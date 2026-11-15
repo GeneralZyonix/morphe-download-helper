@@ -2,6 +2,9 @@ package be.alterra.morphehelper;
 
 import android.app.Activity;
 import android.Manifest;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -26,7 +29,9 @@ import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -356,6 +361,13 @@ public class MainActivity extends Activity {
                 0, WRAP_CONTENT, 1f));
         footerRow.addView(text(version, 11, FOOTER, false));
 
+        TextView copyLog = text(getString(R.string.main_copy_log), 12, ACCENT_TEXT, true);
+        copyLog.setGravity(Gravity.CENTER);
+        copyLog.setPadding(dp(8), dp(8), dp(8), dp(8));
+        copyLog.setClickable(true);
+        copyLog.setFocusable(true);
+        copyLog.setOnClickListener(v -> copyLogToClipboard());
+
         TextView clearLog = text(getString(R.string.main_clear_log), 12, ACCENT_TEXT, true);
         clearLog.setGravity(Gravity.CENTER);
         clearLog.setPadding(dp(8), dp(8), dp(8), dp(8));
@@ -365,11 +377,16 @@ public class MainActivity extends Activity {
             HelperLog.clear();
             Toast.makeText(this, R.string.main_log_cleared, Toast.LENGTH_SHORT).show();
         });
-        LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(
+
+        LinearLayout logActions = new LinearLayout(this);
+        logActions.setOrientation(LinearLayout.HORIZONTAL);
+        logActions.addView(copyLog, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
+        logActions.addView(clearLog, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
+        LinearLayout.LayoutParams logActionsParams = new LinearLayout.LayoutParams(
                 MATCH_PARENT, WRAP_CONTENT);
-        clearParams.topMargin = dp(4);
-        clearParams.bottomMargin = dp(4);
-        root.addView(clearLog, clearParams);
+        logActionsParams.topMargin = dp(4);
+        logActionsParams.bottomMargin = dp(4);
+        root.addView(logActions, logActionsParams);
 
         setContentView(scroll);
         ThemeManager.applySystemBars(this);
@@ -476,6 +493,66 @@ public class MainActivity extends Activity {
                     getString(R.string.main_error_share_log, e.getMessage()),
                     Toast.LENGTH_LONG).show();
         }
+    }
+
+    /**
+     * Copies the current diagnostic log to the clipboard. This is an
+     * alternative to the share sheet for users who cannot attach a file to
+     * their report; they can paste the text directly into an issue.
+     */
+    private void copyLogToClipboard() {
+        File log = HelperLog.getLogFile();
+        if (log == null || !log.isFile()) {
+            Toast.makeText(this, R.string.main_error_no_log, Toast.LENGTH_LONG).show();
+            return;
+        }
+        new Thread(() -> {
+            String text;
+            try {
+                text = readLogText(log);
+            } catch (Exception error) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_error_copy_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            if (text.trim().isEmpty()) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_error_no_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            final String clipboardText = text;
+            runOnUiThread(() -> {
+                ClipboardManager clipboard = (ClipboardManager)
+                        getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard == null) {
+                    Toast.makeText(this, R.string.main_error_copy_log,
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+                clipboard.setPrimaryClip(
+                        ClipData.newPlainText("helper.log", clipboardText));
+                Toast.makeText(this, R.string.main_log_copied,
+                        Toast.LENGTH_SHORT).show();
+            });
+        }, "copy-log").start();
+    }
+
+    /** Reads the log, keeping only the newest 300k characters for the clipboard. */
+    private static String readLogText(File file) throws Exception {
+        StringBuilder all = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            char[] buffer = new char[8192];
+            int read;
+            while ((read = reader.read(buffer)) != -1) {
+                all.append(buffer, 0, read);
+            }
+        }
+        final int max = 300_000;
+        if (all.length() <= max) {
+            return all.toString();
+        }
+        return "[... earlier log truncated ...]\n"
+                + all.substring(all.length() - max);
     }
 
     /** Converts density-independent pixels to physical pixels for this screen. */

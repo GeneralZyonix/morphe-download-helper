@@ -42,6 +42,9 @@
     <string name="main_delete_all_message">This removes downloaded APKs from the cache, public Downloads folder, and custom folder. Settings backups are kept.</string>
     <string name="main_delete_all_done">Deleted %1$d files.</string>
     <string name="main_clear_log">Clear log</string>
+    <string name="main_copy_log">Copy log</string>
+    <string name="main_log_copied">Log copied to clipboard</string>
+    <string name="main_error_copy_log">Could not copy the log</string>
     <string name="main_log_cleared">Log cleared.</string>
     <string name="main_uninstall">Uninstall helper</string>
     <string name="main_about">About</string>
