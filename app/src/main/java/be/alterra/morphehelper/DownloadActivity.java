@@ -864,6 +864,8 @@ public class DownloadActivity extends Activity {
             result.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
             if (report != null) {
+                report.setBuildCheck(requestVersionCodes != null
+                        && requestVersionCodes.length > 0);
                 report.finishSuccess(file);
                 HelperLog.info(report.resultBlock());
             }
@@ -4634,6 +4636,8 @@ public class DownloadActivity extends Activity {
                 file = customApkPure(pkg, version, codes, hasCodes, fileType, abis);
             } else if (SourceSettings.APKCUBE.equals(source)) {
                 file = customApkCube(pkg, version, codes, fileType, abis);
+            } else if (SourceSettings.UPTODOWN.equals(source)) {
+                file = customUptodown(pkg, version, fileType);
             } else if (SourceSettings.FALLBACK.equals(source)) {
                 file = customMorphe(pkg, version, codes, fileType, abis);
             } else if (SourceSettings.APKMIRROR.equals(source)) {
@@ -4913,8 +4917,86 @@ public class DownloadActivity extends Activity {
         }
     }
 
-    private File customFdroid(String pkg, String version, long[] codes, String fileType) {
-        setSourceLabel(R.string.source_label_fdroid);
+    /**
+     * Uptodown API fast path. The mobile eAPI returns exact file IDs and a
+     * signed CDN URL with a SHA-256, so this avoids the Turnstile page. The
+     * existing WebView flow is kept as a fallback.
+     */
+    private File customUptodown(String pkg, String version, String fileType)
+            throws IOException {
+        setSourceLabel(R.string.source_label_uptodown);
+        setStatus(R.string.download_resolving_uptodown);
+        UptodownApi.App app = null;
+        UptodownApi.Release release = null;
+        try {
+            app = UptodownApi.resolve(pkg);
+            cacheUptodownIcon(app, pkg);
+            release = UptodownApi.findRelease(app, version, fileType);
+            if (release == null) {
+                throw new IOException("No matching Uptodown release");
+            }
+            UptodownApi.Download download = UptodownApi.resolveDownload(
+                    app, release.fileId);
+            HelperLog.info("Uptodown API file version=" + release.version
+                    + " kind=" + release.kindFile + " id=" + release.fileId);
+            File file = downloadFile(download.url, null, pkg, version,
+                    release.kindFile, null);
+            if (!TextUtils.isEmpty(download.sha256)) {
+                if (!UptodownApi.verifySha256(file, download.sha256)) {
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                    throw new IOException("Uptodown SHA-256 mismatch");
+                }
+                if (report != null) {
+                    report.setSha256(download.sha256);
+                }
+            }
+            markSource(SourceSettings.UPTODOWN, true, "API");
+            return file;
+        } catch (UptodownHandoffException handoff) {
+            throw handoff;
+        } catch (Exception error) {
+            HelperLog.error("Uptodown API failed", error);
+            if (app != null) {
+                String page = app.slug.endsWith("/") ? app.slug : app.slug + "/";
+                String webUrl = page + (release == null
+                        ? "download" : "download/" + release.fileId);
+                try {
+                    handoffToUptodownWeb(webUrl, pkg, version, fileType);
+                } catch (UptodownHandoffException handoff) {
+                    throw handoff;
+                }
+            }
+            markSource(SourceSettings.UPTODOWN, false, error.getMessage());
+            return null;
+        }
+    }
+
+    private void handoffToUptodownWeb(String url, String pkg, String version,
+                                      String fileType) throws UptodownHandoffException {
+        main.post(() -> {
+            setStatus(R.string.download_opening_uptodown);
+            progress.setIndeterminate(true);
+            startUptodownWebFlow(url, pkg, version, fileType);
+        });
+        throw new UptodownHandoffException();
+    }
+
+    private void cacheUptodownIcon(UptodownApi.App app, String pkg) {
+        if (app == null || TextUtils.isEmpty(app.icon)) {
+            return;
+        }
+        String key = AppIconCache.key(pkg, requestVersion);
+        if (AppIconCache.load(this, key) != null) {
+            return;
+        }
+        new Thread(() -> {
+            AppIconCache.saveFromUrl(getApplicationContext(), key, app.icon);
+            main.post(this::updateDownloadDetails);
+        }, "uptodown-icon").start();
+    }
+
+    private File customFdroid(String pkg, String version, long[] codes, String fileType) {        setSourceLabel(R.string.source_label_fdroid);
         setStatus(R.string.download_checking_fdroid);
         try {
             File file = downloadFromFdroid(pkg, version, codes, fileType);

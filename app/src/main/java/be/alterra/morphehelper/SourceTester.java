@@ -31,6 +31,20 @@ final class SourceTester {
             boolean ok = false;
             String message = "";
             try {
+                if (SourceSettings.UPTODOWN.equals(key)) {
+                    try {
+                        UptodownApi.resolve("com.instagram.android");
+                        ok = true;
+                        message = "API";
+                    } catch (Exception error) {
+                        message = error.getMessage() == null
+                                ? context.getString(R.string.source_test_failed)
+                                : error.getMessage();
+                    }
+                    SourceHealth.record(context, key, ok, message);
+                    callback.done(ok, message);
+                    return;
+                }
                 Request.Builder builder;
                 int expected = 200;
                 switch (key) {
@@ -54,9 +68,6 @@ final class SourceTester {
                         // requires its own in-app verification.
                         builder = request("https://apkcube.com/embed/card/"
                                 + "com.whatsapp.svg");
-                        break;
-                    case SourceSettings.UPTODOWN:
-                        builder = request("https://alarmy.en.uptodown.com/android/download/1218546104-x");
                         break;
                     case SourceSettings.FDROID:
                         builder = request("https://f-droid.org/api/v1/packages/org.fdroid.fdroid");

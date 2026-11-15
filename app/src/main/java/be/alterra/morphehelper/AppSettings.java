@@ -85,6 +85,7 @@ final class AppSettings {
             SourceSettings.APKMIRROR,
             SourceSettings.APKPURE,
             SourceSettings.APKCUBE,
+            SourceSettings.UPTODOWN,
             SourceSettings.FDROID,
             SourceSettings.APTOIDE,
             SourceSettings.APPTEKA,
@@ -899,6 +900,18 @@ final class AppSettings {
                 int after = saved.indexOf(SourceSettings.APKPURE);
                 if (after < 0) {
                     after = saved.indexOf(SourceSettings.APKMIRROR);
+                }
+                if (after >= 0) {
+                    saved.add(after + 1, key);
+                    continue;
+                }
+            }
+            if (SourceSettings.UPTODOWN.equals(key)) {
+                // Uptodown became a real API source; keep it next to APKCube
+                // in existing orders.
+                int after = saved.indexOf(SourceSettings.APKCUBE);
+                if (after < 0) {
+                    after = saved.indexOf(SourceSettings.APKPURE);
                 }
                 if (after >= 0) {
                     saved.add(after + 1, key);

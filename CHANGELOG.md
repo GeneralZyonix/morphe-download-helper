@@ -5,6 +5,42 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.0] - 2026-11-15
+
+2.3.0 adds Uptodown as a first-class API source, groups the log actions with
+icons, adds Save log and Help, and ships a non-debuggable release build signed
+with the existing key so current installs can update in place.
+
+### Added
+
+- **Uptodown API source:** the helper resolves the app ID, exact version, file
+  ID, direct CDN URL, and SHA-256 through Uptodown's mobile eAPI. The file is
+  verified before hand-off. If the API fails, the existing in-app verification
+  page is still available as a fallback.
+- **Save log:** saves `helper.log` through Android's document picker.
+- **Help & troubleshooting** dialog covering logs, Play Protect, Uptodown
+  verification, app icons, and sources.
+- **Source type badges** (`DIRECT`, `API + WEB`, `WEBVIEW`, `RESOLVER`) and a
+  per-source **Test** action in Settings.
+- **SHA-256 and build-check lines** in the download result report.
+- **Non-debuggable release builds** signed with the existing debug certificate,
+  so they install over previous versions without losing data.
+
+### Changed
+
+- Uptodown is now in the ordered source list and can be reordered or disabled
+  like any other source. The separate non-draggable fallback row is gone.
+- The main screen groups **Share log**, **Copy log**, **Save log**, and
+  **Clear log** in one 2x2 action group, with share/copy/save/delete icons.
+- The log area explains that the log is a file and is not displayed in-app.
+
+### Notes
+
+- Play Protect warnings were not caused by a signing or manifest change:
+  v2.2.2 and v2.2.3 use the same certificate, permissions, target SDK, and
+  signature schemes. The release build is now non-debuggable to test whether
+  that removes the warning; the signing key is unchanged.
+
 ## [2.2.4] - 2026-11-15
 
 2.2.4 adds a Copy log action so users can paste the diagnostic log into an

@@ -130,8 +130,6 @@ final class SourceManagerDialog {
         labels.setPadding(dp(10), 0, dp(4), 0);
         String name = SourceSettings.APPTEKA.equals(key)
                 ? activity.getString(R.string.main_source_appteka)
-                : SourceSettings.UPTODOWN.equals(key)
-                ? activity.getString(R.string.settings_source_uptodown_title)
                 : AppSettings.sourceLabel(activity, key);
         labels.addView(text(name, 14, enabled ? text : muted, true));
         String description = description(activity, key);
@@ -143,36 +141,28 @@ final class SourceManagerDialog {
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        if (SourceSettings.UPTODOWN.equals(key)) {
-            // Uptodown follows a Morphe link and is not part of the ordered
-            // catalogue, so it has no up/down controls. Keep the same width as
-            // the two arrow buttons so the toggles line up.
-            row.addView(new View(activity), new LinearLayout.LayoutParams(dp(52), dp(40)));
-        } else {
-            List<String> display = displayOrder();
-            int index = display.indexOf(key);
-            TextView up = text("\u2191", 16, index > 0 ? primary : footer, true);
-            up.setGravity(Gravity.CENTER);
-            up.setPadding(dp(5), dp(6), dp(5), dp(6));
-            up.setClickable(index > 0);
-            up.setOnClickListener(v -> move(key, -1));
-            row.addView(up, new LinearLayout.LayoutParams(dp(26), dp(40)));
+        List<String> display = displayOrder();
+        int index = display.indexOf(key);
+        TextView up = text("\u2191", 16, index > 0 ? primary : footer, true);
+        up.setGravity(Gravity.CENTER);
+        up.setPadding(dp(5), dp(6), dp(5), dp(6));
+        up.setClickable(index > 0);
+        up.setOnClickListener(v -> move(key, -1));
+        row.addView(up, new LinearLayout.LayoutParams(dp(26), dp(40)));
 
-            TextView down = text("\u2193", 16,
-                    index >= 0 && index < display.size() - 1 ? primary : footer, true);
-            down.setGravity(Gravity.CENTER);
-            down.setPadding(dp(5), dp(6), dp(5), dp(6));
-            down.setClickable(index >= 0 && index < display.size() - 1);
-            down.setOnClickListener(v -> move(key, 1));
-            row.addView(down, new LinearLayout.LayoutParams(dp(26), dp(40)));
-        }
+        TextView down = text("\u2193", 16,
+                index >= 0 && index < display.size() - 1 ? primary : footer, true);
+        down.setGravity(Gravity.CENTER);
+        down.setPadding(dp(5), dp(6), dp(5), dp(6));
+        down.setClickable(index >= 0 && index < display.size() - 1);
+        down.setOnClickListener(v -> move(key, 1));
+        row.addView(down, new LinearLayout.LayoutParams(dp(26), dp(40)));
 
         Switch toggle = new Switch(activity);
         toggle.setChecked(enabled);
         styleSwitch(toggle);
         toggle.setOnCheckedChangeListener((buttonView, checked) -> {
-            if (!checked && !SourceSettings.UPTODOWN.equals(key)
-                    && SourceSettings.enabledCount(activity) <= 1) {
+            if (!checked && SourceSettings.enabledCount(activity) <= 1) {
                 buttonView.setChecked(true);
                 Toast.makeText(activity, R.string.settings_min_one_source,
                         Toast.LENGTH_SHORT).show();
@@ -243,16 +233,6 @@ final class SourceManagerDialog {
                 enabled.add(key);
             } else {
                 disabled.add(key);
-            }
-        }
-        // Uptodown is a WebView fallback, not a catalogue search source. It
-        // belongs below the ordered list and cannot be moved.
-        if (!enabled.contains(SourceSettings.UPTODOWN)
-                && !disabled.contains(SourceSettings.UPTODOWN)) {
-            if (SourceSettings.isEnabled(activity, SourceSettings.UPTODOWN)) {
-                enabled.add(SourceSettings.UPTODOWN);
-            } else {
-                disabled.add(SourceSettings.UPTODOWN);
             }
         }
         enabled.addAll(disabled);

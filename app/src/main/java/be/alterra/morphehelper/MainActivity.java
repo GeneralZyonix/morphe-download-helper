@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
@@ -31,7 +32,10 @@ import androidx.core.content.FileProvider;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -55,6 +59,7 @@ public class MainActivity extends Activity {
 
     /** Package name of the Morphe manager app that this helper integrates with. */
     private static final String MORPHE_PACKAGE = "app.morphe.manager";
+    private static final int REQ_SAVE_LOG = 6102;
 
     // ---------------------------------------------------------------------
     // UI palette (kept in code so the two screens share the same look)
@@ -268,12 +273,12 @@ public class MainActivity extends Activity {
         guideParams.setMarginEnd(dp(6));
         actions.addView(guideButton, guideParams);
 
-        TextView shareLog = secondaryButton(getString(R.string.main_share_log),
+        TextView helpButton = secondaryButton(getString(R.string.main_help),
                 TEXT, SECONDARY_BORDER);
-        shareLog.setOnClickListener(v -> shareLog());
-        LinearLayout.LayoutParams shareParams = new LinearLayout.LayoutParams(0, dp(50), 1f);
-        shareParams.setMarginStart(dp(6));
-        actions.addView(shareLog, shareParams);
+        helpButton.setOnClickListener(v -> showHelp());
+        LinearLayout.LayoutParams helpParams = new LinearLayout.LayoutParams(0, dp(50), 1f);
+        helpParams.setMarginStart(dp(6));
+        actions.addView(helpButton, helpParams);
 
         // Sources opens Settings directly on the Sources section, where the
         // enabled sources, their order, and GitHub apps are managed.
@@ -361,32 +366,54 @@ public class MainActivity extends Activity {
                 0, WRAP_CONTENT, 1f));
         footerRow.addView(text(version, 11, FOOTER, false));
 
-        TextView copyLog = text(getString(R.string.main_copy_log), 12, ACCENT_TEXT, true);
-        copyLog.setGravity(Gravity.CENTER);
-        copyLog.setPadding(dp(8), dp(8), dp(8), dp(8));
-        copyLog.setClickable(true);
-        copyLog.setFocusable(true);
-        copyLog.setOnClickListener(v -> copyLogToClipboard());
+        TextView logHelp = text(getString(R.string.main_log_help), 11, FOOTER, false);
+        logHelp.setLineSpacing(dp(2), 1f);
+        logHelp.setPadding(0, dp(6), 0, dp(4));
+        root.addView(logHelp);
 
-        TextView clearLog = text(getString(R.string.main_clear_log), 12, ACCENT_TEXT, true);
-        clearLog.setGravity(Gravity.CENTER);
-        clearLog.setPadding(dp(8), dp(8), dp(8), dp(8));
-        clearLog.setClickable(true);
-        clearLog.setFocusable(true);
+        TextView shareLog = secondaryButton(getString(R.string.main_share_log),
+                R.drawable.ic_share, TEXT, SECONDARY_BORDER);
+        shareLog.setOnClickListener(v -> shareLog());
+        TextView copyLog = secondaryButton(getString(R.string.main_copy_log),
+                R.drawable.ic_copy, TEXT, SECONDARY_BORDER);
+        copyLog.setOnClickListener(v -> copyLogToClipboard());
+        TextView saveLog = secondaryButton(getString(R.string.main_save_log),
+                R.drawable.ic_save, TEXT, SECONDARY_BORDER);
+        saveLog.setOnClickListener(v -> saveLog());
+        TextView clearLog = secondaryButton(getString(R.string.main_clear_log),
+                R.drawable.ic_delete, WARN_TITLE, SECONDARY_BORDER);
         clearLog.setOnClickListener(v -> {
             HelperLog.clear();
             Toast.makeText(this, R.string.main_log_cleared, Toast.LENGTH_SHORT).show();
         });
 
-        LinearLayout logActions = new LinearLayout(this);
-        logActions.setOrientation(LinearLayout.HORIZONTAL);
-        logActions.addView(copyLog, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
-        logActions.addView(clearLog, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
-        LinearLayout.LayoutParams logActionsParams = new LinearLayout.LayoutParams(
+        LinearLayout logRow1 = new LinearLayout(this);
+        logRow1.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams logFirstParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        logFirstParams.setMarginEnd(dp(4));
+        logRow1.addView(shareLog, logFirstParams);
+        LinearLayout.LayoutParams logSecondParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        logSecondParams.setMarginStart(dp(4));
+        logRow1.addView(copyLog, logSecondParams);
+
+        LinearLayout logRow2 = new LinearLayout(this);
+        logRow2.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams logThirdParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        logThirdParams.setMarginEnd(dp(4));
+        logRow2.addView(saveLog, logThirdParams);
+        LinearLayout.LayoutParams logFourthParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        logFourthParams.setMarginStart(dp(4));
+        logRow2.addView(clearLog, logFourthParams);
+
+        LinearLayout.LayoutParams logRow1Params = new LinearLayout.LayoutParams(
                 MATCH_PARENT, WRAP_CONTENT);
-        logActionsParams.topMargin = dp(4);
-        logActionsParams.bottomMargin = dp(4);
-        root.addView(logActions, logActionsParams);
+        logRow1Params.topMargin = dp(4);
+        root.addView(logRow1, logRow1Params);
+        LinearLayout.LayoutParams logRow2Params = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        logRow2Params.topMargin = dp(8);
+        logRow2Params.bottomMargin = dp(4);
+        root.addView(logRow2, logRow2Params);
 
         setContentView(scroll);
         ThemeManager.applySystemBars(this);
@@ -535,6 +562,72 @@ public class MainActivity extends Activity {
                         Toast.LENGTH_SHORT).show();
             });
         }, "copy-log").start();
+    }
+
+    /** Opens the system document picker so the log can be saved to Downloads or Drive. */
+    private void saveLog() {
+        File log = HelperLog.getLogFile();
+        if (log == null || !log.isFile()) {
+            Toast.makeText(this, R.string.main_error_no_log, Toast.LENGTH_LONG).show();
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, "helper.log");
+        startActivityForResult(intent, REQ_SAVE_LOG);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_SAVE_LOG && resultCode == RESULT_OK && data != null) {
+            Uri uri = data.getData();
+            if (uri != null) {
+                saveLogTo(uri);
+            }
+        }
+    }
+
+    private void saveLogTo(Uri uri) {
+        new Thread(() -> {
+            File log = HelperLog.getLogFile();
+            if (log == null || !log.isFile()) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_error_no_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            try (InputStream input = new FileInputStream(log);
+                 OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                if (output == null) {
+                    throw new IllegalStateException("No output stream");
+                }
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                }
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_save_log_success, Toast.LENGTH_SHORT).show());
+            } catch (Exception error) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_save_log_failed, Toast.LENGTH_LONG).show());
+            }
+        }, "save-log").start();
+    }
+
+    /** Short in-app troubleshooting guide for the most common support questions. */
+    private void showHelp() {
+        String message = getString(R.string.help_log)
+                + "\n\n" + getString(R.string.help_play_protect)
+                + "\n\n" + getString(R.string.help_uptodown)
+                + "\n\n" + getString(R.string.help_icons)
+                + "\n\n" + getString(R.string.help_sources);
+        ThemeManager.dialog(this)
+                .setTitle(R.string.main_help_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.common_done, null)
+                .show();
     }
 
     /** Reads the log, keeping only the newest 300k characters for the clipboard. */
@@ -700,6 +793,18 @@ public class MainActivity extends Activity {
                 fill,
                 null
         ));
+        return view;
+    }
+
+    private TextView secondaryButton(String label, int iconRes, int textColor, int strokeColor) {
+        TextView view = secondaryButton(label, textColor, strokeColor);
+        Drawable icon = getDrawable(iconRes);
+        if (icon != null) {
+            icon.setTint(textColor);
+            view.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
+            view.setCompoundDrawablePadding(dp(8));
+            view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        }
         return view;
     }
 

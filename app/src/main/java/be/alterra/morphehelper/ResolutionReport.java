@@ -41,6 +41,9 @@ final class ResolutionReport {
     private boolean success;
     private String failureReason;
     private File file;
+    private String sha256;
+    private boolean buildChecked;
+    private boolean buildExact;
 
     ResolutionReport(Context context, String appName, String pkg, String version,
                      String fileType, String abi) {
@@ -66,6 +69,15 @@ final class ResolutionReport {
         this.file = file;
         this.success = true;
         this.finished = true;
+    }
+
+    synchronized void setSha256(String value) {
+        this.sha256 = value;
+    }
+
+    synchronized void setBuildCheck(boolean exact) {
+        this.buildChecked = true;
+        this.buildExact = exact;
     }
 
     synchronized void finishFailure(String reason) {
@@ -135,6 +147,15 @@ final class ResolutionReport {
                     R.string.report_file, file.getName())).append('\n');
             text.append(context.getString(
                     R.string.report_size, sizeText(file.length()))).append('\n');
+            if (sha256 != null && !sha256.isEmpty()) {
+                text.append(context.getString(
+                        R.string.report_sha256, sha256)).append('\n');
+            }
+            if (buildChecked) {
+                text.append(context.getString(buildExact
+                        ? R.string.report_build_exact
+                        : R.string.report_build_name)).append('\n');
+            }
         } else {
             text.append(context.getString(
                     R.string.report_reason, value(failureReason))).append('\n');

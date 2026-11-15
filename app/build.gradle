@@ -18,8 +18,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 55
-        versionName "2.2.4"
+        versionCode 56
+        versionName "2.3.0"
     }
 
     buildFeatures {
@@ -29,7 +29,10 @@ android {
     buildTypes {
         release {
             // Keep shrinking disabled so release APKs behave like debug builds.
+            // Sign with the existing debug key so current users can update in
+            // place, but leave debuggable=false for a production-like build.
             minifyEnabled false
+            signingConfig signingConfigs.debug
         }
     }
 
@@ -59,6 +62,7 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.6.2'
 
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
 }
 
 

@@ -36,15 +36,17 @@ Please include:
 
 - Receives the package, version, version codes, file type, ABIs, and fallback URL from Morphe.
 - Follows the same resolver link Morphe's own download dialog uses.
-- Falls back to APKMirror, APKPure, F-Droid, Aptoide, and Appteka for SnapTube.
+- Falls back to APKMirror, APKPure, APKCube, Uptodown, F-Droid, Aptoide, and Appteka for SnapTube.
 - Uses APKPure's numeric `versionCode` endpoint, so the exact requested build is downloaded
   instead of the latest version.
 - Supports APK, APKM, APKS, and XAPK when Morphe allows split archives.
-- Opens Uptodown or APKPure in an inline WebView when a site needs a browser check.
+- Uses Uptodown's mobile API for exact versions and SHA-256, with the in-app verification page as a fallback.
+- Opens APKPure, APKCube, or Uptodown in an inline WebView when a site needs a browser check.
 - Returns a `content://` URI with read permission so Morphe can validate and use the file.
 - Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a **Sources** shortcut that opens source settings.
 - Shows per-source failure details and offers **Retry all sources**, **Retry failed sources**, and **Copy details**.
+- Settings shows source type badges and a per-source **Test** action, plus **Copy log**, **Save log**, and **Help**.
 - Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, active source logo beside the Source value, package pill, verification warning card, speed/ETA pill, and distinct Pause/Switch/Cancel actions. The source card collapses to a compact summary during the download, expands automatically on a failure, a fallback note, or **Switch source**, and its rows can be tapped to switch sources.
 - Single-stream downloads retry a dropped connection and resume from the `.part` offset with `Range`/`If-Range`; multi-connection segments resume from their written offset.
 - WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors.
@@ -80,8 +82,9 @@ The app is written in Java and contains no native libraries, so **one universal 
 all CPU architectures** (arm64-v8a, armeabi-v7a, x86, x86_64) and on **Android 6.0+**
 (minSdk 23). Separate per-ABI APKs are not needed.
 
-> Release APKs are currently signed with the Android debug key so they can be sideloaded.
-> A proper release keystore can be added later for Play Store-style signing continuity.
+> Release APKs are signed with the Android debug key so they can be sideloaded,
+> and the release build is non-debuggable. A proper release keystore can be
+> added later for Play Store-style signing continuity.
 
 ## How it works
 
@@ -111,11 +114,13 @@ The helper never installs anything.
 | 2 | Patch-bundle fallback URL | The `FALLBACK_WEB_URL` extra from the patch bundle; usually a Google search URL, which is skipped, but may be a direct file/store page. |
 | 3 | APKMirror | Searches with the WordPress `?s=` endpoint, scores the results by app slug/name/package, verifies the app page against its Play Store package, then resolves the variant and download key. The app page is cached per package for repeat downloads. |
 | 4 | APKPure fallback | Used when there is no versionCode, or the fast path did not find the build. |
-| 5 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
-| 6 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
-| 7 | Appteka | Resolves the exact version by package and version code. SnapTube only by default; the source is marked as hazardous because it hosts modded APKs. |
-| 8 | GitHub releases | Uses the release immediately when Morphe's resolver points to GitHub. Otherwise it is the automatic last resort: tries a remembered repository or searches GitHub, checks the requested version, prefers the matching ABI, and remembers the repository. A user-added per-app mapping can run before the Morphe link instead. |
-| WebView | Uptodown / APKPure | Uptodown opens from the resolver and has its own non-ordered fallback toggle in Settings. Its Download button requires a real tap for Cloudflare Turnstile. APKPure's page is the last resort so it cannot block the other sources. |
+| 5 | APKCube | Opens the exact build/ABI page in an in-app WebView; the user completes APKCube's verification. |
+| 6 | Uptodown | Authenticates to Uptodown's mobile eAPI, resolves the exact version/file ID from the public versions JSON, downloads the direct CDN URL, and verifies SHA-256. Falls back to the in-app verification page if the API changes. |
+| 7 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
+| 8 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
+| 9 | Appteka | Resolves the exact version by package and version code. SnapTube only by default; the source is marked as hazardous because it hosts modded APKs. |
+| 10 | GitHub releases | Uses the release immediately when Morphe's resolver points to GitHub. Otherwise it is the automatic last resort: tries a remembered repository or searches GitHub, checks the requested version, prefers the matching ABI, and remembers the repository. A user-added per-app mapping can run before the Morphe link instead. |
+| WebView fallback | APKPure / APKCube / Uptodown | APKPure's page is the last resort. APKCube and Uptodown open an in-app verification page when their direct/API path cannot be used. |
 
 The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
 sources above. GitHub is automatic: there is no **Search GitHub releases** button anymore.

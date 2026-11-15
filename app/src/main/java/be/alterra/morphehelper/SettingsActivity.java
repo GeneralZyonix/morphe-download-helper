@@ -497,22 +497,6 @@ public class SettingsActivity extends Activity {
             addSourceRow(card, key, sourceTitle(key), sourceDescription(key));
         }
 
-        // Uptodown is not a catalogue source and has no meaningful position in
-        // the search order. It follows a Morphe fallback link, so keep it out
-        // of the reorderable list and expose its toggle separately.
-        View fallbackDivider = new View(this);
-        fallbackDivider.setBackgroundColor(BORDER);
-        LinearLayout.LayoutParams fallbackDividerParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
-        fallbackDividerParams.topMargin = dp(10);
-        card.addView(fallbackDivider, fallbackDividerParams);
-
-        TextView fallbackHeader = text(
-                getString(R.string.settings_source_fallback_section), 11, MUTED, true);
-        fallbackHeader.setPadding(0, dp(10), 0, dp(2));
-        card.addView(fallbackHeader);
-        addFallbackSourceRow(card, SourceSettings.UPTODOWN);
-
         // General information, not a warning: keep it neutral and below the list.
         TextView sourceWebViewHint = text(
                 getString(R.string.settings_webview_hint), 11, MUTED, false);
@@ -597,6 +581,26 @@ public class SettingsActivity extends Activity {
             case SourceSettings.GITHUB:
                 return getString(R.string.settings_source_github_title);
             default: return AppSettings.sourceLabel(this, key);
+        }
+    }
+
+    private String sourceTypeLabel(String key) {
+        switch (key) {
+            case SourceSettings.FALLBACK:
+                return getString(R.string.source_type_resolver);
+            case SourceSettings.APKMIRROR:
+            case SourceSettings.APKPURE:
+            case SourceSettings.UPTODOWN:
+                return getString(R.string.source_type_hybrid);
+            case SourceSettings.APKCUBE:
+                return getString(R.string.source_type_webview);
+            case SourceSettings.FDROID:
+            case SourceSettings.APTOIDE:
+            case SourceSettings.APPTEKA:
+            case SourceSettings.GITHUB:
+                return getString(R.string.source_type_direct);
+            default:
+                return getString(R.string.source_type_direct);
         }
     }
 
@@ -2378,15 +2382,48 @@ public class SettingsActivity extends Activity {
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text(title, 15, enabled ? TEXT : MUTED, true));
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView titleView = text(title, 15, enabled ? TEXT : MUTED, true);
+        titleRow.addView(titleView, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView typeBadge = text(sourceTypeLabel(key), 9,
+                enabled ? ACCENT_TEXT : MUTED, true);
+        typeBadge.setPadding(dp(6), dp(2), dp(6), dp(2));
+        GradientDrawable typeBadgeBackground = new GradientDrawable();
+        typeBadgeBackground.setColor(SECONDARY);
+        typeBadgeBackground.setCornerRadius(dp(999));
+        typeBadge.setBackground(typeBadgeBackground);
+        titleRow.addView(typeBadge);
+        labels.addView(titleRow);
         int descColor = !enabled ? MUTED
                 : SourceSettings.APPTEKA.equals(key) ? RED : MUTED;
         TextView desc = text(description, 12, descColor, false);
         desc.setPadding(0, dp(3), 0, 0);
         labels.addView(desc);
+        LinearLayout healthRow = new LinearLayout(this);
+        healthRow.setOrientation(LinearLayout.HORIZONTAL);
+        healthRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView health = text(SourceHealth.summary(this, key), 11, MUTED, false);
         health.setPadding(0, dp(4), 0, 0);
-        labels.addView(health);
+        healthRow.addView(health, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView test = text(getString(R.string.source_type_test), 10,
+                enabled ? ACCENT_TEXT : MUTED, true);
+        test.setPadding(dp(8), dp(4), 0, 0);
+        test.setClickable(true);
+        test.setFocusable(true);
+        test.setOnClickListener(v -> {
+            test.setEnabled(false);
+            health.setText(R.string.settings_testing_source);
+            SourceTester.test(this, key, (ok, message) -> runOnUiThread(() -> {
+                test.setEnabled(true);
+                health.setText(SourceHealth.summary(this, key));
+            }));
+        });
+        healthRow.addView(test);
+        labels.addView(healthRow);
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -2461,59 +2498,6 @@ public class SettingsActivity extends Activity {
         divider.setBackgroundColor(BORDER);
         parent.addView(divider, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
-    }
-
-    /**
-     * Adds a source that is not part of the ordered catalogue search. Uptodown
-     * only opens when a Morphe fallback/resolver link points at it, so it gets
-     * a normal toggle and health row but no drag handle or reorder arrows.
-     */
-    private void addFallbackSourceRow(LinearLayout parent, String key) {
-        boolean enabled = SourceSettings.isEnabled(this, key);
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(12), 0, dp(12));
-        row.setTag(key);
-
-        // Match the badge indent of the ordered rows without implying that
-        // this row can be dragged.
-        row.addView(new View(this), new LinearLayout.LayoutParams(dp(26), dp(44)));
-
-        View badge = SourceBadge.create(this, key);
-        LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
-                dp(36), dp(36));
-        badgeParams.setMarginEnd(dp(10));
-        row.addView(badge, badgeParams);
-
-        LinearLayout labels = new LinearLayout(this);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text(sourceTitle(key), 15, enabled ? TEXT : MUTED, true));
-        TextView desc = text(sourceDescription(key), 12, MUTED, false);
-        desc.setPadding(0, dp(3), 0, 0);
-        labels.addView(desc);
-        TextView health = text(SourceHealth.summary(this, key), 11, MUTED, false);
-        health.setPadding(0, dp(4), 0, 0);
-        labels.addView(health);
-        row.addView(labels, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        Switch toggle = new Switch(this);
-        toggle.setChecked(enabled);
-        styleSwitch(toggle);
-        toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            SourceSettings.setEnabled(this, key, isChecked);
-            PublicSettings.write(this);
-            recreate();
-        });
-        LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
-                dp(64), dp(48));
-        toggleParams.gravity = Gravity.CENTER_VERTICAL;
-        row.addView(toggle, toggleParams);
-
-        parent.addView(row, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     private void applyContentPadding(LinearLayout root) {
