@@ -167,6 +167,8 @@
     <string name="settings_source_github_desc">Automatic search fallback; resolver-supplied GitHub links still work when this is off. Signature checked when the app is installed.</string>
     <string name="settings_launcher_icon">App icon</string>
     <string name="settings_hide_launcher_icon">Show app icon</string>
+    <string name="settings_launcher_icon_build_shown">Always shown in this build.</string>
+    <string name="settings_launcher_icon_build_hidden">Hidden in this build. Open the helper from Morphe or Android Settings.</string>
     <string name="settings_hide_launcher_icon_detail">Keep the app visible in your launcher</string>
     <string name="settings_hide_launcher_icon_confirm_title">Hide app icon?</string>
     <string name="settings_hide_launcher_icon_confirm_message">The app will disappear from your launcher. You can still open it from Android Settings → Apps → Morphe Download Helper → Open, or when Morphe launches a download. You can also set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.txt. Some launchers may keep an old home-screen shortcut; remove it manually if it remains. Continue?</string>
@@ -388,6 +390,7 @@
     <string name="download_error_page_timeout">The download page took too long to respond.</string>
     <string name="download_error_page_timeout_detail">Timed out waiting for the download page</string>
     <string name="download_error_page_failed">The download page failed to load.</string>
+    <string name="download_error_apkcube_not_found">APKCube could not find this app.</string>
     <string name="download_retry_resume">Connection lost. Resuming (%1$d/%2$d)…</string>
     <string name="download_downloading_from">Downloading from %1$s…</string>
     <string name="download_source_label">Source: %1$s</string>

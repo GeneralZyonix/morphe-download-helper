@@ -201,7 +201,7 @@ public class SettingsActivity extends Activity {
                     R.drawable.ic_section_general);
             addLanguageRow(general);
             addAppearanceRow(general);
-            addLauncherIconCard(general);
+            addLauncherVariantInfo(general);
 
             LinearLayout updates = addSection(root, SECTION_UPDATES,
                     R.string.settings_updates, R.string.settings_updates_summary,
@@ -730,57 +730,23 @@ public class SettingsActivity extends Activity {
                 .show();
     }
 
-    private void addLauncherIconCard(LinearLayout card) {
+    private void addLauncherVariantInfo(LinearLayout card) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, dp(4), 0, dp(4));
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text(getString(R.string.settings_hide_launcher_icon), 14, TEXT, true));
-        TextView detail = text(
-                getString(R.string.settings_hide_launcher_icon_detail), 12, MUTED, false);
+        labels.addView(text(getString(R.string.settings_launcher_icon), 14, TEXT, true));
+        TextView detail = text(getString(
+                AppSettings.isLauncherIconShown(this)
+                        ? R.string.settings_launcher_icon_build_shown
+                        : R.string.settings_launcher_icon_build_hidden),
+                12, MUTED, false);
         detail.setPadding(0, dp(3), 0, 0);
         labels.addView(detail);
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        Switch toggle = new Switch(this);
-        toggle.setChecked(AppSettings.isLauncherIconShown(this));
-        styleSwitch(toggle);
-        final boolean[] updating = {false};
-        toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (updating[0]) {
-                return;
-            }
-            if (isChecked) {
-                AppSettings.setLauncherIconShown(this, true);
-                PublicSettings.write(this);
-                Toast.makeText(this, R.string.settings_hide_launcher_icon_shown,
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            updating[0] = true;
-            buttonView.setChecked(true);
-            updating[0] = false;
-            ThemeManager.dialog(this)
-                    .setTitle(R.string.settings_hide_launcher_icon_confirm_title)
-                    .setMessage(R.string.settings_hide_launcher_icon_confirm_message)
-                    .setNegativeButton(R.string.common_cancel, null)
-                    .setPositiveButton(R.string.settings_hide_launcher_icon_confirm,
-                            (dialog, which) -> {
-                                AppSettings.setLauncherIconShown(this, false);
-                                PublicSettings.write(this);
-                                updating[0] = true;
-                                buttonView.setChecked(false);
-                                updating[0] = false;
-                                Toast.makeText(this,
-                                        R.string.settings_hide_launcher_icon_hidden,
-                                        Toast.LENGTH_LONG).show();
-                            })
-                    .show();
-        });
-        row.addView(toggle, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(row);
     }
 

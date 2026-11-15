@@ -11,6 +11,34 @@ Morphe's open `DOWNLOAD_ORIGINAL_APK` intent contract.
 > **Unofficial:** this project is not affiliated with, endorsed by, or maintained by the
 > Morphe project. Morphe ships no helper of its own and does not endorse any helper.
 
+## Choose your build
+
+Android 10+ does not allow one package to show a launcher icon immediately after
+installation **and** hide it cleanly later. From 2.3.3 the helper ships as two
+builds of the same app, so you can choose the behavior you want:
+
+| Build | Launcher icon | Best for |
+| --- | --- | --- |
+| **Icon** — `MorpheDownloadHelper-v2.3.3-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** — `MorpheDownloadHelper-v2.3.3-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+
+Both builds have the same package name, version, signing key, and features.
+Install one or the other, not both. The in-app updater stays on the build you
+installed. When switching from the icon build to the no-icon build, do a fresh
+install or remove the old home-screen shortcut if your launcher keeps it.
+
+## Recent highlights
+
+- **2.3.3:** two launcher builds (icon and no-icon), GitHub-only apps found by
+  package name in READMEs, correct ARMv8/ARMv7 GitHub asset selection, and
+  immediate APKCube “no match” continuation.
+- **2.3.2:** **Report on GitHub** with short/full log options and log redaction,
+  Morphe/helper version pills, the log card above About, and automatic
+  continuation after a failed verification WebView.
+- **2.3.1:** full APKPure XAPK downloads for split requests and a clean restart
+  when a resumed download stalls.
+- **2.3.0:** Uptodown became a first-class API source with SHA-256 verification.
+
 ## Setup Guide
 
 New to the helper? Follow the **[illustrated setup guide](GUIDE.md)** to enable it in Morphe,
@@ -41,7 +69,13 @@ Please include:
   instead of the latest version.
 - Supports APK, APKM, APKS, and XAPK when Morphe allows split archives.
 - Uses Uptodown's mobile API for exact versions and SHA-256, with the in-app verification page as a fallback.
+- Two builds: **icon** (launcher entry always visible) and **no-icon**
+  (launcher entry always hidden; opened from Morphe or Android Settings).
 - Opens APKPure, APKCube, or Uptodown in an inline WebView when a site needs a browser check.
+- If a verification WebView times out, errors, or cannot capture a download, marks that
+  source as failed and continues with the next enabled source.
+- Detects APKCube “no match / package isn’t in the catalog” pages immediately instead of
+  waiting for the WebView timeout.
 - Returns a `content://` URI with read permission so Morphe can validate and use the file.
 - Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a **Sources** shortcut that opens source settings.
@@ -50,9 +84,13 @@ Please include:
 - The main screen shows Morphe's detected version and the helper version in theme-aware pills, puts the log actions above About, and offers a **Report on GitHub** flow with short and full-log options.
 - Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, active source logo beside the Source value, package pill, verification warning card, speed/ETA pill, and distinct Pause/Switch/Cancel actions. The source card collapses to a compact summary during the download, expands automatically on a failure, a fallback note, or **Switch source**, and its rows can be tapped to switch sources.
 - Single-stream downloads retry a dropped connection and resume from the `.part` offset with `Range`/`If-Range`; multi-connection segments resume from their written offset.
-- WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors.
+- WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors. A failed WebView no longer ends the whole resolution; the next enabled source is tried.
 - Uses GitHub automatically: immediately when Morphe's resolver points to a release, or as
   the final fallback when normal APK sources fail. There is no separate GitHub button.
+- GitHub search looks for the package name in READMEs as well as the app name, so renamed
+  repositories (for example Myspoti → Orpheon) are still found.
+- GitHub asset selection understands `ARMv8`, `ARMv7`, `ARM64`, `AArch64`, `x86_64`, and
+  `universal` naming.
 - Remembers successful GitHub repositories, and lets you pin a repository to a
   package with an optional asset filter and **Try this repo first**.
 - Keeps a structured, human-readable diagnostic log that can be shared from the app.
@@ -76,12 +114,15 @@ Please include:
 
 ## Download
 
-Grab the latest universal APK from the
-[Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases).
+Grab one of the two current APKs from the
+[Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-The app is written in Java and contains no native libraries, so **one universal APK works on
-all CPU architectures** (arm64-v8a, armeabi-v7a, x86, x86_64) and on **Android 6.0+**
-(minSdk 23). Separate per-ABI APKs are not needed.
+- `MorpheDownloadHelper-v2.3.3-universal.apk` — **icon build**
+- `MorpheDownloadHelper-v2.3.3-universal-noicon.apk` — **no-icon build**
+
+Both are written in Java, contain no native libraries, and work on all CPU
+architectures (arm64-v8a, armeabi-v7a, x86, x86_64) and on **Android 6.0+**
+(minSdk 23). Install one; they share the same package and cannot coexist.
 
 > Release APKs are signed with the Android debug key so they can be sideloaded,
 > and the release build is non-debuggable. A proper release keystore can be
@@ -115,12 +156,12 @@ The helper never installs anything.
 | 2 | Patch-bundle fallback URL | The `FALLBACK_WEB_URL` extra from the patch bundle; usually a Google search URL, which is skipped, but may be a direct file/store page. |
 | 3 | APKMirror | Searches with the WordPress `?s=` endpoint, scores the results by app slug/name/package, verifies the app page against its Play Store package, then resolves the variant and download key. The app page is cached per package for repeat downloads. |
 | 4 | APKPure fallback | Used when there is no versionCode, or the fast path did not find the build. Only split assets are accepted for split requests. |
-| 5 | APKCube | Opens the exact build/ABI page in an in-app WebView; the user completes APKCube's verification. |
+| 5 | APKCube | Opens the exact build/ABI page in an in-app WebView; the user completes APKCube's verification. A “no match” page is detected immediately and the next source is tried. |
 | 6 | Uptodown | Authenticates to Uptodown's mobile eAPI, resolves the exact version/file ID from the public versions JSON, downloads the direct CDN URL, and verifies SHA-256. Falls back to the in-app verification page if the API changes. |
 | 7 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
 | 8 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
 | 9 | Appteka | Resolves the exact version by package and version code. SnapTube only by default; the source is marked as hazardous because it hosts modded APKs. |
-| 10 | GitHub releases | Uses the release immediately when Morphe's resolver points to GitHub. Otherwise it is the automatic last resort: tries a remembered repository or searches GitHub, checks the requested version, prefers the matching ABI, and remembers the repository. A user-added per-app mapping can run before the Morphe link instead. |
+| 10 | GitHub releases | Uses the release immediately when Morphe's resolver points to GitHub. Otherwise it is the automatic last resort: tries a remembered repository or searches by package name in READMEs and by app name, handles renamed repositories, checks the requested version, prefers ARMv8/ARMv7/ARM64 assets, and remembers the repository. A user-added per-app mapping can run before the Morphe link instead. |
 | WebView fallback | APKPure / APKCube / Uptodown | APKPure's page is the last resort. APKCube and Uptodown open an in-app verification page when their direct/API path cannot be used. If a verification page fails or times out, the helper marks that source as failed and continues with the next enabled source. |
 
 The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
@@ -168,29 +209,37 @@ Requirements:
 Set `sdk.dir` in `local.properties` (or set `ANDROID_HOME`), then run:
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assembleIconDebug :app:assembleNoiconDebug
 ```
 
 On Windows:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:assembleIconDebug :app:assembleNoiconDebug
 ```
 
-The debug APK is written to:
+The two build flavors differ only in the launcher alias default. Release
+builds use `:app:assembleIconRelease` and `:app:assembleNoiconRelease`.
+
+The debug APKs are written to:
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/icon/debug/app-icon-debug.apk
+app/build/outputs/apk/noicon/debug/app-noicon-debug.apk
 ```
 
 ## Install
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+# icon build
+adb install -r app/build/outputs/apk/icon/debug/app-icon-debug.apk
+# no-icon build
+adb install -r app/build/outputs/apk/noicon/debug/app-noicon-debug.apk
 ```
 
 Then open Morphe → Settings → APK download helper, trust **Morphe Download Helper**, and
-use **Use a helper app** during patching.
+use **Use a helper app** during patching. The no-icon build has no launcher entry; open it
+from Morphe or Android Settings → Apps → Morphe Download Helper → Open.
 
 ## Privacy
 

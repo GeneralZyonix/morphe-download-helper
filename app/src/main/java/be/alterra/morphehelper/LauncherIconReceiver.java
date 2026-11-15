@@ -5,10 +5,10 @@ import android.content.Context;
 import android.content.Intent;
 
 /**
- * Restores the saved launcher-icon choice after a reboot or app update.
+ * Re-applies this build's fixed launcher-icon state after a reboot or update.
  *
- * <p>The alias starts enabled so a fresh install always has a launcher icon.
- * It is disabled when the user turns off "Show app icon".</p>
+ * <p>The icon build always enables the alias; the no-icon build always keeps it
+ * disabled. Neither build transitions from shown to hidden at runtime.</p>
  */
 public class LauncherIconReceiver extends BroadcastReceiver {
 
@@ -17,8 +17,8 @@ public class LauncherIconReceiver extends BroadcastReceiver {
         HelperLog.init(context);
         HelperLog.info("LauncherIconReceiver: "
                 + (intent == null ? "" : intent.getAction()));
-        // Public settings may carry an explicit show_launcher_icon value after
-        // an update, so apply them before restoring the component state.
+        // Apply public settings after an update, then this build's fixed
+        // launcher state.
         PublicSettings.apply(context);
         AppSettings.ensureLauncherIconState(context);
     }

@@ -105,22 +105,6 @@ final class PublicSettings {
         }
         HelperLog.info("Public settings: applying " + values.size() + " values");
 
-        Boolean showLauncher = bool(values, "show_launcher_icon");
-        if (showLauncher == null) {
-            showLauncher = bool(values, "show_launcher");
-        }
-        Boolean hideLauncher = bool(values, "hide_launcher_icon");
-        if (hideLauncher != null) {
-            showLauncher = !hideLauncher;
-        }
-        if (showLauncher != null) {
-            HelperLog.info("Public settings: show_launcher_icon=" + showLauncher
-                    + ", currently hidden=" + AppSettings.isLauncherIconHidden(context));
-            AppSettings.setLauncherIconHidden(context, !showLauncher);
-        } else {
-            HelperLog.info("Public settings: show_launcher_icon not set");
-        }
-
         String themeMode = values.get("theme_mode");
         if (themeMode != null) {
             if (ThemeManager.MODE_AMOLED.equalsIgnoreCase(themeMode)) {
@@ -349,8 +333,6 @@ final class PublicSettings {
                 ? "# Includes the VirusTotal API key in plain text.\n\n"
                 : "# Secrets such as the VirusTotal API key are not included.\n\n");
 
-        text.append("show_launcher_icon=")
-                .append(!AppSettings.isLauncherIconHidden(context)).append('\n');
         text.append("theme_mode=").append(AppSettings.themeMode(context)).append('\n');
         text.append("theme_accent=").append(AppSettings.themeAccent(context)).append('\n');
         text.append("theme_custom_hex=").append(AppSettings.themeCustomHex(context)).append('\n');

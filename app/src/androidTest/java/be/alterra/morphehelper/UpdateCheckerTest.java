@@ -5,6 +5,8 @@ import static org.junit.Assert.assertTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -12,6 +14,9 @@ import java.util.List;
 
 @RunWith(AndroidJUnit4.class)
 public class UpdateCheckerTest {
+
+    private static final String VARIANT_SUFFIX = BuildConfig.LAUNCHER_ICON_ENABLED
+            ? "-universal.apk" : "-universal-noicon.apk";
 
     private static final String FEED = """
             <?xml version="1.0" encoding="UTF-8"?>
@@ -42,12 +47,37 @@ public class UpdateCheckerTest {
         assertEquals("2.0.0-beta.8", beta.version);
         assertEquals("https://github.com/GeneralZyonix/morphe-download-helper/"
                         + "releases/download/v2.0.0-beta.8/"
-                        + "MorpheDownloadHelper-v2.0.0-beta.8-universal.apk",
+                        + "MorpheDownloadHelper-v2.0.0-beta.8" + VARIANT_SUFFIX,
                 beta.assetUrl);
-        assertEquals("MorpheDownloadHelper-v2.0.0-beta.8-universal.apk",
+        assertEquals("MorpheDownloadHelper-v2.0.0-beta.8" + VARIANT_SUFFIX,
                 beta.assetName);
         assertTrue(beta.notes.contains("Notes"));
         assertTrue(beta.notes.contains("Fixed & tested."));
+    }
+
+    @Test
+    public void apiPicksTheAssetForThisVariantOnly() throws Exception {
+        JSONArray assets = new JSONArray();
+        assets.put(new JSONObject()
+                .put("name", "MorpheDownloadHelper-v9.9.9-universal.apk")
+                .put("browser_download_url", "https://example.test/icon.apk")
+                .put("size", 1));
+        assets.put(new JSONObject()
+                .put("name", "MorpheDownloadHelper-v9.9.9-universal-noicon.apk")
+                .put("browser_download_url", "https://example.test/noicon.apk")
+                .put("size", 2));
+        JSONObject release = new JSONObject()
+                .put("tag_name", "v9.9.9")
+                .put("html_url", "https://example.test/release")
+                .put("body", "notes")
+                .put("assets", assets);
+
+        UpdateInfo info = UpdateChecker.parseRelease(release);
+
+        assertEquals(BuildConfig.LAUNCHER_ICON_ENABLED
+                        ? "MorpheDownloadHelper-v9.9.9-universal.apk"
+                        : "MorpheDownloadHelper-v9.9.9-universal-noicon.apk",
+                info.assetName);
     }
 
     @Test
@@ -81,7 +111,7 @@ public class UpdateCheckerTest {
         assertEquals("2.0.0-beta.8", beta.version);
         assertEquals("https://github.com/GeneralZyonix/morphe-download-helper/"
                         + "releases/download/v2.0.0-beta.8/"
-                        + "MorpheDownloadHelper-v2.0.0-beta.8-universal.apk",
+                        + "MorpheDownloadHelper-v2.0.0-beta.8" + VARIANT_SUFFIX,
                 beta.assetUrl);
         assertTrue(beta.notes.contains("Beta notes."));
     }

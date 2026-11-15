@@ -64,16 +64,16 @@
         </activity>
 
         <!--
-            Launcher entry point. It starts enabled so a fresh install always
-            has a launcher icon. The app disables it when the saved "Show app
-            icon" setting is off. Some launchers keep an old home-screen
-            shortcut after the alias is disabled; the setting explanation asks
-            the user to remove it manually if it remains.
+            Launcher entry point. The default is set per build flavor:
+            - icon: always enabled; the icon is visible and never hidden.
+            - noicon: always disabled; no launcher entry, so there is no
+              synthetic App Info shortcut to leave behind. The helper is opened
+              from Morphe or Android Settings.
         -->
         <activity-alias
             android:name=".LauncherEntry"
             android:targetActivity=".MainActivity"
-            android:enabled="true"
+            android:enabled="@bool/launcher_icon_enabled"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

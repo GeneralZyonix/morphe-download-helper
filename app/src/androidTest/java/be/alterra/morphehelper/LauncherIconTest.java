@@ -13,28 +13,24 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/** Verifies the launcher alias state machine and the notification artwork. */
+/** Verifies the launcher alias follows this build's fixed variant. */
 @RunWith(AndroidJUnit4.class)
 public class LauncherIconTest {
 
     @Test
-    public void launcherAliasFollowsTheSavedChoice() {
+    public void launcherAliasMatchesTheBuildVariant() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        boolean original = AppSettings.isLauncherIconShown(context);
+        boolean shown = context.getResources().getBoolean(R.bool.launcher_icon_enabled);
         ComponentName alias = new ComponentName(context.getPackageName(),
                 context.getPackageName() + ".LauncherEntry");
         PackageManager manager = context.getPackageManager();
-        try {
-            AppSettings.setLauncherIconShown(context, false);
-            assertEquals(PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                    manager.getComponentEnabledSetting(alias));
 
-            AppSettings.setLauncherIconShown(context, true);
-            assertEquals(PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                    manager.getComponentEnabledSetting(alias));
-        } finally {
-            AppSettings.setLauncherIconShown(context, original);
-        }
+        AppSettings.ensureLauncherIconState(context);
+
+        assertEquals(shown
+                        ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                        : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                manager.getComponentEnabledSetting(alias));
     }
 
     @Test

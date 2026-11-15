@@ -15,6 +15,7 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -45,10 +46,15 @@ final class UpdateChecker {
     private static final String CHANGELOG_RAW =
             "https://raw.githubusercontent.com/" + REPO + "/main/CHANGELOG.md";
     private static final String ASSET_PREFIX = "MorpheDownloadHelper-v";
-    private static final String ASSET_SUFFIX = "-universal.apk";
     private static final Pattern CHANGELOG_HEADING =
             Pattern.compile("^##\\s+\\[([^\\]]+)\\](?:\\s+-\\s+.*)?$");
     static final String USER_AGENT = "Morphe-Download-Helper/1.6.10";
+
+    /** The asset suffix for this build flavor. */
+    private static String assetSuffix() {
+        return BuildConfig.LAUNCHER_ICON_ENABLED
+                ? "-universal.apk" : "-universal-noicon.apk";
+    }
 
     // GitHub's HTTP/2 edge occasionally resets streams with REFUSED_STREAM on
     // mobile networks. HTTP/1.1 avoids that failure mode entirely and GitHub
@@ -222,7 +228,7 @@ final class UpdateChecker {
             return;
         }
         String tag = "v" + cleanVersion;
-        String assetName = ASSET_PREFIX + cleanVersion + ASSET_SUFFIX;
+        String assetName = ASSET_PREFIX + cleanVersion + assetSuffix();
         String releaseUrl = "https://github.com/" + REPO + "/releases/tag/" + tag;
         String assetUrl = "https://github.com/" + REPO
                 + "/releases/download/" + tag + "/" + assetName;
@@ -315,7 +321,7 @@ final class UpdateChecker {
         }
         String releaseUrl = link != null ? link
                 : "https://github.com/" + REPO + "/releases/tag/" + tag;
-        String assetName = ASSET_PREFIX + version + ASSET_SUFFIX;
+        String assetName = ASSET_PREFIX + version + assetSuffix();
         String assetUrl = "https://github.com/" + REPO
                 + "/releases/download/" + tag + "/" + assetName;
         return new UpdateInfo(version, releaseUrl, assetUrl, assetName, 0L,
@@ -375,7 +381,7 @@ final class UpdateChecker {
         throw last == null ? new IOException("GitHub " + label + " failed") : last;
     }
 
-    private static UpdateInfo parseRelease(JSONObject release) {
+    static UpdateInfo parseRelease(JSONObject release) {
         String tag = release.optString("tag_name", "");
         String version = tag.startsWith("v") || tag.startsWith("V")
                 ? tag.substring(1) : tag;
@@ -385,6 +391,7 @@ final class UpdateChecker {
         String assetUrl = "";
         String assetName = "";
         long assetSize = 0;
+        String wanted = assetSuffix();
         if (assets != null) {
             String fallbackUrl = "";
             String fallbackName = "";
@@ -396,7 +403,14 @@ final class UpdateChecker {
                 }
                 String name = asset.optString("name", "");
                 String url = asset.optString("browser_download_url", "");
-                if (!name.toLowerCase().endsWith(".apk") || !url.startsWith("https://")) {
+                String lower = name.toLowerCase(Locale.US);
+                if (!lower.endsWith(".apk") || !url.startsWith("https://")) {
+                    continue;
+                }
+                // Never let an icon build update itself into the no-icon build
+                // (or the reverse). Only use assets from this flavor.
+                boolean noIconAsset = lower.contains("noicon");
+                if (noIconAsset != !BuildConfig.LAUNCHER_ICON_ENABLED) {
                     continue;
                 }
                 if (fallbackUrl.isEmpty()) {
@@ -404,7 +418,7 @@ final class UpdateChecker {
                     fallbackName = name;
                     fallbackSize = asset.optLong("size", 0);
                 }
-                if (name.toLowerCase().contains("universal")) {
+                if (lower.endsWith(wanted)) {
                     assetUrl = url;
                     assetName = name;
                     assetSize = asset.optLong("size", 0);

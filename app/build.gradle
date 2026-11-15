@@ -18,12 +18,32 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 58
-        versionName "2.3.2"
+        versionCode 59
+        versionName "2.3.3"
     }
 
     buildFeatures {
         aidl true
+        buildConfig true
+    }
+
+    flavorDimensions "launcher"
+    productFlavors {
+        // Icon-first build: the launcher entry is always enabled, so the icon
+        // appears immediately after installation. This build does not hide it.
+        icon {
+            dimension "launcher"
+            buildConfigField "boolean", "LAUNCHER_ICON_ENABLED", "true"
+            resValue "bool", "launcher_icon_enabled", "true"
+        }
+        // Clean-hide build: the launcher entry is always disabled, so there is
+        // no icon to hide and Android cannot create the synthetic App Info
+        // shortcut. Open the helper from Morphe or Android Settings.
+        noicon {
+            dimension "launcher"
+            buildConfigField "boolean", "LAUNCHER_ICON_ENABLED", "false"
+            resValue "bool", "launcher_icon_enabled", "false"
+        }
     }
 
     buildTypes {

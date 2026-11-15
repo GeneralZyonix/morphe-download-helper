@@ -2032,8 +2032,33 @@ public class DownloadActivity extends Activity {
 
     /** Reads whether the page is a verification challenge or a normal page. */
     private void probeWebFlowState(WebView web) {
+        String notFoundCheck = "";
+        if ("apkcube".equals(webSource)) {
+            notFoundCheck = "if(t.indexOf('app not found')>=0"
+                    + "||t.indexOf('did not find')>=0"
+                    + "||t.indexOf('could not find')>=0"
+                    + "||t.indexOf('couldn\\'t find')>=0"
+                    + "||t.indexOf('cannot find')>=0"
+                    + "||t.indexOf('no match')>=0"
+                    + "||t.indexOf('no results')>=0"
+                    + "||t.indexOf('no result')>=0"
+                    + "||t.indexOf('no app')>=0"
+                    + "||t.indexOf('no matching')>=0"
+                    + "||t.indexOf('nothing found')>=0"
+                    + "||t.indexOf('not found')>=0"
+                    + "||t.indexOf('not available')>=0"
+                    + "||t.indexOf('isn\\'t in the catalog')>=0"
+                    + "||t.indexOf('not in the catalog')>=0"
+                    + "||t.indexOf('don\\'t hold that package')>=0"
+                    + "||t.indexOf('do not hold that package')>=0)"
+                    + "return 'notfound';";
+        }
         web.evaluateJavascript(
                 "(function(){"
+                        + "var t=((document.title||'')+' '"
+                        + "+(document.body?document.body.innerText:''))"
+                        + ".toLowerCase();"
+                        + notFoundCheck
                         + "var fs=document.querySelectorAll('iframe');"
                         + "for(var i=0;i<fs.length;i++){"
                         + "var src=(fs[i].src||'').toLowerCase();"
@@ -2052,9 +2077,6 @@ public class DownloadActivity extends Activity {
                         + "var ct=document.querySelector('.cf-turnstile');"
                         + "if(ct){var cr=ct.getBoundingClientRect();"
                         + "if(cr.width>0&&cr.height>0)return 'challenge';}"
-                        + "var t=((document.title||'')+' '"
-                        + "+(document.body?document.body.innerText:''))"
-                        + ".toLowerCase();"
                         + "if(t.indexOf('verify you are human')>=0"
                         + "||t.indexOf('security verification')>=0"
                         + "||t.indexOf('checking your browser')>=0"
@@ -2067,6 +2089,13 @@ public class DownloadActivity extends Activity {
     }
 
     private void onWebFlowProbe(String value) {
+        if (value != null && value.contains("notfound")) {
+            if (webPageFinished && !uptodownHandled) {
+                logWebFlowState("NOT_FOUND", "");
+                failWebFlowFast(getString(R.string.download_error_apkcube_not_found));
+            }
+            return;
+        }
         boolean challenge = value != null && value.contains("challenge");
         if (!challenge && !webReadyLogged && webPageFinished && !uptodownHandled) {
             webReadyLogged = true;

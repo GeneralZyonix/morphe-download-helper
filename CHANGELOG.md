@@ -5,6 +5,43 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.3] - 2026-11-15
+
+2.3.3 replaces the launcher-icon toggle with two installable builds. Everything
+from 2.3.2 is included.
+
+### Added
+
+- **Icon build** (`...-universal.apk`): the launcher entry is always enabled.
+  The icon appears immediately after installation and is never hidden.
+- **No-icon build** (`...-universal-noicon.apk`): the launcher entry is always
+  disabled. There is no app-drawer icon; open the helper from Morphe or Android
+  Settings → Apps → Morphe Download Helper → Open.
+
+### Changed
+
+- The **Show app icon** toggle and its confirmation dialog are gone. Settings
+  now shows which launcher behavior the installed build uses.
+- The in-app updater downloads the asset for the installed variant, so an icon
+  build never updates itself into the no-icon build (or the reverse).
+
+### Fixed
+
+- GitHub-only apps are now found by searching the package name in repository
+  READMEs as well as the app name. This handles repositories renamed after the
+  patch was written, such as Myspoti → Orpheon.
+- GitHub release assets named with `ARMv8`/`ARMv7` are now scored for the
+  device ABI instead of falling back to the first asset.
+- APKCube “no match” / “package isn’t in the catalog” pages are detected
+  immediately. The helper marks APKCube as failed and continues with the next
+  source instead of waiting for the WebView timeout.
+
+### Notes
+
+- Android 10+ cannot support both an icon that is visible immediately after
+  install and cleanly hidden later by the same package. The two builds are the
+  clean way to offer both behaviors.
+
 ## [2.3.2] - 2026-11-15
 
 2.3.2 adds a GitHub report flow, a cleaner main screen, fixes the fresh-install

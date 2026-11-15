@@ -4,6 +4,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.text.TextUtils;
+
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -52,11 +54,21 @@ final class GitHubReleaseResolver {
 
     static List<Candidate> search(String appName, String pkg, String version,
                                   String fileType, String[] abis) throws IOException {
-        String query = appName == null || appName.trim().isEmpty() ? pkg : appName;
-        List<String> repos = searchRepos(query + " in:name");
-        if (repos.isEmpty()) {
-            repos = searchRepos(pkg + " in:readme");
+        Set<String> repos = new LinkedHashSet<>();
+        // Search the package name in READMEs first. Apps distributed only on
+        // GitHub often mention the package in the README, and the repository
+        // may have been renamed since the patch was written (Myspoti ->
+        // Orpheon). Name-only search would miss that.
+        if (pkg != null && !pkg.trim().isEmpty()) {
+            repos.addAll(searchRepos(pkg + " in:readme"));
         }
+        if (appName != null && !appName.trim().isEmpty()) {
+            repos.addAll(searchRepos(appName + " in:name"));
+        }
+        if (repos.isEmpty() && appName != null && !appName.trim().isEmpty()) {
+            repos.addAll(searchRepos(appName + " in:readme"));
+        }
+        HelperLog.info("GitHub search repos: " + TextUtils.join(", ", repos));
 
         List<Candidate> candidates = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
@@ -157,30 +169,36 @@ final class GitHubReleaseResolver {
         return null;
     }
 
-    private static int abiScore(String assetName, String[] abis) {
+    static int abiScore(String assetName, String[] abis) {
         String name = assetName.toLowerCase(Locale.US);
-        int score = 0;
+        boolean arm64 = name.contains("arm64") || name.contains("aarch64")
+                || name.contains("armv8");
+        boolean arm32 = !arm64 && (name.contains("armv7")
+                || name.contains("armeabi") || name.contains("arm"));
+        // A universal APK is always usable and should beat an asset for an ABI
+        // the device did not list.
+        int score = name.contains("universal") ? 2 : 0;
         if (abis != null) {
+            int priority = 3;
             for (String abi : abis) {
                 String wanted = abi == null ? "" : abi.toLowerCase(Locale.US);
-                if (wanted.contains("arm64")
-                        && (name.contains("arm64") || name.contains("aarch64"))) {
-                    score = Math.max(score, 3);
-                } else if ((wanted.contains("armeabi") || wanted.equals("arm"))
-                        && name.contains("arm") && !name.contains("arm64")) {
-                    score = Math.max(score, 3);
+                boolean match = false;
+                if (wanted.contains("arm64") || wanted.contains("aarch64")
+                        || wanted.contains("armv8")) {
+                    match = arm64;
+                } else if (wanted.contains("armeabi") || wanted.contains("armv7")
+                        || wanted.equals("arm")) {
+                    match = arm32;
                 } else if (wanted.contains("x86_64") || wanted.equals("x64")) {
-                    if (name.contains("x86_64") || name.contains("x64")) {
-                        score = Math.max(score, 3);
-                    }
-                } else if (wanted.equals("x86") && name.contains("x86")
-                        && !name.contains("x86_64")) {
-                    score = Math.max(score, 3);
+                    match = name.contains("x86_64") || name.contains("x64");
+                } else if (wanted.equals("x86")) {
+                    match = name.contains("x86") && !name.contains("x86_64");
                 }
+                if (match) {
+                    score = Math.max(score, priority);
+                }
+                priority = Math.max(1, priority - 1);
             }
-        }
-        if (name.contains("universal")) {
-            score = Math.min(score, 2);
         }
         return score;
     }
@@ -208,10 +226,12 @@ final class GitHubReleaseResolver {
     private static List<String> searchRepos(String query) throws IOException {
         String url = API + "/search/repositories?q="
                 + URLEncoder.encode(query, "UTF-8") + "&per_page=8";
+        HelperLog.info("GitHub search: " + query);
         JSONObject root = getObject(url);
         JSONArray items = root.optJSONArray("items");
         List<String> repos = new ArrayList<>();
         if (items == null) {
+            HelperLog.info("GitHub search: no items");
             return repos;
         }
         for (int i = 0; i < items.length(); i++) {
@@ -223,6 +243,7 @@ final class GitHubReleaseResolver {
                 }
             }
         }
+        HelperLog.info("GitHub search: " + repos.size() + " repo(s)");
         return repos;
     }
 

@@ -52,7 +52,6 @@ final class AppSettings {
     private static final String KEY_RETENTION = "download_retention";
     private static final String KEY_PENDING_HANDOFF = "pending_handoff_cleanup";
     private static final String KEY_ORDER = "source_order";
-    private static final String KEY_SHOW_LAUNCHER_ICON = "show_launcher_icon";
     private static final String KEY_APKMIRROR_APP_PREFIX = "apkmirror_app_";
     private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
     private static final String KEY_MULTI_THREAD = "multi_thread_downloads";
@@ -129,29 +128,13 @@ final class AppSettings {
     }
 
     static boolean isLauncherIconShown(Context context) {
-        return prefs(context).getBoolean(KEY_SHOW_LAUNCHER_ICON, true);
-    }
-
-    static boolean isLauncherIconHidden(Context context) {
-        return !isLauncherIconShown(context);
-    }
-
-    static void setLauncherIconHidden(Context context, boolean hidden) {
-        setLauncherIconShown(context, !hidden);
-    }
-
-    static void setLauncherIconShown(Context context, boolean shown) {
-        // Commit synchronously: the public settings file is applied on the next
-        // start and a stale "true" there would silently re-enable the icon if
-        // the process were killed before an async write landed.
-        prefs(context).edit().putBoolean(KEY_SHOW_LAUNCHER_ICON, shown).commit();
-        applyLauncherAlias(context, shown);
+        return context.getResources().getBoolean(R.bool.launcher_icon_enabled);
     }
 
     /**
-     * Applies the saved choice at startup, after updates, and after a reboot.
-     * The alias starts enabled in the manifest so a fresh install always has an
-     * icon; it is disabled when the user hides the icon.
+     * Applies this build's fixed launcher state at startup, after updates, and
+     * after a reboot. The icon build always shows the entry; the no-icon build
+     * always keeps it disabled.
      */
     static void ensureLauncherIconState(Context context) {
         applyLauncherAlias(context, isLauncherIconShown(context));
