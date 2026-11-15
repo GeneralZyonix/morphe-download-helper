@@ -1009,6 +1009,27 @@ public class DownloadActivity extends Activity {
         startWebFlow("apkpure", url, pkg, version, fileType);
     }
 
+    /**
+     * APKPure's page can open the APKPure app through apkpure://install-app.
+     * A WebView cannot load that scheme and reports ERR_UNKNOWN_URL_SCHEME, so
+     * intercept it and use the direct download endpoint instead.
+     */
+    private boolean handleApkPureAppScheme(String url) {
+        if (url == null || !url.regionMatches(true, 0, "apkpure://", 0, 10)) {
+            return false;
+        }
+        HelperLog.info("APKPure app scheme intercepted: " + url);
+        if ("apkpure".equals(webSource) && !uptodownHandled
+                && !TextUtils.isEmpty(uptodownPkg)) {
+            String wantedType = isSplitType(uptodownFileType) ? "xapk" : "apk";
+            String direct = buildApkPureUrl(uptodownPkg, requestVersionCodes,
+                    uptodownVersion, wantedType);
+            HelperLog.info("APKPure scheme fallback URL: " + direct);
+            handleUptodownDownload(direct);
+        }
+        return true;
+    }
+
     private void startApkMirrorWebFlow(String url, String pkg, String version,
                                        String fileType) {
         startWebFlow("apkmirror", url, pkg, version, fileType);
@@ -1149,6 +1170,9 @@ public class DownloadActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
+                if (handleApkPureAppScheme(url)) {
+                    return true;
+                }
                 if (url.startsWith("morphe-helper://build-mismatch")) {
                     rejectWebBuild(source, preDownloadBuildMessage(
                             request.getUrl().getQueryParameter("code")));
@@ -1169,6 +1193,9 @@ public class DownloadActivity extends Activity {
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (handleApkPureAppScheme(url)) {
+                    return true;
+                }
                 if (url.startsWith("morphe-helper://build-mismatch")) {
                     rejectWebBuild(source, preDownloadBuildMessage(
                             Uri.parse(url).getQueryParameter("code")));
@@ -2251,7 +2278,11 @@ public class DownloadActivity extends Activity {
         final String source = webSource;
         String type = uptodownFileType;
         if ("apkpure".equals(source)) {
-            if (url.toLowerCase(Locale.US).contains("/xapk/")) {
+            if (isSplitType(uptodownFileType)) {
+                // XAPK and APKM are equivalent bundles; keep the requested
+                // extension so Morphe receives the format it asked for.
+                type = uptodownFileType;
+            } else if (url.toLowerCase(Locale.US).contains("/xapk/")) {
                 type = "xapk";
             }
         } else if ("apkmirror".equals(source) || "apkcube".equals(source)) {
@@ -4345,7 +4376,7 @@ public class DownloadActivity extends Activity {
         return null;
     }
 
-    /** APKPure serves APK/XAPK, not APKM/APKS. Bundle requests must use APKMirror. */
+    /** APKPure's plain endpoint serves APK/XAPK; split types use the XAPK path. */
     private boolean apkPureCanServe(String fileType) {
         return !"apkm".equalsIgnoreCase(fileType)
                 && !"apks".equalsIgnoreCase(fileType);
@@ -4687,25 +4718,11 @@ public class DownloadActivity extends Activity {
 
     private File customApkPure(String pkg, String version, long[] codes, boolean hasCodes,
                                String fileType, String[] abis) {
+        if (isSplitType(fileType)) {
+            return customApkPureSplit(pkg, version, codes, hasCodes, fileType, abis);
+        }
         if (!apkPureCanServe(fileType)) {
-            // APKM/APKS requests can still use APKPure's XAPK asset. Keep this
-            // at APKPure's configured position instead of retrying at the end.
-            if (!allowSplitArchive || !isSplitType(fileType)) {
-                return null;
-            }
-            HelperLog.info("Trying APKPure XAPK fallback for " + pkg);
-            setSourceLabel(R.string.source_label_apkpure_xapk);
-            setStatus(R.string.download_trying_xapk);
-            try {
-                File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
-                markSource(SourceSettings.APKPURE, true,
-                        getString(R.string.source_detail_xapk_fallback));
-                return file;
-            } catch (Exception failed) {
-                HelperLog.error("APKPure XAPK fallback failed", failed);
-                markSource(SourceSettings.APKPURE, false, failed.getMessage());
-                return null;
-            }
+            return null;
         }
         if (!hasCodes) {
             // Without a versionCode, resolve through the API first. This still
@@ -4757,6 +4774,62 @@ public class DownloadActivity extends Activity {
         }
     }
 
+    /**
+     * Split requests must use APKPure's XAPK asset. The standalone APK endpoint
+     * returns only the base APK for split apps, which cannot be installed. The
+     * direct XAPK endpoint also works for build IDs that are no longer in the
+     * API's latest-20 list, so try it before the API when a code is available.
+     */
+    private File customApkPureSplit(String pkg, String version, long[] codes,
+                                    boolean hasCodes, String fileType, String[] abis) {
+        Exception directError = null;
+        if (hasCodes) {
+            try {
+                return downloadApkPureXapk(pkg, version, codes, fileType);
+            } catch (Exception failed) {
+                directError = failed;
+                HelperLog.error("APKPure direct XAPK failed", failed);
+            }
+        }
+
+        setSourceLabel(R.string.source_label_apkpure_api);
+        setStatus(R.string.download_resolving_apkpure_api);
+        try {
+            File file = downloadFromApkPureApi(pkg, version, codes, fileType, abis);
+            markSource(SourceSettings.APKPURE, true, "API");
+            return file;
+        } catch (Exception apiError) {
+            HelperLog.error("APKPure split API failed", apiError);
+            if (!hasCodes) {
+                try {
+                    return downloadApkPureXapk(pkg, version, codes, fileType);
+                } catch (Exception direct) {
+                    directError = direct;
+                    HelperLog.error("APKPure direct XAPK failed", direct);
+                }
+            }
+            String reason = apiError.getMessage();
+            if (directError != null && !TextUtils.isEmpty(directError.getMessage())) {
+                reason = "direct XAPK: " + directError.getMessage()
+                        + "; API: " + apiError.getMessage();
+            }
+            markSource(SourceSettings.APKPURE, false, reason);
+            return null;
+        }
+    }
+
+    private File downloadApkPureXapk(String pkg, String version, long[] codes,
+                                     String fileType) throws IOException {
+        setSourceLabel(R.string.source_label_apkpure_xapk);
+        setStatus(R.string.download_trying_xapk);
+        String url = buildApkPureUrl(pkg, codes, version, "xapk");
+        HelperLog.info("APKPure XAPK URL: " + url);
+        File file = downloadFile(url, null, pkg, version, fileType);
+        markSource(SourceSettings.APKPURE, true,
+                getString(R.string.source_detail_direct_xapk));
+        return file;
+    }
+
     private File customMorphe(String pkg, String version, long[] codes,
                               String fileType, String[] abis) throws IOException {
         String abi = (abis != null && abis.length > 0) ? abis[0] : "arm64-v8a";
@@ -4775,16 +4848,10 @@ public class DownloadActivity extends Activity {
             String host = hostOf(url);
             String githubRepo = githubRepoFromUrl(url);
             setStatus(getString(R.string.download_resolver_found, host));
-            if (isHost(host, "uptodown.com") && pathOf(url).trim().endsWith("-x")
-                    && sourceAllowed(SourceSettings.UPTODOWN)) {
-                final String resolved = url;
-                main.post(() -> {
-                    setStatus(R.string.download_opening_uptodown);
-                    progress.setIndeterminate(true);
-                    startUptodownWebFlow(resolved, pkg, version, fileType);
-                });
-                throw new UptodownHandoffException();
-            }
+            // An Uptodown resolver link must not jump ahead of the configured
+            // source order. Uptodown is a normal ordered source now, so let
+            // resolution reach it naturally; its API and WebView fallback
+            // still use the same package and version.
             if (isHost(host, "apkpure.com") && apkPureCanServe(fileType)
                     && sourceAllowed(SourceSettings.APKPURE)) {
                 try {
@@ -5640,62 +5707,29 @@ public class DownloadActivity extends Activity {
             throw new IOException("APKPure API returned no versions");
         }
 
-        JSONObject best = null;
-        boolean bestSplit = false;
-        for (int i = 0; i < list.length(); i++) {
-            JSONObject item = list.optJSONObject(i);
-            if (item == null) {
-                continue;
-            }
-            String itemVersion = item.optString("version_name");
-            long itemCode;
-            try {
-                itemCode = Long.parseLong(item.optString("version_code"));
-            } catch (Exception ignored) {
-                itemCode = -1;
-            }
-            boolean matches = matchesRequestedVersion(
-                    itemVersion, itemCode, version, versionCodes);
-            if (!matches) {
-                continue;
-            }
-
-            JSONObject asset = item.optJSONObject("asset");
-            if (asset == null || TextUtils.isEmpty(asset.optString("url"))) {
-                continue;
-            }
-            String type = asset.optString("type", "APK");
-            boolean split = "XAPK".equalsIgnoreCase(type) || "APKS".equalsIgnoreCase(type);
-            if (best == null || (isSplitType(fileType) == split)) {
-                best = item;
-                bestSplit = split;
-                if (isSplitType(fileType) == split) {
-                    break;
-                }
-            }
-        }
-
+        boolean splitRequested = isSplitType(fileType);
+        ApkPureAssets.Asset best = ApkPureAssets.pick(
+                list, version, versionCodes, splitRequested);
         if (best == null) {
-            throw new IOException("Requested version not found on APKPure");
+            throw new IOException(splitRequested
+                    ? "No split archive found for this version on APKPure"
+                    : "Requested version not found on APKPure");
         }
-        if (bestSplit && !allowSplitArchive && !isSplitType(fileType)) {
+        if (best.split() && !allowSplitArchive && !splitRequested) {
             throw new IOException("APKPure only has a split archive for this version");
         }
-        if (bestSplit && githubResolverHint && !isSplitType(fileType)) {
+        if (best.split() && githubResolverHint && !splitRequested) {
             throw new IOException("APKPure only has a split archive; "
                     + "keeping the GitHub release for this patch source");
         }
 
-        JSONObject asset = best.optJSONObject("asset");
-        String assetUrl = asset.optString("url");
-        String type = asset.optString("type", "APK");
-        String downloadType = "XAPK".equalsIgnoreCase(type) ? "xapk"
-                : ("APKS".equalsIgnoreCase(type) ? "apks" : "apk");
+        String downloadType = "XAPK".equalsIgnoreCase(best.type) ? "xapk"
+                : ("APKS".equalsIgnoreCase(best.type) ? "apks" : "apk");
 
-        HelperLog.info("APKPure API asset: " + best.optString("version_name")
-                + " code=" + best.optString("version_code")
-                + " type=" + type + " size=" + asset.optString("size"));
-        return downloadFile(assetUrl, "https://apkpure.com/", pkg, version, downloadType);
+        HelperLog.info("APKPure API asset: " + best.versionName
+                + " code=" + best.versionCode
+                + " type=" + best.type + " size=" + best.size);
+        return downloadFile(best.url, "https://apkpure.com/", pkg, version, downloadType);
     }
 
     private boolean sameVersion(String left, String right) {
@@ -5732,6 +5766,11 @@ public class DownloadActivity extends Activity {
         } catch (IOException first) {
             HelperLog.error("APKPure URL failed: " + url, first);
             if (first instanceof DownloadedFileValidator.VersionMismatchException) {
+                throw first;
+            }
+            if (isSplitType(fileType)) {
+                // A split request must never fall back to the standalone
+                // endpoint: that file is only base.apk and cannot be installed.
                 throw first;
             }
             if (!allowSplitArchive || (githubResolverHint && !isSplitType(fileType))) {
@@ -6260,7 +6299,9 @@ public class DownloadActivity extends Activity {
         }
         downloadIfRange = null;
         IOException last = null;
+        boolean zeroRetryUsed = false;
         for (int attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt++) {
+            boolean willResume = part.length() > 0;
             try {
                 return downloadSingleStreamAttempt(url, referer, pkg, versionName,
                         fileType, cookie, dir, part);
@@ -6273,6 +6314,17 @@ public class DownloadActivity extends Activity {
                 if (attempt >= MAX_DOWNLOAD_ATTEMPTS
                         || !isRetryableDownloadError(error)) {
                     throw error;
+                }
+                if (shouldRestartFromZero(willResume, zeroRetryUsed, part.length())) {
+                    // The CDN answered the first request but then stopped
+                    // responding to the resumed Range request. Starting over
+                    // is slower, but it avoids retrying a broken resume path
+                    // until the source is marked as failed.
+                    if (part.delete()) {
+                        zeroRetryUsed = true;
+                        downloadIfRange = null;
+                        HelperLog.info("Resume attempt failed; restarting from 0 bytes");
+                    }
                 }
                 HelperLog.info("Download interrupted; retrying from "
                         + part.length() + " bytes (attempt " + (attempt + 1)
@@ -6469,6 +6521,15 @@ public class DownloadActivity extends Activity {
         } finally {
             activeCall = null;
         }
+    }
+
+    /**
+     * When a resumed Range request fails, a clean request can succeed even
+     * though the server's resume path is broken. Allow one clean retry.
+     */
+    static boolean shouldRestartFromZero(boolean willResume, boolean zeroRetryUsed,
+                                         long partLength) {
+        return willResume && !zeroRetryUsed && partLength > 0;
     }
 
     /** True for transient network/read failures that are safe to retry. */

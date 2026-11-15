@@ -5,6 +5,34 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.1] - 2026-11-15
+
+2.3.1 is a bug-fix patch for APKPure split downloads and for downloads that
+stall while resuming. Everything from 2.3.0 is included.
+
+### Fixed
+
+- APKPure split requests (`xapk`, `apkm`, `apks`) now use the direct XAPK
+  endpoint first. This works for build IDs outside the API's latest-20 list and
+  never falls back to APKPure's standalone APK, which is only `base.apk` for
+  split apps and cannot be installed.
+- The APKPure API asset picker now refuses standalone APK assets for split
+  requests.
+- APKPure's `apkpure://install-app` link is intercepted in the verification
+  WebView and replaced with the direct download URL instead of failing with
+  `ERR_UNKNOWN_URL_SCHEME`.
+- A download that stalls after partially completing now makes one clean retry
+  from 0 bytes if the resumed Range request also fails. This avoids looping on
+  a CDN resume path that never returns headers (seen with Uptodown downloads on
+  some cellular/NAT64 connections).
+- A Morphe resolver link to Uptodown no longer jumps ahead of the configured
+  source order. Uptodown is tried at its configured position, and its API and
+  WebView fallback still apply.
+
+Verified with Instagram `452.1.0.53.64` (`385811006`): the helper downloads the
+full 147,825,243-byte XAPK and validates the package, version name, and version
+code.
+
 ## [2.3.0] - 2026-11-15
 
 2.3.0 adds Uptodown as a first-class API source, groups the log actions with

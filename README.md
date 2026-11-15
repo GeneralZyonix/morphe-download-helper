@@ -109,11 +109,11 @@ The helper never installs anything.
 
 | Order | Source | Processing |
 | --- | --- | --- |
-| 0 | APKPure fast path | When Morphe sends a numeric versionCode, request `d.apkpure.com/b/{APK or XAPK}/{package}?versionCode=...` immediately, then use the APKPure API if needed. |
+| 0 | APKPure fast path | When Morphe sends a numeric versionCode, request `d.apkpure.com/b/{APK or XAPK}/{package}?versionCode=...` immediately, then use the APKPure API if needed. Split requests (`xapk`/`apkm`/`apks`) always use the XAPK endpoint and never the standalone APK, which is only `base.apk` for split apps. |
 | 1 | Morphe resolver | Calls `api.morphe.software/v2/web-search`; Morphe redirects to the direct store page (for example APKMirror/Uptodown). Cached for 3 hours. |
 | 2 | Patch-bundle fallback URL | The `FALLBACK_WEB_URL` extra from the patch bundle; usually a Google search URL, which is skipped, but may be a direct file/store page. |
 | 3 | APKMirror | Searches with the WordPress `?s=` endpoint, scores the results by app slug/name/package, verifies the app page against its Play Store package, then resolves the variant and download key. The app page is cached per package for repeat downloads. |
-| 4 | APKPure fallback | Used when there is no versionCode, or the fast path did not find the build. |
+| 4 | APKPure fallback | Used when there is no versionCode, or the fast path did not find the build. Only split assets are accepted for split requests. |
 | 5 | APKCube | Opens the exact build/ABI page in an in-app WebView; the user completes APKCube's verification. |
 | 6 | Uptodown | Authenticates to Uptodown's mobile eAPI, resolves the exact version/file ID from the public versions JSON, downloads the direct CDN URL, and verifies SHA-256. Falls back to the in-app verification page if the API changes. |
 | 7 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |

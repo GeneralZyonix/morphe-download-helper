@@ -56,6 +56,14 @@ public class DownloadRetryTest {
     }
 
     @Test
+    public void failedResumeRestartsOnceFromZero() {
+        assertTrue(DownloadActivity.shouldRestartFromZero(true, false, 41943040));
+        assertFalse(DownloadActivity.shouldRestartFromZero(true, true, 41943040));
+        assertFalse(DownloadActivity.shouldRestartFromZero(false, false, 41943040));
+        assertFalse(DownloadActivity.shouldRestartFromZero(true, false, 0));
+    }
+
+    @Test
     public void segmentRangeMustMatchRequestedSlice() {
         assertTrue(DownloadActivity.rangeMatches(
                 "bytes 100-199/200", 100, 199, 200));

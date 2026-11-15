@@ -440,6 +440,7 @@
     <string name="source_detail_fallback_link">fallback link</string>
     <string name="source_detail_search">search</string>
     <string name="source_detail_xapk_fallback">XAPK fallback</string>
+    <string name="source_detail_direct_xapk">direct XAPK</string>
     <string name="source_detail_package_api">package API</string>
     <string name="source_detail_trusted_upload">TRUSTED upload</string>
     <string name="source_detail_catalog">catalog</string>
