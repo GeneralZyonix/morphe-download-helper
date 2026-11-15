@@ -1128,10 +1128,10 @@ public class DownloadActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setSupportMultipleWindows(false);
-        if ("apkmirror".equals(source)) {
-            settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-            web.clearCache(true);
-        }
+        // Keep the WebView cache and cookies. APKMirror's Cloudflare clearance
+        // and the challenge assets are then reused across loads and app starts;
+        // clearing them forced a fresh verification every time.
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -1219,6 +1219,12 @@ public class DownloadActivity extends Activity {
                 }
                 scheduleWebFlowTimeout(view);
                 uptodownReferer = url;
+                if ("apkmirror".equals(webSource)) {
+                    cacheApkMirrorAppUrl(url);
+                    // Persist the Cloudflare clearance cookie now rather than
+                    // relying on a later best-effort flush.
+                    CookieManager.getInstance().flush();
+                }
                 if ("uptodown".equals(webSource)) {
                     scheduleUptodownReload(view);
                     // Dismiss Uptodown's cookie banner by choosing Reject all,
@@ -1368,6 +1374,29 @@ public class DownloadActivity extends Activity {
     }
 
     /**
+     * Remembers the APKMirror app page reached by the WebView. The next request
+     * for the same package can open the app page directly instead of repeating
+     * the search (and the search's Cloudflare check).
+     */
+    private void cacheApkMirrorAppUrl(String url) {
+        if (uptodownPkg == null || uptodownPkg.isEmpty() || url == null) {
+            return;
+        }
+        if (!isHost(hostOf(url), "apkmirror.com")) {
+            return;
+        }
+        String appPath = ApkMirrorSearch.appPath(url);
+        if (appPath.isEmpty()) {
+            return;
+        }
+        String appUrl = APKMIRROR + appPath;
+        if (!appUrl.equals(AppSettings.apkMirrorAppUrl(this, uptodownPkg))) {
+            AppSettings.setApkMirrorAppUrl(this, uptodownPkg, appUrl);
+            HelperLog.info("APKMirror cached app URL: " + appUrl);
+        }
+    }
+
+    /**
      * Builds the APKMirror WebView navigator. APKMirror may serve a Cloudflare
      * challenge to the HTTP client while letting the WebView through, so the
      * WebView follows the same chain as the HTTP resolver: search result,
@@ -1514,7 +1543,7 @@ public class DownloadActivity extends Activity {
                 function pick(){
                     var p=location.pathname.toLowerCase();
                     var q=location.search.toLowerCase();
-                    if(q.indexOf('searchtype=')>=0){
+                    if(q.indexOf('searchtype=')>=0||/(^|[?&])s=/.test(q)){
                         var best=null,bestScore=-1,bestRelease=null,bestReleaseScore=-1;
                         var bestApp=null,bestAppScore=-1,firstRel=null,ls=document.querySelectorAll('a');
                         for(var i=0;i<ls.length;i++){
@@ -4988,10 +5017,13 @@ public class DownloadActivity extends Activity {
             }
 
             // Search URL or anything else: resolve from the first result.
-            String firstVersion = findFirstVersionUrl(httpGet(url, null),
-                    requestedAppName, pkg);
+            String firstVersion = ApkMirrorSearch.findBestVersionUrl(
+                    httpGet(url, null), requestedAppName, pkg, version);
             if (firstVersion != null) {
-                String appUrl = firstVersion.replaceAll("/[^/]+/$", "/");
+                String appUrl = ApkMirrorSearch.appPath(firstVersion);
+                if (appUrl.isEmpty()) {
+                    throw new IOException("APKMirror app path not found");
+                }
                 String appHtml = httpGet(absolute(appUrl), url);
                 String appVersion = findVersionUrl(appHtml, appUrl, version);
                 if (appVersion == null && !TextUtils.isEmpty(version)) {
@@ -5058,9 +5090,30 @@ public class DownloadActivity extends Activity {
      */
     private File downloadFromApkMirrorSearch(String pkg, String version,
                                              String fileType, String[] abis) throws IOException {
-        // APKMirror's search endpoint accepts the package name as a query parameter.
-        String searchUrl = APKMIRROR + "/?post_type=app_release&searchtype=apk&s="
-                + URLEncoder.encode(pkg, "UTF-8");
+        // APKMirror's advanced search endpoint
+        // (?post_type=app_release&searchtype=apk) is now behind a Cloudflare
+        // challenge for plain HTTP clients. The WordPress ?s= search still
+        // serves normal HTML for many apps and contains the same release
+        // links, so try it first and use the WebView only when Cloudflare
+        // challenges this endpoint too.
+        String cachedApp = AppSettings.apkMirrorAppUrl(this, pkg);
+        if (!TextUtils.isEmpty(cachedApp)) {
+            HelperLog.info("APKMirror cached app URL: " + cachedApp);
+            try {
+                return downloadFromApkMirrorAppPage(cachedApp, pkg, version,
+                        fileType, abis, null);
+            } catch (UptodownHandoffException handoff) {
+                throw handoff;
+            } catch (IOException error) {
+                HelperLog.info("APKMirror cached app URL failed: " + error.getMessage());
+                if (isCloudflareBlock(error)) {
+                    handoffToApkMirrorWeb(cachedApp, pkg, version, fileType);
+                }
+                AppSettings.clearApkMirrorAppUrl(this, pkg);
+            }
+        }
+
+        String searchUrl = APKMIRROR + "/?s=" + URLEncoder.encode(pkg, "UTF-8");
         HelperLog.info("APKMirror search URL: " + searchUrl);
         String searchHtml;
         try {
@@ -5071,7 +5124,8 @@ public class DownloadActivity extends Activity {
             }
             throw error;
         }
-        String firstVersion = findFirstVersionUrl(searchHtml, requestedAppName, pkg);
+        String firstVersion = ApkMirrorSearch.findBestVersionUrl(
+                searchHtml, requestedAppName, pkg, version);
         HelperLog.info("APKMirror first version URL: " + firstVersion);
         if (firstVersion == null) {
             throw new IOException("No matching app on APKMirror");
@@ -5079,25 +5133,51 @@ public class DownloadActivity extends Activity {
 
         // A release URL looks like /apk/<dev>/<app>/<version>-release/. Strip the
         // version segment to get the app page.
-        String appUrl = firstVersion.replaceAll("/[^/]+/$", "/");
-        HelperLog.info("APKMirror app URL: " + appUrl);
+        String appUrl = ApkMirrorSearch.appPath(firstVersion);
+        if (appUrl.isEmpty()) {
+            throw new IOException("APKMirror app path not found");
+        }
+        String absoluteApp = absolute(appUrl);
+        HelperLog.info("APKMirror app URL: " + absoluteApp);
+        return downloadFromApkMirrorAppPage(absoluteApp, pkg, version,
+                fileType, abis, searchUrl);
+    }
+
+    /**
+     * Opens an APKMirror app page, selects the requested version, and picks a
+     * compatible variant. The page's Play Store link is checked against the
+     * requested package so a bad search result cannot download another app.
+     */
+    private File downloadFromApkMirrorAppPage(String appUrl, String pkg, String version,
+                                              String fileType, String[] abis,
+                                              String referer) throws IOException {
+        String appPath = ApkMirrorSearch.appPath(appUrl);
+        if (appPath.isEmpty()) {
+            throw new IOException("APKMirror app path not found");
+        }
         String appHtml;
         try {
-            appHtml = httpGet(absolute(appUrl), searchUrl);
+            appHtml = httpGet(absolute(appUrl), referer);
         } catch (IOException error) {
             if (isCloudflareBlock(error)) {
                 handoffToApkMirrorWeb(absolute(appUrl), pkg, version, fileType);
             }
             throw error;
         }
+        if (!ApkMirrorSearch.pageMatchesPackage(appHtml, pkg)) {
+            String found = ApkMirrorSearch.playPackage(appHtml);
+            throw new IOException("APKMirror app page is " + found
+                    + ", expected " + pkg);
+        }
+        AppSettings.setApkMirrorAppUrl(this, pkg, absolute(appUrl));
         HelperLog.info("APKMirror app HTML length=" + appHtml.length()
                 + " fontBlack=" + appHtml.contains("fontBlack")
                 + " release=" + appHtml.contains("-release/"));
 
         // Prefer a listed version; if it is missing, try constructing the exact slug.
-        String versionUrl = findVersionUrl(appHtml, appUrl, version);
+        String versionUrl = findVersionUrl(appHtml, appPath, version);
         if (versionUrl == null && !TextUtils.isEmpty(version)) {
-            versionUrl = findExactVersionUrl(appUrl, appHtml, version, absolute(appUrl));
+            versionUrl = findExactVersionUrl(appPath, appHtml, version, absolute(appUrl));
         }
         HelperLog.info("APKMirror version URL: " + versionUrl);
         if (versionUrl == null) {
@@ -5131,6 +5211,11 @@ public class DownloadActivity extends Activity {
                 handoffToApkMirrorWeb(variantUrl, pkg, version, fileType);
             }
             throw error;
+        }
+        if (!ApkMirrorSearch.pageMatchesPackage(html, pkg)) {
+            String found = ApkMirrorSearch.playPackage(html);
+            throw new IOException("APKMirror variant page is " + found
+                    + ", expected " + pkg);
         }
 
         // Newer APKMirror layouts use a downloadButton link; older layouts use the
@@ -5488,49 +5573,6 @@ public class DownloadActivity extends Activity {
     // ---------------------------------------------------------------------
     // APKMirror HTML helpers
     // ---------------------------------------------------------------------
-
-    /**
-     * Finds the first release link in an APKMirror search results page.
-     *
-     * <p>APKMirror marks app titles with {@code class="fontBlack"}; release links contain
-     * {@code -release/}. Related-app links are ignored.</p>
-     */
-    private String findFirstVersionUrl(String html, String appName, String pkg) {
-        Matcher m = Pattern.compile(
-                "<a class=\"fontBlack\" href=\"([^\"]+)\"[^>]*>([^<]+)</a>",
-                Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html);
-        while (m.find()) {
-            String href = decodeHtml(m.group(1));
-            String text = decodeHtml(m.group(2));
-            if (href.contains("-release/") && matchesApp(href, text, appName, pkg)) {
-                return href;
-            }
-        }
-        return null;
-    }
-
-    private boolean matchesApp(String href, String text, String appName, String pkg) {
-        String haystack = (href + " " + text).toLowerCase(Locale.US);
-        String compact = haystack.replaceAll("[^a-z0-9]", "");
-        String normalizedName = appName == null ? "" : appName.toLowerCase(Locale.US);
-        String compactName = normalizedName.replaceAll("[^a-z0-9]", "");
-        if (compactName.length() >= 3 && compact.contains(compactName)) {
-            return true;
-        }
-        for (String token : normalizedName.split("[^a-z0-9]+")) {
-            if (token.length() >= 4 && haystack.contains(token)) {
-                return true;
-            }
-        }
-        String[] packageParts = pkg == null ? new String[0]
-                : pkg.toLowerCase(Locale.US).split("\\.");
-        for (String token : packageParts) {
-            if (token.length() >= 4 && compact.contains(token)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     /**
      * Finds the best release link for the requested version on an APKMirror app page.

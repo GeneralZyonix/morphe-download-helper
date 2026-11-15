@@ -64,16 +64,18 @@
         </activity>
 
         <!--
-            Launcher entry point. It starts enabled so a fresh install or a
-            sideload update always has a launcher entry. The app disables it
-            when the saved "Show app icon" setting is off, and the receiver
-            restores that choice after updates and reboots. The new component
-            name also resets any previously disabled alias.
+            Launcher entry point. It starts disabled so Android 10+ does not
+            insert a synthetic "app info" shortcut after the user hides the
+            icon. Android adds that shortcut when a package requests
+            permissions and has a launcher component enabled by default in its
+            manifest, even if the component is disabled at runtime. The app
+            enables this alias when it runs, after an update, and after a boot;
+            the "Show app icon" setting still hides it when off.
         -->
         <activity-alias
             android:name=".LauncherEntry"
             android:targetActivity=".MainActivity"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

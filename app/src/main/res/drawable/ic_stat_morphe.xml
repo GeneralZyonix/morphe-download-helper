@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Dedicated notification small icon. It must be a transparent monochrome
+    glyph: Android renders only the alpha channel in the status bar. Using the
+    launcher icon here turns the whole opaque app-icon square into a white blob.
+    The resource name is new so Android's per-resource small-icon cache cannot
+    keep showing the old artwork after an update.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2A10,10 0,1 0,12,22A10,10 0,1 0,12,2ZM12,4A8,8 0,1 1,12,20A8,8 0,1 1,12,4Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11,6.5h2v6h2.7L12,17.2 8.3,12.5H11z" />
+</vector>

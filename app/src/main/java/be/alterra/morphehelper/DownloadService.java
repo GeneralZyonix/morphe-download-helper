@@ -59,7 +59,7 @@ public class DownloadService extends Service {
                 this, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL)
-                .setSmallIcon(R.drawable.ic_logo_mark)
+                .setSmallIcon(R.drawable.ic_stat_morphe)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(text == null
                         ? getString(R.string.download_notification_default) : text)

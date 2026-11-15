@@ -616,7 +616,7 @@ final class UpdateManager {
         } else {
             builder = new Notification.Builder(context);
         }
-        return builder.setSmallIcon(R.drawable.ic_logo_mark)
+        return builder.setSmallIcon(R.drawable.ic_stat_morphe)
                 .setPriority(Notification.PRIORITY_LOW);
     }
 

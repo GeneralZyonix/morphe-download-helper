@@ -1,5 +1,6 @@
 package be.alterra.morphehelper;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -150,6 +151,15 @@ public class DownloadedFileValidatorTest {
                 Map.of("base.apk", "this is not an apk".getBytes(StandardCharsets.UTF_8)));
         assertThrows(IOException.class, () ->
                 validate(archive, "com.example.fixture", null, null));
+    }
+
+    @Test
+    public void parentheticalBuildSuffixDoesNotChangeVersion() throws Exception {
+        Class<?> type = Class.forName("be.alterra.morphehelper.DownloadedFileValidator");
+        Method method = type.getDeclaredMethod("normalizeVersion", String.class);
+        method.setAccessible(true);
+        assertEquals("9.3", method.invoke(null, "9.3 (1003616371)"));
+        assertEquals("9.3", method.invoke(null, "v9.3"));
     }
 
     private void validate(File file, String pkg, String version, long[] codes)

@@ -92,7 +92,8 @@ Morphe sends an intent with the action
    file type, and fallback URL.
 2. If a numeric `versionCode` is available, tries APKPure's direct endpoint first, then its API.
 3. If APKPure does not have the build, asks Morphe's resolver API for the page Morphe would show.
-4. Tries the patch bundle's fallback URL, then APKMirror by package and version.
+4. Tries the patch bundle's fallback URL, then APKMirror by package and version
+   (using its WordPress `?s=` search and an app-page cache).
 5. Falls back to APKPure, F-Droid, Aptoide, and Appteka (SnapTube only by default).
 6. If a source needs a browser check, opens it in an inline WebView and captures the final
    download link. APKPure's WebView is the last resort.
@@ -108,7 +109,7 @@ The helper never installs anything.
 | 0 | APKPure fast path | When Morphe sends a numeric versionCode, request `d.apkpure.com/b/{APK or XAPK}/{package}?versionCode=...` immediately, then use the APKPure API if needed. |
 | 1 | Morphe resolver | Calls `api.morphe.software/v2/web-search`; Morphe redirects to the direct store page (for example APKMirror/Uptodown). Cached for 3 hours. |
 | 2 | Patch-bundle fallback URL | The `FALLBACK_WEB_URL` extra from the patch bundle; usually a Google search URL, which is skipped, but may be a direct file/store page. |
-| 3 | APKMirror | Searches by package name, matches the requested version, then resolves the variant and download key. |
+| 3 | APKMirror | Searches with the WordPress `?s=` endpoint, scores the results by app slug/name/package, verifies the app page against its Play Store package, then resolves the variant and download key. The app page is cached per package for repeat downloads. |
 | 4 | APKPure fallback | Used when there is no versionCode, or the fast path did not find the build. |
 | 5 | F-Droid | Queries the F-Droid package API and downloads the matching version code. |
 | 6 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |

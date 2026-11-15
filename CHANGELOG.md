@@ -5,6 +5,38 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Fixed
+
+- Hiding the launcher icon no longer leaves Android's synthetic "app info"
+  shortcut in the app drawer. The launcher alias now starts disabled in the
+  manifest and is enabled when the app runs, after an update, or after a boot.
+  On a fresh sideload, open the app once with the installer's **Open** button to
+  make the icon appear.
+- The notification status-bar icon now uses a dedicated transparent monochrome
+  drawable with a new resource name. This removes the old solid app-icon square
+  and bypasses Android's cached notification icon.
+- APKMirror search now uses the WordPress `?s=` endpoint, which is not
+  Cloudflare-challenged for many apps, instead of the advanced
+  `post_type=app_release` endpoint that returned 403. Direct HTTP downloads work
+  again for apps such as YouTube, TikTok, Telegram, Netflix, and Google Play.
+- APKMirror search results are scored by app slug, app name, and package
+  tokens, and the selected app page is checked against its Play Store package
+  before downloading. This avoids developer-name collisions and "latest
+  uploads" entries.
+- APKMirror app pages are cached per package. Repeat downloads open the app
+  page directly and skip the search.
+- APKMirror WebView keeps its cache and cookies, so Cloudflare clearance and
+  challenge assets are reused instead of forcing a fresh verification.
+- Version validation ignores a trailing parenthetical build suffix such as
+  `9.3 (1003616371)` when the base version matches.
+
+### Changed
+
+- The APKMirror WebView fallback recognizes `?s=` search URLs and can resume
+  from a cached app page.
+
 ## [2.2.1] - 2026-11-14
 
 2.2.1 hotfix: launcher icon after install/update, APKCube source test,

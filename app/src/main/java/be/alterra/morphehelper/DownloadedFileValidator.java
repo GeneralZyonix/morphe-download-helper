@@ -610,6 +610,10 @@ final class DownloadedFileValidator {
      */
     private static String normalizeVersion(String value) {
         String result = value.trim().replace(" ", "");
+        // Google's APKMirror builds often append the build number to the
+        // version name, for example "9.3 (1003616371)". The build suffix is
+        // metadata, not a different version.
+        result = result.replaceAll("\\([^)]*\\d[^)]*\\)$", "");
         while (result.startsWith("v") || result.startsWith("V")) {
             result = result.substring(1);
         }

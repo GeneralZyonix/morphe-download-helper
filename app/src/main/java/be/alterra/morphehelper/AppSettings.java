@@ -53,6 +53,7 @@ final class AppSettings {
     private static final String KEY_PENDING_HANDOFF = "pending_handoff_cleanup";
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_SHOW_LAUNCHER_ICON = "show_launcher_icon";
+    private static final String KEY_APKMIRROR_APP_PREFIX = "apkmirror_app_";
     private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
     private static final String KEY_MULTI_THREAD = "multi_thread_downloads";
     private static final String KEY_MAX_CONNECTIONS = "max_connections";
@@ -139,15 +140,18 @@ final class AppSettings {
     }
 
     static void setLauncherIconShown(Context context, boolean shown) {
-        prefs(context).edit().putBoolean(KEY_SHOW_LAUNCHER_ICON, shown).apply();
+        // Commit synchronously: the public settings file is applied on the next
+        // start and a stale "true" there would silently re-enable the icon if
+        // the process were killed before an async write landed.
+        prefs(context).edit().putBoolean(KEY_SHOW_LAUNCHER_ICON, shown).commit();
         applyLauncherAlias(context, shown);
     }
 
     /**
      * Applies the saved choice at startup, after updates, and after a reboot.
-     * The alias starts enabled in the manifest so a fresh install or sideload
-     * update always has a launcher entry; it is disabled here when the user
-     * has chosen to hide the icon.
+     * The alias starts disabled in the manifest so Android 10+ does not insert
+     * a synthetic "app info" shortcut after the user hides the icon; it is
+     * enabled when the saved setting says the icon should be visible.
      */
     static void ensureLauncherIconState(Context context) {
         applyLauncherAlias(context, isLauncherIconShown(context));
@@ -158,18 +162,77 @@ final class AppSettings {
                 ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
                 : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
         PackageManager manager = context.getPackageManager();
-        if (manager.getComponentEnabledSetting(launcherAlias(context)) != desired) {
-            manager.setComponentEnabledSetting(
-                    launcherAlias(context), desired, PackageManager.DONT_KILL_APP);
+        ComponentName alias = launcherAlias(context);
+        // Earlier builds used ".Launcher". Disable it if it still exists on an
+        // upgraded install so two entries cannot survive the rename.
+        disableLegacyLauncherAlias(manager, context);
+        if (manager.getComponentEnabledSetting(alias) != desired) {
+            int flags = PackageManager.DONT_KILL_APP;
+            if (Build.VERSION.SDK_INT >= 34) {
+                flags |= PackageManager.SYNCHRONOUS;
+            }
+            try {
+                manager.setComponentEnabledSetting(alias, desired, flags);
+            } catch (RuntimeException error) {
+                HelperLog.error("Synchronous launcher state failed; retrying", error);
+                manager.setComponentEnabledSetting(alias, desired,
+                        PackageManager.DONT_KILL_APP);
+            }
         }
-        int state = manager.getComponentEnabledSetting(launcherAlias(context));
+        int state = manager.getComponentEnabledSetting(alias);
+        if (state != desired) {
+            HelperLog.info("Launcher alias state " + state + " != " + desired
+                    + "; retrying without the synchronous flag");
+            manager.setComponentEnabledSetting(alias, desired, PackageManager.DONT_KILL_APP);
+            state = manager.getComponentEnabledSetting(alias);
+        }
         HelperLog.info((shown ? "Launcher icon shown" : "Launcher icon hidden")
                 + " (componentState=" + state + ")");
+        if (state != desired) {
+            HelperLog.error("Could not apply launcher icon state " + desired, null);
+        }
+    }
+
+    private static void disableLegacyLauncherAlias(PackageManager manager, Context context) {
+        ComponentName legacy = new ComponentName(context.getPackageName(),
+                context.getPackageName() + ".Launcher");
+        try {
+            if (manager.getComponentEnabledSetting(legacy)
+                    != PackageManager.COMPONENT_ENABLED_STATE_DISABLED) {
+                manager.setComponentEnabledSetting(legacy,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP);
+            }
+        } catch (RuntimeException ignored) {
+            // The component no longer exists in this build.
+        }
     }
 
     private static ComponentName launcherAlias(Context context) {
         return new ComponentName(context.getPackageName(),
                 context.getPackageName() + ".LauncherEntry");
+    }
+
+    /** Last known APKMirror app page for a package, used to skip the search. */
+    static String apkMirrorAppUrl(Context context, String pkg) {
+        if (pkg == null || pkg.isEmpty()) {
+            return "";
+        }
+        return prefs(context).getString(KEY_APKMIRROR_APP_PREFIX + pkg, "");
+    }
+
+    static void setApkMirrorAppUrl(Context context, String pkg, String url) {
+        if (pkg == null || pkg.isEmpty() || url == null || url.isEmpty()) {
+            return;
+        }
+        prefs(context).edit().putString(KEY_APKMIRROR_APP_PREFIX + pkg, url).apply();
+    }
+
+    static void clearApkMirrorAppUrl(Context context, String pkg) {
+        if (pkg == null || pkg.isEmpty()) {
+            return;
+        }
+        prefs(context).edit().remove(KEY_APKMIRROR_APP_PREFIX + pkg).apply();
     }
 
     static String customTreeUri(Context context) {
