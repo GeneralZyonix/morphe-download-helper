@@ -29,8 +29,8 @@ Please include:
 - Android version and device
 - Morphe version
 - The app and version being patched
-- The helper log if possible — open the helper and tap **Share log**, then attach
-  `helper.log` to the issue
+- The helper log if possible — open the helper and use **Report on GitHub** in the
+  Helper log section, or tap **Share log** and attach `helper.log` to the issue
 
 ## Features
 
@@ -47,6 +47,7 @@ Please include:
 - Shows a dark, modern UI with a **Sources** shortcut that opens source settings.
 - Shows per-source failure details and offers **Retry all sources**, **Retry failed sources**, and **Copy details**.
 - Settings shows source type badges and a per-source **Test** action, plus **Copy log**, **Save log**, and **Help**.
+- The main screen shows Morphe's detected version and the helper version in theme-aware pills, puts the log actions above About, and offers a **Report on GitHub** flow with short and full-log options.
 - Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, active source logo beside the Source value, package pill, verification warning card, speed/ETA pill, and distinct Pause/Switch/Cancel actions. The source card collapses to a compact summary during the download, expands automatically on a failure, a fallback note, or **Switch source**, and its rows can be tapped to switch sources.
 - Single-stream downloads retry a dropped connection and resume from the `.part` offset with `Range`/`If-Range`; multi-connection segments resume from their written offset.
 - WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors.
@@ -120,7 +121,7 @@ The helper never installs anything.
 | 8 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
 | 9 | Appteka | Resolves the exact version by package and version code. SnapTube only by default; the source is marked as hazardous because it hosts modded APKs. |
 | 10 | GitHub releases | Uses the release immediately when Morphe's resolver points to GitHub. Otherwise it is the automatic last resort: tries a remembered repository or searches GitHub, checks the requested version, prefers the matching ABI, and remembers the repository. A user-added per-app mapping can run before the Morphe link instead. |
-| WebView fallback | APKPure / APKCube / Uptodown | APKPure's page is the last resort. APKCube and Uptodown open an in-app verification page when their direct/API path cannot be used. |
+| WebView fallback | APKPure / APKCube / Uptodown | APKPure's page is the last resort. APKCube and Uptodown open an in-app verification page when their direct/API path cannot be used. If a verification page fails or times out, the helper marks that source as failed and continues with the next enabled source. |
 
 The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
 sources above. GitHub is automatic: there is no **Search GitHub releases** button anymore.
@@ -197,7 +198,9 @@ use **Use a helper app** during patching.
 - Downloads go directly from the APK source to the device.
 - The diagnostic log stays in the app-specific storage:
   `Android/data/be.alterra.morphehelper/files/logs/helper.log`
-- Logs are only shared when the user taps **Share log**.
+- Logs are only shared when the user taps **Share log** or **Report on GitHub**.
+  GitHub reports redact query tokens and signed URL fragments before opening the
+  form.
 
 ## Project layout
 
@@ -208,6 +211,7 @@ app/src/main/java/be/alterra/morphehelper/
   SettingsActivity.java  Download source toggles
   SourceSettings.java    Persisted source preferences
   HelperLog.java         Local append-only diagnostic log
+  GitHubReport.java      GitHub issue URL and log redaction helper
 app/src/main/res/
   drawable/              Logo and warning icon
   values/                Strings and dark theme

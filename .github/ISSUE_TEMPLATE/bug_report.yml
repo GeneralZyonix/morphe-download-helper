@@ -14,7 +14,7 @@ body:
     id: helper_version
     attributes:
       label: Helper version
-      description: Shown at the bottom of the helper's main screen, or in Morphe → Settings → APK download helper.
+      description: Shown at the top of the helper's main screen, or in Morphe → Settings → APK download helper.
       placeholder: "1.0"
     validations:
       required: true

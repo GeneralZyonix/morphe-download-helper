@@ -1,11 +1,13 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.Manifest;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
@@ -79,6 +81,7 @@ public class MainActivity extends Activity {
     private int TEXT;
     private int MUTED;
     private int GREEN;
+    private int RED;
     private int FOOTER;
     private int SWITCH_THUMB;
 
@@ -87,6 +90,9 @@ public class MainActivity extends Activity {
     private int WARN_TEXT;
 
     private String themeSignature;
+    private boolean morpheInstalled;
+    private String morpheVersionName = "";
+    private String helperVersionName = "?";
 
     @Override
     protected void onResume() {
@@ -116,6 +122,7 @@ public class MainActivity extends Activity {
         TEXT = palette.text;
         MUTED = palette.muted;
         GREEN = palette.green;
+        RED = palette.red;
         FOOTER = palette.footer;
         SWITCH_THUMB = palette.switchThumb;
         WARN_TITLE = palette.warnTitle;
@@ -153,8 +160,29 @@ public class MainActivity extends Activity {
         scroll.addView(root, new ScrollView.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
         // Used for the "Morphe detected" / "Morphe not installed" status chip.
-        boolean morpheInstalled = getPackageManager()
-                .getLaunchIntentForPackage(MORPHE_PACKAGE) != null;
+        PackageInfo morpheInfo = null;
+        try {
+            morpheInfo = getPackageManager().getPackageInfo(MORPHE_PACKAGE, 0);
+        } catch (Exception ignored) {
+            // Morphe is not installed or is not visible to this package.
+        }
+        boolean morpheInstalled = morpheInfo != null;
+        String morpheVersion = morpheInfo == null || morpheInfo.versionName == null
+                ? "" : morpheInfo.versionName.trim();
+        this.morpheInstalled = morpheInstalled;
+        this.morpheVersionName = morpheVersion;
+
+        String appVersion = "?";
+        try {
+            String name = getPackageManager()
+                    .getPackageInfo(getPackageName(), 0).versionName;
+            if (!TextUtils.isEmpty(name)) {
+                appVersion = name.trim();
+            }
+        } catch (Exception ignored) {
+            // Keep the fallback text if the package info is unavailable.
+        }
+        helperVersionName = appVersion;
 
         // -----------------------------------------------------------------
         // Header: logo, title, status chip, and settings shortcut
@@ -177,34 +205,6 @@ public class MainActivity extends Activity {
         subtitle.setPadding(0, dp(3), 0, 0);
         titles.addView(subtitle);
 
-        // Status chip: green dot when Morphe is installed, amber dot otherwise.
-        LinearLayout chip = new LinearLayout(this);
-        chip.setOrientation(LinearLayout.HORIZONTAL);
-        chip.setGravity(Gravity.CENTER_VERTICAL);
-        chip.setPadding(dp(10), dp(6), dp(12), dp(6));
-        chip.setBackground(rounded(CARD_TOP, 999));
-
-        View dot = new View(this);
-        GradientDrawable dotDrawable = new GradientDrawable();
-        dotDrawable.setShape(GradientDrawable.OVAL);
-        dotDrawable.setColor(morpheInstalled ? GREEN : WARN_TITLE);
-        dot.setBackground(dotDrawable);
-        chip.addView(dot, new LinearLayout.LayoutParams(dp(8), dp(8)));
-
-        TextView chipText = text(
-                morpheInstalled ? getString(R.string.main_status_detected)
-                        : getString(R.string.main_status_missing),
-                12,
-                morpheInstalled ? GREEN : WARN_TEXT,
-                false
-        );
-        chipText.setPadding(dp(8), 0, 0, 0);
-        chip.addView(chipText);
-
-        LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT);
-        chipParams.topMargin = dp(8);
-        titles.addView(chip, chipParams);
-
         // The title block takes the remaining width next to the logo.
         header.addView(titles, new LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f));
 
@@ -224,6 +224,63 @@ public class MainActivity extends Activity {
         header.addView(settingsButton, settingsParams);
 
         root.addView(header);
+
+        // Status pills: Morphe state/version and the helper version.
+        LinearLayout statusRow = new LinearLayout(this);
+        statusRow.setOrientation(LinearLayout.HORIZONTAL);
+        statusRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        statusParams.topMargin = dp(14);
+        root.addView(statusRow, statusParams);
+
+        int morpheColor = morpheInstalled ? GREEN : RED;
+        LinearLayout morpheChip = new LinearLayout(this);
+        morpheChip.setOrientation(LinearLayout.HORIZONTAL);
+        morpheChip.setGravity(Gravity.CENTER_VERTICAL);
+        morpheChip.setPadding(dp(10), dp(6), dp(12), dp(6));
+        GradientDrawable morpheFill = rounded(withAlpha(morpheColor, 10), 999);
+        morpheFill.setStroke(dp(1), withAlpha(morpheColor, 32));
+        morpheChip.setBackground(morpheFill);
+
+        if (morpheInstalled) {
+            View dot = new View(this);
+            GradientDrawable dotDrawable = new GradientDrawable();
+            dotDrawable.setShape(GradientDrawable.OVAL);
+            dotDrawable.setColor(GREEN);
+            dot.setBackground(dotDrawable);
+            morpheChip.addView(dot, new LinearLayout.LayoutParams(dp(8), dp(8)));
+        }
+
+        String morpheLabel;
+        if (!morpheInstalled) {
+            morpheLabel = getString(R.string.main_status_missing_chip);
+        } else if (TextUtils.isEmpty(morpheVersion)) {
+            morpheLabel = getString(R.string.main_status_detected);
+        } else {
+            morpheLabel = getString(R.string.main_status_detected_version, morpheVersion);
+        }
+        TextView morpheChipText = text(morpheLabel, 12, morpheColor, false);
+        morpheChipText.setMaxLines(1);
+        morpheChipText.setEllipsize(TextUtils.TruncateAt.END);
+        morpheChipText.setMaxWidth(dp(230));
+        if (morpheInstalled) {
+            morpheChipText.setPadding(dp(8), 0, 0, 0);
+        }
+        morpheChip.addView(morpheChipText);
+        statusRow.addView(morpheChip, new LinearLayout.LayoutParams(
+                WRAP_CONTENT, WRAP_CONTENT));
+
+        TextView versionChip = text(getString(R.string.main_version_chip, appVersion),
+                12, ACCENT_TEXT, true);
+        versionChip.setPadding(dp(12), dp(6), dp(12), dp(6));
+        GradientDrawable versionFill = rounded(withAlpha(ACCENT_TEXT, 10), 999);
+        versionFill.setStroke(dp(1), withAlpha(ACCENT_TEXT, 32));
+        versionChip.setBackground(versionFill);
+        LinearLayout.LayoutParams versionChipParams = new LinearLayout.LayoutParams(
+                WRAP_CONTENT, WRAP_CONTENT);
+        versionChipParams.setMarginStart(dp(8));
+        statusRow.addView(versionChip, versionChipParams);
 
         // -----------------------------------------------------------------
         // Hero: primary explanation and the main action
@@ -303,6 +360,78 @@ public class MainActivity extends Activity {
         deleteParams.topMargin = dp(10);
         root.addView(deleteAll, deleteParams);
 
+        // Helper log: sharing actions stay above the developer card.
+        LinearLayout logCard = new LinearLayout(this);
+        logCard.setOrientation(LinearLayout.VERTICAL);
+        logCard.setPadding(dp(18), dp(16), dp(18), dp(16));
+        logCard.setBackground(cardBackground());
+        LinearLayout.LayoutParams logCardParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        logCardParams.topMargin = dp(16);
+        root.addView(logCard, logCardParams);
+
+        logCard.addView(text(getString(R.string.main_log_title), 16, TEXT, true));
+        TextView logsLocal = text(getString(R.string.main_logs_local), 11, FOOTER, false);
+        logsLocal.setPadding(0, dp(3), 0, 0);
+        logCard.addView(logsLocal);
+
+        TextView logHelp = text(getString(R.string.main_log_help), 12, MUTED, false);
+        logHelp.setLineSpacing(dp(2), 1f);
+        logHelp.setPadding(0, dp(8), 0, 0);
+        logCard.addView(logHelp);
+
+        TextView shareLog = secondaryButton(getString(R.string.main_share_log),
+                R.drawable.ic_share, ACCENT_TEXT,
+                withAlpha(ACCENT_TEXT, 10), withAlpha(ACCENT_TEXT, 32));
+        shareLog.setOnClickListener(v -> shareLog());
+        TextView copyLog = secondaryButton(getString(R.string.main_copy_log),
+                R.drawable.ic_copy, TEXT, SECONDARY_BORDER);
+        copyLog.setOnClickListener(v -> copyLogToClipboard());
+        TextView saveLog = secondaryButton(getString(R.string.main_save_log),
+                R.drawable.ic_save, TEXT, SECONDARY_BORDER);
+        saveLog.setOnClickListener(v -> saveLog());
+        TextView clearLog = secondaryButton(getString(R.string.main_clear_log),
+                R.drawable.ic_delete, WARN_TITLE, SECONDARY_BORDER);
+        clearLog.setOnClickListener(v -> {
+            HelperLog.clear();
+            Toast.makeText(this, R.string.main_log_cleared, Toast.LENGTH_SHORT).show();
+        });
+
+        LinearLayout logRow1 = new LinearLayout(this);
+        logRow1.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams logFirstParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        logFirstParams.setMarginEnd(dp(4));
+        logRow1.addView(shareLog, logFirstParams);
+        LinearLayout.LayoutParams logSecondParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        logSecondParams.setMarginStart(dp(4));
+        logRow1.addView(copyLog, logSecondParams);
+
+        LinearLayout logRow2 = new LinearLayout(this);
+        logRow2.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams logThirdParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        logThirdParams.setMarginEnd(dp(4));
+        logRow2.addView(saveLog, logThirdParams);
+        LinearLayout.LayoutParams logFourthParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        logFourthParams.setMarginStart(dp(4));
+        logRow2.addView(clearLog, logFourthParams);
+
+        LinearLayout.LayoutParams logRow1Params = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        logRow1Params.topMargin = dp(14);
+        logCard.addView(logRow1, logRow1Params);
+        LinearLayout.LayoutParams logRow2Params = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        logRow2Params.topMargin = dp(8);
+        logCard.addView(logRow2, logRow2Params);
+
+        TextView reportGithub = secondaryButton(getString(R.string.main_report_github),
+                R.drawable.source_logo_github, ACCENT_TEXT, SECONDARY_BORDER);
+        reportGithub.setOnClickListener(v -> showGitHubReportDialog());
+        LinearLayout.LayoutParams reportParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, dp(44));
+        reportParams.topMargin = dp(10);
+        logCard.addView(reportGithub, reportParams);
+
         // About the developer.
         LinearLayout about = new LinearLayout(this);
         about.setOrientation(LinearLayout.VERTICAL);
@@ -343,77 +472,6 @@ public class MainActivity extends Activity {
                 "https://github.com/GeneralZyonix/morphe-download-helper/releases"));
         links.addView(linkButton("Reddit", "https://www.reddit.com/r/MorpheApp/comments/1xjmnf3/i_made_an_helper_that_fetches_the_right_apk_for/"));
         about.addView(links);
-
-        // Footer: local log note, version, and the clear-log action.
-        String version = "v?";
-        try {
-            version = "v" + getPackageManager()
-                    .getPackageInfo(getPackageName(), 0).versionName;
-        } catch (Exception ignored) {
-            // Keep the fallback text if the package info is unavailable.
-        }
-
-        LinearLayout footerRow = new LinearLayout(this);
-        footerRow.setOrientation(LinearLayout.HORIZONTAL);
-        footerRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams footerRowParams = new LinearLayout.LayoutParams(
-                MATCH_PARENT, WRAP_CONTENT);
-        footerRowParams.topMargin = dp(20);
-        root.addView(footerRow, footerRowParams);
-
-        TextView logsLocal = text(getString(R.string.main_logs_local), 11, FOOTER, false);
-        footerRow.addView(logsLocal, new LinearLayout.LayoutParams(
-                0, WRAP_CONTENT, 1f));
-        footerRow.addView(text(version, 11, FOOTER, false));
-
-        TextView logHelp = text(getString(R.string.main_log_help), 11, FOOTER, false);
-        logHelp.setLineSpacing(dp(2), 1f);
-        logHelp.setPadding(0, dp(6), 0, dp(4));
-        root.addView(logHelp);
-
-        TextView shareLog = secondaryButton(getString(R.string.main_share_log),
-                R.drawable.ic_share, TEXT, SECONDARY_BORDER);
-        shareLog.setOnClickListener(v -> shareLog());
-        TextView copyLog = secondaryButton(getString(R.string.main_copy_log),
-                R.drawable.ic_copy, TEXT, SECONDARY_BORDER);
-        copyLog.setOnClickListener(v -> copyLogToClipboard());
-        TextView saveLog = secondaryButton(getString(R.string.main_save_log),
-                R.drawable.ic_save, TEXT, SECONDARY_BORDER);
-        saveLog.setOnClickListener(v -> saveLog());
-        TextView clearLog = secondaryButton(getString(R.string.main_clear_log),
-                R.drawable.ic_delete, WARN_TITLE, SECONDARY_BORDER);
-        clearLog.setOnClickListener(v -> {
-            HelperLog.clear();
-            Toast.makeText(this, R.string.main_log_cleared, Toast.LENGTH_SHORT).show();
-        });
-
-        LinearLayout logRow1 = new LinearLayout(this);
-        logRow1.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams logFirstParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        logFirstParams.setMarginEnd(dp(4));
-        logRow1.addView(shareLog, logFirstParams);
-        LinearLayout.LayoutParams logSecondParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        logSecondParams.setMarginStart(dp(4));
-        logRow1.addView(copyLog, logSecondParams);
-
-        LinearLayout logRow2 = new LinearLayout(this);
-        logRow2.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams logThirdParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        logThirdParams.setMarginEnd(dp(4));
-        logRow2.addView(saveLog, logThirdParams);
-        LinearLayout.LayoutParams logFourthParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        logFourthParams.setMarginStart(dp(4));
-        logRow2.addView(clearLog, logFourthParams);
-
-        LinearLayout.LayoutParams logRow1Params = new LinearLayout.LayoutParams(
-                MATCH_PARENT, WRAP_CONTENT);
-        logRow1Params.topMargin = dp(4);
-        root.addView(logRow1, logRow1Params);
-        LinearLayout.LayoutParams logRow2Params = new LinearLayout.LayoutParams(
-                MATCH_PARENT, WRAP_CONTENT);
-        logRow2Params.topMargin = dp(8);
-        logRow2Params.bottomMargin = dp(4);
-        root.addView(logRow2, logRow2Params);
 
         setContentView(scroll);
         ThemeManager.applySystemBars(this);
@@ -549,19 +607,26 @@ public class MainActivity extends Activity {
             }
             final String clipboardText = text;
             runOnUiThread(() -> {
-                ClipboardManager clipboard = (ClipboardManager)
-                        getSystemService(Context.CLIPBOARD_SERVICE);
-                if (clipboard == null) {
+                if (!copyTextToClipboard(clipboardText)) {
                     Toast.makeText(this, R.string.main_error_copy_log,
                             Toast.LENGTH_LONG).show();
                     return;
                 }
-                clipboard.setPrimaryClip(
-                        ClipData.newPlainText("helper.log", clipboardText));
                 Toast.makeText(this, R.string.main_log_copied,
                         Toast.LENGTH_SHORT).show();
             });
         }, "copy-log").start();
+    }
+
+    /** Copies text to the clipboard. Must be called on the UI thread. */
+    private boolean copyTextToClipboard(String text) {
+        ClipboardManager clipboard = (ClipboardManager)
+                getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            return false;
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText("helper.log", text));
+        return true;
     }
 
     /** Opens the system document picker so the log can be saved to Downloads or Drive. */
@@ -630,6 +695,155 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+    /** Lets the user choose between a short report and the full log. */
+    private void showGitHubReportDialog() {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(24), dp(4), dp(24), dp(4));
+
+        TextView message = text(getString(R.string.main_report_message), 13, MUTED, false);
+        message.setLineSpacing(dp(2), 1f);
+        content.addView(message);
+
+        TextView shortReport = reportChoiceButton(getString(R.string.main_report_short));
+        LinearLayout.LayoutParams shortParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        shortParams.topMargin = dp(14);
+        content.addView(shortReport, shortParams);
+
+        TextView fullReport = reportChoiceButton(getString(R.string.main_report_full));
+        LinearLayout.LayoutParams fullParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT);
+        fullParams.topMargin = dp(10);
+        content.addView(fullReport, fullParams);
+
+        AlertDialog dialog = ThemeManager.dialog(this)
+                .setTitle(R.string.main_report_title)
+                .setView(content)
+                .setNegativeButton(R.string.common_cancel, null)
+                .show();
+
+        shortReport.setOnClickListener(v -> {
+            dialog.dismiss();
+            reportToGitHub(false);
+        });
+        fullReport.setOnClickListener(v -> {
+            dialog.dismiss();
+            reportToGitHub(true);
+        });
+    }
+
+    private TextView reportChoiceButton(String label) {
+        TextView view = secondaryButton(label, TEXT, SECONDARY_BORDER);
+        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        view.setPadding(dp(14), dp(12), dp(14), dp(12));
+        view.setSingleLine(false);
+        return view;
+    }
+
+    /**
+     * Prepares the log for GitHub. The short option embeds recent lines in the
+     * issue form; the full option either embeds a small log or copies/saves it
+     * for the user to paste or attach.
+     */
+    private void reportToGitHub(boolean fullLog) {
+        File logFile = HelperLog.getLogFile();
+        if (logFile == null || !logFile.isFile()) {
+            Toast.makeText(this, R.string.main_report_no_log, Toast.LENGTH_LONG).show();
+            return;
+        }
+        new Thread(() -> {
+            String raw;
+            try {
+                raw = readLogText(logFile);
+            } catch (Exception error) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_report_no_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            String redacted = GitHubReport.redact(raw);
+            if (redacted.trim().isEmpty()) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_report_no_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            boolean fullPrefilled = fullLog
+                    && GitHubReport.canPrefillFullLog(redacted);
+            boolean saved = fullLog && AppSettings.saveLogCopy(this, logFile);
+            String targetApp = GitHubReport.lastRequest(redacted);
+            if (TextUtils.isEmpty(targetApp)) {
+                targetApp = getString(R.string.main_report_target_unknown);
+            }
+            String androidDevice = Build.MANUFACTURER + " " + Build.MODEL
+                    + ", Android " + Build.VERSION.RELEASE
+                    + " (SDK " + Build.VERSION.SDK_INT + ")";
+            String morphe = morpheInstalled
+                    ? (TextUtils.isEmpty(morpheVersionName)
+                    ? getString(R.string.main_status_detected)
+                    : morpheVersionName)
+                    : getString(R.string.main_report_morphe_missing);
+            final String finalTarget = targetApp;
+            final String finalMorphe = morphe;
+            final String finalDevice = androidDevice;
+            final String finalRedacted = redacted;
+            final boolean finalSaved = saved;
+            final boolean finalFullPrefilled = fullPrefilled;
+            runOnUiThread(() -> {
+                boolean copied = false;
+                boolean logIsCode;
+                String logField;
+                String toast = null;
+                if (!fullLog) {
+                    logField = GitHubReport.excerpt(finalRedacted);
+                    logIsCode = true;
+                } else if (finalFullPrefilled) {
+                    logField = finalRedacted;
+                    logIsCode = true;
+                    if (finalSaved) {
+                        toast = getString(R.string.main_report_full_saved);
+                    }
+                } else {
+                    copied = copyTextToClipboard(finalRedacted);
+                    if (copied) {
+                        logField = getString(R.string.main_report_full_field_note);
+                        logIsCode = false;
+                        toast = finalSaved
+                                ? getString(R.string.main_report_full_saved)
+                                : getString(R.string.main_report_save_failed);
+                    } else if (finalSaved) {
+                        logField = getString(R.string.main_report_full_saved_field_note);
+                        logIsCode = false;
+                        toast = getString(R.string.main_report_full_saved);
+                    } else {
+                        logField = GitHubReport.excerpt(finalRedacted);
+                        logIsCode = true;
+                        toast = getString(R.string.main_report_full_failed_short);
+                    }
+                }
+                String url = GitHubReport.buildUrl(
+                        helperVersionName, finalDevice, finalMorphe,
+                        finalTarget, logField, logIsCode);
+                if (toast != null) {
+                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
+                }
+                openGitHubReport(url);
+            });
+        }, "github-report").start();
+    }
+
+    private void openGitHubReport(String url) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            intent.addCategory(Intent.CATEGORY_BROWSABLE);
+            startActivity(intent);
+        } catch (Exception error) {
+            Toast.makeText(this,
+                    getString(R.string.main_report_open_failed, error.getMessage()),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
     /** Reads the log, keeping only the newest 300k characters for the clipboard. */
     private static String readLogText(File file) throws Exception {
         StringBuilder all = new StringBuilder();
@@ -657,6 +871,12 @@ public class MainActivity extends Activity {
     }
     private int dp(int value) {
         return (int) (value * getResources().getDisplayMetrics().density);
+    }
+
+    /** Applies a percentage alpha to a theme color. */
+    private int withAlpha(int color, int percent) {
+        int alpha = Math.max(0, Math.min(100, percent)) * 255 / 100;
+        return (color & 0x00FFFFFF) | (alpha << 24);
     }
 
     /** Creates a consistently styled TextView used across the screen. */
@@ -797,13 +1017,34 @@ public class MainActivity extends Activity {
     }
 
     private TextView secondaryButton(String label, int iconRes, int textColor, int strokeColor) {
-        TextView view = secondaryButton(label, textColor, strokeColor);
+        return secondaryButton(label, iconRes, textColor, SECONDARY, strokeColor);
+    }
+
+    private TextView secondaryButton(String label, int iconRes, int textColor,
+                                     int fillColor, int strokeColor) {
+        TextView view = new TextView(this);
+        view.setText(label);
+        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        view.setTextColor(textColor);
+        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        view.setGravity(Gravity.CENTER);
+        view.setClickable(true);
+        view.setFocusable(true);
+        view.setPadding(dp(16), dp(12), dp(16), dp(12));
+
+        GradientDrawable fill = rounded(fillColor, 14);
+        fill.setStroke(dp(1), strokeColor);
+        view.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE),
+                fill,
+                null
+        ));
+
         Drawable icon = getDrawable(iconRes);
         if (icon != null) {
             icon.setTint(textColor);
             view.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
             view.setCompoundDrawablePadding(dp(8));
-            view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         }
         return view;
     }

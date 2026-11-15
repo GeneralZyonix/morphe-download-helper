@@ -81,6 +81,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -518,6 +519,13 @@ public class DownloadActivity extends Activity {
     private CharSequence sourceSummaryText = "";
     private ResolutionReport report;
     private Set<String> retrySources;
+    /**
+     * Sources already tried in this resolution. A WebView failure restarts
+     * resolution without clearing this set, so the failed source is skipped and
+     * the next source is tried instead of ending the whole download.
+     */
+    private final Set<String> attemptedSources = Collections.newSetFromMap(
+            new ConcurrentHashMap<>());
     private String requestPkg;
     private String requestVersion;
     private String requestFileType;
@@ -631,6 +639,30 @@ public class DownloadActivity extends Activity {
     }
 
     private void startResolution(boolean retryOnly) {
+        startResolution(retryOnly, false);
+    }
+
+    /**
+     * A WebView source failed. Keep the report and the attempted-source set,
+     * then resume the ordered resolution so the next source can run instead of
+     * showing a final failure.
+     */
+    private void continueAfterWebFailure(String reason) {
+        if (cancelled) {
+            return;
+        }
+        HelperLog.info("WebView source failed; trying remaining sources: " + reason);
+        main.post(() -> {
+            closeWebFlow();
+            markWebFlowResult(false, reason);
+            startResolution(false, true);
+        });
+    }
+
+    private void startResolution(boolean retryOnly, boolean continueAfterWeb) {
+        if (!continueAfterWeb) {
+            attemptedSources.clear();
+        }
         Set<String> failed = retryOnly && report != null
                 ? new HashSet<>(report.failedKeys()) : Collections.emptySet();
         if (retryOnly) {
@@ -656,9 +688,16 @@ public class DownloadActivity extends Activity {
         hideVerificationHint();
         String abi = (requestAbis != null && requestAbis.length > 0)
                 ? requestAbis[0] : "unknown";
-        report = new ResolutionReport(this, requestedAppName, requestPkg, requestVersion,
-                requestFileType, abi);
-        HelperLog.info(report.headerBlock());
+        if (!continueAfterWeb) {
+            report = new ResolutionReport(this, requestedAppName, requestPkg, requestVersion,
+                    requestFileType, abi);
+            HelperLog.info(report.headerBlock());
+        }
+        if (report == null) {
+            report = new ResolutionReport(this, requestedAppName, requestPkg, requestVersion,
+                    requestFileType, abi);
+            HelperLog.info(report.headerBlock());
+        }
 
         diagnosticsCard.setVisibility(View.GONE);
         fallbackButton.setVisibility(View.GONE);
@@ -683,10 +722,14 @@ public class DownloadActivity extends Activity {
         });
         setPauseVisible(false);
         setSwitchSourceVisible(true);
-        if (retryOnly) {
+        if (continueAfterWeb) {
+            setStatus(R.string.download_trying_next_source);
+        } else if (retryOnly) {
             setStatus(R.string.download_retrying);
         }
-        startDownloadService(retryOnly
+        startDownloadService(continueAfterWeb
+                ? getString(R.string.download_trying_next_source)
+                : retryOnly
                 ? getString(R.string.download_retrying)
                 : getString(R.string.download_resolving));
 
@@ -1921,22 +1964,10 @@ public class DownloadActivity extends Activity {
         verificationFailure = message;
         HelperLog.info(webSourceName() + " build rejected: "
                 + message + "; retrying other sources");
-        markWebFlowResult(false, message);
         if (cancelled) {
             return;
         }
-        main.post(() -> {
-            if (uptodownWebView != null) {
-                uptodownWebContainer.removeView(uptodownWebView);
-                uptodownWebView.destroy();
-                uptodownWebView = null;
-            }
-            if (uptodownSection != null) {
-                uptodownSection.setVisibility(View.GONE);
-            }
-            startResolution(false);
-            markWebFlowResult(false, message);
-        });
+        continueAfterWebFailure(message);
     }
 
     private void scheduleWebFlowTimeout(WebView web) {
@@ -1951,17 +1982,8 @@ public class DownloadActivity extends Activity {
             uptodownHandled = true;
             logWebFlowState("TIMEOUT", "");
             HelperLog.info(webSource + " timed out waiting for the download page");
-            markWebFlowResult(false,
+            continueAfterWebFailure(
                     getString(R.string.download_error_page_timeout_detail));
-            if (report != null) {
-                report.finishFailure(getString(R.string.download_error_page_timeout_detail));
-                HelperLog.info(report.resultBlock());
-            }
-            web.stopLoading();
-            stopDownloadService();
-            setPauseVisible(false);
-            setStatus(R.string.download_error_page_timeout);
-            showFailure();
         };
         // Uptodown shows a Turnstile widget inside the download page and can
         // legitimately wait for a user interaction. Give it more room than the
@@ -2356,22 +2378,8 @@ public class DownloadActivity extends Activity {
                                 uptodownPkg, uptodownVersion, uptodownFileType));
                         return;
                     }
-                    markWebFlowResult(false, e.getMessage());
-                    if (cancelled) {
-                        return;
-                    }
-                    if (report != null) {
-                        report.finishFailure(e.getMessage());
-                        HelperLog.info(report.resultBlock());
-                    }
                     HelperLog.error(source + " download failed", e);
-                    setPauseVisible(false);
-                    runOnUiThread(() -> {
-                        progress.setIndeterminate(false);
-                        progress.setProgress(0);
-                        setStatus(R.string.download_error_no_match);
-                        showFailure();
-                    });
+                    continueAfterWebFailure(e.getMessage());
                 }
             });
         });
@@ -3773,17 +3781,8 @@ public class DownloadActivity extends Activity {
                 + " (+" + elapsed + "ms)");
     }
 
-    /**
-     * Fails the current WebView flow immediately instead of waiting for the
-     * 90-second watchdog. Used for main-frame load errors and renderer crashes.
-     */
-    private void failWebFlowFast(String detail) {
-        if (cancelled || uptodownHandled || switchingSource
-                || pendingSwitchKey != null) {
-            return;
-        }
-        uptodownHandled = true;
-        logWebFlowState("FAILED", detail);
+    /** Tears down the current verification WebView without ending the download. */
+    private void closeWebFlow() {
         cancelWebFlowTimeout();
         cancelWebFlowProbe();
         hideVerificationHint();
@@ -3797,20 +3796,25 @@ public class DownloadActivity extends Activity {
         if (uptodownSection != null) {
             uptodownSection.setVisibility(View.GONE);
         }
+    }
+
+    /**
+     * Fails the current WebView flow immediately instead of waiting for the
+     * 90-second watchdog. Used for main-frame load errors and renderer crashes.
+     */
+    private void failWebFlowFast(String detail) {
+        if (cancelled || uptodownHandled || switchingSource
+                || pendingSwitchKey != null) {
+            return;
+        }
+        uptodownHandled = true;
+        logWebFlowState("FAILED", detail);
         String message = getString(R.string.download_error_page_failed);
         if (!TextUtils.isEmpty(detail)) {
             message += " (" + detail + ")";
         }
-        markWebFlowResult(false, message);
-        if (report != null) {
-            report.finishFailure(message);
-            HelperLog.info(report.resultBlock());
-        }
-        stopDownloadService();
-        setPauseVisible(false);
-        setSwitchSourceVisible(false);
-        setStatus(R.string.download_error_page_failed);
-        showFailure();
+        HelperLog.info(webSourceName() + " WebView failed: " + message);
+        continueAfterWebFailure(message);
     }
 
     /**
@@ -4397,6 +4401,9 @@ public class DownloadActivity extends Activity {
         if (SourceSettings.FALLBACK.equals(key) && fallbackRejected) {
             return false;
         }
+        if (attemptedSources.contains(key)) {
+            return false;
+        }
         return SourceSettings.isEnabled(this, key)
                 && (retrySources == null || retrySources.contains(key));
     }
@@ -4653,6 +4660,7 @@ public class DownloadActivity extends Activity {
                 }
                 continue;
             }
+            attemptedSources.add(source);
             activeSourceKey = source;
             activeSourceName = sourceLabelForKey(source);
             webParentSourceKey = null;

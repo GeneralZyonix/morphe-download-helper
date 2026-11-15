@@ -7,14 +7,16 @@ import android.content.Intent;
 /**
  * Restores the saved launcher-icon choice after a reboot or app update.
  *
- * <p>The launcher alias starts disabled in the manifest so Android 10+ does not
- * insert a synthetic "app info" shortcut after the user hides the icon. The
- * alias is enabled when the app runs, after an update, and after a reboot.</p>
+ * <p>The alias starts enabled so a fresh install always has a launcher icon.
+ * It is disabled when the user turns off "Show app icon".</p>
  */
 public class LauncherIconReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        HelperLog.init(context);
+        HelperLog.info("LauncherIconReceiver: "
+                + (intent == null ? "" : intent.getAction()));
         // Public settings may carry an explicit show_launcher_icon value after
         // an update, so apply them before restoring the component state.
         PublicSettings.apply(context);

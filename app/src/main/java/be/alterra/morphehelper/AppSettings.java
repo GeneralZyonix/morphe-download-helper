@@ -150,9 +150,8 @@ final class AppSettings {
 
     /**
      * Applies the saved choice at startup, after updates, and after a reboot.
-     * The alias starts disabled in the manifest so Android 10+ does not insert
-     * a synthetic "app info" shortcut after the user hides the icon; it is
-     * enabled when the saved setting says the icon should be visible.
+     * The alias starts enabled in the manifest so a fresh install always has an
+     * icon; it is disabled when the user hides the icon.
      */
     static void ensureLauncherIconState(Context context) {
         applyLauncherAlias(context, isLauncherIconShown(context));
@@ -557,7 +556,22 @@ final class AppSettings {
     }
 
     private static void publishPublic(Context context, File file) {
-        String mime = mimeFor(file.getName());
+        publishPublic(context, file, mimeFor(file.getName()));
+    }
+
+    /**
+     * Saves a copy of the helper log in Downloads/Morphe Helper. Returns false
+     * when the copy could not be written (for example, storage permission is
+     * missing on older Android versions).
+     */
+    static boolean saveLogCopy(Context context, File file) {
+        if (file == null || !file.isFile()) {
+            return false;
+        }
+        return publishPublic(context, file, "text/plain");
+    }
+
+    private static boolean publishPublic(Context context, File file, String mime) {
         try {
             if (Build.VERSION.SDK_INT >= 29) {
                 ContentResolver resolver = context.getContentResolver();
@@ -601,8 +615,10 @@ final class AppSettings {
                 }
             }
             HelperLog.info("Saved a copy in Downloads/Morphe Helper");
+            return true;
         } catch (Exception error) {
             HelperLog.error("Could not copy download to Downloads", error);
+            return false;
         }
     }
 

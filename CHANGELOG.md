@@ -5,6 +5,40 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.2] - 2026-11-15
+
+2.3.2 adds a GitHub report flow, a cleaner main screen, fixes the fresh-install
+launcher icon, and continues past failed WebView sources. Everything from
+2.3.1 is included.
+
+### Added
+
+- **Report on GitHub** in the Helper log section. The user can choose a short
+  report with recent log lines or the full log. Reports open a pre-filled
+  GitHub issue with the helper version, Morphe version, device, target app, and
+  redacted log. Full logs are copied to the clipboard and saved to Downloads
+  for pasting or attaching.
+- Morphe's installed version and the helper version are shown in theme-aware
+  pills at the top of the main screen. The Morphe pill is red with a 🚫 marker
+  when Morphe is missing.
+
+### Changed
+
+- The Helper log actions now sit above About, inside their own card.
+- **Share log** has a subtle accent tint; Copy, Save, and Clear stay neutral.
+- The helper version is no longer shown as plain text at the bottom.
+
+### Fixed
+
+- A fresh install now shows the launcher icon immediately instead of waiting
+  for the first app launch. The hide-icon confirmation notes that some
+  launchers may keep an old home-screen shortcut.
+- If a verification WebView times out, errors, or cannot capture a download,
+  the helper now records that source as failed and continues with the next
+  enabled source. It no longer ends the whole resolution at the WebView. The
+  report keeps every attempt, so the final result shows which sources were
+  skipped and which one succeeded.
+
 ## [2.3.1] - 2026-11-15
 
 2.3.1 is a bug-fix patch for APKPure split downloads and for downloads that

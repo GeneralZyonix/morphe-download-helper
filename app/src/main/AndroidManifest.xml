@@ -64,18 +64,16 @@
         </activity>
 
         <!--
-            Launcher entry point. It starts disabled so Android 10+ does not
-            insert a synthetic "app info" shortcut after the user hides the
-            icon. Android adds that shortcut when a package requests
-            permissions and has a launcher component enabled by default in its
-            manifest, even if the component is disabled at runtime. The app
-            enables this alias when it runs, after an update, and after a boot;
-            the "Show app icon" setting still hides it when off.
+            Launcher entry point. It starts enabled so a fresh install always
+            has a launcher icon. The app disables it when the saved "Show app
+            icon" setting is off. Some launchers keep an old home-screen
+            shortcut after the alias is disabled; the setting explanation asks
+            the user to remove it manually if it remains.
         -->
         <activity-alias
             android:name=".LauncherEntry"
             android:targetActivity=".MainActivity"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -135,9 +133,7 @@
             android:name=".UpdateInstalledReceiver"
             android:exported="false" />
 
-        <!-- Restore the chosen launcher-icon state after an update or reboot.
-             The launcher alias starts disabled so Android does not keep a
-             synthetic icon after it is hidden. -->
+        <!-- Restore the chosen launcher-icon state after an update or reboot. -->
         <receiver
             android:name=".LauncherIconReceiver"
             android:exported="false">

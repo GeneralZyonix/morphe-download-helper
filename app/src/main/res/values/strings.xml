@@ -28,7 +28,25 @@
     <string name="settings_source_drag_hint">Drag the handle to change which source is tried first. Disabled sources stay at the bottom.</string>
     <string name="main_logs_local">Logs stay on this device</string>
     <string name="main_status_detected">Morphe detected</string>
+    <string name="main_status_detected_version">Morphe %1$s</string>
     <string name="main_status_missing">Morphe not installed</string>
+    <string name="main_status_missing_chip">🚫 Morphe not installed</string>
+    <string name="main_version_chip">Helper v%1$s</string>
+    <string name="main_log_title">Helper log</string>
+    <string name="main_report_github">Report on GitHub</string>
+    <string name="main_report_title">Report on GitHub</string>
+    <string name="main_report_message">Choose what to include. GitHub opens for review; nothing is submitted until you tap Submit. Signed URLs and tokens are redacted automatically.</string>
+    <string name="main_report_short">Short report — summary and recent log lines</string>
+    <string name="main_report_full">Full log — copied and saved for pasting or attaching</string>
+    <string name="main_report_full_saved">Full log saved in Downloads/Morphe Helper.</string>
+    <string name="main_report_full_field_note">Full log copied to the clipboard. Paste it here, or attach the saved helper log in Downloads/Morphe Helper.</string>
+    <string name="main_report_full_saved_field_note">Full log saved in Downloads/Morphe Helper. Attach the saved helper log here.</string>
+    <string name="main_report_full_failed_short">Could not prepare the full log; recent log lines were included instead.</string>
+    <string name="main_report_save_failed">Full log copied, but it could not be saved to Downloads.</string>
+    <string name="main_report_target_unknown">See log excerpt</string>
+    <string name="main_report_morphe_missing">Not installed</string>
+    <string name="main_report_open_failed">Could not open GitHub: %1$s</string>
+    <string name="main_report_no_log">No log to report.</string>
     <string name="main_how_to_use">How to use</string>
     <string name="main_steps">1. Open Morphe\n2. Settings → APK download helper\n3. Trust “Morphe Download Helper”\n4. Patch an app and choose “Use a helper app”</string>
     <string name="main_visual_guide">Visual guide</string>
@@ -38,12 +56,12 @@
     <string name="main_open_morphe">Open Morphe</string>
     <string name="main_share_log">Share log</string>
     <string name="main_save_log">Save log</string>
-    <string name="main_log_help">The log records package names and source URLs. Use the buttons below to share, copy, or save it; it is not displayed here.</string>
+    <string name="main_log_help">The log records package names and source URLs. Use the buttons below to share, copy, save, or report it; it is not displayed here.</string>
     <string name="main_save_log_success">Log saved</string>
     <string name="main_save_log_failed">Could not save the log</string>
     <string name="main_help">Help</string>
     <string name="main_help_title">Help &amp; troubleshooting</string>
-    <string name="help_log">Logs\nUse Share log, Copy log, or Save log at the bottom of the main screen. The log records package names and source URLs, not passwords.</string>
+    <string name="help_log">Logs\nUse Share log, Copy log, Save log, or Report on GitHub in the Helper log section. The log records package names and source URLs, not passwords.</string>
     <string name="help_play_protect">Play Protect\nThis APK is debug-signed and installed outside the Play Store. If Android warns, tap More details → Install anyway. If it says App not installed, send the exact message.</string>
     <string name="help_uptodown">Uptodown\nUptodown uses its direct API first. If its verification page appears, tap the green Download button once; Cloudflare needs a real tap.</string>
     <string name="help_icons">App icons\nInstalled apps use the system/icon-pack icon. For uninstalled apps, One UI does not expose icon-pack icons; the helper uses the APKMirror or APK icon.</string>
@@ -151,7 +169,7 @@
     <string name="settings_hide_launcher_icon">Show app icon</string>
     <string name="settings_hide_launcher_icon_detail">Keep the app visible in your launcher</string>
     <string name="settings_hide_launcher_icon_confirm_title">Hide app icon?</string>
-    <string name="settings_hide_launcher_icon_confirm_message">The app will disappear from your launcher. You can still open it from Android Settings → Apps → Morphe Download Helper → Open, or when Morphe launches a download. You can also set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.txt. Continue?</string>
+    <string name="settings_hide_launcher_icon_confirm_message">The app will disappear from your launcher. You can still open it from Android Settings → Apps → Morphe Download Helper → Open, or when Morphe launches a download. You can also set show_launcher_icon=true in Downloads/Morphe Helper/helper-settings.txt. Some launchers may keep an old home-screen shortcut; remove it manually if it remains. Continue?</string>
     <string name="settings_hide_launcher_icon_confirm">Hide icon</string>
     <string name="settings_hide_launcher_icon_hidden">App icon hidden.</string>
     <string name="settings_hide_launcher_icon_shown">App icon shown.</string>
@@ -353,6 +371,7 @@
     <string name="download_choose_source">Switch to source</string>
     <string name="download_switch_source_to">Switch to %1$s</string>
     <string name="download_switching_source">Stopping the current source and switching...</string>
+    <string name="download_trying_next_source">Trying the next download source.</string>
     <string name="download_resume">Resume</string>
     <string name="download_error_no_package">Morphe did not send a package name.</string>
     <string name="download_opening_uptodown">Opening Uptodown…</string>
