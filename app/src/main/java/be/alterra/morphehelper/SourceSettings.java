@@ -55,7 +55,11 @@ final class SourceSettings {
 
     static int enabledCount(Context context) {
         int count = 0;
-        for (String key : new String[]{FALLBACK, APKMIRROR, APKPURE, APKCUBE, UPTODOWN, FDROID, APTOIDE, APPTEKA, GITHUB}) {
+        // Uptodown is a WebView fallback that follows a Morphe link, not an
+        // ordered catalogue source. It must not satisfy the "at least one
+        // source" rule for the reorderable list.
+        for (String key : new String[]{FALLBACK, APKMIRROR, APKPURE, APKCUBE,
+                FDROID, APTOIDE, APPTEKA, GITHUB}) {
             if (isEnabled(context, key)) {
                 count++;
             }

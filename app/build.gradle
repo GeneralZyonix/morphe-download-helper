@@ -18,8 +18,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 53
-        versionName "2.2.2"
+        versionCode 54
+        versionName "2.2.3"
     }
 
     buildFeatures {

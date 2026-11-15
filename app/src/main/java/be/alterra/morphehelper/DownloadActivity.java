@@ -11,6 +11,7 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.SweepGradient;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.content.pm.PackageInfo;
@@ -485,9 +486,6 @@ public class DownloadActivity extends Activity {
     private String webOriginalUrl;
     private int webRetries;
 
-    /** Auto-refresh timer for a stuck Uptodown download button. */
-    private Runnable uptodownReload;
-    private int uptodownReloads;
 
     private Runnable webFlowTimeout;
     private Runnable adBlockRetry;
@@ -699,6 +697,7 @@ public class DownloadActivity extends Activity {
                 if (cancelled) {
                     return;
                 }
+                appIconCacheSave(file);
                 deliverFile(file);
             } catch (UptodownHandoffException ignored) {
                 if (!cancelled && pendingSwitchKey != null) {
@@ -1086,7 +1085,6 @@ public class DownloadActivity extends Activity {
         uptodownReferer = url;
         webOriginalUrl = url;
         uptodownHandled = false;
-        uptodownReloads = 0;
         webChallenge = false;
         webPageFinished = false;
         webLastProgressAt = System.currentTimeMillis();
@@ -1226,9 +1224,10 @@ public class DownloadActivity extends Activity {
                     CookieManager.getInstance().flush();
                 }
                 if ("uptodown".equals(webSource)) {
-                    scheduleUptodownReload(view);
-                    // Dismiss Uptodown's cookie banner by choosing Reject all,
-                    // then start Turnstile and tap the download button.
+                    // Uptodown's download button needs a real user gesture to
+                    // obtain a Turnstile token. A programmatic click does not
+                    // count, so just dismiss the cookie banner and let the user
+                    // tap the green Download button.
                     view.evaluateJavascript(
                             "(function(){var n=0;"
                                     + "function clickReject(doc){try{"
@@ -1245,11 +1244,18 @@ public class DownloadActivity extends Activity {
                                     + "&&clickReject(fs[j].contentDocument))return true;}catch(err){}}"
                                     + "}catch(err){}return false;}"
                                     + "var t=setInterval(function(){n++;clickReject(document);"
-                                    + "var b=document.getElementById('detail-download-button');"
-                                    + "if(b){clearInterval(t);b.scrollIntoView({block:'center'});"
-                                    + "setTimeout(function(){b.click();},80);}"
-                                    + "if(n>120)clearInterval(t);},250);})();",
+                                    + "if(n>60)clearInterval(t);},500);})();",
                             null);
+                    view.evaluateJavascript(
+                            "(function(){var w=document.getElementById('download-turnstile-widget');"
+                                    + "var i=w?w.querySelector('iframe'):null;"
+                                    + "var r=i?i.getBoundingClientRect():null;"
+                                    + "return JSON.stringify({w:!!w,"
+                                    + "interactive:!!(w&&w.classList.contains('interactive')),"
+                                    + "iframe:!!i,iw:r?Math.round(r.width):0,ih:r?Math.round(r.height):0,"
+                                    + "ts:!!window.turnstile,"
+                                    + "btn:!!document.getElementById('detail-download-button')});})()",
+                            value -> HelperLog.info("Uptodown DOM " + value));
                 } else if ("apkmirror".equals(webSource)) {
                     view.evaluateJavascript(apkMirrorWebScript(), null);
                 } else if ("apkcube".equals(webSource)) {
@@ -1357,6 +1363,10 @@ public class DownloadActivity extends Activity {
             } else if (event.getAction() == MotionEvent.ACTION_UP
                     || event.getAction() == MotionEvent.ACTION_CANCEL) {
                 v.getParent().requestDisallowInterceptTouchEvent(false);
+                if (event.getAction() == MotionEvent.ACTION_UP
+                        && "uptodown".equals(webSource)) {
+                    main.postDelayed(this::logUptodownDom, 2_000);
+                }
             }
             return false;
         });
@@ -1394,6 +1404,72 @@ public class DownloadActivity extends Activity {
             AppSettings.setApkMirrorAppUrl(this, uptodownPkg, appUrl);
             HelperLog.info("APKMirror cached app URL: " + appUrl);
         }
+    }
+
+    /**
+     * Diagnostic snapshot of the Uptodown Turnstile state after a user tap.
+     * Helps distinguish "no widget", "widget waiting for interaction", and
+     * "widget rendered but stuck" in bug reports.
+     */
+    private void logUptodownDom() {
+        WebView web = uptodownWebView;
+        if (web == null) {
+            return;
+        }
+        web.evaluateJavascript(
+                "(function(){"
+                        + "var w=document.getElementById('download-turnstile-widget');"
+                        + "var i=w?w.querySelector('iframe'):null;"
+                        + "var r=i?i.getBoundingClientRect():null;"
+                        + "var fs=document.querySelectorAll('iframe');var cf=[];"
+                        + "for(var k=0;k<fs.length;k++){var s=fs[k].src||'';"
+                        + "if(s.indexOf('challenges.cloudflare.com')>=0){"
+                        + "var q=fs[k].getBoundingClientRect();"
+                        + "cf.push(Math.round(q.width)+'x'+Math.round(q.height));}}"
+                        + "var b=document.getElementById('detail-download-button');"
+                        + "return JSON.stringify({w:!!w,"
+                        + "interactive:!!(w&&w.classList.contains('interactive')),"
+                        + "iframe:!!i,iw:r?Math.round(r.width):0,ih:r?Math.round(r.height):0,"
+                        + "ts:!!window.turnstile,btn:!!b,"
+                        + "btnClass:b?b.className:'',cf:cf.join(',')});})()",
+                value -> HelperLog.info("Uptodown DOM after tap " + value));
+    }
+
+    /**
+     * Caches the app icon from an APKMirror app page before the APK itself is
+     * ready. This is what lets an uninstalled app show its real icon while the
+     * download is still running.
+     */
+    private void cacheSourceIcon(String html, String pkg) {
+        if (html == null || pkg == null || pkg.isEmpty()) {
+            return;
+        }
+        String icon = firstMatch(html,
+                "<meta[^>]+property=\"og:image\"[^>]+content=\"([^\"]+)\"");
+        if (icon == null) {
+            icon = firstMatch(html,
+                    "<meta[^>]+content=\"([^\"]+)\"[^>]+property=\"og:image\"");
+        }
+        if (icon == null) {
+            return;
+        }
+        icon = decodeHtml(icon).trim();
+        if (icon.startsWith("//")) {
+            icon = "https:" + icon;
+        }
+        if (!icon.startsWith("http")) {
+            return;
+        }
+        final String key = AppIconCache.key(pkg, requestVersion);
+        if (AppIconCache.load(this, key) != null) {
+            return;
+        }
+        final String iconUrl = icon;
+        // The icon is best-effort and must not delay the APK resolution.
+        new Thread(() -> {
+            AppIconCache.saveFromUrl(getApplicationContext(), key, iconUrl);
+            main.post(this::updateDownloadDetails);
+        }, "app-icon").start();
     }
 
     /**
@@ -1858,7 +1934,12 @@ public class DownloadActivity extends Activity {
             setStatus(R.string.download_error_page_timeout);
             showFailure();
         };
-        main.postDelayed(webFlowTimeout, 90_000);
+        // Uptodown shows a Turnstile widget inside the download page and can
+        // legitimately wait for a user interaction. Give it more room than the
+        // normal page watchdog; the probe cancels this entirely when it sees
+        // the widget.
+        long timeout = "uptodown".equals(webSource) ? 180_000 : 90_000;
+        main.postDelayed(webFlowTimeout, timeout);
     }
 
     private void cancelWebFlowTimeout() {
@@ -1908,6 +1989,18 @@ public class DownloadActivity extends Activity {
                         + "if(src.indexOf('challenges.cloudflare.com')<0)continue;"
                         + "var r=fs[i].getBoundingClientRect();"
                         + "if(r.width>0&&r.height>0)return 'challenge';}"
+                        // Uptodown embeds Turnstile in a normal page instead of
+                        // replacing the page with a challenge screen. Detect its
+                        // widget so the watchdog does not reload over it.
+                        + "var uw=document.getElementById('download-turnstile-widget');"
+                        + "if(uw){"
+                        + "var ui=uw.querySelector('iframe');"
+                        + "if(ui){var ur=ui.getBoundingClientRect();"
+                        + "if(ur.width>0&&ur.height>0)return 'challenge';}"
+                        + "if(uw.classList.contains('interactive'))return 'challenge';}"
+                        + "var ct=document.querySelector('.cf-turnstile');"
+                        + "if(ct){var cr=ct.getBoundingClientRect();"
+                        + "if(cr.width>0&&cr.height>0)return 'challenge';}"
                         + "var t=((document.title||'')+' '"
                         + "+(document.body?document.body.innerText:''))"
                         + ".toLowerCase();"
@@ -1942,10 +2035,6 @@ public class DownloadActivity extends Activity {
             // retry. Those are re-armed when the page becomes ready again.
             cancelWebFlowTimeout();
             cancelAdBlockRetry();
-            if (uptodownReload != null) {
-                main.removeCallbacks(uptodownReload);
-                uptodownReload = null;
-            }
             cancelChallengeTimeout();
             challengeTimeout = () -> {
                 if (!webChallenge || uptodownHandled) {
@@ -1961,9 +2050,6 @@ public class DownloadActivity extends Activity {
             hideVerificationHint();
             if (uptodownWebView != null && !uptodownHandled) {
                 scheduleWebFlowTimeout(uptodownWebView);
-                if ("uptodown".equals(webSource)) {
-                    scheduleUptodownReload(uptodownWebView);
-                }
                 scheduleAdBlockRetry(uptodownWebView);
             }
         }
@@ -1987,7 +2073,9 @@ public class DownloadActivity extends Activity {
      */
     private void scheduleAdBlockRetry(WebView web) {
         cancelAdBlockRetry();
-        if (!blockWebAds) {
+        // Uptodown's page needs a real download-button tap for Turnstile.
+        // Reloading it at 30s would discard the user's verification attempt.
+        if (!blockWebAds || "uptodown".equals(webSource)) {
             return;
         }
         adBlockRetry = () -> {
@@ -2014,41 +2102,6 @@ public class DownloadActivity extends Activity {
             main.removeCallbacks(adBlockRetry);
             adBlockRetry = null;
         }
-    }
-
-    /**
-     * Reload Uptodown only when a finished page is stalled: no challenge, no
-     * captured URL, and no progress for ten seconds. Limit it to two attempts.
-     */
-    private void scheduleUptodownReload(WebView view) {
-        if (uptodownReload != null) {
-            main.removeCallbacks(uptodownReload);
-        }
-        uptodownReload = () -> {
-            if (uptodownHandled || uptodownWebView != view) {
-                return;
-            }
-            if (webChallenge) {
-                // The challenge owns the page; do not reload over the user.
-                return;
-            }
-            if (!webPageFinished) {
-                main.postDelayed(uptodownReload, 5_000);
-                return;
-            }
-            if (uptodownReloads >= 2) {
-                HelperLog.info("Uptodown still loading after two refreshes");
-                return;
-            }
-            uptodownReloads++;
-            logWebFlowState("STALLED", "idle="
-                    + (System.currentTimeMillis() - webLastProgressAt)
-                    + "ms reload " + uptodownReloads + "/2");
-            HelperLog.info("Uptodown still loading; refreshing page ("
-                    + uptodownReloads + "/2)");
-            view.reload();
-        };
-        main.postDelayed(uptodownReload, 10_000);
     }
 
     /**
@@ -2253,6 +2306,19 @@ public class DownloadActivity extends Activity {
                         webRetries++;
                         uptodownHandled = false;
                         HelperLog.info("Retrying APKMirror with a fresh download key");
+                        main.post(() -> startWebFlow(source, webOriginalUrl,
+                                uptodownPkg, uptodownVersion, uptodownFileType));
+                        return;
+                    }
+                    if ("uptodown".equals(source) && e instanceof java.io.IOException
+                            && isRetryableDownloadError((java.io.IOException) e)
+                            && webRetries < 1 && !cancelled) {
+                        // The native Uptodown CDN URL can expire or stall near
+                        // the end. Reopen the verification page once to get a
+                        // fresh URL instead of giving up on the source.
+                        webRetries++;
+                        uptodownHandled = false;
+                        HelperLog.info("Retrying Uptodown with a fresh download URL");
                         main.post(() -> startWebFlow(source, webOriginalUrl,
                                 uptodownPkg, uptodownVersion, uptodownFileType));
                         return;
@@ -3152,6 +3218,16 @@ public class DownloadActivity extends Activity {
         return drawable;
     }
 
+    /** Caches the real icon from a downloaded plain APK for this package/version. */
+    private void appIconCacheSave(File file) {
+        if (file == null || TextUtils.isEmpty(requestPkg)) {
+            return;
+        }
+        String key = AppIconCache.key(requestPkg, requestVersion);
+        AppIconCache.saveFromApk(getApplicationContext(), key, file);
+        main.post(this::updateDownloadDetails);
+    }
+
     /** Updates the top bar with the app and version from Morphe's request. */
     private void updateRequestHeader() {
         main.post(() -> {
@@ -3182,16 +3258,29 @@ public class DownloadActivity extends Activity {
                     appIconFallback.setVisibility(View.GONE);
                 }
             } else {
+                boolean iconShown = false;
                 try {
                     appIcon.setImageDrawable(
                             getPackageManager().getApplicationIcon(requestPkg));
+                    iconShown = true;
+                } catch (Exception ignored) {
+                    // The target app is not installed. Try the cached icon
+                    // from the source page or a previous download.
+                }
+                if (!iconShown) {
+                    Drawable cached = AppIconCache.load(this,
+                            AppIconCache.key(requestPkg, requestVersion));
+                    if (cached != null) {
+                        appIcon.setImageDrawable(cached);
+                        iconShown = true;
+                    }
+                }
+                if (iconShown) {
                     appIcon.setVisibility(View.VISIBLE);
                     if (appIconFallback != null) {
                         appIconFallback.setVisibility(View.GONE);
                     }
-                } catch (Exception ignored) {
-                    // The target app is not installed yet. Use a known brand
-                    // icon when available, otherwise a deliberate initial.
+                } else {
                     Integer known = knownAppIcon(requestPkg);
                     if (known != null) {
                         appIcon.setImageResource(known);
@@ -3708,7 +3797,10 @@ public class DownloadActivity extends Activity {
                 verificationHint.setVisibility(View.VISIBLE);
             }
         };
-        main.postDelayed(verificationHintRunnable, 10_000);
+        // Uptodown requires a real tap on its Turnstile/Download button, so
+        // show the hint early instead of making the user wait ten seconds.
+        long delay = "uptodown".equals(webSource) ? 3_000 : 10_000;
+        main.postDelayed(verificationHintRunnable, delay);
     }
 
     private void hideVerificationHint() {
@@ -5025,6 +5117,7 @@ public class DownloadActivity extends Activity {
                     throw new IOException("APKMirror app path not found");
                 }
                 String appHtml = httpGet(absolute(appUrl), url);
+                cacheSourceIcon(appHtml, pkg);
                 String appVersion = findVersionUrl(appHtml, appUrl, version);
                 if (appVersion == null && !TextUtils.isEmpty(version)) {
                     appVersion = findExactVersionUrl(appUrl, appHtml, version, absolute(appUrl));
@@ -5170,6 +5263,7 @@ public class DownloadActivity extends Activity {
                     + ", expected " + pkg);
         }
         AppSettings.setApkMirrorAppUrl(this, pkg, absolute(appUrl));
+        cacheSourceIcon(appHtml, pkg);
         HelperLog.info("APKMirror app HTML length=" + appHtml.length()
                 + " fontBlack=" + appHtml.contains("fontBlack")
                 + " release=" + appHtml.contains("-release/"));

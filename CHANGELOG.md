@@ -5,6 +5,40 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.2.3] - 2026-11-15
+
+2.2.3 restores the Uptodown fallback entry, makes the Uptodown verification
+flow tolerate real user taps, and adds real icons for apps that are not
+installed.
+
+### Fixed
+
+- **Uptodown missing from Sources:** the separate "Uptodown fallback" row is
+  back in Settings and the quick Sources dialog. It is intentionally not
+  draggable: Uptodown is not a catalogue search source, it only opens when a
+  Morphe resolver/fallback link points to an Uptodown page. The row has its own
+  toggle, health status, and "Test all sources" coverage.
+- **Uptodown downloads timing out:** Uptodown's Download button needs a real
+  user tap to obtain a Cloudflare Turnstile token; a programmatic click does
+  not count. The helper no longer auto-reloads the page or triggers the 30s
+  ad-block reload while the user verifies, shows the verification hint after
+  3 seconds, and gives the page 3 minutes before timing out. A failed native
+  download retries once with a fresh Uptodown URL instead of giving up.
+- **Icons for uninstalled apps:** when an APK is resolved from APKMirror, its
+  app-page icon is cached and shown while the download is still running. After
+  a plain APK is downloaded, its real icon is extracted and cached for future
+  requests. The helper no longer falls back to a letter placeholder when one of
+  these icons is available.
+
+### Notes
+
+- Android/One UI does not expose the active icon pack for a package that is not
+  installed, so the helper cannot guarantee the custom icon-pack artwork in
+  that case. It now uses the source/APK icon instead of a generic initial
+  whenever possible.
+- Uptodown remains a WebView fallback; it is not part of the ordered catalogue
+  and cannot be moved above or below the searchable sources.
+
 ## [2.2.2] - 2026-11-15
 
 2.2.2 fixes launcher-icon hiding and the notification status-bar icon, restores

@@ -115,7 +115,7 @@ The helper never installs anything.
 | 6 | Aptoide | Queries the Aptoide API; only uploads marked `TRUSTED` are accepted. |
 | 7 | Appteka | Resolves the exact version by package and version code. SnapTube only by default; the source is marked as hazardous because it hosts modded APKs. |
 | 8 | GitHub releases | Uses the release immediately when Morphe's resolver points to GitHub. Otherwise it is the automatic last resort: tries a remembered repository or searches GitHub, checks the requested version, prefers the matching ABI, and remembers the repository. A user-added per-app mapping can run before the Morphe link instead. |
-| WebView | Uptodown / APKPure | Uptodown opens from the resolver. APKPure's page is the last resort so it cannot block the other sources. |
+| WebView | Uptodown / APKPure | Uptodown opens from the resolver and has its own non-ordered fallback toggle in Settings. Its Download button requires a real tap for Cloudflare Turnstile. APKPure's page is the last resort so it cannot block the other sources. |
 
 The patch bundle's Google search fallback is not scraped; the helper skips it and uses the
 sources above. GitHub is automatic: there is no **Search GitHub releases** button anymore.

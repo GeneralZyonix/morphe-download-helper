@@ -120,6 +120,7 @@
     <string name="settings_source_apkcube_desc">Play catalogue search with a specific build and ABI</string>
     <string name="settings_source_uptodown_title">Uptodown fallback</string>
     <string name="settings_source_uptodown_desc">In-app WebView verification page</string>
+    <string name="settings_source_fallback_section">Fallback WebView</string>
     <string name="settings_source_fdroid_desc">Open-source repository; only apps it hosts</string>
     <string name="settings_source_aptoide_desc">API search; only uploads marked TRUSTED</string>
     <string name="settings_source_appteka_title">\u26A0 Appteka</string>
@@ -320,7 +321,7 @@
     <string name="download_retry_failed">Retry failed sources</string>
     <string name="download_copy_details">Copy details</string>
     <string name="download_uptodown_title">Uptodown verification</string>
-    <string name="download_uptodown_explanation">Uptodown needs a quick Cloudflare check. The official download page is shown below. Wait for the download button, then tap it if the download does not start automatically. The APK will be returned to Morphe.</string>
+    <string name="download_uptodown_explanation">Uptodown needs a quick Cloudflare check and a real tap on its green Download button. The official page is shown below; tap Download once it appears. The APK will be returned to Morphe.</string>
     <string name="download_verification_attention">Verification needs attention — tap to open</string>
     <string name="download_verification_title">Verification needed</string>
     <string name="download_verification_body">Action required to continue the download.</string>
