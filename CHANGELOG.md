@@ -5,6 +5,36 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.4] - 2026-11-15
+
+2.3.4 makes skipped sources explain themselves and detects APKCube no-match
+pages even when the message appears only briefly. Everything from 2.3.3 is
+included.
+
+### Added
+
+- Updated the French translation with all missing strings, including the build
+  name chip, skipped-source state, and APKCube messages. Thanks to
+  [@foXaCe](https://github.com/foXaCe) for the translation update.
+
+### Changed
+
+- The main-screen helper chip now shows the installed build:
+  `Helper v2.3.4 · Icon` or `Helper v2.3.4 · No icon`.
+- Automatic GitHub search requires a version again. When Morphe supplies no
+  version, the GitHub row shows **NO VERSION** with the reason, and the report
+  records `SKIPPED - No version supplied for automatic search` instead of
+  leaving GitHub looking like an untried source. Remembered and pinned GitHub
+  repositories are still tried.
+
+### Fixed
+
+- APKCube “app not found” / “no match” pages are detected as soon as the page
+  renders the result, including a message that appears briefly before the page
+  reloads. The helper no longer depends on `onPageFinished` or a two-second poll
+  for these pages, so a verification/reload loop cannot hold the WebView until
+  the timeout.
+
 ## [2.3.3] - 2026-11-15
 
 2.3.3 replaces the launcher-icon toggle with two installable builds. Everything

@@ -271,7 +271,11 @@ public class MainActivity extends Activity {
         statusRow.addView(morpheChip, new LinearLayout.LayoutParams(
                 WRAP_CONTENT, WRAP_CONTENT));
 
-        TextView versionChip = text(getString(R.string.main_version_chip, appVersion),
+        String buildName = getString(AppSettings.isLauncherIconShown(this)
+                ? R.string.main_build_icon
+                : R.string.main_build_no_icon);
+        TextView versionChip = text(
+                getString(R.string.main_version_chip, appVersion, buildName),
                 12, ACCENT_TEXT, true);
         versionChip.setPadding(dp(12), dp(6), dp(12), dp(6));
         GradientDrawable versionFill = rounded(withAlpha(ACCENT_TEXT, 10), 999);

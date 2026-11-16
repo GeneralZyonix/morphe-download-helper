@@ -15,6 +15,7 @@
     <string name="common_ok">OK</string>
     <string name="common_save">Save</string>
     <string name="common_failed">FAILED</string>
+    <string name="common_skipped">SKIPPED</string>
 
     <!-- Launcher screen. -->
     <string name="main_subtitle">APK download helper for Morphe</string>
@@ -31,7 +32,9 @@
     <string name="main_status_detected_version">Morphe %1$s</string>
     <string name="main_status_missing">Morphe not installed</string>
     <string name="main_status_missing_chip">🚫 Morphe not installed</string>
-    <string name="main_version_chip">Helper v%1$s</string>
+    <string name="main_version_chip">Helper v%1$s · %2$s</string>
+    <string name="main_build_icon">Icon</string>
+    <string name="main_build_no_icon">No icon</string>
     <string name="main_log_title">Helper log</string>
     <string name="main_report_github">Report on GitHub</string>
     <string name="main_report_title">Report on GitHub</string>
@@ -347,6 +350,7 @@
     <string name="download_step_failed">FAILED</string>
     <string name="download_step_current">NOW</string>
     <string name="download_step_next">NEXT</string>
+    <string name="download_step_no_version">NO VERSION</string>
     <string name="download_edit_sources">Edit sources</string>
     <string name="download_progress_preparing">PREPARING</string>
     <string name="download_progress_downloading">DOWNLOADING</string>
@@ -405,6 +409,7 @@
     <string name="source_label_uptodown_webview">Uptodown WebView</string>
     <string name="source_label_uptodown">Uptodown API</string>
     <string name="source_label_github">GitHub</string>
+    <string name="source_skip_github_no_version">No version supplied for automatic search</string>
     <string name="source_label_user_github">User GitHub (%1$s)</string>
     <string name="source_label_morphe_resolver">Morphe resolver</string>
     <string name="source_label_morphe_fallback">Morphe fallback</string>
@@ -434,6 +439,7 @@
     <string name="download_searching_appteka">Searching Appteka…</string>
     <string name="download_checking_github_releases">Checking GitHub releases…</string>
     <string name="download_searching_github">Searching GitHub…</string>
+    <string name="download_skipping_github_no_version">Skipping GitHub: no version supplied.</string>
     <string name="download_opening_apkpure">Opening APKPure page…</string>
     <string name="download_opening_apkpure_last_resort">Opening APKPure as a last resort…</string>
     <string name="download_checking_apkmirror_page">Checking APKMirror page…</string>

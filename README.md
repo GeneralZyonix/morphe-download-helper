@@ -19,8 +19,8 @@ builds of the same app, so you can choose the behavior you want:
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
-| **Icon** — `MorpheDownloadHelper-v2.3.3-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
-| **No-icon** — `MorpheDownloadHelper-v2.3.3-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+| **Icon** — `MorpheDownloadHelper-v2.3.4-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** — `MorpheDownloadHelper-v2.3.4-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
 
 Both builds have the same package name, version, signing key, and features.
 Install one or the other, not both. The in-app updater stays on the build you
@@ -29,6 +29,10 @@ install or remove the old home-screen shortcut if your launcher keeps it.
 
 ## Recent highlights
 
+- **2.3.4:** the helper chip names the installed build, skipped sources explain
+  why they were skipped, APKCube “app not found” pages are detected even when
+  the message appears briefly before a reload, and the French translation is
+  complete again.
 - **2.3.3:** two launcher builds (icon and no-icon), GitHub-only apps found by
   package name in READMEs, correct ARMv8/ARMv7 GitHub asset selection, and
   immediate APKCube “no match” continuation.
@@ -74,19 +78,21 @@ Please include:
 - Opens APKPure, APKCube, or Uptodown in an inline WebView when a site needs a browser check.
 - If a verification WebView times out, errors, or cannot capture a download, marks that
   source as failed and continues with the next enabled source.
-- Detects APKCube “no match / package isn’t in the catalog” pages immediately instead of
-  waiting for the WebView timeout.
+- Detects APKCube “no match / package isn’t in the catalog” pages immediately, even when
+  the message appears briefly before a reload, instead of waiting for the WebView timeout.
 - Returns a `content://` URI with read permission so Morphe can validate and use the file.
 - Rejects downloaded APKs whose package or version does not match the request.
 - Shows a dark, modern UI with a **Sources** shortcut that opens source settings.
 - Shows per-source failure details and offers **Retry all sources**, **Retry failed sources**, and **Copy details**.
 - Settings shows source type badges and a per-source **Test** action, plus **Copy log**, **Save log**, and **Help**.
-- The main screen shows Morphe's detected version and the helper version in theme-aware pills, puts the log actions above About, and offers a **Report on GitHub** flow with short and full-log options.
+- The main screen shows Morphe's detected version and the helper version in theme-aware pills; the helper chip also names the installed build (`Icon` or `No icon`). It puts the log actions above About and offers a **Report on GitHub** flow with short and full-log options.
 - Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, active source logo beside the Source value, package pill, verification warning card, speed/ETA pill, and distinct Pause/Switch/Cancel actions. The source card collapses to a compact summary during the download, expands automatically on a failure, a fallback note, or **Switch source**, and its rows can be tapped to switch sources.
 - Single-stream downloads retry a dropped connection and resume from the `.part` offset with `Range`/`If-Range`; multi-connection segments resume from their written offset.
 - WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors. A failed WebView no longer ends the whole resolution; the next enabled source is tried.
 - Uses GitHub automatically: immediately when Morphe's resolver points to a release, or as
-  the final fallback when normal APK sources fail. There is no separate GitHub button.
+  the final fallback when normal APK sources fail. Automatic search needs a version; when
+  Morphe supplies none, the GitHub row and report explain that it was skipped. Remembered
+  and pinned repositories are still tried. There is no separate GitHub button.
 - GitHub search looks for the package name in READMEs as well as the app name, so renamed
   repositories (for example Myspoti → Orpheon) are still found.
 - GitHub asset selection understands `ARMv8`, `ARMv7`, `ARM64`, `AArch64`, `x86_64`, and
@@ -117,8 +123,8 @@ Please include:
 Grab one of the two current APKs from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-- `MorpheDownloadHelper-v2.3.3-universal.apk` — **icon build**
-- `MorpheDownloadHelper-v2.3.3-universal-noicon.apk` — **no-icon build**
+- `MorpheDownloadHelper-v2.3.4-universal.apk` — **icon build**
+- `MorpheDownloadHelper-v2.3.4-universal-noicon.apk` — **no-icon build**
 
 Both are written in Java, contain no native libraries, and work on all CPU
 architectures (arm64-v8a, armeabi-v7a, x86, x86_64) and on **Android 6.0+**

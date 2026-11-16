@@ -499,6 +499,7 @@ public class DownloadActivity extends Activity {
     private volatile long webLastProgressAt;
     private volatile boolean webHintShown;
     private volatile boolean webReadyLogged;
+    private int webNotFoundProbes;
 
     private LinearLayout diagnosticsCard;
     private LinearLayout diagnosticsRows;
@@ -1156,6 +1157,7 @@ public class DownloadActivity extends Activity {
         webLastProgressAt = System.currentTimeMillis();
         webHintShown = false;
         webReadyLogged = false;
+        webNotFoundProbes = 0;
         cancelChallengeTimeout();
         cancelAdBlockRetry();
         blockWebAds = AppSettings.blockWebAds(this);
@@ -1221,6 +1223,10 @@ public class DownloadActivity extends Activity {
                             request.getUrl().getQueryParameter("code")));
                     return true;
                 }
+                if (url.startsWith("morphe-helper://apkcube-not-found")) {
+                    handleApkCubeNotFound(source);
+                    return true;
+                }
                 if ("apkcube".equals(source) && !isApkCubeNavigationAllowed(url)) {
                     HelperLog.info("APKCube blocked off-site navigation: " + url);
                     return true;
@@ -1242,6 +1248,10 @@ public class DownloadActivity extends Activity {
                 if (url.startsWith("morphe-helper://build-mismatch")) {
                     rejectWebBuild(source, preDownloadBuildMessage(
                             Uri.parse(url).getQueryParameter("code")));
+                    return true;
+                }
+                if (url.startsWith("morphe-helper://apkcube-not-found")) {
+                    handleApkCubeNotFound(source);
                     return true;
                 }
                 if ("apkcube".equals(source) && !isApkCubeNavigationAllowed(url)) {
@@ -1274,6 +1284,13 @@ public class DownloadActivity extends Activity {
             }
 
             @Override
+            public void onPageCommitVisible(WebView view, String url) {
+                if ("apkcube".equals(webSource)) {
+                    view.evaluateJavascript(apkCubeNotFoundScript(), null);
+                }
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 webPageFinished = true;
                 webLastProgressAt = System.currentTimeMillis();
@@ -1294,6 +1311,11 @@ public class DownloadActivity extends Activity {
                     // Persist the Cloudflare clearance cookie now rather than
                     // relying on a later best-effort flush.
                     CookieManager.getInstance().flush();
+                }
+                if ("apkcube".equals(webSource)) {
+                    // APKCube can show "No match" only briefly before reloading.
+                    // Watch the DOM so a transient result still fails the source.
+                    view.evaluateJavascript(apkCubeNotFoundScript(), null);
                 }
                 if ("uptodown".equals(webSource)) {
                     // Uptodown's download button needs a real user gesture to
@@ -1935,6 +1957,79 @@ public class DownloadActivity extends Activity {
                         uptodownVersion == null ? "" : uptodownVersion));
     }
 
+    /**
+     * Watches APKCube's client-rendered result for a no-match message and
+     * reports it immediately. The page can show the message briefly before it
+     * reloads, which the two-second native probe can miss.
+     */
+    static String apkCubeNotFoundScript() {
+        return """
+                (function(){
+                if(window.__mhApkCubeNotFoundWatch)return;
+                window.__mhApkCubeNotFoundWatch=true;
+                function pageText(){
+                    return ((document.title||'')+' '
+                        +(document.body?document.body.innerText:'')).toLowerCase();
+                }
+                function isNotFound(t){
+                    return t.indexOf('app not found')>=0
+                        || t.indexOf('app is not found')>=0
+                        || t.indexOf('no app found')>=0
+                        || t.indexOf('no match')>=0
+                        || t.indexOf('no results for')>=0
+                        || t.indexOf("we don't hold that package")>=0
+                        || t.indexOf("isn't in the catalog")>=0
+                        || t.indexOf('not in the catalog')>=0
+                        || t.indexOf("couldn't find that app")>=0
+                        || t.indexOf('could not find that app')>=0
+                        || t.indexOf("couldn't find that package")>=0
+                        || t.indexOf('could not find that package')>=0
+                        || t.indexOf("couldn't be fetched")>=0
+                        || t.indexOf('could not be fetched')>=0
+                        || t.indexOf("couldn't start the fetch")>=0
+                        || t.indexOf('could not start the fetch')>=0
+                        || t.indexOf('no longer available')>=0;
+                }
+                function check(){
+                    if(window.__mhApkCubeNotFound)return;
+                    if(!isNotFound(pageText()))return;
+                    window.__mhApkCubeNotFound=true;
+                    location.href='morphe-helper://apkcube-not-found';
+                }
+                var scheduled=false;
+                function schedule(){
+                    if(scheduled||window.__mhApkCubeNotFound)return;
+                    scheduled=true;
+                    setTimeout(function(){
+                        scheduled=false;
+                        check();
+                    },100);
+                }
+                check();
+                if(window.MutationObserver&&document.documentElement){
+                    new MutationObserver(schedule).observe(document.documentElement,{
+                        subtree:true,childList:true,characterData:true,attributes:true
+                    });
+                }
+                var n=0;
+                var timer=setInterval(function(){
+                    n++;
+                    check();
+                    if(n>600)clearInterval(timer);
+                },500);
+                })();
+                """;
+    }
+
+    /** Stops the APKCube WebView after its own page reported no match. */
+    private void handleApkCubeNotFound(String source) {
+        if (!"apkcube".equals(source) || uptodownHandled) {
+            return;
+        }
+        logWebFlowState("NOT_FOUND", "page");
+        failWebFlowFast(getString(R.string.download_error_apkcube_not_found));
+    }
+
     private String preDownloadBuildMessage(String code) {
         String actual = TextUtils.isEmpty(code) ? "unknown" : code;
         return "APKMirror page is build " + actual + ", expected "
@@ -2035,22 +2130,23 @@ public class DownloadActivity extends Activity {
         String notFoundCheck = "";
         if ("apkcube".equals(webSource)) {
             notFoundCheck = "if(t.indexOf('app not found')>=0"
-                    + "||t.indexOf('did not find')>=0"
-                    + "||t.indexOf('could not find')>=0"
-                    + "||t.indexOf('couldn\\'t find')>=0"
-                    + "||t.indexOf('cannot find')>=0"
+                    + "||t.indexOf('app is not found')>=0"
+                    + "||t.indexOf('no app found')>=0"
                     + "||t.indexOf('no match')>=0"
-                    + "||t.indexOf('no results')>=0"
-                    + "||t.indexOf('no result')>=0"
-                    + "||t.indexOf('no app')>=0"
-                    + "||t.indexOf('no matching')>=0"
-                    + "||t.indexOf('nothing found')>=0"
-                    + "||t.indexOf('not found')>=0"
-                    + "||t.indexOf('not available')>=0"
+                    + "||t.indexOf('no results for')>=0"
                     + "||t.indexOf('isn\\'t in the catalog')>=0"
                     + "||t.indexOf('not in the catalog')>=0"
                     + "||t.indexOf('don\\'t hold that package')>=0"
-                    + "||t.indexOf('do not hold that package')>=0)"
+                    + "||t.indexOf('do not hold that package')>=0"
+                    + "||t.indexOf('couldn\\'t find that app')>=0"
+                    + "||t.indexOf('could not find that app')>=0"
+                    + "||t.indexOf('couldn\\'t find that package')>=0"
+                    + "||t.indexOf('could not find that package')>=0"
+                    + "||t.indexOf('couldn\\'t be fetched')>=0"
+                    + "||t.indexOf('could not be fetched')>=0"
+                    + "||t.indexOf('couldn\\'t start the fetch')>=0"
+                    + "||t.indexOf('could not start the fetch')>=0"
+                    + "||t.indexOf('no longer available')>=0)"
                     + "return 'notfound';";
         }
         web.evaluateJavascript(
@@ -2090,12 +2186,16 @@ public class DownloadActivity extends Activity {
 
     private void onWebFlowProbe(String value) {
         if (value != null && value.contains("notfound")) {
-            if (webPageFinished && !uptodownHandled) {
-                logWebFlowState("NOT_FOUND", "");
-                failWebFlowFast(getString(R.string.download_error_apkcube_not_found));
+            if (!uptodownHandled) {
+                webNotFoundProbes++;
+                if (webNotFoundProbes >= 2) {
+                    logWebFlowState("NOT_FOUND", "");
+                    failWebFlowFast(getString(R.string.download_error_apkcube_not_found));
+                }
             }
             return;
         }
+        webNotFoundProbes = 0;
         boolean challenge = value != null && value.contains("challenge");
         if (!challenge && !webReadyLogged && webPageFinished && !uptodownHandled) {
             webReadyLogged = true;
@@ -3927,6 +4027,20 @@ public class DownloadActivity extends Activity {
         main.post(this::renderSourceSteps);
     }
 
+    /** Records a source that was deliberately skipped, with a visible reason. */
+    private void markSourceSkipped(String key, String reason) {
+        if (report != null) {
+            report.recordSkipped(key, reason);
+        }
+        HelperLog.info("Skipped " + AppSettings.sourceLabel(this, key)
+                + ": " + reason);
+        main.post(() -> {
+            sourceStepsManualOverride = true;
+            setSourceCardExpanded(true);
+            renderSourceSteps();
+        });
+    }
+
     /** Shows or hides the source rows, keeping a compact summary visible. */
     private void setSourceCardExpanded(boolean expanded) {
         sourceStepsExpanded = expanded;
@@ -4039,6 +4153,12 @@ public class DownloadActivity extends Activity {
             labelColumn.setOrientation(LinearLayout.VERTICAL);
             labelColumn.setPadding(dp(10), 0, 0, 0);
             labelColumn.addView(text(name, 13, strong ? TEXT : MUTED, strong));
+            if (latest != null && latest.skipped
+                    && !TextUtils.isEmpty(latest.detail)) {
+                TextView skipReason = text(latest.detail, 10, MUTED, false);
+                skipReason.setPadding(0, dp(2), 0, 0);
+                labelColumn.addView(skipReason);
+            }
             if (GitHubAppStore.SOURCE_KEY.equals(key) && userEntry != null) {
                 labelColumn.addView(text(userEntry.repo, 10, MUTED, false));
             }
@@ -4051,9 +4171,14 @@ public class DownloadActivity extends Activity {
                 stateText = getString(R.string.download_step_current);
                 stateColor = GREEN;
             } else if (latest != null) {
-                stateText = getString(latest.success
-                        ? R.string.download_step_ok : R.string.download_step_failed);
-                stateColor = latest.success ? GREEN : RED;
+                if (latest.skipped) {
+                    stateText = getString(R.string.download_step_no_version);
+                    stateColor = MUTED;
+                } else {
+                    stateText = getString(latest.success
+                            ? R.string.download_step_ok : R.string.download_step_failed);
+                    stateColor = latest.success ? GREEN : RED;
+                }
             } else {
                 stateText = getString(R.string.download_step_next);
                 stateColor = ACCENT_TEXT;
@@ -4189,9 +4314,13 @@ public class DownloadActivity extends Activity {
             row.addView(text(attempt.label, 14, TEXT, true));
 
             String detail = getString(attempt.success
-                    ? R.string.common_ok : R.string.common_failed)
+                    ? R.string.common_ok
+                    : attempt.skipped
+                            ? R.string.common_skipped
+                            : R.string.common_failed)
                     + (TextUtils.isEmpty(attempt.detail) ? "" : " \u2022 " + attempt.detail);
-            TextView detailView = text(detail, 12, attempt.success ? GREEN : RED, false);
+            TextView detailView = text(detail, 12,
+                    attempt.success ? GREEN : attempt.skipped ? MUTED : RED, false);
             detailView.setPadding(0, dp(3), 0, 0);
             row.addView(detailView);
             diagnosticsRows.addView(row);
@@ -4571,19 +4700,26 @@ public class DownloadActivity extends Activity {
 
         boolean hasRequestedVersion = !TextUtils.isEmpty(version)
                 && !"any".equalsIgnoreCase(version.trim());
-        if (hasRequestedVersion) {
+        if (!hasRequestedVersion) {
             setSourceLabel(R.string.source_label_github);
-            setStatus(R.string.download_searching_github);
-            HelperLog.info("Searching GitHub releases");
-            try {
-                File file = downloadFromGitHubSearch(pkg, version, fileType, abis);
-                markSource(SourceSettings.GITHUB, true,
-                        getString(R.string.source_detail_automatic_search));
-                return file;
-            } catch (Exception error) {
-                HelperLog.error("Automatic GitHub search failed", error);
-                markSource(SourceSettings.GITHUB, false, error.getMessage());
-            }
+            setStatus(R.string.download_skipping_github_no_version);
+            HelperLog.info(
+                    "Skipping automatic GitHub search: no version supplied");
+            markSourceSkipped(SourceSettings.GITHUB,
+                    getString(R.string.source_skip_github_no_version));
+            return null;
+        }
+        setSourceLabel(R.string.source_label_github);
+        setStatus(R.string.download_searching_github);
+        HelperLog.info("Searching GitHub releases");
+        try {
+            File file = downloadFromGitHubSearch(pkg, version, fileType, abis);
+            markSource(SourceSettings.GITHUB, true,
+                    getString(R.string.source_detail_automatic_search));
+            return file;
+        } catch (Exception error) {
+            HelperLog.error("Automatic GitHub search failed", error);
+            markSource(SourceSettings.GITHUB, false, error.getMessage());
         }
         return null;
     }

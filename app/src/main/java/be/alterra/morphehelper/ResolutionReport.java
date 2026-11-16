@@ -15,13 +15,20 @@ final class ResolutionReport {
         final String key;
         final String label;
         final boolean success;
+        final boolean skipped;
         final String detail;
         final long at;
 
         Attempt(String key, String label, boolean success, String detail, long at) {
+            this(key, label, success, false, detail, at);
+        }
+
+        Attempt(String key, String label, boolean success, boolean skipped,
+                String detail, long at) {
             this.key = key;
             this.label = label;
             this.success = success;
+            this.skipped = skipped;
             this.detail = detail;
             this.at = at;
         }
@@ -63,6 +70,13 @@ final class ResolutionReport {
         } else {
             failedKeys.add(key);
         }
+    }
+
+    /** Records a source that was deliberately not attempted, with the reason. */
+    synchronized void recordSkipped(String key, String detail) {
+        attempts.add(new Attempt(key, AppSettings.sourceLabel(context, key), false,
+                true, friendly(detail), System.currentTimeMillis()));
+        failedKeys.remove(key);
     }
 
     synchronized void finishSuccess(File file) {
@@ -132,8 +146,11 @@ final class ResolutionReport {
         } else {
             for (int i = 0; i < attempts.size(); i++) {
                 Attempt attempt = attempts.get(i);
-                String status = context.getString(
-                        attempt.success ? R.string.common_ok : R.string.common_failed);
+                String status = context.getString(attempt.success
+                        ? R.string.common_ok
+                        : attempt.skipped
+                                ? R.string.common_skipped
+                                : R.string.common_failed);
                 text.append(context.getString(
                         R.string.report_source_line, i + 1, attempt.label, status));
                 if (attempt.detail != null && !attempt.detail.isEmpty()) {

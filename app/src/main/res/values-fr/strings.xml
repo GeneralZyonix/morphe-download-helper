@@ -16,6 +16,7 @@
     <string name="common_ok">OK</string>
     <string name="common_save">Enregistrer</string>
     <string name="common_failed">ÉCHEC</string>
+    <string name="common_skipped">IGNORÉ</string>
 
     <!-- Écran d'accueil. -->
     <string name="main_subtitle">Assistant de téléchargement d’APK pour Morphe</string>
@@ -281,6 +282,7 @@
     <string name="download_step_failed">ÉCHEC</string>
     <string name="download_step_current">EN COURS</string>
     <string name="download_step_next">SUIVANT</string>
+    <string name="download_step_no_version">SANS VERSION</string>
     <string name="download_edit_sources">Modifier les sources</string>
     <string name="download_progress_preparing">PRÉPARATION</string>
     <string name="download_progress_downloading">TÉLÉCHARGEMENT</string>
@@ -334,6 +336,7 @@
     <string name="source_label_apkmirror_webview">APKMirror (WebView)</string>
     <string name="source_label_uptodown_webview">Uptodown (WebView)</string>
     <string name="source_label_github">GitHub</string>
+    <string name="source_skip_github_no_version">Aucune version fournie pour la recherche automatique</string>
     <string name="source_label_user_github">GitHub utilisateur (%1$s)</string>
     <string name="source_label_morphe_resolver">Résolveur Morphe</string>
     <string name="source_label_morphe_fallback">Repli Morphe</string>
@@ -359,6 +362,7 @@
     <string name="download_checking_github_releases">Vérification des versions GitHub…</string>
     <string name="download_checking_user_github">Vérification de la version GitHub utilisateur…</string>
     <string name="download_searching_github">Recherche sur GitHub…</string>
+    <string name="download_skipping_github_no_version">GitHub ignoré&#160;: aucune version fournie.</string>
     <string name="download_opening_apkpure">Ouverture de la page APKPure…</string>
     <string name="download_opening_apkpure_last_resort">Ouverture d’APKPure en dernier recours…</string>
     <string name="download_checking_apkmirror_page">Vérification de la page APKMirror…</string>
@@ -624,11 +628,13 @@
     <string name="appearance_current">Actuel&#160;: %1$s</string>
     <string name="main_status_detected_version">Morphe %1$s</string>
     <string name="main_status_missing_chip">🚫 Morphe non installé</string>
-    <string name="main_version_chip">Helper v%1$s</string>
+    <string name="main_version_chip">Helper v%1$s · %2$s</string>
+    <string name="main_build_icon">Icône</string>
+    <string name="main_build_no_icon">Sans icône</string>
     <string name="main_log_title">Journal du helper</string>
     <string name="main_report_github">Signaler sur GitHub</string>
     <string name="main_report_title">Signaler sur GitHub</string>
-    <string name="main_report_message">Choisissez ce qu’il faut inclure. GitHub s’ouvre pour relecture&#160;; rien n’est envoyé tant que vous n’appuyez pas sur Submit. Les URL signées et les jetons sont masqués automatiquement.</string>
+    <string name="main_report_message">Choisissez ce qu’il faut inclure. GitHub s’ouvre pour relecture&#160;; rien n’est envoyé tant que vous n’appuyez pas sur Soumettre. Les URL signées et les jetons sont masqués automatiquement.</string>
     <string name="main_report_short">Rapport court — résumé et dernières lignes du journal</string>
     <string name="main_report_full">Journal complet — copié et enregistré pour le coller ou le joindre</string>
     <string name="main_report_full_saved">Journal complet enregistré dans Downloads/Morphe Helper.</string>
