@@ -5,6 +5,29 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.8] - 2026-11-17
+
+2.3.8 finishes the source-speed work with APKPure/Uptodown prefetch and a
+short-lived negative-result cache, and adds per-source timings. Everything from
+2.3.7 is included.
+
+### Added
+
+- **APKPure and Uptodown metadata prefetch:** both resolve alongside APKMirror,
+  F-Droid, and Aptoide. Neither is waited on; if the prefetch is not ready, the
+  source uses its normal path.
+- **Negative-result cache:** definitive “not found” results are remembered for
+  two hours and skipped with a visible reason. **Retry all sources** and **Retry
+  failed sources** bypass the cache. Transient failures such as timeouts, 403/429,
+  and Cloudflare challenges are never cached.
+- **Per-source timings** in the final report and diagnostics list.
+
+### Changed
+
+- The Fast source checks description now names APKPure/Uptodown and explains that
+  source order is still respected.
+- The multi-connection description now states that APKMirror stays single-stream.
+
 ## [2.3.7] - 2026-11-17
 
 2.3.7 prefetches HTTP source metadata while the earlier sources run. Everything

@@ -99,6 +99,30 @@ final class UptodownApi {
         }
     }
 
+    /** Metadata resolved ahead of the source turn, without downloading the file. */
+    static final class Prepared {
+        final App app;
+        final Release release;
+        final Download download;
+
+        Prepared(App app, Release release, Download download) {
+            this.app = app;
+            this.release = release;
+            this.download = download;
+        }
+    }
+
+    static Prepared prepare(String pkg, String version, String fileType)
+            throws IOException {
+        App app = resolve(pkg);
+        Release release = findRelease(app, version, fileType);
+        if (release == null) {
+            throw new IOException("No matching Uptodown release");
+        }
+        Download download = resolveDownload(app, release.fileId);
+        return new Prepared(app, release, download);
+    }
+
     static App resolve(String pkg) throws IOException {
         if (TextUtils.isEmpty(pkg)) {
             throw new IOException("Missing package name");

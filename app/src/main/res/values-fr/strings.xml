@@ -120,9 +120,9 @@
     <string name="settings_live_adguard">Vérifications AdGuard en direct</string>
     <string name="settings_live_adguard_detail">Interroge AdGuard DNS pour les hôtes absents de la liste intégrée. Ajoute une requête par nouvel hôte et envoie ce nom d’hôte à AdGuard. Désactivé par défaut.</string>
     <string name="settings_fast_source_checks">Vérifications rapides des sources</string>
-    <string name="settings_fast_source_checks_detail">Interroge les sources API en parallèle, évite la WebView APKCube lorsque sa page indique déjà une absence, et rejette les résultats APKMirror sans rapport. Utilise un peu plus de données.</string>
+    <string name="settings_fast_source_checks_detail">Interroge APKPure, Uptodown, APKMirror, F-Droid et Aptoide en parallèle, ignore les sources récemment introuvables et évite les pages APKCube/APKMirror qui signalent déjà une absence. Les sources restent essayées dans votre ordre. Utilise un peu plus de données.</string>
     <string name="settings_multi_thread">Téléchargements multi-connexions plus rapides</string>
-    <string name="settings_multi_thread_detail">Divise les gros fichiers en 4 connexions maximum lorsque le serveur prend en charge HTTP Range. Repli automatique. Activé par défaut pour les nouvelles installations&#160;; un fichier de paramètres existant peut le remplacer.</string>
+    <string name="settings_multi_thread_detail">Divise les gros fichiers en 4 connexions maximum lorsque le serveur prend en charge HTTP Range. Repli automatique. APKMirror reste en flux unique. Activé par défaut pour les nouvelles installations&#160;; un fichier de paramètres existant peut le remplacer.</string>
     <string name="settings_multi_thread_enabled">Téléchargements multi-connexions activés.</string>
     <string name="settings_multi_thread_disabled">Téléchargements multi-connexions désactivés.</string>
     <string name="settings_block_ads_note">Si une page de vérification ne fonctionne plus, désactivez cette option et réessayez. Cela ne concerne que les pages ouvertes dans l’assistant.</string>
@@ -340,6 +340,7 @@
     <string name="source_label_github">GitHub</string>
     <string name="source_cache">Cache local</string>
     <string name="source_detail_cache">copie locale validée</string>
+    <string name="source_cached_failure">Ignoré&#160;: absence récente (%1$s)</string>
     <string name="download_using_cache">Utilisation d’un APK validé en cache…</string>
     <string name="source_skip_github_no_version">Aucune version fournie pour la recherche automatique</string>
     <string name="source_label_user_github">GitHub utilisateur (%1$s)</string>

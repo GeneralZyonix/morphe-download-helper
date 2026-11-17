@@ -514,6 +514,11 @@ public class DownloadActivity extends Activity {
     private volatile Future<Boolean> apkCubePreflightFuture;
     private final Map<String, Future<String>> sourcePrefetches = new ConcurrentHashMap<>();
     private volatile boolean sourcePrefetchCancelled;
+    private Future<ApkPureAssets.Asset> apkPureApiPrefetch;
+    private Future<ApkPureAssets.Asset> apkPureDirectPrefetch;
+    private Future<UptodownApi.Prepared> uptodownPrefetch;
+    private ExecutorService apiProbePool;
+    private boolean apkPurePrefetchStarted;
 
     private LinearLayout diagnosticsCard;
     private LinearLayout diagnosticsRows;
@@ -545,6 +550,7 @@ public class DownloadActivity extends Activity {
     private String requestVersion;
     private String requestFileType;
     private long[] requestVersionCodes;
+    private long[] resolvedVersionCodes;
     private String[] requestAbis;
 
 
@@ -554,6 +560,7 @@ public class DownloadActivity extends Activity {
 
         // Prepare logging first so every later step is captured.
         HelperLog.init(getApplicationContext());
+        AppSettings.clearApkMirrorCachesIfVersionChanged(this);
         SourceSettings.ensureInitialized(this);
         PublicSettings.apply(this);
         AppSettings.ensureLauncherIconState(this);
@@ -917,7 +924,7 @@ public class DownloadActivity extends Activity {
 
             if (!servedFromCache) {
                 DownloadCache.record(this, file, requestPkg, requestVersion,
-                        requestVersionCodes, requestFileType);
+                        resolvedVersionCodes, requestFileType);
             }
             long handoffStarted = System.currentTimeMillis();
             Uri uri = FileProvider.getUriForFile(
@@ -1331,7 +1338,7 @@ public class DownloadActivity extends Activity {
                 scheduleWebFlowTimeout(view);
                 uptodownReferer = url;
                 if ("apkmirror".equals(webSource)) {
-                    cacheApkMirrorAppUrl(url);
+                    cacheApkMirrorAppUrlIfMatches(view, url);
                     // Persist the Cloudflare clearance cookie now rather than
                     // relying on a later best-effort flush.
                     CookieManager.getInstance().flush();
@@ -1506,6 +1513,30 @@ public class DownloadActivity extends Activity {
      * for the same package can open the app page directly instead of repeating
      * the search (and the search's Cloudflare check).
      */
+    /**
+     * Caches the APKMirror app page reached through the WebView only when its
+     * Play Store link matches the request. A search result or challenge page
+     * for another app must not poison the cache for later requests.
+     */
+    private void cacheApkMirrorAppUrlIfMatches(WebView view, String url) {
+        if (uptodownPkg == null || uptodownPkg.isEmpty()) {
+            return;
+        }
+        view.evaluateJavascript(
+                "(function(){var a=document.querySelector('a[href*=\"play.google.com/store/apps/details?id=\"]');"
+                        + "if(!a)return '';var m=a.href.match(/[?&]id=([A-Za-z0-9._]+)/);"
+                        + "return m?m[1]:'';})()",
+                value -> {
+                    String found = value == null ? "" : value.replace("\"", "").trim();
+                    if (uptodownPkg.equals(found)) {
+                        cacheApkMirrorAppUrl(url);
+                    } else {
+                        HelperLog.info("APKMirror WebView page is " + found
+                                + ", not caching for " + uptodownPkg);
+                    }
+                });
+    }
+
     private void cacheApkMirrorAppUrl(String url) {
         if (uptodownPkg == null || uptodownPkg.isEmpty() || url == null) {
             return;
@@ -4041,6 +4072,10 @@ public class DownloadActivity extends Activity {
         if (report != null) {
             report.record(key, ok, message);
         }
+        if (!ok) {
+            SourceNegativeCache.record(this, key, requestPkg, requestVersion,
+                    resolvedVersionCodes, requestFileType, message);
+        }
         SourceHealth.record(this, key, ok, message == null ? "" : message);
         if (!ok) {
             main.post(() -> {
@@ -4342,7 +4377,10 @@ public class DownloadActivity extends Activity {
                     : attempt.skipped
                             ? R.string.common_skipped
                             : R.string.common_failed)
-                    + (TextUtils.isEmpty(attempt.detail) ? "" : " \u2022 " + attempt.detail);
+                    + (TextUtils.isEmpty(attempt.detail) ? "" : " \u2022 " + attempt.detail)
+                    + (attempt.durationMs > 0
+                            ? " \u2022 " + ResolutionReport.durationText(attempt.durationMs)
+                            : "");
             TextView detailView = text(detail, 12,
                     attempt.success ? GREEN : attempt.skipped ? MUTED : RED, false);
             detailView.setPadding(0, dp(3), 0, 0);
@@ -4635,6 +4673,7 @@ public class DownloadActivity extends Activity {
         // request did not supply one. Treat that exact code as authoritative,
         // so APKPure can use its direct endpoint instead of the API first.
         boolean hasCodes = codes != null && codes.length > 0;
+        resolvedVersionCodes = codes;
 
         if (cacheAllowed) {
             File cached = DownloadCache.find(this, pkg, version, codes, fileType);
@@ -4662,6 +4701,7 @@ public class DownloadActivity extends Activity {
         } finally {
             cancelApkCubePreflight();
             cancelSourcePrefetch();
+            cancelApiSourceProbes();
         }
     }
 
@@ -4871,12 +4911,18 @@ public class DownloadActivity extends Activity {
             startApkCubePreflight(pkg, codes, abis);
         }
         if (cacheAllowed) {
+            apkPurePrefetchStarted = false;
             startSourcePrefetch(pkg);
+            startApiSourceProbes(pkg, version, codes, fileType, false);
         }
 
         for (String source : sequence) {
             if (pendingSwitchKey != null) {
                 throw new IOException("Switched source");
+            }
+            if (cacheAllowed && !apkPurePrefetchStarted
+                    && !SourceSettings.FALLBACK.equals(source)) {
+                startApiSourceProbes(pkg, version, codes, fileType, true);
             }
             if (!sourceAllowed(source)) {
                 if (forcedOnly) {
@@ -4885,6 +4931,17 @@ public class DownloadActivity extends Activity {
                 continue;
             }
             attemptedSources.add(source);
+            if (cacheAllowed && SourceNegativeCache.isCacheableSource(source)) {
+                String cached = SourceNegativeCache.get(this, source, pkg, version,
+                        codes, fileType);
+                if (cached != null) {
+                    HelperLog.info("Skipping " + source
+                            + " from negative cache: " + cached);
+                    markSource(source, false,
+                            getString(R.string.source_cached_failure, cached));
+                    continue;
+                }
+            }
             activeSourceKey = source;
             activeSourceName = sourceLabelForKey(source);
             webParentSourceKey = null;
@@ -4996,6 +5053,17 @@ public class DownloadActivity extends Activity {
                     "direct: " + directError.getMessage());
             HelperLog.error("APKPure fast direct failed", directError);
         }
+        ApkPureAssets.Asset prefetched = takeApkPureApiPrefetch();
+        if (prefetched != null) {
+            try {
+                File file = downloadApkPureAsset(
+                        prefetched, pkg, version, "https://apkpure.com/");
+                markSource(SourceSettings.APKPURE, true, "API");
+                return file;
+            } catch (Exception error) {
+                HelperLog.error("APKPure prefetched API asset failed", error);
+            }
+        }
         setSourceLabel(R.string.source_label_apkpure_api);
         setStatus(R.string.download_resolving_apkpure_api);
         try {
@@ -5030,6 +5098,17 @@ public class DownloadActivity extends Activity {
             }
         }
 
+        ApkPureAssets.Asset prefetched = takeApkPureApiPrefetch();
+        if (prefetched != null) {
+            try {
+                File file = downloadApkPureAsset(
+                        prefetched, pkg, version, "https://apkpure.com/");
+                markSource(SourceSettings.APKPURE, true, "API");
+                return file;
+            } catch (Exception error) {
+                HelperLog.error("APKPure split prefetched API asset failed", error);
+            }
+        }
         setSourceLabel(R.string.source_label_apkpure_api);
         setStatus(R.string.download_resolving_apkpure_api);
         try {
@@ -5065,11 +5144,20 @@ public class DownloadActivity extends Activity {
     private File customApkPureFast(String pkg, String version, long[] codes,
                                    String fileType, String[] abis) {
         long deadline = System.currentTimeMillis() + 12_000L;
-        ExecutorService pool = Executors.newFixedThreadPool(2);
-        Future<ApkPureAssets.Asset> apiFuture = pool.submit(
-                () -> resolveApkPureApiAsset(pkg, version, codes, fileType));
-        Future<ApkPureAssets.Asset> directFuture = pool.submit(
-                () -> probeApkPureDirectAsset(pkg, version, codes, fileType));
+        Future<ApkPureAssets.Asset> apiFuture = apkPureApiPrefetch;
+        Future<ApkPureAssets.Asset> directFuture = apkPureDirectPrefetch;
+        apkPureApiPrefetch = null;
+        apkPureDirectPrefetch = null;
+        ExecutorService pool = null;
+        boolean ownsPool = false;
+        if (apiFuture == null || directFuture == null) {
+            pool = Executors.newFixedThreadPool(2);
+            apiFuture = pool.submit(
+                    () -> resolveApkPureApiAsset(pkg, version, codes, fileType));
+            directFuture = pool.submit(
+                    () -> probeApkPureDirectAsset(pkg, version, codes, fileType));
+            ownsPool = true;
+        }
         ApkPureAssets.Asset api = null;
         ApkPureAssets.Asset direct = null;
         Exception apiError = null;
@@ -5125,9 +5213,11 @@ public class DownloadActivity extends Activity {
             markSource(SourceSettings.APKPURE, false, reason);
             return null;
         } finally {
-            apiFuture.cancel(true);
-            directFuture.cancel(true);
-            pool.shutdownNow();
+            if (ownsPool) {
+                apiFuture.cancel(true);
+                directFuture.cancel(true);
+                pool.shutdownNow();
+            }
         }
     }
 
@@ -5450,6 +5540,84 @@ public class DownloadActivity extends Activity {
         sourcePrefetches.clear();
     }
 
+    private void startApiSourceProbes(String pkg, String version, long[] codes,
+                                      String fileType, boolean includeApkPure) {
+        if (!AppSettings.fastSourceChecks(this)) {
+            return;
+        }
+        if (apiProbePool == null) {
+            apiProbePool = Executors.newFixedThreadPool(3);
+        }
+        if (uptodownPrefetch == null && sourceAllowed(SourceSettings.UPTODOWN)) {
+            uptodownPrefetch = apiProbePool.submit(
+                    () -> UptodownApi.prepare(pkg, version, fileType));
+        }
+        if (includeApkPure && !apkPurePrefetchStarted
+                && sourceAllowed(SourceSettings.APKPURE)) {
+            apkPurePrefetchStarted = true;
+            apkPureApiPrefetch = apiProbePool.submit(
+                    () -> resolveApkPureApiAsset(pkg, version, codes, fileType));
+            apkPureDirectPrefetch = apiProbePool.submit(
+                    () -> probeApkPureDirectAsset(pkg, version, codes, fileType));
+        }
+    }
+
+    private void cancelApiSourceProbes() {
+        if (apkPureApiPrefetch != null) {
+            apkPureApiPrefetch.cancel(true);
+            apkPureApiPrefetch = null;
+        }
+        if (apkPureDirectPrefetch != null) {
+            apkPureDirectPrefetch.cancel(true);
+            apkPureDirectPrefetch = null;
+        }
+        if (uptodownPrefetch != null) {
+            uptodownPrefetch.cancel(true);
+            uptodownPrefetch = null;
+        }
+        if (apiProbePool != null) {
+            apiProbePool.shutdownNow();
+            apiProbePool = null;
+        }
+        apkPurePrefetchStarted = false;
+    }
+
+    private UptodownApi.Prepared takeUptodownPrefetch() {
+        Future<UptodownApi.Prepared> future = uptodownPrefetch;
+        uptodownPrefetch = null;
+        if (future == null) {
+            return null;
+        }
+        if (!future.isDone()) {
+            future.cancel(true);
+            return null;
+        }
+        try {
+            return future.get();
+        } catch (Exception error) {
+            HelperLog.info("Uptodown prefetch failed: " + error.getMessage());
+            return null;
+        }
+    }
+
+    private ApkPureAssets.Asset takeApkPureApiPrefetch() {
+        Future<ApkPureAssets.Asset> future = apkPureApiPrefetch;
+        apkPureApiPrefetch = null;
+        if (future == null) {
+            return null;
+        }
+        if (!future.isDone()) {
+            future.cancel(true);
+            return null;
+        }
+        try {
+            return future.get();
+        } catch (Exception error) {
+            HelperLog.info("APKPure API prefetch failed: " + error.getMessage());
+            return null;
+        }
+    }
+
     /**
      * APKCube renders a definitive no-match page on the server. A cheap HTML
      * preflight avoids creating the WebView when the package is already absent.
@@ -5498,50 +5666,71 @@ public class DownloadActivity extends Activity {
             throws IOException {
         setSourceLabel(R.string.source_label_uptodown);
         setStatus(R.string.download_resolving_uptodown);
+
+        UptodownApi.Prepared prepared = takeUptodownPrefetch();
+        if (prepared != null) {
+            try {
+                return finishUptodownDownload(prepared, pkg, version);
+            } catch (Exception error) {
+                HelperLog.error("Uptodown prefetched asset failed", error);
+                handoffToUptodownWeb(
+                        uptodownWebUrl(prepared.app, prepared.release),
+                        pkg, version, fileType);
+            }
+        }
+
         UptodownApi.App app = null;
         UptodownApi.Release release = null;
         try {
             app = UptodownApi.resolve(pkg);
-            cacheUptodownIcon(app, pkg);
             release = UptodownApi.findRelease(app, version, fileType);
             if (release == null) {
                 throw new IOException("No matching Uptodown release");
             }
             UptodownApi.Download download = UptodownApi.resolveDownload(
                     app, release.fileId);
-            HelperLog.info("Uptodown API file version=" + release.version
-                    + " kind=" + release.kindFile + " id=" + release.fileId);
-            File file = downloadFile(download.url, null, pkg, version,
-                    release.kindFile, null);
-            if (!TextUtils.isEmpty(download.sha256)) {
-                if (!UptodownApi.verifySha256(file, download.sha256)) {
-                    //noinspection ResultOfMethodCallIgnored
-                    file.delete();
-                    throw new IOException("Uptodown SHA-256 mismatch");
-                }
-                if (report != null) {
-                    report.setSha256(download.sha256);
-                }
-            }
-            markSource(SourceSettings.UPTODOWN, true, "API");
-            return file;
+            return finishUptodownDownload(
+                    new UptodownApi.Prepared(app, release, download),
+                    pkg, version);
         } catch (UptodownHandoffException handoff) {
             throw handoff;
         } catch (Exception error) {
             HelperLog.error("Uptodown API failed", error);
             if (app != null) {
-                String page = app.slug.endsWith("/") ? app.slug : app.slug + "/";
-                String webUrl = page + (release == null
-                        ? "download" : "download/" + release.fileId);
-                try {
-                    handoffToUptodownWeb(webUrl, pkg, version, fileType);
-                } catch (UptodownHandoffException handoff) {
-                    throw handoff;
-                }
+                handoffToUptodownWeb(
+                        uptodownWebUrl(app, release), pkg, version, fileType);
             }
             markSource(SourceSettings.UPTODOWN, false, error.getMessage());
             return null;
         }
+    }
+
+    private File finishUptodownDownload(UptodownApi.Prepared prepared,
+                                        String pkg, String version) throws IOException {
+        cacheUptodownIcon(prepared.app, pkg);
+        HelperLog.info("Uptodown API file version=" + prepared.release.version
+                + " kind=" + prepared.release.kindFile
+                + " id=" + prepared.release.fileId);
+        File file = downloadFile(prepared.download.url, null, pkg, version,
+                prepared.release.kindFile, null);
+        if (!TextUtils.isEmpty(prepared.download.sha256)) {
+            if (!UptodownApi.verifySha256(file, prepared.download.sha256)) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+                throw new IOException("Uptodown SHA-256 mismatch");
+            }
+            if (report != null) {
+                report.setSha256(prepared.download.sha256);
+            }
+        }
+        markSource(SourceSettings.UPTODOWN, true, "API");
+        return file;
+    }
+
+    private String uptodownWebUrl(UptodownApi.App app, UptodownApi.Release release) {
+        String page = app.slug.endsWith("/") ? app.slug : app.slug + "/";
+        return page + (release == null
+                ? "download" : "download/" + release.fileId);
     }
 
     private void handoffToUptodownWeb(String url, String pkg, String version,

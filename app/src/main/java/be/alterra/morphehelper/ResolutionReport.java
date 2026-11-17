@@ -18,19 +18,22 @@ final class ResolutionReport {
         final boolean skipped;
         final String detail;
         final long at;
+        final long durationMs;
 
-        Attempt(String key, String label, boolean success, String detail, long at) {
-            this(key, label, success, false, detail, at);
+        Attempt(String key, String label, boolean success, String detail,
+                long at, long durationMs) {
+            this(key, label, success, false, detail, at, durationMs);
         }
 
         Attempt(String key, String label, boolean success, boolean skipped,
-                String detail, long at) {
+                String detail, long at, long durationMs) {
             this.key = key;
             this.label = label;
             this.success = success;
             this.skipped = skipped;
             this.detail = detail;
             this.at = at;
+            this.durationMs = durationMs;
         }
     }
 
@@ -44,6 +47,7 @@ final class ResolutionReport {
     private final List<Attempt> attempts = new ArrayList<>();
     private final Set<String> failedKeys = new LinkedHashSet<>();
 
+    private long lastAttemptAt;
     private boolean finished;
     private boolean success;
     private String failureReason;
@@ -60,11 +64,15 @@ final class ResolutionReport {
         this.version = version;
         this.fileType = fileType;
         this.abi = abi;
+        this.lastAttemptAt = startedAt;
     }
 
     synchronized void record(String key, boolean ok, String detail) {
+        long now = System.currentTimeMillis();
+        long duration = Math.max(0L, now - lastAttemptAt);
+        lastAttemptAt = now;
         attempts.add(new Attempt(key, AppSettings.sourceLabel(context, key), ok,
-                friendly(detail), System.currentTimeMillis()));
+                friendly(detail), now, duration));
         if (ok) {
             failedKeys.remove(key);
         } else {
@@ -74,8 +82,11 @@ final class ResolutionReport {
 
     /** Records a source that was deliberately not attempted, with the reason. */
     synchronized void recordSkipped(String key, String detail) {
+        long now = System.currentTimeMillis();
+        long duration = Math.max(0L, now - lastAttemptAt);
+        lastAttemptAt = now;
         attempts.add(new Attempt(key, AppSettings.sourceLabel(context, key), false,
-                true, friendly(detail), System.currentTimeMillis()));
+                true, friendly(detail), now, duration));
         failedKeys.remove(key);
     }
 
@@ -156,6 +167,10 @@ final class ResolutionReport {
                 if (attempt.detail != null && !attempt.detail.isEmpty()) {
                     text.append(" - ").append(attempt.detail);
                 }
+                if (attempt.durationMs > 0) {
+                    text.append(" (").append(durationText(attempt.durationMs))
+                            .append(')');
+                }
                 text.append('\n');
             }
         }
@@ -188,11 +203,15 @@ final class ResolutionReport {
     }
 
     private String durationText() {
-        long millis = Math.max(0, System.currentTimeMillis() - startedAt);
-        if (millis < 1000) {
-            return millis + "ms";
+        return durationText(System.currentTimeMillis() - startedAt);
+    }
+
+    static String durationText(long millis) {
+        long value = Math.max(0L, millis);
+        if (value < 1000) {
+            return value + "ms";
         }
-        return String.format(Locale.US, "%.1fs", millis / 1000.0);
+        return String.format(Locale.US, "%.1fs", value / 1000.0);
     }
 
     private String sizeText(long bytes) {
@@ -211,6 +230,9 @@ final class ResolutionReport {
         }
         String value = raw.replaceAll("https?://\\S+", "link").trim();
         String lower = value.toLowerCase(Locale.US);
+        if (lower.startsWith("cached:") || lower.startsWith("skipped:")) {
+            return value.length() > 140 ? value.substring(0, 137) + "..." : value;
+        }
         String prefix = "";
         if (lower.startsWith("direct:")) {
             prefix = context.getString(R.string.error_prefix_direct);

@@ -140,9 +140,9 @@
     <string name="settings_live_adguard">Live AdGuard checks</string>
     <string name="settings_live_adguard_detail">Asks AdGuard DNS about hosts that are not in the bundled list. Adds one lookup per new host and sends that hostname to AdGuard. Off by default.</string>
     <string name="settings_fast_source_checks">Fast source checks</string>
-    <string name="settings_fast_source_checks_detail">Probes API sources together, skips an APKCube WebView when its page already says no match, and rejects unrelated APKMirror results. Uses a little more data.</string>
+    <string name="settings_fast_source_checks_detail">Probes APKPure, Uptodown, APKMirror, F-Droid, and Aptoide together, skips recent not-found sources, and avoids APKCube/APKMirror pages that already report no match. Sources are still tried in your order. Uses a little more data.</string>
     <string name="settings_multi_thread">Faster multi-connection downloads</string>
-    <string name="settings_multi_thread_detail">Splits large files into up to 4 connections when the server supports HTTP Range. Falls back automatically. On by default for new installs; an existing settings file can override it.</string>
+    <string name="settings_multi_thread_detail">Splits large files into up to 4 connections when the server supports HTTP Range. Falls back automatically. APKMirror stays single-stream. On by default for new installs; an existing settings file can override it.</string>
     <string name="settings_max_connections">Maximum connections</string>
     <string name="settings_max_connections_value">%1$d connections</string>
     <string name="settings_max_connections_detail">Only used when multi-connection downloads are on. Larger files are split into 4 MiB chunks, and the count is capped by file size.</string>
@@ -427,6 +427,7 @@
     <string name="source_label_github">GitHub</string>
     <string name="source_cache">Local cache</string>
     <string name="source_detail_cache">validated local copy</string>
+    <string name="source_cached_failure">Skipped: recent not found (%1$s)</string>
     <string name="download_using_cache">Using a validated cached APK…</string>
     <string name="source_skip_github_no_version">No version supplied for automatic search</string>
     <string name="source_label_user_github">User GitHub (%1$s)</string>

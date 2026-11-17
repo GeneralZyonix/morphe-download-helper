@@ -53,6 +53,7 @@ final class AppSettings {
     private static final String KEY_PENDING_HANDOFF = "pending_handoff_cleanup";
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_APKMIRROR_APP_PREFIX = "apkmirror_app_";
+    private static final String KEY_APP_VERSION = "app_version";
     private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
     private static final String KEY_FAST_SOURCE_CHECKS = "fast_source_checks";
     private static final String KEY_MULTI_THREAD = "multi_thread_downloads";
@@ -195,6 +196,27 @@ final class AppSettings {
     private static ComponentName launcherAlias(Context context) {
         return new ComponentName(context.getPackageName(),
                 context.getPackageName() + ".LauncherEntry");
+    }
+
+    /**
+     * Clears APKMirror page caches once per app update. Older WebView flows
+     * could cache a search result for the wrong app; a fresh search is cheap
+     * and avoids sending the next download to that page.
+     */
+    static void clearApkMirrorCachesIfVersionChanged(Context context) {
+        SharedPreferences preferences = prefs(context);
+        String current = BuildConfig.VERSION_NAME;
+        if (current.equals(preferences.getString(KEY_APP_VERSION, ""))) {
+            return;
+        }
+        SharedPreferences.Editor editor = preferences.edit();
+        for (String key : preferences.getAll().keySet()) {
+            if (key.startsWith(KEY_APKMIRROR_APP_PREFIX)) {
+                editor.remove(key);
+            }
+        }
+        editor.putString(KEY_APP_VERSION, current).apply();
+        HelperLog.info("Cleared APKMirror page caches after update to " + current);
     }
 
     /** Last known APKMirror app page for a package, used to skip the search. */
