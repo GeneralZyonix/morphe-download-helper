@@ -347,6 +347,9 @@ public class DownloadActivity extends Activity {
     /** A validated file that has not been handed off yet. */
     private volatile File pendingFile;
     private volatile boolean keepPendingFile;
+    private boolean cacheAllowed;
+    private boolean bypassCache;
+    private boolean servedFromCache;
     private volatile boolean resultStage;
     private volatile int resultDecision = DECISION_NONE;
     private final Object resultLock = new Object();
@@ -695,6 +698,10 @@ public class DownloadActivity extends Activity {
         webRetries = 0;
         pendingSourceKey = null;
         resolutionComplete = false;
+        cacheAllowed = !retryOnly && !continueAfterWeb
+                && forcedSource == null && !bypassCache;
+        bypassCache = false;
+        servedFromCache = false;
         hideVerificationHint();
         String abi = (requestAbis != null && requestAbis.length > 0)
                 ? requestAbis[0] : "unknown";
@@ -906,6 +913,10 @@ public class DownloadActivity extends Activity {
                 return;
             }
 
+            if (!servedFromCache) {
+                DownloadCache.record(this, file, requestPkg, requestVersion,
+                        requestVersionCodes, requestFileType);
+            }
             long handoffStarted = System.currentTimeMillis();
             Uri uri = FileProvider.getUriForFile(
                     DownloadActivity.this,
@@ -932,7 +943,9 @@ public class DownloadActivity extends Activity {
                 finish();
                 HelperLog.info("Hand-off complete in "
                         + (System.currentTimeMillis() - handoffStarted) + "ms");
-                startPublicCopy(file);
+                if (!servedFromCache) {
+                    startPublicCopy(file);
+                }
             });
         } catch (Exception e) {
             if (report != null) {
@@ -4351,6 +4364,7 @@ public class DownloadActivity extends Activity {
     /** Restarts the complete ordered search from the first source. */
     private void retryAllSources() {
         retryAllButton.setEnabled(false);
+        bypassCache = true;
         forcedSource = null;
         retrySources = null;
         apkmirrorRejected = false;
@@ -4364,6 +4378,7 @@ public class DownloadActivity extends Activity {
             return;
         }
         retryButton.setEnabled(false);
+        bypassCache = true;
         forcedSource = null;
         startResolution(true);
     }
@@ -4618,6 +4633,22 @@ public class DownloadActivity extends Activity {
         // request did not supply one. Treat that exact code as authoritative,
         // so APKPure can use its direct endpoint instead of the API first.
         boolean hasCodes = codes != null && codes.length > 0;
+
+        if (cacheAllowed) {
+            File cached = DownloadCache.find(this, pkg, version, codes, fileType);
+            if (cached != null) {
+                HelperLog.info("Using validated cached download "
+                        + cached.getAbsolutePath());
+                setSourceLabel(R.string.source_cache);
+                setStatus(R.string.download_using_cache);
+                servedFromCache = true;
+                if (report != null) {
+                    report.record(SourceSettings.CACHE, true,
+                            getString(R.string.source_detail_cache));
+                }
+                return cached;
+            }
+        }
 
         // A single ordered resolver keeps the list shown in the UI and the
         // actual fallback path identical. Default order: Morphe link, APKMirror,

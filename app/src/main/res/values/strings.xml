@@ -425,6 +425,9 @@
     <string name="source_label_uptodown_webview">Uptodown WebView</string>
     <string name="source_label_uptodown">Uptodown API</string>
     <string name="source_label_github">GitHub</string>
+    <string name="source_cache">Local cache</string>
+    <string name="source_detail_cache">validated local copy</string>
+    <string name="download_using_cache">Using a validated cached APK…</string>
     <string name="source_skip_github_no_version">No version supplied for automatic search</string>
     <string name="source_label_user_github">User GitHub (%1$s)</string>
     <string name="source_label_morphe_resolver">Morphe resolver</string>

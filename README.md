@@ -19,8 +19,8 @@ builds of the same app, so you can choose the behavior you want:
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
-| **Icon** — `MorpheDownloadHelper-v2.3.5-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
-| **No-icon** — `MorpheDownloadHelper-v2.3.5-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+| **Icon** — `MorpheDownloadHelper-v2.3.6-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** — `MorpheDownloadHelper-v2.3.6-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
 
 Both builds have the same package name, version, signing key, and features.
 Install one or the other, not both. The in-app updater stays on the build you
@@ -29,6 +29,7 @@ install or remove the old home-screen shortcut if your launcher keeps it.
 
 ## Recent highlights
 
+- **2.3.6:** validated local-cache fast path for exact repeat requests.
 - **2.3.5:** fast source checks, multi-connection downloads on by default, parallel
   GitHub searches, and an optional `helper-settings.txt` that is no longer created
   automatically.
@@ -119,6 +120,9 @@ Please include:
 - `helper-settings.txt` is optional. It is created only from **Settings → Backup → Create
   settings file**; existing files are kept in sync, and deleting the file stops syncing
   without recreating it.
+- Exact repeat requests use a validated local-cache fast path and return the existing
+  APK without resolving or downloading it again. **Retry all sources** and **Retry
+  failed sources** bypass the cache.
 - Appteka is limited to SnapTube by default and carries a hazard warning. It is not
   recommended for other apps because Appteka hosts modded APKs.
 
@@ -133,8 +137,8 @@ Please include:
 Grab one of the two current APKs from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-- `MorpheDownloadHelper-v2.3.5-universal.apk` — **icon build**
-- `MorpheDownloadHelper-v2.3.5-universal-noicon.apk` — **no-icon build**
+- `MorpheDownloadHelper-v2.3.6-universal.apk` — **icon build**
+- `MorpheDownloadHelper-v2.3.6-universal-noicon.apk` — **no-icon build**
 
 Both are written in Java, contain no native libraries, and work on all CPU
 architectures (arm64-v8a, armeabi-v7a, x86, x86_64) and on **Android 6.0+**

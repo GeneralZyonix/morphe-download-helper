@@ -811,6 +811,7 @@ final class AppSettings {
         int deleted = deleteCacheFiles(context, 0L);
         deleted += deletePublicDownloads(context, 0L);
         deleted += deleteCustomDownloads(context, 0L);
+        DownloadCache.clear(context);
         return deleted;
     }
 
@@ -993,6 +994,8 @@ final class AppSettings {
                 return context.getString(R.string.source_github_releases);
             case GitHubAppStore.SOURCE_KEY:
                 return context.getString(R.string.source_github_user);
+            case SourceSettings.CACHE:
+                return context.getString(R.string.source_cache);
             default:
                 return key;
         }

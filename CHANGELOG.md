@@ -5,6 +5,18 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.6] - 2026-11-17
+
+2.3.6 adds a validated local-cache fast path for repeat requests. Everything
+from 2.3.5 is included.
+
+### Added
+
+- **Local cache fast path:** an exact repeat request for a package, version, and
+  build code now revalidates and returns the helper’s existing APK instead of
+  resolving and downloading it again. A hit took **135 ms** in testing.
+  **Retry all sources** and **Retry failed sources** bypass the cache.
+
 ## [2.3.5] - 2026-11-17
 
 2.3.5 speeds up source resolution and large downloads, makes the optional settings

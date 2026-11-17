@@ -338,6 +338,9 @@
     <string name="source_label_apkmirror_webview">APKMirror (WebView)</string>
     <string name="source_label_uptodown_webview">Uptodown (WebView)</string>
     <string name="source_label_github">GitHub</string>
+    <string name="source_cache">Cache local</string>
+    <string name="source_detail_cache">copie locale validée</string>
+    <string name="download_using_cache">Utilisation d’un APK validé en cache…</string>
     <string name="source_skip_github_no_version">Aucune version fournie pour la recherche automatique</string>
     <string name="source_label_user_github">GitHub utilisateur (%1$s)</string>
     <string name="source_label_morphe_resolver">Résolveur Morphe</string>
