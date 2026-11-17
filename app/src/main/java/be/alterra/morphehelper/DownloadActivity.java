@@ -512,6 +512,8 @@ public class DownloadActivity extends Activity {
     private volatile boolean webReadyLogged;
     private int webNotFoundProbes;
     private volatile Future<Boolean> apkCubePreflightFuture;
+    private final Map<String, Future<String>> sourcePrefetches = new ConcurrentHashMap<>();
+    private volatile boolean sourcePrefetchCancelled;
 
     private LinearLayout diagnosticsCard;
     private LinearLayout diagnosticsRows;
@@ -4659,6 +4661,7 @@ public class DownloadActivity extends Activity {
             return resolveCustom(pkg, version, codes, hasCodes, fileType, abis);
         } finally {
             cancelApkCubePreflight();
+            cancelSourcePrefetch();
         }
     }
 
@@ -4866,6 +4869,9 @@ public class DownloadActivity extends Activity {
         // latency overlaps the other sources instead of extending the chain.
         if (!forcedOnly && sequence.indexOf(SourceSettings.APKCUBE) > 0) {
             startApkCubePreflight(pkg, codes, abis);
+        }
+        if (cacheAllowed) {
+            startSourcePrefetch(pkg);
         }
 
         for (String source : sequence) {
@@ -5392,6 +5398,56 @@ public class DownloadActivity extends Activity {
         if (preflight != null) {
             preflight.cancel(true);
         }
+    }
+
+    /** Starts metadata fetches for HTTP sources that are likely to run later. */
+    private void startSourcePrefetch(String pkg) {
+        cancelSourcePrefetch();
+        if (!AppSettings.fastSourceChecks(this) || TextUtils.isEmpty(pkg)) {
+            return;
+        }
+        sourcePrefetchCancelled = false;
+        try {
+            if (sourceAllowed(SourceSettings.APKMIRROR)
+                    && TextUtils.isEmpty(AppSettings.apkMirrorAppUrl(this, pkg))) {
+                prefetchUrl(APKMIRROR + "/?s="
+                        + URLEncoder.encode(pkg, "UTF-8"));
+            }
+            if (sourceAllowed(SourceSettings.FDROID)) {
+                prefetchUrl("https://f-droid.org/api/v1/packages/"
+                        + URLEncoder.encode(pkg, "UTF-8"));
+            }
+            if (sourceAllowed(SourceSettings.APTOIDE)) {
+                prefetchUrl("https://ws75.aptoide.com/api/7/apps/search?query="
+                        + URLEncoder.encode(pkg, "UTF-8") + "&limit=10");
+            }
+        } catch (Exception error) {
+            HelperLog.error("Could not start source prefetch", error);
+        }
+    }
+
+    private void prefetchUrl(final String url) {
+        if (sourcePrefetches.containsKey(url)) {
+            return;
+        }
+        FutureTask<String> task = new FutureTask<>(() -> {
+            if (sourcePrefetchCancelled) {
+                return "";
+            }
+            return httpGetNetwork(url, null);
+        });
+        Thread thread = new Thread(task, "source-prefetch");
+        thread.setDaemon(true);
+        thread.start();
+        sourcePrefetches.put(url, task);
+    }
+
+    private void cancelSourcePrefetch() {
+        sourcePrefetchCancelled = true;
+        for (Future<String> future : sourcePrefetches.values()) {
+            future.cancel(true);
+        }
+        sourcePrefetches.clear();
     }
 
     /**
@@ -6508,6 +6564,28 @@ public class DownloadActivity extends Activity {
     }
 
     private String httpGet(String url, String referer) throws IOException {
+        if (referer == null) {
+            Future<String> prefetched = sourcePrefetches.remove(url);
+            if (prefetched != null) {
+                if (prefetched.isDone()) {
+                    try {
+                        HelperLog.info("GET " + url + " (prefetched)");
+                        return prefetched.get();
+                    } catch (Exception error) {
+                        HelperLog.info("Source prefetch failed for " + url
+                                + ": " + error.getMessage());
+                    }
+                } else {
+                    // Do not make this source wait for a prefetch. A normal
+                    // request is faster than blocking on an uncertain task.
+                    prefetched.cancel(true);
+                }
+            }
+        }
+        return httpGetNetwork(url, referer);
+    }
+
+    private String httpGetNetwork(String url, String referer) throws IOException {
         Request.Builder builder = new Request.Builder()
                 .url(url)
                 .header("User-Agent", USER_AGENT)

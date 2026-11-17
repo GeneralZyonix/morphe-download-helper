@@ -5,6 +5,19 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.7] - 2026-11-17
+
+2.3.7 prefetches HTTP source metadata while the earlier sources run. Everything
+from 2.3.6 is included.
+
+### Added
+
+- **Request-scoped metadata prefetch:** APKMirror search, F-Droid, and Aptoide
+  lookups start alongside the first source and are reused when those sources are
+  reached. A prefetch is never waited on; if it is not ready, that source makes
+  its normal request.
+- Mobilism no-match resolution improved from **3.7s** to **2.8s** on the emulator.
+
 ## [2.3.6] - 2026-11-17
 
 2.3.6 adds a validated local-cache fast path for repeat requests. Everything
