@@ -36,17 +36,23 @@ synthetic shortcut behind on Android 10+.
 
 The **Updates** section controls the helper's own updater, not app downloads.
 
+![Update settings](screenshots/settings-updates-2.3.8.png)
+
 | Setting | What it does |
 | --- | --- |
 | **Check for updates** | Enables or disables update checks. |
 | **Update mode** | **Notify me when available** shows a notification; **Automatically update via Shizuku** installs silently when Shizuku is available and approved. Without Shizuku it falls back to a notification. |
 | **In-app update popup** | Shows a popup with the changelog when an update is available. |
-| **Check now** | Runs a check immediately. |
+| **Shizuku** | Shows whether Shizuku is installed and running. Tap it to request permission for silent updates. |
 | **Shizuku app package** | Only needed for a Shizuku fork with a different package name. Leave blank for the official app or a fork that keeps its package. |
+| **Check now** | Runs a check immediately. |
+| **Changelog** | Opens the release notes. |
 
 ## Download pages
 
 These options affect the in-app WebView pages used for source verification.
+
+![Download page settings](screenshots/settings-download-pages-2.3.8.png)
 
 | Setting | What it does |
 | --- | --- |
