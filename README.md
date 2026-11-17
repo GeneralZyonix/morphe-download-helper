@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/GeneralZyonix/morphe-download-helper/releases">
-    <img src="docs/branding/readme-banner.png" alt="Morphe Download Helper — find the original APK and hand it to Morphe" width="100%">
+    <img src="docs/branding/readme-banner-patch-pass.png" alt="Morphe Download Helper — find the original APK and hand it to Morphe" width="100%">
   </a>
 </p>
 
