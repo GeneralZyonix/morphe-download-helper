@@ -67,6 +67,30 @@ final class ApkMirrorSearch {
         return bestScore > 0 ? best : first;
     }
 
+    /**
+     * True when at least one search result has a plausible app-name or package
+     * match. Used to avoid fetching an unrelated app page (for example, a
+     * "latest uploads" card) when the search had no real match.
+     */
+    static boolean hasPlausibleMatch(String html, String appName, String pkg,
+                                     String version) {
+        if (html == null || html.isEmpty()) {
+            return false;
+        }
+        Matcher matcher = RELEASE_LINK.matcher(html);
+        while (matcher.find()) {
+            String href = decode(matcher.group(1));
+            String text = decode(matcher.group(2));
+            if (href.isEmpty() || !href.contains("-release/")) {
+                continue;
+            }
+            if (score(href, text, appName, pkg, version) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static int score(String href, String text, String appName, String pkg,
                              String version) {
         String appSlug = appSlug(href);

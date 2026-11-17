@@ -13,6 +13,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -55,15 +58,38 @@ final class GitHubReleaseResolver {
     static List<Candidate> search(String appName, String pkg, String version,
                                   String fileType, String[] abis) throws IOException {
         Set<String> repos = new LinkedHashSet<>();
-        // Search the package name in READMEs first. Apps distributed only on
-        // GitHub often mention the package in the README, and the repository
-        // may have been renamed since the patch was written (Myspoti ->
-        // Orpheon). Name-only search would miss that.
-        if (pkg != null && !pkg.trim().isEmpty()) {
-            repos.addAll(searchRepos(pkg + " in:readme"));
-        }
-        if (appName != null && !appName.trim().isEmpty()) {
-            repos.addAll(searchRepos(appName + " in:name"));
+        // Search the package name in READMEs and the app name in repository
+        // names together. Apps distributed only on GitHub often mention the
+        // package in the README, and the repository may have been renamed since
+        // the patch was written (Myspoti -> Orpheon).
+        ExecutorService searchPool = Executors.newFixedThreadPool(2);
+        try {
+            Future<List<String>> packageSearch = null;
+            Future<List<String>> nameSearch = null;
+            if (pkg != null && !pkg.trim().isEmpty()) {
+                packageSearch = searchPool.submit(
+                        () -> searchRepos(pkg + " in:readme"));
+            }
+            if (appName != null && !appName.trim().isEmpty()) {
+                nameSearch = searchPool.submit(
+                        () -> searchRepos(appName + " in:name"));
+            }
+            if (packageSearch != null) {
+                try {
+                    repos.addAll(packageSearch.get());
+                } catch (Exception error) {
+                    HelperLog.error("GitHub package search failed", error);
+                }
+            }
+            if (nameSearch != null) {
+                try {
+                    repos.addAll(nameSearch.get());
+                } catch (Exception error) {
+                    HelperLog.error("GitHub name search failed", error);
+                }
+            }
+        } finally {
+            searchPool.shutdownNow();
         }
         if (repos.isEmpty() && appName != null && !appName.trim().isEmpty()) {
             repos.addAll(searchRepos(appName + " in:readme"));

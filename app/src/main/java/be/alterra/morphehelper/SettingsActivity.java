@@ -504,6 +504,32 @@ public class SettingsActivity extends Activity {
         sourceWebViewHint.setPadding(0, dp(10), 0, 0);
         card.addView(sourceWebViewHint);
 
+        LinearLayout fastRow = new LinearLayout(this);
+        fastRow.setOrientation(LinearLayout.HORIZONTAL);
+        fastRow.setGravity(Gravity.CENTER_VERTICAL);
+        fastRow.setPadding(0, dp(12), 0, dp(8));
+        LinearLayout fastLabels = new LinearLayout(this);
+        fastLabels.setOrientation(LinearLayout.VERTICAL);
+        fastLabels.addView(text(
+                getString(R.string.settings_fast_source_checks), 14, TEXT, true));
+        TextView fastDetail = text(
+                getString(R.string.settings_fast_source_checks_detail), 11, MUTED, false);
+        fastDetail.setLineSpacing(dp(2), 1f);
+        fastDetail.setPadding(0, dp(3), 0, 0);
+        fastLabels.addView(fastDetail);
+        fastRow.addView(fastLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch fastSwitch = new Switch(this);
+        fastSwitch.setChecked(AppSettings.fastSourceChecks(this));
+        styleSwitch(fastSwitch);
+        fastSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            AppSettings.setFastSourceChecks(this, isChecked);
+            PublicSettings.write(this);
+        });
+        fastRow.addView(fastSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
+        card.addView(fastRow);
+
         TextView testAll = secondaryButton(getString(R.string.settings_test_all));
         testAll.setOnClickListener(v -> testAllSources(testAll));
         LinearLayout.LayoutParams testAllParams = new LinearLayout.LayoutParams(
@@ -913,6 +939,52 @@ public class SettingsActivity extends Activity {
                 getString(R.string.settings_import_detail));
         importRow.setOnClickListener(v -> showImportConfirm());
         card.addView(importRow);
+
+        if (PublicSettings.exists(this)) {
+            LinearLayout deleteFile = settingRow(getString(R.string.settings_delete_file),
+                    getString(R.string.settings_delete_file_detail));
+            deleteFile.setOnClickListener(v -> confirmDeleteSettingsFile());
+            card.addView(deleteFile);
+        } else {
+            LinearLayout createFile = settingRow(getString(R.string.settings_create_file),
+                    getString(R.string.settings_create_file_detail));
+            createFile.setOnClickListener(v -> confirmCreateSettingsFile());
+            card.addView(createFile);
+        }
+    }
+
+    private void confirmCreateSettingsFile() {
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_create_file_confirm_title)
+                .setMessage(R.string.settings_create_file_confirm_message)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.settings_create_file_confirm,
+                        (dialog, which) -> {
+                            boolean created = PublicSettings.createFile(this);
+                            Toast.makeText(this, created
+                                            ? R.string.settings_create_file_success
+                                            : R.string.settings_create_file_failed,
+                                    Toast.LENGTH_LONG).show();
+                            recreate();
+                        })
+                .show();
+    }
+
+    private void confirmDeleteSettingsFile() {
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_delete_file_confirm_title)
+                .setMessage(R.string.settings_delete_file_confirm_message)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.settings_delete_file_confirm,
+                        (dialog, which) -> {
+                            int deleted = PublicSettings.deleteAll(this);
+                            Toast.makeText(this, deleted > 0
+                                            ? R.string.settings_delete_file_success
+                                            : R.string.settings_delete_file_failed,
+                                    Toast.LENGTH_LONG).show();
+                            recreate();
+                        })
+                .show();
     }
 
     private void showExportDialog() {

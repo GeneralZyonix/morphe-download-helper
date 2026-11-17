@@ -19,8 +19,8 @@ builds of the same app, so you can choose the behavior you want:
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
-| **Icon** — `MorpheDownloadHelper-v2.3.4-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
-| **No-icon** — `MorpheDownloadHelper-v2.3.4-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+| **Icon** — `MorpheDownloadHelper-v2.3.5-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** — `MorpheDownloadHelper-v2.3.5-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
 
 Both builds have the same package name, version, signing key, and features.
 Install one or the other, not both. The in-app updater stays on the build you
@@ -29,6 +29,9 @@ install or remove the old home-screen shortcut if your launcher keeps it.
 
 ## Recent highlights
 
+- **2.3.5:** fast source checks, multi-connection downloads on by default, parallel
+  GitHub searches, and an optional `helper-settings.txt` that is no longer created
+  automatically.
 - **2.3.4:** the helper chip names the installed build, skipped sources explain
   why they were skipped, APKCube “app not found” pages are detected even when
   the message appears briefly before a reload, and the French translation is
@@ -88,6 +91,7 @@ Please include:
 - The main screen shows Morphe's detected version and the helper version in theme-aware pills; the helper chip also names the installed build (`Icon` or `No icon`). It puts the log actions above About and offers a **Report on GitHub** flow with short and full-log options.
 - Download progress screen with the target app icon, version/format/ABI chips, Source/Size/Connections metrics, active source logo beside the Source value, package pill, verification warning card, speed/ETA pill, and distinct Pause/Switch/Cancel actions. The source card collapses to a compact summary during the download, expands automatically on a failure, a fallback note, or **Switch source**, and its rows can be tapped to switch sources.
 - Single-stream downloads retry a dropped connection and resume from the `.part` offset with `Range`/`If-Range`; multi-connection segments resume from their written offset.
+- Multi-connection downloads are on by default for files of 5 MB and larger when the server supports HTTP Range. APKMirror uses the single-stream path; servers without range support fall back automatically.
 - WebView flows log state transitions and fail fast on main-frame load errors, renderer crashes, and permanent HTTP errors. A failed WebView no longer ends the whole resolution; the next enabled source is tried.
 - Uses GitHub automatically: immediately when Morphe's resolver points to a release, or as
   the final fallback when normal APK sources fail. Automatic search needs a version; when
@@ -107,8 +111,14 @@ Please include:
   default; uploading unknown files, always uploading, or falling back to upload when the
   lookup quota is exceeded are separate opt-in settings.
 - Settings for the download folder, retention, source order, and individual sources.
+- **Fast source checks** (default on) probe APKPure's API and direct endpoints together,
+  check APKCube's no-match page in the background, and reject unrelated APKMirror search
+  results before opening their page.
 - Saves downloaded APKs to `Downloads/Morphe Helper` by default on Android 10+, with
   internal, external, and custom-folder options.
+- `helper-settings.txt` is optional. It is created only from **Settings → Backup → Create
+  settings file**; existing files are kept in sync, and deleting the file stops syncing
+  without recreating it.
 - Appteka is limited to SnapTube by default and carries a hazard warning. It is not
   recommended for other apps because Appteka hosts modded APKs.
 
@@ -123,8 +133,8 @@ Please include:
 Grab one of the two current APKs from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-- `MorpheDownloadHelper-v2.3.4-universal.apk` — **icon build**
-- `MorpheDownloadHelper-v2.3.4-universal-noicon.apk` — **no-icon build**
+- `MorpheDownloadHelper-v2.3.5-universal.apk` — **icon build**
+- `MorpheDownloadHelper-v2.3.5-universal-noicon.apk` — **no-icon build**
 
 Both are written in Java, contain no native libraries, and work on all CPU
 architectures (arm64-v8a, armeabi-v7a, x86, x86_64) and on **Android 6.0+**

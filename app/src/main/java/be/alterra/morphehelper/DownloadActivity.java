@@ -81,6 +81,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -255,6 +256,13 @@ public class DownloadActivity extends Activity {
             .connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .callTimeout(30, TimeUnit.SECONDS)
+            .build();
+
+    /** Short-lived probes used only to decide which source path to skip. */
+    private static final OkHttpClient PREFLIGHT_HTTP = HTTP.newBuilder()
+            .connectTimeout(4, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .callTimeout(6, TimeUnit.SECONDS)
             .build();
 
     /** APKMirror pages get a little more room because Cloudflare can be slow. */
@@ -500,6 +508,7 @@ public class DownloadActivity extends Activity {
     private volatile boolean webHintShown;
     private volatile boolean webReadyLogged;
     private int webNotFoundProbes;
+    private volatile Future<Boolean> apkCubePreflightFuture;
 
     private LinearLayout diagnosticsCard;
     private LinearLayout diagnosticsRows;
@@ -4605,14 +4614,21 @@ public class DownloadActivity extends Activity {
             }
         }
 
-        boolean hasCodes = versionCodes != null && versionCodes.length > 0;
+        // The resolver may substitute the installed version code when the
+        // request did not supply one. Treat that exact code as authoritative,
+        // so APKPure can use its direct endpoint instead of the API first.
+        boolean hasCodes = codes != null && codes.length > 0;
 
         // A single ordered resolver keeps the list shown in the UI and the
         // actual fallback path identical. Default order: Morphe link, APKMirror,
         // APKPure, then the remaining enabled sources.
         List<String> order = AppSettings.sourceOrder(this);
         HelperLog.info("Source order: " + TextUtils.join(" -> ", order));
-        return resolveCustom(pkg, version, codes, hasCodes, fileType, abis);
+        try {
+            return resolveCustom(pkg, version, codes, hasCodes, fileType, abis);
+        } finally {
+            cancelApkCubePreflight();
+        }
     }
 
     /**
@@ -4815,6 +4831,12 @@ public class DownloadActivity extends Activity {
             forcedOnly = true;
         }
 
+        // APKCube is often last. Start its HTML preflight now so its network
+        // latency overlaps the other sources instead of extending the chain.
+        if (!forcedOnly && sequence.indexOf(SourceSettings.APKCUBE) > 0) {
+            startApkCubePreflight(pkg, codes, abis);
+        }
+
         for (String source : sequence) {
             if (pendingSwitchKey != null) {
                 throw new IOException("Switched source");
@@ -4898,6 +4920,9 @@ public class DownloadActivity extends Activity {
             return null;
         }
         if (!hasCodes) {
+            if (AppSettings.fastSourceChecks(this)) {
+                return customApkPureFast(pkg, version, codes, fileType, abis);
+            }
             // Without a versionCode, resolve through the API first. This still
             // runs at APKPure's configured position instead of after GitHub.
             setSourceLabel(R.string.source_label_apkpure_api);
@@ -4955,6 +4980,9 @@ public class DownloadActivity extends Activity {
      */
     private File customApkPureSplit(String pkg, String version, long[] codes,
                                     boolean hasCodes, String fileType, String[] abis) {
+        if (!hasCodes && AppSettings.fastSourceChecks(this)) {
+            return customApkPureFast(pkg, version, codes, fileType, abis);
+        }
         Exception directError = null;
         if (hasCodes) {
             try {
@@ -4989,6 +5017,125 @@ public class DownloadActivity extends Activity {
             markSource(SourceSettings.APKPURE, false, reason);
             return null;
         }
+    }
+
+    /**
+     * Starts the APKPure API and direct requests together, then downloads from
+     * the API result when available (the existing preference) or the direct
+     * result when the API is slow or missing. The two probe requests are
+     * metadata-only; only one file download is started.
+     */
+    private File customApkPureFast(String pkg, String version, long[] codes,
+                                   String fileType, String[] abis) {
+        long deadline = System.currentTimeMillis() + 12_000L;
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        Future<ApkPureAssets.Asset> apiFuture = pool.submit(
+                () -> resolveApkPureApiAsset(pkg, version, codes, fileType));
+        Future<ApkPureAssets.Asset> directFuture = pool.submit(
+                () -> probeApkPureDirectAsset(pkg, version, codes, fileType));
+        ApkPureAssets.Asset api = null;
+        ApkPureAssets.Asset direct = null;
+        Exception apiError = null;
+        Exception directError = null;
+        try {
+            try {
+                // The API is normally the faster path, but do not let a slow
+                // API hold back an already-resolved direct URL.
+                long apiWait = Math.min(4_000L,
+                        deadline - System.currentTimeMillis());
+                api = apiFuture.get(Math.max(1L, apiWait), TimeUnit.MILLISECONDS);
+            } catch (Exception error) {
+                apiError = rootCause(error);
+                apiFuture.cancel(true);
+            }
+            if (api != null) {
+                setSourceLabel(R.string.source_label_apkpure_api);
+                setStatus(R.string.download_resolving_apkpure_api);
+                try {
+                    File file = downloadApkPureAsset(
+                            api, pkg, version, "https://apkpure.com/");
+                    markSource(SourceSettings.APKPURE, true, "API");
+                    return file;
+                } catch (Exception error) {
+                    apiError = rootCause(error);
+                    HelperLog.error("APKPure API asset failed", apiError);
+                }
+            }
+
+            try {
+                direct = directFuture.get(
+                        Math.max(1L, deadline - System.currentTimeMillis()),
+                        TimeUnit.MILLISECONDS);
+            } catch (Exception error) {
+                directError = rootCause(error);
+                directFuture.cancel(true);
+            }
+            if (direct != null) {
+                setSourceLabel(R.string.source_label_apkpure_direct);
+                setStatus(R.string.download_trying_apkpure_direct);
+                try {
+                    File file = downloadApkPureAsset(direct, pkg, version, null);
+                    markSource(SourceSettings.APKPURE, true, "direct");
+                    return file;
+                } catch (Exception error) {
+                    directError = rootCause(error);
+                    HelperLog.error("APKPure direct asset failed", directError);
+                }
+            }
+
+            String reason = "API: " + errorText(apiError)
+                    + "; direct: " + errorText(directError);
+            markSource(SourceSettings.APKPURE, false, reason);
+            return null;
+        } finally {
+            apiFuture.cancel(true);
+            directFuture.cancel(true);
+            pool.shutdownNow();
+        }
+    }
+
+    /** Resolves the direct APKPure URL and verifies that it returns an APK. */
+    private ApkPureAssets.Asset probeApkPureDirectAsset(String pkg, String version,
+                                                        long[] codes, String fileType)
+            throws IOException {
+        String url = buildApkPureUrl(pkg, codes, version, fileType);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", "*/*")
+                .header("Range", "bytes=0-0")
+                .build();
+        HelperLog.info("APKPure direct probe " + url);
+        try (Response response = PREFLIGHT_HTTP.newCall(request).execute()) {
+            String type = response.header("Content-Type");
+            String disposition = response.header("Content-Disposition");
+            HelperLog.info("APKPure direct probe -> HTTP " + response.code()
+                    + " type=" + type + " disposition=" + disposition);
+            int code = response.code();
+            if (code != 200 && code != 206) {
+                throw new IOException("HTTP " + code);
+            }
+            if (!SourceProbeRules.looksLikeApk(type, disposition)) {
+                throw new IOException("APKPure direct did not return an APK");
+            }
+            long versionCode = codes != null && codes.length > 0 ? codes[0] : -1;
+            return new ApkPureAssets.Asset(
+                    url, isSplitType(fileType) ? "XAPK" : "APK",
+                    version, versionCode, 0);
+        }
+    }
+
+    private static Exception rootCause(Exception error) {
+        if (error instanceof java.util.concurrent.ExecutionException
+                && error.getCause() instanceof Exception) {
+            return (Exception) error.getCause();
+        }
+        return error;
+    }
+
+    private static String errorText(Exception error) {
+        String message = error == null ? "" : error.getMessage();
+        return TextUtils.isEmpty(message) ? "unknown error" : message;
     }
 
     private File downloadApkPureXapk(String pkg, String version, long[] codes,
@@ -5132,12 +5279,110 @@ public class DownloadActivity extends Activity {
         setStatus(R.string.download_searching_apkcube);
         final String url = apkCubeUrl(pkg, codes, abis);
         HelperLog.info("APKCube search URL: " + url);
+
+        boolean noMatch = false;
+        Future<Boolean> preflight = apkCubePreflightFuture;
+        apkCubePreflightFuture = null;
+        if (preflight != null) {
+            if (preflight.isDone()) {
+                try {
+                    noMatch = Boolean.TRUE.equals(preflight.get());
+                } catch (Exception error) {
+                    HelperLog.info("APKCube preflight failed: " + error.getMessage());
+                }
+            } else {
+                // Do not delay the WebView. If the background preflight later
+                // finds a no-match page, it closes the WebView immediately.
+                watchApkCubePreflight(preflight);
+            }
+        } else {
+            noMatch = apkCubePreflightNoMatch(url);
+        }
+        if (noMatch) {
+            HelperLog.info("APKCube preflight: no match; skipping WebView");
+            markSource(SourceSettings.APKCUBE, false,
+                    getString(R.string.download_error_apkcube_not_found));
+            return null;
+        }
         main.post(() -> {
             setStatus(R.string.download_opening_apkcube);
             progress.setIndeterminate(true);
             startApkCubeWebFlow(url, pkg, version, fileType);
         });
         throw new UptodownHandoffException();
+    }
+
+    /** Closes an active APKCube WebView if the background preflight finds no match. */
+    private void watchApkCubePreflight(Future<Boolean> preflight) {
+        Thread watcher = new Thread(() -> {
+            try {
+                if (!Boolean.TRUE.equals(preflight.get())) {
+                    return;
+                }
+                main.post(() -> {
+                    if (!"apkcube".equals(webSource) || uptodownHandled) {
+                        return;
+                    }
+                    logWebFlowState("NOT_FOUND", "preflight");
+                    failWebFlowFast(
+                            getString(R.string.download_error_apkcube_not_found));
+                });
+            } catch (Exception ignored) {
+                // Cancelled, timed out, or the WebView already finished.
+            }
+        }, "apkcube-preflight-watch");
+        watcher.setDaemon(true);
+        watcher.start();
+    }
+
+    /** Starts the APKCube HTML preflight in the background for a later source. */
+    private void startApkCubePreflight(String pkg, long[] codes, String[] abis) {
+        cancelApkCubePreflight();
+        if (!AppSettings.fastSourceChecks(this)
+                || !sourceAllowed(SourceSettings.APKCUBE)) {
+            return;
+        }
+        final String url = apkCubeUrl(pkg, codes, abis);
+        FutureTask<Boolean> task = new FutureTask<>(() -> {
+            // Give a fast earlier source a chance to finish before spending
+            // data on the APKCube HTML probe.
+            Thread.sleep(1_000L);
+            return apkCubePreflightNoMatch(url);
+        });
+        Thread thread = new Thread(task, "apkcube-preflight");
+        thread.setDaemon(true);
+        thread.start();
+        apkCubePreflightFuture = task;
+    }
+
+    private void cancelApkCubePreflight() {
+        Future<Boolean> preflight = apkCubePreflightFuture;
+        apkCubePreflightFuture = null;
+        if (preflight != null) {
+            preflight.cancel(true);
+        }
+    }
+
+    /**
+     * APKCube renders a definitive no-match page on the server. A cheap HTML
+     * preflight avoids creating the WebView when the package is already absent.
+     * Anything ambiguous falls back to the normal WebView flow.
+     */
+    private boolean apkCubePreflightNoMatch(String url) {
+        if (!AppSettings.fastSourceChecks(this)) {
+            return false;
+        }
+        long started = System.currentTimeMillis();
+        try {
+            String html = httpGetPreflight(url);
+            boolean noMatch = SourceProbeRules.apkCubeHtmlNoMatch(html);
+            HelperLog.info("APKCube preflight: noMatch=" + noMatch
+                    + " elapsed=" + (System.currentTimeMillis() - started) + "ms");
+            return noMatch;
+        } catch (Exception error) {
+            HelperLog.info("APKCube preflight skipped: " + error.getMessage());
+            return false;
+        }
     }
 
     private File customApkMirror(String pkg, String version, String fileType, String[] abis)
@@ -5545,6 +5790,12 @@ public class DownloadActivity extends Activity {
         if (firstVersion == null) {
             throw new IOException("No matching app on APKMirror");
         }
+        if (AppSettings.fastSourceChecks(this)
+                && !ApkMirrorSearch.hasPlausibleMatch(
+                        searchHtml, requestedAppName, pkg, version)) {
+            HelperLog.info("APKMirror search has no plausible match; skipping app page");
+            throw new IOException("No matching app on APKMirror");
+        }
 
         // A release URL looks like /apk/<dev>/<app>/<version>-release/. Strip the
         // version segment to get the app page.
@@ -5848,6 +6099,15 @@ public class DownloadActivity extends Activity {
      */
     private File downloadFromApkPureApi(String pkg, String version, long[] versionCodes,
                                         String fileType, String[] abis) throws IOException {
+        ApkPureAssets.Asset best = resolveApkPureApiAsset(
+                pkg, version, versionCodes, fileType);
+        return downloadApkPureAsset(best, pkg, version, "https://apkpure.com/");
+    }
+
+    /** Resolves APKPure's API metadata without starting the file download. */
+    private ApkPureAssets.Asset resolveApkPureApiAsset(String pkg, String version,
+                                                       long[] versionCodes,
+                                                       String fileType) throws IOException {
         String url = APKPURE_API + "?package_name="
                 + URLEncoder.encode(pkg, "UTF-8") + "&hl=en";
         Request request = new Request.Builder()
@@ -5896,13 +6156,18 @@ public class DownloadActivity extends Activity {
                     + "keeping the GitHub release for this patch source");
         }
 
-        String downloadType = "XAPK".equalsIgnoreCase(best.type) ? "xapk"
-                : ("APKS".equalsIgnoreCase(best.type) ? "apks" : "apk");
-
         HelperLog.info("APKPure API asset: " + best.versionName
                 + " code=" + best.versionCode
                 + " type=" + best.type + " size=" + best.size);
-        return downloadFile(best.url, "https://apkpure.com/", pkg, version, downloadType);
+        return best;
+    }
+
+    /** Downloads one resolved APKPure asset with the correct referer/type. */
+    private File downloadApkPureAsset(ApkPureAssets.Asset asset, String pkg,
+                                      String version, String referer) throws IOException {
+        String downloadType = "XAPK".equalsIgnoreCase(asset.type) ? "xapk"
+                : ("APKS".equalsIgnoreCase(asset.type) ? "apks" : "apk");
+        return downloadFile(asset.url, referer, pkg, version, downloadType);
     }
 
     private boolean sameVersion(String left, String right) {
@@ -6190,6 +6455,27 @@ public class DownloadActivity extends Activity {
      * @param referer optional Referer header, used by APKMirror's download chain
      * @throws IOException when the response is not 2xx
      */
+    private String httpGetPreflight(String url) throws IOException {
+        Request request = new Request.Builder()
+                .url(url)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept",
+                        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .build();
+        HelperLog.info("PREFLIGHT GET " + url);
+        try (Response response = PREFLIGHT_HTTP.newCall(request).execute()) {
+            HelperLog.info("PREFLIGHT GET " + url + " -> HTTP " + response.code()
+                    + " type=" + response.header("Content-Type")
+                    + " length=" + response.header("Content-Length"));
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP " + response.code() + " for " + url);
+            }
+            ResponseBody body = response.body();
+            return body == null ? "" : body.string();
+        }
+    }
+
     private String httpGet(String url, String referer) throws IOException {
         Request.Builder builder = new Request.Builder()
                 .url(url)
@@ -6784,6 +7070,13 @@ public class DownloadActivity extends Activity {
     private File segmentedDownload(String url, String referer, String pkg,
                                    String versionName, String fileType, String cookie,
                                    File dir, String partBase) throws IOException {
+        // APKMirror's download endpoint rejects the range probe (HTTP 403)
+        // even when its final CDN object supports ranges. Keep the proven
+        // single-stream path for this host.
+        if (isHost(hostOf(url), "apkmirror.com")) {
+            HelperLog.info("Multi download skipped: APKMirror");
+            return null;
+        }
         OkHttpClient.Builder clientBuilder = DOWNLOAD_HTTP.newBuilder();
         // Each segment needs its own TCP connection. HTTP/2 multiplexes all
         // segments over one connection, which removes the parallel benefit.

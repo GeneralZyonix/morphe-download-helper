@@ -30,9 +30,10 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Mirrors non-secret settings to a user-editable file in the public Downloads
- * folder and applies edits when the helper starts. Secrets such as the
- * VirusTotal API key are never written here.
+ * Optional mirror of non-secret settings in a user-editable file in the public
+ * Downloads folder. The file is created only when the user asks for it; when it
+ * exists, edits are applied at startup and settings changes keep it in sync.
+ * Secrets such as the VirusTotal API key are never written here.
  */
 final class PublicSettings {
 
@@ -67,8 +68,9 @@ final class PublicSettings {
     }
 
     /**
-     * Reads the public file and applies its values. Creates the file with the
-     * current settings when it does not exist yet.
+     * Reads the public file and applies its values. The file is optional and is
+     * no longer created automatically, so a fresh install does not add a
+     * settings file to Downloads or recent files.
      */
     static void apply(Context context) {
         SourceSettings.ensureInitialized(context);
@@ -80,8 +82,7 @@ final class PublicSettings {
             return;
         }
         if (text == null) {
-            HelperLog.info("Public settings file not found; creating it");
-            write(context);
+            HelperLog.info("Public settings file not found; skipping");
             return;
         }
         applyValues(context, text, false);
@@ -228,6 +229,8 @@ final class PublicSettings {
 
         applyBoolean(context, values, "block_web_ads",
                 AppSettings::setBlockWebAds);
+        applyBoolean(context, values, "fast_source_checks",
+                AppSettings::setFastSourceChecks);
         applyBoolean(context, values, "multi_thread_downloads",
                 AppSettings::setMultiThreadDownloads);
         String maxConnections = values.get("max_connections");
@@ -313,9 +316,95 @@ final class PublicSettings {
         HelperLog.info("Imported " + imported.size() + " user GitHub app mappings");
     }
 
-    /** Rewrites the public file from the current settings. */
+    /**
+     * Rewrites the public file from the current settings, but only when the
+     * user has explicitly created it. New installs stay file-free.
+     */
     static void write(Context context) {
+        if (!exists(context)) {
+            HelperLog.info("Public settings file not found; not creating it automatically");
+            return;
+        }
         writeText(context, buildText(context, false));
+    }
+
+    /** Creates the optional public settings file from the current settings. */
+    static boolean createFile(Context context) {
+        writeText(context, buildText(context, false));
+        boolean created = exists(context);
+        HelperLog.info(created
+                ? "Created public settings file"
+                : "Could not create public settings file");
+        return created;
+    }
+
+    /** Deletes every helper-settings copy from Downloads. */
+    static int deleteAll(Context context) {
+        int deleted = 0;
+        if (Build.VERSION.SDK_INT >= 29) {
+            ContentResolver resolver = context.getContentResolver();
+            List<Uri> toDelete = new ArrayList<>();
+            try (Cursor cursor = resolver.query(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    new String[]{
+                            MediaStore.MediaColumns._ID,
+                            MediaStore.MediaColumns.DISPLAY_NAME
+                    },
+                    MediaStore.MediaColumns.DISPLAY_NAME + " LIKE ?",
+                    new String[]{"helper-settings%"},
+                    null)) {
+                if (cursor != null) {
+                    while (cursor.moveToNext()) {
+                        String name = cursor.getString(1);
+                        if (!isSettingsFileName(name)) {
+                            continue;
+                        }
+                        toDelete.add(ContentUris.withAppendedId(
+                                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                cursor.getLong(0)));
+                    }
+                }
+            } catch (Exception error) {
+                HelperLog.error("Could not query settings files for deletion", error);
+            }
+            // Delete after the cursor is closed; deleting rows while iterating
+            // can skip the next row and leave a duplicate behind.
+            for (Uri uri : toDelete) {
+                try {
+                    deleted += resolver.delete(uri, null, null);
+                } catch (Exception error) {
+                    HelperLog.error("Could not delete settings file " + uri, error);
+                }
+            }
+        } else {
+            File dir = new File(
+                    Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_DOWNLOADS),
+                    FOLDER);
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile() && isSettingsFileName(file.getName())
+                            && file.delete()) {
+                        deleted++;
+                    }
+                }
+            }
+        }
+        HelperLog.info("Deleted " + deleted + " public settings file(s)");
+        return deleted;
+    }
+
+    /** True when an existing public settings file is present. */
+    static boolean exists(Context context) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            try {
+                return findFile(context) != null;
+            } catch (Exception error) {
+                return false;
+            }
+        }
+        return legacyFile().isFile();
     }
 
     /** Builds configuration text, optionally including API secrets. */
@@ -360,6 +449,8 @@ final class PublicSettings {
 
         text.append("block_web_ads=")
                 .append(AppSettings.blockWebAds(context)).append('\n');
+        text.append("fast_source_checks=")
+                .append(AppSettings.fastSourceChecks(context)).append('\n');
         text.append("multi_thread_downloads=")
                 .append(AppSettings.multiThreadDownloads(context)).append('\n');
         text.append("max_connections=")

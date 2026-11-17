@@ -63,6 +63,35 @@ public class ApkMirrorSearchTest {
     }
 
     @Test
+    public void plausibleMatchRejectsAnUnrelatedFirstResult() {
+        String html = link(
+                "/apk/bytedance-pte-ltd/capcut/capcut-video-editor-19-9-0-release/",
+                "CapCut 19.9.0");
+
+        assertFalse(ApkMirrorSearch.hasPlausibleMatch(
+                html, "Mobilism", "demigos.com.mobilism", null));
+    }
+
+    @Test
+    public void plausibleMatchAcceptsANameOrPackageToken() {
+        String html = link(
+                "/apk/signal-foundation/signal-private-messenger/"
+                        + "signal-private-messenger-8-34-2-release/",
+                "Signal Private Messenger 8.34.2");
+
+        assertTrue(ApkMirrorSearch.hasPlausibleMatch(
+                html, "Signal", "org.thoughtcrime.securesms", null));
+        assertTrue(ApkMirrorSearch.hasPlausibleMatch(
+                html, "Unrelated", "org.thoughtcrime.signal", null));
+    }
+
+    @Test
+    public void plausibleMatchRequiresAReleaseLink() {
+        assertFalse(ApkMirrorSearch.hasPlausibleMatch(
+                "<html></html>", "Mobilism", "demigos.com.mobilism", null));
+    }
+
+    @Test
     public void appPathHandlesAbsoluteAndRelativeUrls() {
         assertEquals("/apk/google-inc/youtube/", ApkMirrorSearch.appPath(
                 "https://www.apkmirror.com/apk/google-inc/youtube/"

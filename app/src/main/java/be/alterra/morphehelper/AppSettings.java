@@ -54,6 +54,7 @@ final class AppSettings {
     private static final String KEY_ORDER = "source_order";
     private static final String KEY_APKMIRROR_APP_PREFIX = "apkmirror_app_";
     private static final String KEY_BLOCK_WEB_ADS = "block_web_ads";
+    private static final String KEY_FAST_SOURCE_CHECKS = "fast_source_checks";
     private static final String KEY_MULTI_THREAD = "multi_thread_downloads";
     private static final String KEY_MAX_CONNECTIONS = "max_connections";
     static final int[] MAX_CONNECTION_OPTIONS = {2, 4, 8, 16, 32};
@@ -244,8 +245,17 @@ final class AppSettings {
         prefs(context).edit().putBoolean(KEY_LIVE_ADGUARD, enabled).apply();
     }
 
+    /** Enables parallel metadata probes and early source-page rejection. */
+    static boolean fastSourceChecks(Context context) {
+        return prefs(context).getBoolean(KEY_FAST_SOURCE_CHECKS, true);
+    }
+
+    static void setFastSourceChecks(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_FAST_SOURCE_CHECKS, enabled).apply();
+    }
+
     static boolean multiThreadDownloads(Context context) {
-        return prefs(context).getBoolean(KEY_MULTI_THREAD, false);
+        return prefs(context).getBoolean(KEY_MULTI_THREAD, true);
     }
 
     static void setMultiThreadDownloads(Context context, boolean enabled) {

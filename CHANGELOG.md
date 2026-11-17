@@ -5,6 +5,34 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.5] - 2026-11-17
+
+2.3.5 speeds up source resolution and large downloads, makes the optional settings
+file opt-in, and finishes the GitHub search improvements. Everything from 2.3.4
+is included.
+
+### Added
+
+- **Fast source checks** (Settings → Sources, on by default): APKPure's API and direct
+  endpoints are probed together, APKCube's server-rendered no-match page is checked in
+  the background before opening its WebView, and unrelated APKMirror search results are
+  rejected before their app page is fetched.
+- **Create settings file** and **Delete settings file** in Settings → Backup for users
+  who want the editable `Downloads/Morphe Helper/helper-settings.txt` or want to stop
+  syncing and remove it.
+- **Multi-connection downloads are on by default** for files of 5 MB and larger when the
+  server supports HTTP Range. APKMirror stays on the single-stream path because its
+  download endpoint rejects the range probe.
+- GitHub package-name and app-name searches now run together.
+
+### Changed
+
+- `helper-settings.txt` is no longer created automatically on startup or when a setting
+  changes. This keeps it out of Downloads and recent files for new installs. Existing
+  files are still applied and kept in sync; deleting the file stops syncing and it is
+  not recreated. The old icon toggle no longer needs the file because the icon and
+  no-icon builds are separate.
+
 ## [2.3.4] - 2026-11-15
 
 2.3.4 makes skipped sources explain themselves and detects APKCube no-match
