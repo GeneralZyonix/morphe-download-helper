@@ -8,8 +8,13 @@ Morphe open the helper automatically when it needs an APK.
 ## Before you start
 
 1. Install the latest APK from the [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases).
+   Use the **icon** build if you want a launcher icon, or the **no-icon** build for a clean app
+   drawer. Both builds have the same package name, so install only one.
 2. Open the helper once so Android registers it.
 3. Use Morphe **2.3.0 or newer**, which includes the APK download helper integration.
+
+The helper does not need a settings file to work. `helper-settings.txt` is optional and is only
+created from **Settings → Backup** when you want file-based configuration.
 
 ## Step 1: Open Morphe's helper settings
 
@@ -32,7 +37,12 @@ If this option is off, Morphe still works normally: it shows the download instru
 
 ## Visual guide
 
-Open the helper and tap **Visual guide** for the in-app screenshots and step-by-step setup.
+The screenshots match the steps above and were taken with the 2.3.8 helper and Morphe Manager.
+Tap an image to open it larger.
+
+| 1 — Open the settings row | 2 & 3 — Trust and auto-open |
+| --- | --- |
+| <a href="docs/guide/01-open-settings-2.3.8.png"><img src="docs/guide/01-open-settings-2.3.8.png" alt="Morphe Settings showing the APK download helper row" width="360"></a> | <a href="docs/guide/02-trust-and-auto-open-2.3.8.png"><img src="docs/guide/02-trust-and-auto-open-2.3.8.png" alt="Trusting Morphe Download Helper and enabling Open helper right away" width="360"></a> |
 
 ## Step 4: Use it while patching
 
@@ -58,8 +68,11 @@ also show its own default download button so you can continue manually.
 ## Notes
 
 - The helper only downloads original APKs. It never installs or patches anything itself.
+- Two universal builds are published: one with a launcher icon and one without. Both support
+  Android 6.0+ on arm64-v8a, armeabi-v7a, x86, and x86_64.
+- Every section of **Settings** is explained in the
+  [illustrated settings guide](docs/SETTINGS.md).
 - Only download apps you are allowed to access, and respect the APK sources' terms of service.
-- One universal APK supports Android 6.0+ on arm64-v8a, armeabi-v7a, x86, and x86_64.
 
 Still stuck? [Open a bug report](https://github.com/GeneralZyonix/morphe-download-helper/issues/new?template=bug_report.yml)
 and include the helper log if possible.
