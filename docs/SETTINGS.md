@@ -1,12 +1,13 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 2.3.10. The
-screenshots were taken from the current release on Android 16 in dark mode.
+This page explains every section of **Settings** in Morphe Download Helper 2.5.0. The
+section screenshots below were taken from 2.3.10 and show the same options; in 2.5.0 the
+sections open in a bottom sheet instead of expanding inline.
 
-Open Settings from the gear button on the main screen. All sections can be collapsed and
-expanded independently, and the **Expand all** button at the top opens everything at once.
+Open Settings from the gear button on the main screen. Tap a section to open its options
+in a sheet; use the close button or Back to return to the section list.
 
-![Settings overview](screenshots/settings-general-2.3.8.png)
+![Settings overview](screenshots/settings-general-2.5.0.png)
 
 ## General
 
