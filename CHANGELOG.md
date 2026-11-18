@@ -26,6 +26,13 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   background HTTP request fails. Thanks to
   [@zennki-arch](https://github.com/zennki-arch) for the log
   ([#51](https://github.com/GeneralZyonix/morphe-download-helper/issues/51)).
+- **Negative-cache skip messages:** skipped sources no longer wrap their own
+  reason (`Skipped: recent not found (Skipped: ...)`) or re-record the same
+  result. They stay in the report so **Retry failed sources** can bypass the
+  cache.
+- **APKMirror cached app pages:** a cached app page is dropped when the
+  requested version is not listed, so a wrong search result cannot poison later
+  requests for that package.
 
 ## [2.3.8] - 2026-11-17
 

@@ -406,6 +406,7 @@
     <string name="download_error_no_match">Could not find a matching APK.</string>
     <string name="download_done">Done: %1$s</string>
     <string name="download_opening_apkmirror">Opening APKMirror…</string>
+    <string name="download_error_apkmirror_package">APKMirror page is for %1$s, expected %2$s.</string>
     <string name="download_apkpure_title">APKPure download</string>
     <string name="download_apkpure_explanation">APKPure uses Cloudflare protection. If a search page appears, tap the app result first. On the app page, tap Download APK (not the APKPure app button). The helper will capture the XAPK or APK and return it to Morphe.</string>
     <string name="download_apkmirror_title">APKMirror verification</string>

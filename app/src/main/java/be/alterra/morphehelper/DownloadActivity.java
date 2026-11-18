@@ -1539,11 +1539,18 @@ public class DownloadActivity extends Activity {
                         + "return m?m[1]:'';})()",
                 value -> {
                     String found = value == null ? "" : value.replace("\"", "").trim();
+                    boolean searchPage = url != null
+                            && (url.contains("?s=") || url.contains("searchtype="));
                     if (uptodownPkg.equals(found)) {
                         cacheApkMirrorAppUrl(url);
                     } else {
                         HelperLog.info("APKMirror WebView page is " + found
                                 + ", not caching for " + uptodownPkg);
+                        if (!searchPage && !TextUtils.isEmpty(found)) {
+                            failWebFlowFast(getString(
+                                    R.string.download_error_apkmirror_package,
+                                    found, uptodownPkg));
+                        }
                     }
                 });
     }
@@ -4111,6 +4118,24 @@ public class DownloadActivity extends Activity {
         });
     }
 
+    /**
+     * Records a source skipped by the negative cache. Keep it in the report's
+     * failed set so Retry failed sources can bypass the cache, but do not
+     * refresh the cache or the source-health entry with the skip message.
+     */
+    private void markSourceCachedFailure(String key, String reason) {
+        if (report != null) {
+            report.record(key, false, reason);
+        }
+        HelperLog.info("Skipped " + AppSettings.sourceLabel(this, key)
+                + " from negative cache: " + reason);
+        main.post(() -> {
+            sourceStepsManualOverride = true;
+            setSourceCardExpanded(true);
+            renderSourceSteps();
+        });
+    }
+
     /** Shows or hides the source rows, keeping a compact summary visible. */
     private void setSourceCardExpanded(boolean expanded) {
         sourceStepsExpanded = expanded;
@@ -4946,9 +4971,7 @@ public class DownloadActivity extends Activity {
                 String cached = SourceNegativeCache.get(this, source, pkg, version,
                         codes, fileType);
                 if (cached != null) {
-                    HelperLog.info("Skipping " + source
-                            + " from negative cache: " + cached);
-                    markSource(source, false,
+                    markSourceCachedFailure(source,
                             getString(R.string.source_cached_failure, cached));
                     continue;
                 }
@@ -6135,6 +6158,9 @@ public class DownloadActivity extends Activity {
         }
         HelperLog.info("APKMirror version URL: " + versionUrl);
         if (versionUrl == null) {
+            // The cached app page exists but does not list this build. Drop it
+            // so the next request searches again instead of reusing the wrong page.
+            AppSettings.clearApkMirrorAppUrl(this, pkg);
             throw new IOException(TextUtils.isEmpty(version)
                     ? "No matching version on APKMirror"
                     : "Requested version " + version + " not found on APKMirror");
@@ -6147,6 +6173,10 @@ public class DownloadActivity extends Activity {
         } catch (IOException error) {
             if (isApkMirrorWebFallback(error)) {
                 handoffToApkMirrorWeb(absolute(versionUrl), pkg, version, fileType);
+            }
+            String message = error.getMessage();
+            if (message != null && message.contains("HTTP 404")) {
+                AppSettings.clearApkMirrorAppUrl(this, pkg);
             }
             throw error;
         }
