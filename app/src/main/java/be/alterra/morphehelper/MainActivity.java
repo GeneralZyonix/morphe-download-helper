@@ -418,49 +418,25 @@ public class MainActivity extends Activity {
         logHelp.setPadding(0, dp(8), 0, 0);
         logBody.addView(logHelp);
 
-        TextView shareLog = secondaryButton(getString(R.string.main_share_log),
-                R.drawable.ic_share, ACCENT_TEXT,
-                withAlpha(ACCENT_TEXT, 10), withAlpha(ACCENT_TEXT, 32));
-        shareLog.setOnClickListener(v -> shareLog());
-        TextView copyLog = secondaryButton(getString(R.string.main_copy_log),
-                R.drawable.ic_copy, TEXT, SECONDARY_BORDER);
-        copyLog.setOnClickListener(v -> copyLogToClipboard());
-        TextView saveLog = secondaryButton(getString(R.string.main_save_log),
-                R.drawable.ic_save, TEXT, SECONDARY_BORDER);
-        saveLog.setOnClickListener(v -> saveLog());
-        TextView clearLog = secondaryButton(getString(R.string.main_clear_log),
-                R.drawable.ic_delete, WARN_TITLE, SECONDARY_BORDER);
-        clearLog.setOnClickListener(v -> {
-            HelperLog.clear();
-            Toast.makeText(this, R.string.main_log_cleared, Toast.LENGTH_SHORT).show();
-        });
-
-        LinearLayout logRow1 = new LinearLayout(this);
-        logRow1.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams logFirstParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        logFirstParams.setMarginEnd(dp(4));
-        logRow1.addView(shareLog, logFirstParams);
-        LinearLayout.LayoutParams logSecondParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        logSecondParams.setMarginStart(dp(4));
-        logRow1.addView(copyLog, logSecondParams);
-
-        LinearLayout logRow2 = new LinearLayout(this);
-        logRow2.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams logThirdParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        logThirdParams.setMarginEnd(dp(4));
-        logRow2.addView(saveLog, logThirdParams);
-        LinearLayout.LayoutParams logFourthParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        logFourthParams.setMarginStart(dp(4));
-        logRow2.addView(clearLog, logFourthParams);
-
-        LinearLayout.LayoutParams logRow1Params = new LinearLayout.LayoutParams(
+        LinearLayout logActions = new LinearLayout(this);
+        logActions.setOrientation(LinearLayout.HORIZONTAL);
+        logActions.setGravity(Gravity.CENTER_VERTICAL);
+        logActions.addView(logAction(R.drawable.ic_share,
+                R.string.main_share_log, false, this::shareLog), logActionParams(true));
+        logActions.addView(logAction(R.drawable.ic_copy,
+                R.string.main_copy_log, false, this::copyLogToClipboard), logActionParams(true));
+        logActions.addView(logAction(R.drawable.ic_save,
+                R.string.main_save_log, false, this::saveLog), logActionParams(true));
+        logActions.addView(logAction(R.drawable.ic_delete,
+                R.string.main_clear_log, true, () -> {
+                    HelperLog.clear();
+                    Toast.makeText(this, R.string.main_log_cleared,
+                            Toast.LENGTH_SHORT).show();
+                }), logActionParams(false));
+        LinearLayout.LayoutParams logActionsParams = new LinearLayout.LayoutParams(
                 MATCH_PARENT, WRAP_CONTENT);
-        logRow1Params.topMargin = dp(14);
-        logBody.addView(logRow1, logRow1Params);
-        LinearLayout.LayoutParams logRow2Params = new LinearLayout.LayoutParams(
-                MATCH_PARENT, WRAP_CONTENT);
-        logRow2Params.topMargin = dp(8);
-        logBody.addView(logRow2, logRow2Params);
+        logActionsParams.topMargin = dp(14);
+        logBody.addView(logActions, logActionsParams);
 
         TextView previewLog = secondaryButton(getString(R.string.main_preview_log),
                 TEXT, SECONDARY_BORDER);
@@ -1075,6 +1051,42 @@ public class MainActivity extends Activity {
         });
         return view;
     }
+    /** Compact icon action used by the Helper log card. */
+    private View logAction(int iconRes, int labelRes, boolean danger, Runnable action) {
+        FrameLayout cell = new FrameLayout(this);
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconRes);
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        icon.setColorFilter(danger ? RED : M3Ui.onSecondaryContainer(palette));
+        icon.setContentDescription(getString(labelRes));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            icon.setTooltipText(getString(labelRes));
+        }
+        icon.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE),
+                M3Ui.filled(this, danger
+                                ? M3Ui.errorContainer(palette)
+                                : M3Ui.secondaryContainer(palette),
+                        999, 0, 0), null));
+        icon.setPadding(dp(13), dp(13), dp(13), dp(13));
+        icon.setClickable(true);
+        icon.setFocusable(true);
+        icon.setOnClickListener(v -> action.run());
+        M3Ui.motion(icon);
+        cell.addView(icon, new FrameLayout.LayoutParams(
+                dp(48), dp(48), Gravity.CENTER));
+        return cell;
+    }
+
+    private LinearLayout.LayoutParams logActionParams(boolean marginEnd) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                0, dp(56), 1f);
+        if (marginEnd) {
+            params.setMarginEnd(dp(4));
+        }
+        return params;
+    }
+
     private TextView secondaryButton(String label, int textColor, int strokeColor) {
         if (textColor == ACCENT_TEXT) {
             return M3Ui.tonalButton(this, palette, label, 0);

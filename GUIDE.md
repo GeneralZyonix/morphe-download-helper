@@ -37,12 +37,12 @@ If this option is off, Morphe still works normally: it shows the download instru
 
 ## Visual guide
 
-The screenshots match the steps above and were taken with the 2.4.0 helper and Morphe Manager.
+The screenshots match the steps above and were taken with the 2.4.x helper and Morphe Manager.
 Tap an image to open it larger.
 
 | 1 — Open the settings row | 2 & 3 — Trust and auto-open |
 | --- | --- |
-| <a href="docs/guide/01-open-settings-2.4.0.png"><img src="docs/guide/01-open-settings-2.4.0.png" alt="Morphe Settings showing the APK download helper row" width="360"></a> | <a href="docs/guide/02-trust-and-auto-open-2.4.0.png"><img src="docs/guide/02-trust-and-auto-open-2.4.0.png" alt="Trusting Morphe Download Helper and enabling Open helper right away" width="360"></a> |
+| <a href="docs/guide/01-open-settings-2.4.1.png"><img src="docs/guide/01-open-settings-2.4.1.png" alt="Morphe Settings showing the APK download helper row" width="360"></a> | <a href="docs/guide/02-trust-and-auto-open-2.4.1.png"><img src="docs/guide/02-trust-and-auto-open-2.4.1.png" alt="Trusting Morphe Download Helper and enabling Open helper right away" width="360"></a> |
 
 ## Step 4: Use it while patching
 

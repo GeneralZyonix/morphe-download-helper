@@ -210,7 +210,7 @@ public class SettingsActivity extends Activity {
 
         LinearLayout sources = addSection(root, SECTION_SOURCES,
                 R.string.settings_sources, R.string.settings_sources_summary,
-                R.drawable.ic_section_sources);
+                R.drawable.ic_section_sources, !openSources);
         addSourcesCard(sources);
         addApptekaWarningCard(sources);
         addGitHubAppsCard(sources);
@@ -339,6 +339,12 @@ public class SettingsActivity extends Activity {
      */
     private LinearLayout addSection(LinearLayout root, String key,
                                     int titleRes, int summaryRes, int iconRes) {
+        return addSection(root, key, titleRes, summaryRes, iconRes, true);
+    }
+
+    private LinearLayout addSection(LinearLayout root, String key,
+                                    int titleRes, int summaryRes, int iconRes,
+                                    boolean showHeader) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(cardBackground());
@@ -389,11 +395,13 @@ public class SettingsActivity extends Activity {
         chevron.setGravity(Gravity.CENTER);
         chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         header.addView(chevron, new LinearLayout.LayoutParams(dp(28), dp(36)));
-        card.addView(header);
+        if (showHeader) {
+            card.addView(header);
+        }
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(18), 0, dp(18), dp(16));
+        body.setPadding(dp(18), showHeader ? 0 : dp(14), dp(18), dp(16));
         card.addView(body);
         sectionBodies.put(key, body);
         sectionChevrons.put(key, chevron);
