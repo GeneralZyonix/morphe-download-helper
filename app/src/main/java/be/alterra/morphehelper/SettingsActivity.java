@@ -3,12 +3,15 @@ package be.alterra.morphehelper;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.LocaleManager;
 import android.content.ClipData;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.content.res.XmlResourceParser;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.LocaleList;
@@ -24,8 +27,13 @@ import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.DragEvent;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -83,7 +91,7 @@ public class SettingsActivity extends Activity {
     private static final int EXPORT_SETTINGS_REQUEST_CODE = 74;
     private static final int IMPORT_SETTINGS_REQUEST_CODE = 75;
     private static final int IMPORT_GITHUB_REQUEST_CODE = 76;
-    private static final String SECTION_PREFS = "settings_sections";
+    private static final String STATE_OPEN_SHEET = "open_sheet";
     static final String EXTRA_SECTION = "open_section";
     static final String EXTRA_SECTION_SOURCES = "sources";
     static final String EXTRA_SHARE_TEXT = "share_text";
@@ -98,11 +106,14 @@ public class SettingsActivity extends Activity {
     private boolean batteryIgnoring;
     private String pendingLocation;
     private boolean exportIncludeSecrets;
-    private final Map<String, View> sectionCards = new HashMap<>();
     private final Map<String, LinearLayout> sectionBodies = new HashMap<>();
-    private final Map<String, TextView> sectionChevrons = new HashMap<>();
-    private TextView expandAllButton;
-    private View sourceOrderTarget;
+    private final Map<String, Integer> sectionTitles = new HashMap<>();
+    private final Map<String, Integer> sectionSummaries = new HashMap<>();
+    private final Map<String, Integer> sectionIcons = new HashMap<>();
+    private Dialog sectionDialog;
+    private LinearLayout sectionSheetView;
+    private boolean sheetDismissing;
+    private String openSheetKey;
 
     private final Shizuku.OnRequestPermissionResultListener shizukuListener =
             (requestCode, grantResult) -> {
@@ -164,55 +175,29 @@ public class SettingsActivity extends Activity {
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(text(getString(openSources
-                ? R.string.settings_sources : R.string.common_settings), 24, TEXT, true));
-        TextView subtitle = text(getString(openSources
-                ? R.string.settings_sources_summary : R.string.settings_subtitle),
-                13, MUTED, false);
+        titles.addView(text(getString(R.string.common_settings), 24, TEXT, true));
+        TextView subtitle = text(getString(R.string.settings_subtitle), 13, MUTED, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        if (!openSources) {
-            expandAllButton = text(getString(R.string.settings_expand_all),
-                    10, ACCENT_TEXT, true);
-            expandAllButton.setGravity(Gravity.CENTER);
-            expandAllButton.setPadding(dp(8), dp(6), dp(8), dp(6));
-            expandAllButton.setClickable(true);
-            expandAllButton.setFocusable(true);
-            GradientDrawable expandBackground = new GradientDrawable();
-            expandBackground.setColor(SECONDARY);
-            expandBackground.setCornerRadius(dp(10));
-            expandBackground.setStroke(dp(1), SECONDARY_BORDER);
-            expandAllButton.setBackground(new RippleDrawable(
-                    ColorStateList.valueOf(RIPPLE), expandBackground, null));
-            expandAllButton.setOnClickListener(v -> toggleAllSections());
-            header.addView(expandAllButton);
-        }
         root.addView(header);
 
-        if (openSources) {
-            setSectionExpanded(SECTION_SOURCES, true);
-        }
+        LinearLayout general = addSection(root, SECTION_GENERAL,
+                R.string.settings_general, R.string.settings_general_summary,
+                R.drawable.ic_section_general);
+        addLanguageRow(general);
+        addAppearanceRow(general);
+        addLauncherVariantInfo(general);
 
-        if (!openSources) {
-            LinearLayout general = addSection(root, SECTION_GENERAL,
-                    R.string.settings_general, R.string.settings_general_summary,
-                    R.drawable.ic_section_general);
-            addLanguageRow(general);
-            addAppearanceRow(general);
-            addLauncherVariantInfo(general);
+        LinearLayout updates = addSection(root, SECTION_UPDATES,
+                R.string.settings_updates, R.string.settings_updates_summary,
+                R.drawable.ic_section_updates);
+        addUpdatesCard(updates);
 
-            LinearLayout updates = addSection(root, SECTION_UPDATES,
-                    R.string.settings_updates, R.string.settings_updates_summary,
-                    R.drawable.ic_section_updates);
-            addUpdatesCard(updates);
-
-            LinearLayout web = addSection(root, SECTION_WEB,
-                    R.string.settings_web_pages, R.string.settings_web_pages_summary,
-                    R.drawable.ic_section_web);
-            addWebPagesCard(web);
-        }
+        LinearLayout web = addSection(root, SECTION_WEB,
+                R.string.settings_web_pages, R.string.settings_web_pages_summary,
+                R.drawable.ic_section_web);
+        addWebPagesCard(web);
 
         LinearLayout sources = addSection(root, SECTION_SOURCES,
                 R.string.settings_sources, R.string.settings_sources_summary,
@@ -221,29 +206,25 @@ public class SettingsActivity extends Activity {
         addApptekaWarningCard(sources);
         addGitHubAppsCard(sources);
 
-        if (!openSources) {
-            LinearLayout storage = addSection(root, SECTION_STORAGE,
-                    R.string.settings_storage, R.string.settings_storage_summary,
-                    R.drawable.ic_section_storage);
-            addStorageCard(storage);
+        LinearLayout storage = addSection(root, SECTION_STORAGE,
+                R.string.settings_storage, R.string.settings_storage_summary,
+                R.drawable.ic_section_storage);
+        addStorageCard(storage);
 
-            LinearLayout security = addSection(root, SECTION_SECURITY,
-                    R.string.virustotal_security, R.string.settings_security_summary,
-                    R.drawable.ic_section_security);
-            addSecurityCard(security);
+        LinearLayout security = addSection(root, SECTION_SECURITY,
+                R.string.virustotal_security, R.string.settings_security_summary,
+                R.drawable.ic_section_security);
+        addSecurityCard(security);
 
-            LinearLayout battery = addSection(root, SECTION_BATTERY,
-                    R.string.settings_background, R.string.settings_background_summary,
-                    R.drawable.ic_section_battery);
-            addBatteryCard(battery);
+        LinearLayout battery = addSection(root, SECTION_BATTERY,
+                R.string.settings_background, R.string.settings_background_summary,
+                R.drawable.ic_section_battery);
+        addBatteryCard(battery);
 
-            LinearLayout backup = addSection(root, SECTION_BACKUP,
-                    R.string.settings_backup, R.string.settings_backup_summary,
-                    R.drawable.ic_section_backup);
-            addBackupCard(backup);
-        }
-
-        updateExpandAllLabel();
+        LinearLayout backup = addSection(root, SECTION_BACKUP,
+                R.string.settings_backup, R.string.settings_backup_summary,
+                R.drawable.ic_section_backup);
+        addBackupCard(backup);
 
         TextView done = primaryButton(getString(R.string.common_done));
         done.setOnClickListener(v -> finish());
@@ -255,16 +236,15 @@ public class SettingsActivity extends Activity {
 
         setContentView(scroll);
         ThemeManager.applySystemBars(this);
-        if (openSources) {
-            scroll.post(() -> {
-                View target = sourceOrderTarget;
-                if (target == null) {
-                    target = sectionCards.get(SECTION_SOURCES);
-                }
-                if (target != null) {
-                    scroll.smoothScrollTo(0, Math.max(0, contentTop(target, scroll) - dp(32)));
-                }
-            });
+
+        String sheetKey = savedInstanceState == null
+                ? null : savedInstanceState.getString(STATE_OPEN_SHEET);
+        if (TextUtils.isEmpty(sheetKey) && openSources) {
+            sheetKey = SECTION_SOURCES;
+        }
+        if (!TextUtils.isEmpty(sheetKey)) {
+            final String pendingSheet = sheetKey;
+            scroll.post(() -> openSectionSheet(pendingSheet));
         }
 
         String sharedText = getIntent().getStringExtra(EXTRA_SHARE_TEXT);
@@ -282,20 +262,6 @@ public class SettingsActivity extends Activity {
         }
     }
 
-    /** Returns the vertical position of a nested view inside the scroll content. */
-    private int contentTop(View target, View scrollRoot) {
-        int top = 0;
-        View current = target;
-        while (current != null && current != scrollRoot) {
-            top += current.getTop();
-            if (!(current.getParent() instanceof View)) {
-                break;
-            }
-            current = (View) current.getParent();
-        }
-        return top;
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
@@ -306,6 +272,14 @@ public class SettingsActivity extends Activity {
         }
         if (isIgnoringBatteryOptimizations() != batteryIgnoring) {
             recreate();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (!TextUtils.isEmpty(openSheetKey)) {
+            outState.putString(STATE_OPEN_SHEET, openSheetKey);
         }
     }
 
@@ -339,8 +313,8 @@ public class SettingsActivity extends Activity {
     }
 
     /**
-     * Adds a collapsible settings section and returns its body container.
-     * The expanded state is remembered by key across recreations.
+     * Adds a settings section row and returns its detached body container.
+     * Tapping the row opens the body in a bottom sheet.
      */
     private LinearLayout addSection(LinearLayout root, String key,
                                     int titleRes, int summaryRes, int iconRes) {
@@ -351,7 +325,9 @@ public class SettingsActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = dp(14);
         root.addView(card, params);
-        sectionCards.put(key, card);
+        sectionTitles.put(key, titleRes);
+        sectionSummaries.put(key, summaryRes);
+        sectionIcons.put(key, iconRes);
 
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -399,70 +375,221 @@ public class SettingsActivity extends Activity {
 
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(18), 0, dp(18), dp(16));
-        card.addView(body);
+        body.setPadding(dp(18), dp(4), dp(18), dp(24));
         sectionBodies.put(key, body);
-        sectionChevrons.put(key, chevron);
 
-        boolean expanded = isSectionExpanded(key);
-        applySectionState(body, chevron, expanded);
-        header.setOnClickListener(v -> {
-            boolean next = body.getVisibility() != View.VISIBLE;
-            applySectionState(body, chevron, next);
-            setSectionExpanded(key, next);
-            updateExpandAllLabel();
-        });
+        header.setOnClickListener(v -> openSectionSheet(key));
         return body;
     }
 
-    private void toggleAllSections() {
-        boolean expand = false;
-        for (LinearLayout body : sectionBodies.values()) {
-            if (body.getVisibility() != View.VISIBLE) {
-                expand = true;
-                break;
-            }
-        }
-        for (Map.Entry<String, LinearLayout> entry : sectionBodies.entrySet()) {
-            LinearLayout body = entry.getValue();
-            TextView chevron = sectionChevrons.get(entry.getKey());
-            if (chevron == null) {
-                continue;
-            }
-            applySectionState(body, chevron, expand);
-            setSectionExpanded(entry.getKey(), expand);
-        }
-        updateExpandAllLabel();
-    }
-
-    private void updateExpandAllLabel() {
-        if (expandAllButton == null) {
+    /**
+     * Opens one settings section in a tall bottom sheet. The existing body is
+     * detached from the list and reparented, so all settings rows keep working
+     * without duplicating the settings UI.
+     */
+    private void openSectionSheet(String key) {
+        if (TextUtils.isEmpty(key)) {
             return;
         }
-        boolean allExpanded = true;
-        for (LinearLayout body : sectionBodies.values()) {
-            if (body.getVisibility() != View.VISIBLE) {
-                allExpanded = false;
-                break;
-            }
+        Integer titleRes = sectionTitles.get(key);
+        Integer summaryRes = sectionSummaries.get(key);
+        Integer iconRes = sectionIcons.get(key);
+        LinearLayout body = sectionBodies.get(key);
+        if (titleRes == null || summaryRes == null || iconRes == null || body == null) {
+            return;
         }
-        expandAllButton.setText(allExpanded
-                ? R.string.settings_collapse_all : R.string.settings_expand_all);
+
+        if (sectionDialog != null && sectionDialog.isShowing()) {
+            sectionDialog.dismiss();
+        }
+        openSheetKey = key;
+        sheetDismissing = false;
+
+        ViewGroup oldParent = (ViewGroup) body.getParent();
+        if (oldParent != null) {
+            oldParent.removeView(body);
+        }
+
+        Dialog dialog = new Dialog(this, R.style.SettingsSheetTheme);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setCanceledOnTouchOutside(false);
+
+        FrameLayout windowRoot = new FrameLayout(this);
+        windowRoot.setClipChildren(false);
+
+        LinearLayout sheet = new LinearLayout(this);
+        sheet.setOrientation(LinearLayout.VERTICAL);
+        sheet.setBackground(sheetBackground());
+        sheet.setClickable(true);
+        sheet.setFocusable(true);
+        sheet.setElevation(dp(24));
+        sheet.setPadding(0, 0, 0, dp(8));
+        FrameLayout.LayoutParams sheetParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM);
+        windowRoot.addView(sheet, sheetParams);
+
+        View handle = new View(this);
+        GradientDrawable handleBackground = new GradientDrawable();
+        handleBackground.setColor(0x667C8AA5);
+        handleBackground.setCornerRadius(dp(999));
+        handle.setBackground(handleBackground);
+        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(dp(44), dp(5));
+        handleParams.gravity = Gravity.CENTER_HORIZONTAL;
+        handleParams.topMargin = dp(10);
+        sheet.addView(handle, handleParams);
+
+        LinearLayout sheetHeader = new LinearLayout(this);
+        sheetHeader.setOrientation(LinearLayout.HORIZONTAL);
+        sheetHeader.setGravity(Gravity.CENTER_VERTICAL);
+        sheetHeader.setPadding(dp(20), dp(12), dp(14), dp(10));
+
+        FrameLayout iconTile = new FrameLayout(this);
+        GradientDrawable tileBackground = new GradientDrawable();
+        tileBackground.setColor((ACCENT_TEXT & 0x00FFFFFF) | 0x22000000);
+        tileBackground.setCornerRadius(dp(11));
+        iconTile.setBackground(tileBackground);
+
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(ACCENT_TEXT);
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(20), dp(20));
+        iconInner.gravity = Gravity.CENTER;
+        iconTile.addView(icon, iconInner);
+
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        iconParams.setMarginEnd(dp(12));
+        sheetHeader.addView(iconTile, iconParams);
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text(getString(titleRes), 20, TEXT, true));
+        TextView summary = text(getString(summaryRes), 11, MUTED, false);
+        summary.setPadding(0, dp(3), 0, 0);
+        labels.addView(summary);
+        sheetHeader.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView close = text("\u2715", 16, MUTED, true);
+        close.setGravity(Gravity.CENTER);
+        close.setContentDescription(getString(R.string.common_close));
+        GradientDrawable closeBackground = new GradientDrawable();
+        closeBackground.setColor(SECONDARY);
+        closeBackground.setCornerRadius(dp(999));
+        closeBackground.setStroke(dp(1), SECONDARY_BORDER);
+        close.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), closeBackground, null));
+        close.setClickable(true);
+        close.setFocusable(true);
+        close.setOnClickListener(v -> dismissSectionSheet());
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        closeParams.setMarginStart(dp(8));
+        sheetHeader.addView(close, closeParams);
+        sheet.addView(sheetHeader);
+
+        MaxHeightScrollView bodyScroll = new MaxHeightScrollView(this);
+        int maxHeight = Math.max(dp(180),
+                (int) (getResources().getDisplayMetrics().heightPixels * 0.84f) - dp(110));
+        bodyScroll.setMaxHeight(maxHeight);
+        bodyScroll.setFillViewport(false);
+        bodyScroll.setClipToPadding(false);
+        bodyScroll.setVerticalScrollBarEnabled(false);
+        bodyScroll.addView(body, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        sheet.addView(bodyScroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        dialog.setContentView(windowRoot);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            window.setDimAmount(0.62f);
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT);
+            window.setGravity(Gravity.BOTTOM);
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            window.setNavigationBarColor(CARD_TOP);
+            window.setStatusBarColor(0xCC05070D);
+        }
+
+        windowRoot.setOnClickListener(v -> dismissSectionSheet());
+        dialog.setOnKeyListener((d, keyCode, event) -> {
+            if (keyCode == KeyEvent.KEYCODE_BACK
+                    && event.getAction() == KeyEvent.ACTION_UP) {
+                dismissSectionSheet();
+                return true;
+            }
+            return false;
+        });
+        dialog.setOnDismissListener(d -> {
+            ViewGroup parent = (ViewGroup) body.getParent();
+            if (parent != null) {
+                parent.removeView(body);
+            }
+            if (sectionDialog == d) {
+                sectionDialog = null;
+                sectionSheetView = null;
+                if (!isChangingConfigurations() && !isFinishing()) {
+                    openSheetKey = null;
+                }
+            }
+        });
+
+        sectionDialog = dialog;
+        sectionSheetView = sheet;
+        dialog.show();
+
+        sheet.setTranslationY(getResources().getDisplayMetrics().heightPixels);
+        sheet.post(() -> sheet.animate()
+                .translationY(0f)
+                .setDuration(260L)
+                .setInterpolator(new DecelerateInterpolator(1.6f))
+                .start());
     }
 
-    private void applySectionState(LinearLayout body, TextView chevron, boolean expanded) {
-        body.setVisibility(expanded ? View.VISIBLE : View.GONE);
-        chevron.setRotation(expanded ? 90f : 0f);
+    private void dismissSectionSheet() {
+        Dialog dialog = sectionDialog;
+        LinearLayout sheet = sectionSheetView;
+        if (dialog == null || !dialog.isShowing() || sheetDismissing) {
+            return;
+        }
+        sheetDismissing = true;
+        openSheetKey = null;
+        float distance = sheet == null || sheet.getHeight() <= 0
+                ? getResources().getDisplayMetrics().heightPixels
+                : sheet.getHeight();
+        if (sheet == null) {
+            sheetDismissing = false;
+            dialog.dismiss();
+            return;
+        }
+        sheet.animate()
+                .translationY(distance)
+                .setDuration(220L)
+                .setInterpolator(new AccelerateInterpolator(1.2f))
+                .withEndAction(() -> {
+                    sheetDismissing = false;
+                    if (dialog.isShowing()) {
+                        dialog.dismiss();
+                    }
+                })
+                .start();
     }
 
-    private boolean isSectionExpanded(String key) {
-        return getSharedPreferences(SECTION_PREFS, MODE_PRIVATE)
-                .getBoolean(key, SECTION_GENERAL.equals(key));
-    }
-
-    private void setSectionExpanded(String key, boolean expanded) {
-        getSharedPreferences(SECTION_PREFS, MODE_PRIVATE)
-                .edit().putBoolean(key, expanded).apply();
+    private GradientDrawable sheetBackground() {
+        GradientDrawable drawable = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{CARD_TOP, CARD_BOTTOM});
+        float radius = dp(28);
+        drawable.setCornerRadii(new float[]{
+                radius, radius, radius, radius, 0, 0, 0, 0});
+        drawable.setStroke(dp(1), BORDER);
+        return drawable;
     }
 
     private void addSubsectionDivider(LinearLayout parent) {
@@ -2188,7 +2315,6 @@ public class SettingsActivity extends Activity {
 
     private void addOrderCard(LinearLayout card) {
         TextView orderTitle = subsectionTitle(getString(R.string.settings_source_order), TEXT);
-        sourceOrderTarget = orderTitle;
         card.addView(orderTitle);
         TextView note = text(getString(R.string.settings_source_order_note), 12, MUTED, false);
         note.setPadding(0, dp(4), 0, dp(8));
@@ -2623,6 +2749,31 @@ public class SettingsActivity extends Activity {
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{start, end}
         );
+    }
+
+    /** ScrollView that stops growing at a maximum height. */
+    private static class MaxHeightScrollView extends ScrollView {
+        private int maxHeight;
+
+        MaxHeightScrollView(Context context) {
+            super(context);
+        }
+
+        void setMaxHeight(int maxHeight) {
+            this.maxHeight = maxHeight;
+        }
+
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            int mode = MeasureSpec.getMode(heightMeasureSpec);
+            int size = MeasureSpec.getSize(heightMeasureSpec);
+            if (maxHeight > 0
+                    && (mode == MeasureSpec.UNSPECIFIED || size > maxHeight)) {
+                heightMeasureSpec = MeasureSpec.makeMeasureSpec(
+                        maxHeight, MeasureSpec.AT_MOST);
+            }
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
     }
 }
 
