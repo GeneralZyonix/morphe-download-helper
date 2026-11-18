@@ -62,22 +62,26 @@ unchanged.
 
 ## Material 3 preview activity
 
-`M3PocActivity` is a separate design laboratory. It uses the real Material
-Components 1.14.0 widgets (MaterialSwitch, Chip, LinearProgressIndicator,
-BottomSheetDialog, MaterialCardView) under an actual
+`M3PocActivity` is a separate design laboratory, built only into **debug** APKs.
+It uses the real Material Components 1.14.0 widgets (MaterialSwitch, Chip,
+LinearProgressIndicator, BottomSheetDialog, MaterialCardView) under an actual
 `Theme.Material3Expressive` theme, and demonstrates:
 
 - **Standard**: dynamic colour on Android 12+.
 - **Brand layer**: Aurora-toned surfaces and a gradient hero.
 
-It is exported for ADB launching on this branch only:
+Material Components is declared as `debugImplementation`, so it never ships in
+the release APK. The POC lives in `app/src/debug/` with its own manifest,
+strings, and styles.
+
+It is exported for ADB launching on debug builds only:
 
 ```powershell
 adb shell am start -n be.alterra.morphehelper/.M3PocActivity
 adb shell am start -n be.alterra.morphehelper/.M3PocActivity --es variant brand
 ```
 
-Remove the activity and its manifest entry before any merge or release.
+Remove the `src/debug` preview before any merge or release.
 
 ## Verification
 
@@ -150,9 +154,10 @@ Not yet checked:
 
 - The app is still Views-based. Material Components is in maintenance mode, so
   this is a one-time visual modernisation rather than a long-term Compose plan.
-- Material Components are only used by the POC activity; the production screens
-  use the token layer because a Material theme would override the app’s manual
-  Dark/AMOLED/Light/System modes.
+- Material Components is a **debug-only** dependency for the POC; the production
+  screens use the token layer because a Material theme would override the app’s
+  manual Dark/AMOLED/Light/System modes. The release APK stays at 4.86 MB; the
+  debug APK with the POC is 11.2 MB.
 - The launch splash is still the dark brand splash in every mode.
 - Switches remain framework `Switch` widgets with M3 tints; a custom M3 switch
   was tried and reverted because the platform thumb/track sizing clipped.

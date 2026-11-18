@@ -119,33 +119,4 @@
     <style name="AppDialogThemeLight.Material">
         <item name="android:colorAccent">@android:color/system_accent1_500</item>
     </style>
-
-    <!-- Material 3 Expressive proof of concept. Not used by the stable screens. -->
-    <style name="M3PocTheme" parent="Theme.Material3Expressive.DayNight.NoActionBar">
-        <item name="android:windowBackground">?attr/colorSurface</item>
-        <item name="android:statusBarColor">?attr/colorSurface</item>
-        <item name="android:navigationBarColor">?attr/colorSurface</item>
-    </style>
-
-    <style name="M3BrandTheme" parent="M3PocTheme">
-        <item name="colorPrimary">#C9C2FF</item>
-        <item name="colorOnPrimary">#2B2160</item>
-        <item name="colorPrimaryContainer">#433A78</item>
-        <item name="colorOnPrimaryContainer">#E8E1FF</item>
-        <item name="colorSecondary">#A8E6E8</item>
-        <item name="colorOnSecondary">#00363A</item>
-        <item name="colorSecondaryContainer">#204A4C</item>
-        <item name="colorOnSecondaryContainer">#C8FFFF</item>
-        <item name="colorTertiary">#FFD8E4</item>
-        <item name="colorOnTertiary">#4A2532</item>
-        <item name="colorTertiaryContainer">#633B48</item>
-        <item name="colorOnTertiaryContainer">#FFD8E4</item>
-        <item name="colorSurface">#10141F</item>
-        <item name="colorOnSurface">#E6E8F0</item>
-        <item name="colorSurfaceVariant">#252A3A</item>
-        <item name="colorOnSurfaceVariant">#AAB0C2</item>
-        <item name="colorOutline">#8A90A0</item>
-        <item name="colorError">#FFB4AB</item>
-        <item name="colorOnError">#690005</item>
-    </style>
 </resources>

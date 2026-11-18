@@ -63,12 +63,6 @@
             </intent-filter>
         </activity>
 
-        <!-- POC branch only: Material 3 Expressive design preview. -->
-        <activity
-            android:name=".M3PocActivity"
-            android:exported="true"
-            android:theme="@style/M3PocTheme" />
-
         <!--
             Launcher entry point. The default is set per build flavor:
             - icon: always enabled; the icon is visible and never hidden.
