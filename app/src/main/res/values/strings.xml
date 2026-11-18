@@ -87,6 +87,33 @@
     <string name="main_about">About</string>
     <string name="main_developer_role">Developer of Morphe Download Helper</string>
     <string name="main_link_releases">Releases</string>
+
+    <!-- Material 3 Expressive proof of concept (POC branch only). -->
+    <string name="m3_poc_title">Material 3 preview</string>
+    <string name="m3_poc_standard">Standard</string>
+    <string name="m3_poc_brand">Brand layer</string>
+    <string name="m3_poc_ready">Ready when you are</string>
+    <string name="m3_poc_hero_title">Fetch the original APK.</string>
+    <string name="m3_poc_hero_body">Morphe patches the app. The helper finds the right build and hands it over.</string>
+    <string name="m3_poc_open_morphe">Open Morphe</string>
+    <string name="m3_poc_help">Help</string>
+    <string name="m3_poc_visual_guide">Visual guide</string>
+    <string name="m3_poc_visual_guide_sub">Step-by-step setup</string>
+    <string name="m3_poc_sources">Sources</string>
+    <string name="m3_poc_sources_sub">Order and GitHub apps</string>
+    <string name="m3_poc_helper_log">Helper log</string>
+    <string name="m3_poc_helper_log_sub">Sanitized exports and diagnostics</string>
+    <string name="m3_poc_download_preview">Download preview</string>
+    <string name="m3_poc_download_body">Instagram 452.1.0.53.64 · 72%</string>
+    <string name="m3_poc_open_sheet">Open Sources sheet</string>
+    <string name="m3_poc_sheet_title">Sources</string>
+    <string name="m3_poc_sheet_sub">Enabled sources, order, and GitHub apps</string>
+    <string name="m3_poc_test_all">Test all sources</string>
+    <string name="m3_poc_about">About</string>
+    <string name="m3_poc_about_sub">GeneralZyonix · GitHub · Releases</string>
+    <string name="m3_poc_palette_dynamic">Dynamic colour</string>
+    <string name="m3_poc_palette_brand">Aurora palette</string>
+    <string name="m3_poc_note">Material 3 Expressive preview. Theme and accent choices remain separate.</string>
     <string name="main_error_open_morphe">Could not open Morphe: %1$s</string>
     <string name="main_error_morphe_missing">Morphe is not installed.</string>
     <string name="main_error_no_log">No log yet.</string>
