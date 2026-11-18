@@ -16,6 +16,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -579,11 +581,26 @@ final class AppSettings {
      * when the copy could not be written (for example, storage permission is
      * missing on older Android versions).
      */
-    static boolean saveLogCopy(Context context, File file) {
-        if (file == null || !file.isFile()) {
+    /**
+     * Saves a sanitized log copy in Downloads/Morphe Helper. The raw log stays
+     * in app-specific storage; only the redacted text is exported.
+     */
+    static boolean saveLogCopy(Context context, String text) {
+        if (text == null || text.trim().isEmpty()) {
             return false;
         }
-        return publishPublic(context, file, "text/plain");
+        File temp = new File(context.getCacheDir(), "helper-sanitized.log");
+        try (OutputStreamWriter writer = new OutputStreamWriter(
+                new FileOutputStream(temp), StandardCharsets.UTF_8)) {
+            writer.write(text);
+        } catch (Exception error) {
+            HelperLog.error("Could not prepare sanitized log copy", error);
+            return false;
+        }
+        boolean saved = publishPublic(context, temp, "text/plain");
+        //noinspection ResultOfMethodCallIgnored
+        temp.delete();
+        return saved;
     }
 
     private static boolean publishPublic(Context context, File file, String mime) {

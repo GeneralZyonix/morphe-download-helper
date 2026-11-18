@@ -5,6 +5,30 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.3.10] - 2026-11-18
+
+2.3.10 makes diagnostic log exports safe to share by default and adds a
+sanitized preview before copying or posting.
+
+### Security
+
+- **Sanitized log exports:** Share log, Copy log, Save log, GitHub reports, and
+  saved full-log copies now go through one sanitizer. It redacts GitHub tokens,
+  Bearer/Basic auth, Authorization and Cookie headers, password/API-key
+  assignments, signed URL query parameters, Uptodown/winudf signed paths, JWTs,
+  private keys, local IPv4/IPv6 addresses, and email addresses. Thanks to
+  [@neverknownlolz-lab](https://github.com/neverknownlolz-lab) for the report
+  ([#55](https://github.com/GeneralZyonix/morphe-download-helper/issues/55)).
+- **Preview sanitized log:** the Helper log card can show the exact redacted
+  text before it is copied or shared.
+- The raw log stays in app-specific storage for debugging; only sanitized
+  copies are exported.
+
+### Changed
+
+- Full GitHub reports now save `helper-sanitized.log` in
+  Downloads/Morphe Helper instead of the raw log.
+
 ## [2.3.9] - 2026-11-18
 
 2.3.9 fixes APKMirror verification and wrong-page handling, makes retries escape

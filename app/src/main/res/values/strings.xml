@@ -61,13 +61,15 @@
     <string name="main_source_appteka">\u26A0 Appteka</string>
     <string name="main_open_morphe">Open Morphe</string>
     <string name="main_share_log">Share log</string>
+    <string name="main_preview_log">Preview sanitized log</string>
+    <string name="main_preview_log_title">Sanitized log preview</string>
     <string name="main_save_log">Save log</string>
-    <string name="main_log_help">The log records package names and source URLs. Use the buttons below to share, copy, save, or report it; it is not displayed here.</string>
+    <string name="main_log_help">The log records package names and source URLs. Exports are sanitized first: tokens, cookies, auth headers, signed URL parameters, local IPs, and email addresses are removed. Use the buttons below to share, copy, save, or report it; it is not displayed here.</string>
     <string name="main_save_log_success">Log saved</string>
     <string name="main_save_log_failed">Could not save the log</string>
     <string name="main_help">Help</string>
     <string name="main_help_title">Help &amp; troubleshooting</string>
-    <string name="help_log">Logs\nUse Share log, Copy log, Save log, or Report a bug on GitHub in the Helper log section. The log records package names and source URLs, not passwords.</string>
+    <string name="help_log">Logs\nUse Preview sanitized log, Share log, Copy log, Save log, or Report a bug on GitHub in the Helper log section. Exports are sanitized first. The log records package names and source URLs, not passwords.</string>
     <string name="help_play_protect">Play Protect\nThis APK is debug-signed and installed outside the Play Store. If Android warns, tap More details → Install anyway. If it says App not installed, send the exact message.</string>
     <string name="help_uptodown">Uptodown\nUptodown uses its direct API first. If its verification page appears, tap the green Download button once; Cloudflare needs a real tap.</string>
     <string name="help_icons">App icons\nInstalled apps use the system/icon-pack icon. For uninstalled apps, One UI does not expose icon-pack icons; the helper uses the APKMirror or APK icon.</string>

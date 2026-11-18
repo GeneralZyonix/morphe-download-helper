@@ -22,20 +22,6 @@ final class GitHubReport {
     static final int MAX_URL_LENGTH = 8_000;
     static final int MAX_LOG_FIELD_CHARS = 2_200;
 
-    private static final Pattern GITHUB_TOKEN = Pattern.compile(
-            "(?i)(gh[pousr]_[A-Za-z0-9_]{10,}|github_pat_[A-Za-z0-9_]{10,})");
-    private static final Pattern BEARER = Pattern.compile(
-            "(?i)(Bearer\\s+)[A-Za-z0-9._~+/-]+=*");
-    private static final Pattern AUTHORIZATION = Pattern.compile(
-            "(?i)(authorization\\s*:\\s*)[^\\r\\n]+");
-    private static final Pattern SECRET_ASSIGNMENT = Pattern.compile(
-            "(?i)((?:password|passwd|secret|token|api[_-]?key)\\s*[=:]\\s*)[^\\s,;]+");
-    private static final Pattern QUERY_SECRET = Pattern.compile(
-            "(?i)([?&](?:token|key|signature|sig|hmac|expires|access_token|auth|X-Amz-[^=&]+)=)[^&\\s]+");
-    private static final Pattern UPTODOWN_SIGNED_PATH = Pattern.compile(
-            "(?i)(/dwn/)[^\\s/]{24,}");
-    private static final Pattern WINUDF_SIGNED_PATH = Pattern.compile(
-            "(?i)(data\\.winudf\\.com/[A-Za-z0-9]+/)[^\\s?/]{24,}");
     private static final Pattern LAST_REQUEST = Pattern.compile(
             "Request pkg=(\\S+) app=(.*?) version=(\\S+) versionCodes=\\[[^\\]]*\\]"
                     + " fileType=(\\S+)");
@@ -93,17 +79,7 @@ final class GitHubReport {
      * review the report before submitting it.
      */
     static String redact(String log) {
-        if (log == null || log.isEmpty()) {
-            return "";
-        }
-        String value = GITHUB_TOKEN.matcher(log).replaceAll("<redacted>");
-        value = BEARER.matcher(value).replaceAll("$1<redacted>");
-        value = AUTHORIZATION.matcher(value).replaceAll("$1<redacted>");
-        value = SECRET_ASSIGNMENT.matcher(value).replaceAll("$1<redacted>");
-        value = QUERY_SECRET.matcher(value).replaceAll("$1<redacted>");
-        value = UPTODOWN_SIGNED_PATH.matcher(value).replaceAll("$1<redacted>");
-        value = WINUDF_SIGNED_PATH.matcher(value).replaceAll("$1<redacted>");
-        return value;
+        return LogSanitizer.sanitize(log);
     }
 
     /**
