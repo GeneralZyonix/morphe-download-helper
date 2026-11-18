@@ -44,4 +44,26 @@ final class SourceProbeRules {
                 || lower.contains("hold that package")
                 || lower.contains("in the catalog");
     }
+
+    /**
+     * True when an APKMirror HTTP failure should hand off to the WebView.
+     * Cloudflare can challenge or block the HTTP client even when the WebView
+     * can still load the verification page; timeouts and connection failures
+     * are treated the same way so the user gets a chance to verify.
+     */
+    static boolean apkMirrorWebFallback(String errorMessage) {
+        if (errorMessage == null) {
+            return false;
+        }
+        if (errorMessage.contains("HTTP 403")) {
+            return true;
+        }
+        String lower = errorMessage.toLowerCase(Locale.US);
+        return lower.contains("timeout") || lower.contains("timed out")
+                || lower.contains("connection") || lower.contains("connect")
+                || lower.contains("network") || lower.contains("socket")
+                || lower.contains("ssl") || lower.contains("unknown host")
+                || lower.contains("unknownhost")
+                || lower.contains("unable to resolve host");
+    }
 }

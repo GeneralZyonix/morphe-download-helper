@@ -50,4 +50,25 @@ public class SourceProbeRulesTest {
         assertFalse(SourceProbeRules.looksLikeApk("text/html; charset=utf-8", null));
         assertFalse(SourceProbeRules.looksLikeApk(null, null));
     }
+
+    @Test
+    public void apkMirrorBlockAndNetworkFailuresUseWebView() {
+        assertTrue(SourceProbeRules.apkMirrorWebFallback(
+                "HTTP 403 for https://www.apkmirror.com/"));
+        assertTrue(SourceProbeRules.apkMirrorWebFallback("timeout"));
+        assertTrue(SourceProbeRules.apkMirrorWebFallback("Connection timed out"));
+        assertTrue(SourceProbeRules.apkMirrorWebFallback(
+                "failed to connect to www.apkmirror.com"));
+        assertTrue(SourceProbeRules.apkMirrorWebFallback(
+                "java.net.UnknownHostException: www.apkmirror.com"));
+    }
+
+    @Test
+    public void apkMirrorContentFailuresDoNotOpenWebView() {
+        assertFalse(SourceProbeRules.apkMirrorWebFallback(
+                "No matching app on APKMirror"));
+        assertFalse(SourceProbeRules.apkMirrorWebFallback(
+                "Requested version 1.2.3 not found on APKMirror"));
+        assertFalse(SourceProbeRules.apkMirrorWebFallback(null));
+    }
 }

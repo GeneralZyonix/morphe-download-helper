@@ -5,6 +5,28 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Added
+
+- **Collapsible Helper log:** the log card on the main screen is collapsed by
+  default. Tap the header to reveal Share, Copy, Save, Clear, **Report a bug on
+  GitHub**, and **Suggest a feature on GitHub**. Thanks to
+  [@IkoMosiEntertainmentHub](https://github.com/IkoMosiEntertainmentHub) for the
+  request ([#50](https://github.com/GeneralZyonix/morphe-download-helper/issues/50)).
+- **Feature request link:** the log card opens the repository's feature request
+  template directly.
+
+### Fixed
+
+- **APKMirror verification on blocked or timed-out HTTP requests:** the helper
+  now opens the APKMirror WebView when its HTTP client times out, cannot
+  connect, or is blocked, instead of silently marking the source failed. This
+  gives Cloudflare a chance to show the verification page on networks where the
+  background HTTP request fails. Thanks to
+  [@zennki-arch](https://github.com/zennki-arch) for the log
+  ([#51](https://github.com/GeneralZyonix/morphe-download-helper/issues/51)).
+
 ## [2.3.8] - 2026-11-17
 
 2.3.8 finishes the source-speed work with APKPure/Uptodown prefetch and a

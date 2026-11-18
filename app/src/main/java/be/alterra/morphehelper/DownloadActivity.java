@@ -1154,6 +1154,17 @@ public class DownloadActivity extends Activity {
         return message != null && message.contains("HTTP 403");
     }
 
+    /**
+     * APKMirror's HTTP client can be blocked or time out while the WebView is
+     * still able to load and show the Cloudflare verification page. Treat
+     * network failures like a block so the user gets that page instead of a
+     * silent source failure.
+     */
+    private boolean isApkMirrorWebFallback(IOException error) {
+        return SourceProbeRules.apkMirrorWebFallback(
+                error == null ? null : error.getMessage());
+    }
+
     private void startWebFlow(String source, String url, String pkg, String version,
                               String fileType) {
         webSource = source;
@@ -6042,7 +6053,7 @@ public class DownloadActivity extends Activity {
                 throw handoff;
             } catch (IOException error) {
                 HelperLog.info("APKMirror cached app URL failed: " + error.getMessage());
-                if (isCloudflareBlock(error)) {
+                if (isApkMirrorWebFallback(error)) {
                     handoffToApkMirrorWeb(cachedApp, pkg, version, fileType);
                 }
                 AppSettings.clearApkMirrorAppUrl(this, pkg);
@@ -6055,7 +6066,7 @@ public class DownloadActivity extends Activity {
         try {
             searchHtml = httpGet(searchUrl, null);
         } catch (IOException error) {
-            if (isCloudflareBlock(error)) {
+            if (isApkMirrorWebFallback(error)) {
                 handoffToApkMirrorWeb(searchUrl, pkg, version, fileType);
             }
             throw error;
@@ -6101,7 +6112,7 @@ public class DownloadActivity extends Activity {
         try {
             appHtml = httpGet(absolute(appUrl), referer);
         } catch (IOException error) {
-            if (isCloudflareBlock(error)) {
+            if (isApkMirrorWebFallback(error)) {
                 handoffToApkMirrorWeb(absolute(appUrl), pkg, version, fileType);
             }
             throw error;
@@ -6130,7 +6141,15 @@ public class DownloadActivity extends Activity {
         }
 
         // The version page lists APK/APKM/APKS variants; choose the best one.
-        String versionHtml = httpGet(absolute(versionUrl), absolute(appUrl));
+        String versionHtml;
+        try {
+            versionHtml = httpGet(absolute(versionUrl), absolute(appUrl));
+        } catch (IOException error) {
+            if (isApkMirrorWebFallback(error)) {
+                handoffToApkMirrorWeb(absolute(versionUrl), pkg, version, fileType);
+            }
+            throw error;
+        }
         String variant = chooseVariant(versionHtml, fileType, abis);
         HelperLog.info("APKMirror variant URL: " + variant);
         if (variant == null) {
@@ -6150,7 +6169,7 @@ public class DownloadActivity extends Activity {
         try {
             html = httpGet(variantUrl, null);
         } catch (IOException error) {
-            if (isCloudflareBlock(error)) {
+            if (isApkMirrorWebFallback(error)) {
                 handoffToApkMirrorWeb(variantUrl, pkg, version, fileType);
             }
             throw error;
@@ -6186,7 +6205,7 @@ public class DownloadActivity extends Activity {
         try {
             html = httpGet(keyUrl, null);
         } catch (IOException error) {
-            if (isCloudflareBlock(error)) {
+            if (isApkMirrorWebFallback(error)) {
                 handoffToApkMirrorWeb(keyUrl, pkg, version, fileType);
             }
             throw error;

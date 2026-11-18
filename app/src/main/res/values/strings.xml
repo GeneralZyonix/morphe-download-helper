@@ -36,7 +36,10 @@
     <string name="main_build_icon">Icon</string>
     <string name="main_build_no_icon">No icon</string>
     <string name="main_log_title">Helper log</string>
-    <string name="main_report_github">Report on GitHub</string>
+    <string name="main_log_expand">Expand Helper log</string>
+    <string name="main_log_collapse">Collapse Helper log</string>
+    <string name="main_report_github">Report a bug on GitHub</string>
+    <string name="main_suggest_feature">Suggest a feature on GitHub</string>
     <string name="main_report_title">Report on GitHub</string>
     <string name="main_report_message">Choose what to include. GitHub opens for review; nothing is submitted until you tap Submit. Signed URLs and tokens are redacted automatically.</string>
     <string name="main_report_short">Short report — summary and recent log lines</string>

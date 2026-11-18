@@ -364,7 +364,8 @@ public class MainActivity extends Activity {
         deleteParams.topMargin = dp(10);
         root.addView(deleteAll, deleteParams);
 
-        // Helper log: sharing actions stay above the developer card.
+        // Helper log: collapsed by default so the log tools do not dominate the
+        // main screen. Tap the header to reveal sharing and reporting actions.
         LinearLayout logCard = new LinearLayout(this);
         logCard.setOrientation(LinearLayout.VERTICAL);
         logCard.setPadding(dp(18), dp(16), dp(18), dp(16));
@@ -374,15 +375,42 @@ public class MainActivity extends Activity {
         logCardParams.topMargin = dp(16);
         root.addView(logCard, logCardParams);
 
-        logCard.addView(text(getString(R.string.main_log_title), 16, TEXT, true));
+        LinearLayout logHeader = new LinearLayout(this);
+        logHeader.setOrientation(LinearLayout.HORIZONTAL);
+        logHeader.setGravity(Gravity.CENTER_VERTICAL);
+        logHeader.setClickable(true);
+        logHeader.setFocusable(true);
+        logHeader.setContentDescription(getString(R.string.main_log_expand));
+        logCard.addView(logHeader, new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT));
+
+        LinearLayout logTitle = new LinearLayout(this);
+        logTitle.setOrientation(LinearLayout.VERTICAL);
+        logTitle.addView(text(getString(R.string.main_log_title), 16, TEXT, true));
         TextView logsLocal = text(getString(R.string.main_logs_local), 11, FOOTER, false);
         logsLocal.setPadding(0, dp(3), 0, 0);
-        logCard.addView(logsLocal);
+        logTitle.addView(logsLocal);
+        logHeader.addView(logTitle, new LinearLayout.LayoutParams(
+                0, WRAP_CONTENT, 1f));
+
+        ImageView logChevron = new ImageView(this);
+        logChevron.setImageResource(R.drawable.ic_chevron_right);
+        logChevron.setColorFilter(MUTED);
+        logChevron.setRotation(0f);
+        logChevron.setPadding(dp(6), dp(6), dp(6), dp(6));
+        logHeader.addView(logChevron, new LinearLayout.LayoutParams(
+                dp(32), dp(32)));
+
+        LinearLayout logBody = new LinearLayout(this);
+        logBody.setOrientation(LinearLayout.VERTICAL);
+        logBody.setVisibility(View.GONE);
+        logCard.addView(logBody, new LinearLayout.LayoutParams(
+                MATCH_PARENT, WRAP_CONTENT));
 
         TextView logHelp = text(getString(R.string.main_log_help), 12, MUTED, false);
         logHelp.setLineSpacing(dp(2), 1f);
         logHelp.setPadding(0, dp(8), 0, 0);
-        logCard.addView(logHelp);
+        logBody.addView(logHelp);
 
         TextView shareLog = secondaryButton(getString(R.string.main_share_log),
                 R.drawable.ic_share, ACCENT_TEXT,
@@ -422,11 +450,11 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams logRow1Params = new LinearLayout.LayoutParams(
                 MATCH_PARENT, WRAP_CONTENT);
         logRow1Params.topMargin = dp(14);
-        logCard.addView(logRow1, logRow1Params);
+        logBody.addView(logRow1, logRow1Params);
         LinearLayout.LayoutParams logRow2Params = new LinearLayout.LayoutParams(
                 MATCH_PARENT, WRAP_CONTENT);
         logRow2Params.topMargin = dp(8);
-        logCard.addView(logRow2, logRow2Params);
+        logBody.addView(logRow2, logRow2Params);
 
         TextView reportGithub = secondaryButton(getString(R.string.main_report_github),
                 R.drawable.source_logo_github, ACCENT_TEXT, SECONDARY_BORDER);
@@ -434,7 +462,25 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams reportParams = new LinearLayout.LayoutParams(
                 MATCH_PARENT, dp(44));
         reportParams.topMargin = dp(10);
-        logCard.addView(reportGithub, reportParams);
+        logBody.addView(reportGithub, reportParams);
+
+        TextView suggestFeature = secondaryButton(getString(R.string.main_suggest_feature),
+                R.drawable.source_logo_github, ACCENT_TEXT, SECONDARY_BORDER);
+        suggestFeature.setOnClickListener(v -> openGitHubReport(
+                "https://github.com/GeneralZyonix/morphe-download-helper/issues/new"
+                        + "?template=feature_request.yml"));
+        LinearLayout.LayoutParams suggestParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, dp(44));
+        suggestParams.topMargin = dp(8);
+        logBody.addView(suggestFeature, suggestParams);
+
+        logHeader.setOnClickListener(v -> {
+            boolean expand = logBody.getVisibility() != View.VISIBLE;
+            logBody.setVisibility(expand ? View.VISIBLE : View.GONE);
+            logChevron.setRotation(expand ? 90f : 0f);
+            logHeader.setContentDescription(getString(expand
+                    ? R.string.main_log_collapse : R.string.main_log_expand));
+        });
 
         // About the developer.
         LinearLayout about = new LinearLayout(this);
