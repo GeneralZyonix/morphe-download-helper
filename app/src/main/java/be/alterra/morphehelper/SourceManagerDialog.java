@@ -3,6 +3,7 @@ package be.alterra.morphehelper;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
@@ -109,6 +110,20 @@ final class SourceManagerDialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         testParams.topMargin = dp(12);
         content.addView(testAll, testParams);
+
+        TextView fullSettings = M3Ui.textButton(activity, palette,
+                activity.getString(R.string.source_manager_full_settings), 0);
+        fullSettings.setOnClickListener(v -> {
+            Intent intent = new Intent(activity, SettingsActivity.class);
+            intent.putExtra(SettingsActivity.EXTRA_SECTION,
+                    SettingsActivity.EXTRA_SECTION_SOURCES);
+            activity.startActivity(intent);
+            dialog.dismiss();
+        });
+        LinearLayout.LayoutParams fullSettingsParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        fullSettingsParams.topMargin = dp(4);
+        content.addView(fullSettings, fullSettingsParams);
 
         TextView done = M3Ui.primaryButton(activity, palette,
                 activity.getString(R.string.common_done), 0);

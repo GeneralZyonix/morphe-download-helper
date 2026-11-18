@@ -85,6 +85,7 @@ public class SettingsActivity extends Activity {
     private static final int IMPORT_SETTINGS_REQUEST_CODE = 75;
     private static final int IMPORT_GITHUB_REQUEST_CODE = 76;
     private static final String SECTION_PREFS = "settings_sections";
+    private static final String STATE_SCROLL_Y = "scroll_y";
     static final String EXTRA_SECTION = "open_section";
     static final String EXTRA_SECTION_SOURCES = "sources";
     static final String EXTRA_SHARE_TEXT = "share_text";
@@ -99,6 +100,7 @@ public class SettingsActivity extends Activity {
     private boolean batteryIgnoring;
     private String pendingLocation;
     private boolean exportIncludeSecrets;
+    private ScrollView settingsScroll;
     private final Map<String, View> sectionCards = new HashMap<>();
     private final Map<String, LinearLayout> sectionBodies = new HashMap<>();
     private final Map<String, TextView> sectionChevrons = new HashMap<>();
@@ -142,6 +144,7 @@ public class SettingsActivity extends Activity {
         scroll.setId(R.id.settings_scroll);
         scroll.setFillViewport(true);
         scroll.setBackgroundColor(M3Ui.surface(palette));
+        settingsScroll = scroll;
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -249,6 +252,12 @@ public class SettingsActivity extends Activity {
 
         setContentView(scroll);
         ThemeManager.applySystemBars(this);
+        if (!openSources && savedInstanceState != null) {
+            int scrollY = savedInstanceState.getInt(STATE_SCROLL_Y, 0);
+            if (scrollY > 0) {
+                scroll.post(() -> scroll.scrollTo(0, scrollY));
+            }
+        }
         if (openSources) {
             scroll.post(() -> {
                 View target = sourceOrderTarget;
@@ -325,6 +334,14 @@ public class SettingsActivity extends Activity {
         GREEN = palette.green;
         SWITCH_THUMB = palette.switchThumb;
         themeSignature = ThemeManager.signature(this);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (settingsScroll != null) {
+            outState.putInt(STATE_SCROLL_Y, settingsScroll.getScrollY());
+        }
     }
 
     @Override

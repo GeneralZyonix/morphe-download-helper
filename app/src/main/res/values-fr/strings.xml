@@ -25,6 +25,7 @@
     <string name="main_hero_body">Morphe applique le patch. L’assistant trouve le bon build et le transfère.</string>
     <string name="source_manager_hint">Les sources activées sont essayées en premier. Utilisez les flèches pour changer l’ordre ; les sources désactivées restent en bas.</string>
     <string name="settings_test_all">Tester toutes les sources</string>
+    <string name="source_manager_full_settings">Tous les réglages des sources</string>
     <string name="settings_testing_all">Test de toutes les sources…</string>
     <string name="settings_test_all_result">%1$d réussies, %2$d échouées.</string>
     <string name="settings_source_drag_hint">Faites glisser la poignée pour choisir la source essayée en premier. Les sources désactivées restent en bas.</string>

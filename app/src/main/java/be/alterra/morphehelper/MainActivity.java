@@ -351,12 +351,8 @@ public class MainActivity extends Activity {
         // enabled sources, their order, and GitHub apps are managed.
         TextView sourcesButton = secondaryButton(getString(R.string.settings_sources),
                 ACCENT_TEXT, SECONDARY_BORDER);
-        sourcesButton.setOnClickListener(v -> {
-            Intent intent = new Intent(this, SettingsActivity.class);
-            intent.putExtra(SettingsActivity.EXTRA_SECTION,
-                    SettingsActivity.EXTRA_SECTION_SOURCES);
-            startActivity(intent);
-        });
+        sourcesButton.setOnClickListener(v ->
+                SourceManagerDialog.show(this, null));
         LinearLayout.LayoutParams sourcesButtonParams = new LinearLayout.LayoutParams(
                 MATCH_PARENT, dp(48));
         sourcesButtonParams.topMargin = dp(10);
