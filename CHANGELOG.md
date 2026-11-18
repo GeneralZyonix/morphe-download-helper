@@ -5,7 +5,11 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [2.3.9] - 2026-11-18
+
+2.3.9 fixes APKMirror verification and wrong-page handling, makes retries escape
+the negative cache cleanly, and tidies the main screen with a collapsible log
+card and GitHub links.
 
 ### Added
 
@@ -26,13 +30,14 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
   background HTTP request fails. Thanks to
   [@zennki-arch](https://github.com/zennki-arch) for the log
   ([#51](https://github.com/GeneralZyonix/morphe-download-helper/issues/51)).
+- **APKMirror wrong-app pages:** the verification WebView now checks the page's
+  Play package and fails the source before downloading if it does not match. A
+  cached app page is also dropped when the requested version is missing, so a
+  wrong search result cannot poison later requests.
 - **Negative-cache skip messages:** skipped sources no longer wrap their own
   reason (`Skipped: recent not found (Skipped: ...)`) or re-record the same
   result. They stay in the report so **Retry failed sources** can bypass the
   cache.
-- **APKMirror cached app pages:** a cached app page is dropped when the
-  requested version is not listed, so a wrong search result cannot poison later
-  requests for that package.
 
 ## [2.3.8] - 2026-11-17
 

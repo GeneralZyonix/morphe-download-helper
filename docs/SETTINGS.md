@@ -1,6 +1,6 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 2.3.8. The
+This page explains every section of **Settings** in Morphe Download Helper 2.3.9. The
 screenshots were taken from the current release on Android 16 in dark mode.
 
 Open Settings from the gear button on the main screen. All sections can be collapsed and
