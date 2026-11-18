@@ -34,10 +34,11 @@ import androidx.core.content.FileProvider;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
@@ -456,6 +457,14 @@ public class MainActivity extends Activity {
         logRow2Params.topMargin = dp(8);
         logBody.addView(logRow2, logRow2Params);
 
+        TextView previewLog = secondaryButton(getString(R.string.main_preview_log),
+                TEXT, SECONDARY_BORDER);
+        previewLog.setOnClickListener(v -> previewLog());
+        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
+                MATCH_PARENT, dp(44));
+        previewParams.topMargin = dp(10);
+        logBody.addView(previewLog, previewParams);
+
         TextView reportGithub = secondaryButton(getString(R.string.main_report_github),
                 R.drawable.source_logo_github, ACCENT_TEXT, SECONDARY_BORDER);
         reportGithub.setOnClickListener(v -> showGitHubReportDialog());
@@ -611,23 +620,46 @@ public class MainActivity extends Activity {
             Toast.makeText(this, R.string.main_error_no_log, Toast.LENGTH_LONG).show();
             return;
         }
-        try {
-            Uri uri = FileProvider.getUriForFile(
-                    this,
-                    getPackageName() + ".fileprovider",
-                    log
-            );
-            Intent send = new Intent(Intent.ACTION_SEND);
-            send.setType("text/plain");
-            send.putExtra(Intent.EXTRA_STREAM, uri);
-            send.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.main_log_subject));
-            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(send, getString(R.string.main_share_log_title)));
-        } catch (Exception e) {
-            Toast.makeText(this,
-                    getString(R.string.main_error_share_log, e.getMessage()),
-                    Toast.LENGTH_LONG).show();
-        }
+        new Thread(() -> {
+            try {
+                String text = LogSanitizer.sanitizeForExport(readLogText(log));
+                if (text.trim().isEmpty()) {
+                    runOnUiThread(() -> Toast.makeText(this,
+                            R.string.main_error_no_log, Toast.LENGTH_LONG).show());
+                    return;
+                }
+                File sanitized = new File(log.getParentFile(), "helper-sanitized.log");
+                try (OutputStreamWriter writer = new OutputStreamWriter(
+                        new FileOutputStream(sanitized), StandardCharsets.UTF_8)) {
+                    writer.write(text);
+                }
+                Uri uri = FileProvider.getUriForFile(
+                        this,
+                        getPackageName() + ".fileprovider",
+                        sanitized
+                );
+                runOnUiThread(() -> {
+                    try {
+                        Intent send = new Intent(Intent.ACTION_SEND);
+                        send.setType("text/plain");
+                        send.putExtra(Intent.EXTRA_STREAM, uri);
+                        send.putExtra(Intent.EXTRA_SUBJECT,
+                                getString(R.string.main_log_subject));
+                        send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        startActivity(Intent.createChooser(send,
+                                getString(R.string.main_share_log_title)));
+                    } catch (Exception e) {
+                        Toast.makeText(this,
+                                getString(R.string.main_error_share_log, e.getMessage()),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        getString(R.string.main_error_share_log, e.getMessage()),
+                        Toast.LENGTH_LONG).show());
+            }
+        }, "share-log").start();
     }
 
     /**
@@ -644,7 +676,7 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             String text;
             try {
-                text = readLogText(log);
+                text = LogSanitizer.sanitizeForExport(readLogText(log));
             } catch (Exception error) {
                 runOnUiThread(() -> Toast.makeText(this,
                         R.string.main_error_copy_log, Toast.LENGTH_LONG).show());
@@ -675,8 +707,66 @@ public class MainActivity extends Activity {
         if (clipboard == null) {
             return false;
         }
-        clipboard.setPrimaryClip(ClipData.newPlainText("helper.log", text));
+        clipboard.setPrimaryClip(ClipData.newPlainText("helper-sanitized.log", text));
         return true;
+    }
+
+    /** Shows a read-only preview of the sanitized log before it is shared. */
+    private void previewLog() {
+        File log = HelperLog.getLogFile();
+        if (log == null || !log.isFile()) {
+            Toast.makeText(this, R.string.main_error_no_log, Toast.LENGTH_LONG).show();
+            return;
+        }
+        new Thread(() -> {
+            String text;
+            try {
+                text = LogSanitizer.sanitizeForExport(readLogText(log));
+            } catch (Exception error) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_error_copy_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            if (text.trim().isEmpty()) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_error_no_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            final int max = 120_000;
+            if (text.length() > max) {
+                text = "[... earlier sanitized lines omitted ...]\n"
+                        + text.substring(text.length() - max);
+            }
+            final String preview = text;
+            runOnUiThread(() -> {
+                TextView body = text(preview, 10, TEXT, false);
+                body.setTypeface(Typeface.MONOSPACE);
+                body.setTextIsSelectable(true);
+                body.setLineSpacing(dp(2), 1f);
+                body.setPadding(dp(16), dp(12), dp(16), dp(12));
+
+                ScrollView scroll = new ScrollView(this);
+                scroll.addView(body, new ScrollView.LayoutParams(
+                        MATCH_PARENT, WRAP_CONTENT));
+                scroll.setLayoutParams(new LinearLayout.LayoutParams(
+                        MATCH_PARENT, dp(420)));
+
+                ThemeManager.dialog(this)
+                        .setTitle(R.string.main_preview_log_title)
+                        .setView(scroll)
+                        .setPositiveButton(R.string.main_copy_log, (dialog, which) -> {
+                            if (!copyTextToClipboard(preview)) {
+                                Toast.makeText(this, R.string.main_error_copy_log,
+                                        Toast.LENGTH_LONG).show();
+                            } else {
+                                Toast.makeText(this, R.string.main_log_copied,
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        })
+                        .setNegativeButton(R.string.common_close, null)
+                        .show();
+            });
+        }, "preview-log").start();
     }
 
     /** Opens the system document picker so the log can be saved to Downloads or Drive. */
@@ -689,7 +779,7 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("text/plain");
-        intent.putExtra(Intent.EXTRA_TITLE, "helper.log");
+        intent.putExtra(Intent.EXTRA_TITLE, "helper-sanitized.log");
         startActivityForResult(intent, REQ_SAVE_LOG);
     }
 
@@ -712,15 +802,18 @@ public class MainActivity extends Activity {
                         R.string.main_error_no_log, Toast.LENGTH_LONG).show());
                 return;
             }
-            try (InputStream input = new FileInputStream(log);
-                 OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
-                if (output == null) {
-                    throw new IllegalStateException("No output stream");
+            try {
+                String text = LogSanitizer.sanitizeForExport(readLogText(log));
+                if (text.trim().isEmpty()) {
+                    runOnUiThread(() -> Toast.makeText(this,
+                            R.string.main_error_no_log, Toast.LENGTH_LONG).show());
+                    return;
                 }
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = input.read(buffer)) != -1) {
-                    output.write(buffer, 0, read);
+                try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                    if (output == null) {
+                        throw new IllegalStateException("No output stream");
+                    }
+                    output.write(text.getBytes(StandardCharsets.UTF_8));
                 }
                 runOnUiThread(() -> Toast.makeText(this,
                         R.string.main_save_log_success, Toast.LENGTH_SHORT).show());
@@ -820,7 +913,9 @@ public class MainActivity extends Activity {
             }
             boolean fullPrefilled = fullLog
                     && GitHubReport.canPrefillFullLog(redacted);
-            boolean saved = fullLog && AppSettings.saveLogCopy(this, logFile);
+            boolean saved = fullLog
+                    && AppSettings.saveLogCopy(this,
+                    LogSanitizer.sanitizeForExport(raw));
             String targetApp = GitHubReport.lastRequest(redacted);
             if (TextUtils.isEmpty(targetApp)) {
                 targetApp = getString(R.string.main_report_target_unknown);

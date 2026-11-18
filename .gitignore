@@ -37,6 +37,7 @@ IDEAS.md
 /docs/guide/*
 !/docs/guide/*-2.3.8.png
 !/docs/guide/*-2.3.9.png
+!/docs/guide/*-2.3.10.png
 !/docs/screenshots/
 /docs/screenshots/*
 !/docs/screenshots/main-v1.4.png
@@ -44,6 +45,7 @@ IDEAS.md
 !/docs/screenshots/download-v1.4.png
 !/docs/screenshots/*-2.3.8.png
 !/docs/screenshots/*-2.3.9.png
+!/docs/screenshots/*-2.3.10.png
 !/docs/branding/
 /docs/branding/*
 !/docs/branding/readme-banner.html
