@@ -52,6 +52,7 @@ public class AppearanceActivity extends Activity {
     private int STEPS;
     private int SWITCH_THUMB;
     private boolean LIGHT;
+    private ThemePalette palette;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +63,7 @@ public class AppearanceActivity extends Activity {
         scrollView = new ScrollView(this);
         scrollView.setId(R.id.appearance_scroll);
         scrollView.setFillViewport(true);
-        scrollView.setBackground(gradient(BG_TOP, BG_BOTTOM));
+        scrollView.setBackgroundColor(M3Ui.surface(palette));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -71,15 +72,23 @@ public class AppearanceActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        root.addView(text(getString(R.string.appearance_title), 26, TEXT, true));
-        TextView subtitle = text(getString(R.string.appearance_subtitle), 13, MUTED, false);
+        root.addView(M3Ui.overline(this,
+                getString(R.string.appearance_overline), palette.accentText));
+        TextView title = M3Ui.display(this, getString(R.string.appearance_title), 30, TEXT);
+        title.setPadding(0, dp(8), 0, 0);
+        root.addView(title);
+        TextView subtitle = M3Ui.text(this, getString(R.string.appearance_subtitle), 13,
+                MUTED, 400);
         subtitle.setPadding(0, dp(6), 0, 0);
         root.addView(subtitle);
 
-        TextView current = text(getString(R.string.appearance_current,
-                ThemeManager.summary(this)), 12, ACCENT_TEXT, true);
-        current.setPadding(0, dp(12), 0, 0);
-        root.addView(current);
+        TextView current = M3Ui.chip(this, palette,
+                getString(R.string.appearance_current, ThemeManager.summary(this)), true);
+        current.setPadding(dp(12), dp(8), dp(12), dp(8));
+        LinearLayout.LayoutParams currentParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        currentParams.topMargin = dp(14);
+        root.addView(current, currentParams);
 
         addPreviewCard(root);
         addModeCard(root);
@@ -120,6 +129,7 @@ public class AppearanceActivity extends Activity {
 
     private void applyPalette() {
         ThemePalette palette = ThemeManager.palette(this);
+        this.palette = palette;
         BG_TOP = palette.bgTop;
         BG_BOTTOM = palette.bgBottom;
         CARD_TOP = palette.cardTop;
@@ -150,14 +160,13 @@ public class AppearanceActivity extends Activity {
         LinearLayout preview = new LinearLayout(this);
         preview.setOrientation(LinearLayout.VERTICAL);
         preview.setPadding(dp(16), dp(16), dp(16), dp(16));
-        GradientDrawable background = rounded(SECONDARY, 16);
-        background.setStroke(dp(1), SECONDARY_BORDER);
-        preview.setBackground(background);
+        preview.setBackground(M3Ui.hero(this, palette));
         LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         previewParams.topMargin = dp(12);
         card.addView(preview, previewParams);
 
+        int previewForeground = M3Ui.onPrimaryContainer(palette);
         LinearLayout previewHeader = new LinearLayout(this);
         previewHeader.setOrientation(LinearLayout.HORIZONTAL);
         previewHeader.setGravity(Gravity.CENTER_VERTICAL);
@@ -168,32 +177,30 @@ public class AppearanceActivity extends Activity {
         previewLogoParams.setMarginEnd(dp(12));
         previewHeader.addView(previewLogo, previewLogoParams);
         previewHeader.addView(
-                text(getString(R.string.appearance_preview_title), 15, TEXT, true),
+                M3Ui.title(this, getString(R.string.appearance_preview_title), 15,
+                        previewForeground),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         preview.addView(previewHeader);
-        TextView body = text(getString(R.string.appearance_preview_body), 12, MUTED, false);
+        TextView body = M3Ui.text(this, getString(R.string.appearance_preview_body), 12,
+                M3Ui.blend(previewForeground, M3Ui.primaryContainer(palette), 0.25f), 400);
         body.setLineSpacing(dp(3), 1f);
         body.setPadding(0, dp(6), 0, dp(14));
         preview.addView(body);
 
-        TextView action = text(getString(R.string.appearance_preview_button), 14, ON_PRIMARY, true);
+        TextView action = M3Ui.primaryButton(this, palette,
+                getString(R.string.appearance_preview_button), 0);
         action.setGravity(Gravity.CENTER);
-        action.setPadding(dp(14), dp(11), dp(14), dp(11));
-        GradientDrawable fill = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{PRIMARY_START, PRIMARY_END});
-        fill.setCornerRadius(dp(12));
-        action.setBackground(fill);
         preview.addView(action, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
 
         ProgressBar progress = new ProgressBar(
                 this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         progress.setProgress(62);
-        progress.setIndeterminateTintList(ColorStateList.valueOf(PRIMARY_START));
-        progress.setProgressTintList(ColorStateList.valueOf(PRIMARY_START));
-        progress.setProgressBackgroundTintList(ColorStateList.valueOf(SECONDARY_BORDER));
+        progress.setIndeterminateTintList(ColorStateList.valueOf(previewForeground));
+        progress.setProgressTintList(ColorStateList.valueOf(previewForeground));
+        progress.setProgressBackgroundTintList(ColorStateList.valueOf(
+                M3Ui.blend(previewForeground, M3Ui.primaryContainer(palette), 0.72f)));
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(14));
         progressParams.topMargin = dp(14);
@@ -212,7 +219,8 @@ public class AppearanceActivity extends Activity {
         dot.setBackground(dotBackground);
         hintRow.addView(dot, new LinearLayout.LayoutParams(dp(10), dp(10)));
 
-        TextView hint = text(ThemeManager.summary(this), 12, ACCENT_TEXT, false);
+        TextView hint = M3Ui.text(this, ThemeManager.summary(this), 12,
+                previewForeground, 400);
         hint.setPadding(dp(8), 0, 0, 0);
         hintRow.addView(hint);
         preview.addView(hintRow);
@@ -310,20 +318,7 @@ public class AppearanceActivity extends Activity {
     }
 
     private void styleSwitch(Switch toggle) {
-        toggle.setThumbTintList(new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{SWITCH_THUMB, MUTED}
-        ));
-        toggle.setTrackTintList(new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{PRIMARY_START, SECONDARY_BORDER}
-        ));
+        M3Ui.styleSwitch(toggle, palette);
     }
 
     private void addAccentCard(LinearLayout root) {
@@ -398,9 +393,7 @@ public class AppearanceActivity extends Activity {
         schemeHex.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         schemeHex.setTypeface(Typeface.create("monospace", Typeface.NORMAL));
         schemeHex.setPadding(dp(12), dp(10), dp(12), dp(10));
-        GradientDrawable field = rounded(BG_TOP, 12);
-        field.setStroke(dp(1), BORDER);
-        schemeHex.setBackground(field);
+        schemeHex.setBackground(M3Ui.field(this, palette));
         String savedHex = ThemeManager.schemeHex(this);
         if (!savedHex.isEmpty()) {
             schemeHex.setText(savedHex);
@@ -408,15 +401,8 @@ public class AppearanceActivity extends Activity {
         row.addView(schemeHex, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView save = text(getString(R.string.appearance_scheme_apply), 13, ACCENT_TEXT, true);
-        save.setGravity(Gravity.CENTER);
-        save.setPadding(dp(14), dp(12), dp(14), dp(12));
-        GradientDrawable saveBackground = rounded(SECONDARY, 12);
-        saveBackground.setStroke(dp(1), SECONDARY_BORDER);
-        save.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE), saveBackground, null));
-        save.setClickable(true);
-        save.setFocusable(true);
+        TextView save = M3Ui.tonalButton(this, palette,
+                getString(R.string.appearance_scheme_apply), 0);
         save.setOnClickListener(v -> applySchemeHex());
         LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -498,11 +484,12 @@ public class AppearanceActivity extends Activity {
         root.addView(card, params);
 
         // The whole card is the touch target, not just the title text.
-        card.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE), cardBackground(), cardBackground()));
+        card.setBackground(M3Ui.ripple(this,
+                M3Ui.card(this, palette), RIPPLE));
         card.setClickable(true);
         card.setFocusable(true);
         card.setOnClickListener(v -> resetAppearance());
+        M3Ui.motion(card);
 
         TextView reset = text(getString(R.string.appearance_reset), 14, ACCENT_TEXT, true);
         card.addView(reset);
@@ -569,11 +556,15 @@ public class AppearanceActivity extends Activity {
         option.setClickable(true);
         option.setFocusable(true);
 
-        GradientDrawable background = rounded(SECONDARY, 12);
-        background.setStroke(dp(selected ? 2 : 1),
-                selected ? (LIGHT ? ACCENT_TEXT : colors[0]) : SECONDARY_BORDER);
+        GradientDrawable background = M3Ui.filled(this,
+                selected ? M3Ui.primaryContainer(palette)
+                        : M3Ui.surfaceContainerHigh(palette),
+                M3Ui.SHAPE_M,
+                dp(selected ? 2 : 1),
+                selected ? (LIGHT ? ACCENT_TEXT : colors[0]) : M3Ui.outlineVariant(palette));
         option.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE), background, null));
+        M3Ui.motion(option);
 
         PatchPassLogoView logo = new PatchPassLogoView(this);
         logo.setPreviewPalette(colors[0], colors[1], LIGHT);
@@ -596,31 +587,23 @@ public class AppearanceActivity extends Activity {
     }
 
     private TextView optionChip(String label, boolean selected) {
-        TextView chip = text(label, 14, selected ? ON_PRIMARY : TEXT, true);
+        int fill = selected ? PRIMARY_START : M3Ui.surfaceContainerHigh(palette);
+        int foreground = selected ? ON_PRIMARY : TEXT;
+        TextView chip = M3Ui.text(this, label, 14, foreground, 500, 0.01f);
         chip.setGravity(Gravity.CENTER);
         chip.setClickable(true);
         chip.setFocusable(true);
-        if (selected) {
-            GradientDrawable fill = new GradientDrawable(
-                    GradientDrawable.Orientation.LEFT_RIGHT,
-                    new int[]{PRIMARY_START, PRIMARY_END});
-            fill.setCornerRadius(dp(12));
-            chip.setBackground(new RippleDrawable(
-                    ColorStateList.valueOf(0x33FFFFFF), fill, null));
-        } else {
-            GradientDrawable fill = rounded(SECONDARY, 12);
-            fill.setStroke(dp(1), SECONDARY_BORDER);
-            chip.setBackground(new RippleDrawable(
-                    ColorStateList.valueOf(RIPPLE), fill, null));
-        }
+        chip.setBackground(M3Ui.filled(this, fill, M3Ui.SHAPE_FULL,
+                selected ? 0 : Math.max(1, dp(1)), M3Ui.outlineVariant(palette)));
+        M3Ui.motion(chip);
         return chip;
     }
 
     private LinearLayout card() {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(16), dp(18), dp(16));
-        card.setBackground(cardBackground());
+        card.setPadding(dp(20), dp(18), dp(20), dp(18));
+        card.setBackground(M3Ui.card(this, palette));
         return card;
     }
 
@@ -660,44 +643,15 @@ public class AppearanceActivity extends Activity {
     }
 
     private TextView primaryButton(String label) {
-        TextView view = new TextView(this);
-        view.setText(label);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        view.setTextColor(ON_PRIMARY);
-        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        view.setGravity(Gravity.CENTER);
-        view.setClickable(true);
-        view.setFocusable(true);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-
-        GradientDrawable fill = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{PRIMARY_START, PRIMARY_END}
-        );
-        fill.setCornerRadius(dp(16));
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x33FFFFFF),
-                fill,
-                null
-        ));
-        return view;
+        return M3Ui.primaryButton(this, palette, label, 0);
     }
 
     private GradientDrawable cardBackground() {
-        GradientDrawable drawable = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{CARD_TOP, CARD_BOTTOM}
-        );
-        drawable.setCornerRadius(dp(20));
-        drawable.setStroke(dp(1), BORDER);
-        return drawable;
+        return M3Ui.card(this, palette);
     }
 
     private GradientDrawable rounded(int color, int radius) {
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setColor(color);
-        drawable.setCornerRadius(dp(radius));
-        return drawable;
+        return M3Ui.filled(this, color, radius, 0, 0);
     }
 
     private GradientDrawable gradient(int start, int end) {

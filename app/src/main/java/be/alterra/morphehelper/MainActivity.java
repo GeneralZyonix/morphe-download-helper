@@ -91,6 +91,7 @@ public class MainActivity extends Activity {
     private int WARN_TEXT;
 
     private String themeSignature;
+    private ThemePalette palette;
     private boolean morpheInstalled;
     private String morpheVersionName = "";
     private String helperVersionName = "?";
@@ -107,7 +108,7 @@ public class MainActivity extends Activity {
     }
 
     private void applyPalette() {
-        ThemePalette palette = ThemeManager.palette(this);
+        palette = ThemeManager.palette(this);
         BG_TOP = palette.bgTop;
         BG_BOTTOM = palette.bgBottom;
         CARD_TOP = palette.cardTop;
@@ -200,7 +201,7 @@ public class MainActivity extends Activity {
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(text(getString(R.string.app_name), 18, TEXT, true));
+        titles.addView(M3Ui.title(this, getString(R.string.app_name), 19, TEXT));
 
         TextView subtitle = text(getString(R.string.main_subtitle), 12, MUTED, false);
         subtitle.setPadding(0, dp(3), 0, 0);
@@ -215,7 +216,8 @@ public class MainActivity extends Activity {
         settingsButton.setContentDescription(getString(R.string.common_settings));
         settingsButton.setPadding(dp(10), dp(10), dp(10), dp(10));
         settingsButton.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE), rounded(SECONDARY, 999), null));
+                ColorStateList.valueOf(RIPPLE),
+                M3Ui.filled(this, M3Ui.secondaryContainer(palette), 999, 0, 0), null));
         settingsButton.setClickable(true);
         settingsButton.setFocusable(true);
         settingsButton.setOnClickListener(v ->
@@ -292,22 +294,25 @@ public class MainActivity extends Activity {
         // -----------------------------------------------------------------
         LinearLayout hero = new LinearLayout(this);
         hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setPadding(dp(20), dp(18), dp(20), dp(18));
-        hero.setBackground(cardBackground());
+        hero.setPadding(dp(20), dp(20), dp(20), dp(20));
+        hero.setBackground(M3Ui.hero(this, palette));
         LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(
                 MATCH_PARENT, WRAP_CONTENT);
         heroParams.topMargin = dp(22);
         root.addView(hero, heroParams);
 
-        TextView kicker = text(getString(R.string.main_hero_kicker), 11, ACCENT_TEXT, true);
-        kicker.setLetterSpacing(0.12f);
+        int heroForeground = M3Ui.onPrimaryContainer(palette);
+        TextView kicker = M3Ui.overline(this,
+                getString(R.string.main_hero_kicker), heroForeground);
         hero.addView(kicker);
 
-        TextView heroTitle = text(getString(R.string.main_hero_title), 24, TEXT, true);
-        heroTitle.setPadding(0, dp(6), 0, 0);
+        TextView heroTitle = M3Ui.display(this,
+                getString(R.string.main_hero_title), 27, heroForeground);
+        heroTitle.setPadding(0, dp(8), 0, 0);
         hero.addView(heroTitle);
 
-        TextView heroBody = text(getString(R.string.main_hero_body), 13, MUTED, false);
+        TextView heroBody = text(getString(R.string.main_hero_body), 13,
+                withAlpha(heroForeground, 80), false);
         heroBody.setLineSpacing(dp(3), 1f);
         heroBody.setPadding(0, dp(8), 0, 0);
         hero.addView(heroBody);
@@ -1038,95 +1043,25 @@ public class MainActivity extends Activity {
     }
 
     private void styleSwitch(Switch toggle) {
-        toggle.setThumbTintList(new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{SWITCH_THUMB, MUTED}
-        ));
-        toggle.setTrackTintList(new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{PRIMARY_START, SECONDARY_BORDER}
-        ));
+        M3Ui.styleSwitch(toggle, palette);
     }
 
     /** Creates the full-width gradient button used for the main action. */
     private TextView primaryButton(String label) {
-        TextView view = new TextView(this);
-        view.setText(label);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        view.setTextColor(ON_PRIMARY);
-        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        view.setGravity(Gravity.CENTER);
-        view.setClickable(true);
-        view.setFocusable(true);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-
-        GradientDrawable fill = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{PRIMARY_START, PRIMARY_END}
-        );
-        fill.setCornerRadius(dp(16));
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x33FFFFFF),
-                fill,
-                null
-        ));
-        return view;
+        return M3Ui.primaryButton(this, palette, label, 0);
     }
 
     /** Full-width gradient button with the icon centred beside the label. */
     private View primaryButtonWithIcon(String label, int iconRes) {
-        FrameLayout button = new FrameLayout(this);
-        button.setClickable(true);
-        button.setFocusable(true);
-
-        GradientDrawable fill = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{PRIMARY_START, PRIMARY_END}
-        );
-        fill.setCornerRadius(dp(16));
-        button.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x33FFFFFF),
-                fill,
-                null
-        ));
-
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.HORIZONTAL);
-        content.setGravity(Gravity.CENTER_VERTICAL);
-
-        ImageView icon = new ImageView(this);
-        icon.setImageResource(iconRes);
-        icon.setColorFilter(ON_PRIMARY);
-        content.addView(icon, new LinearLayout.LayoutParams(dp(22), dp(22)));
-
-        TextView text = text(label, 16, ON_PRIMARY, true);
-        text.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        text.setPadding(dp(10), 0, 0, 0);
-        content.addView(text);
-
-        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER);
-        button.addView(content, contentParams);
-        return button;
+        return M3Ui.primaryButton(this, palette, label, iconRes);
     }
 
-    /** Creates a dark outlined button with a ripple and custom text/border colors. */
+    /** Creates a small tonal link chip. */
     private TextView linkButton(String label, String url) {
-        TextView view = text(label, 12, ACCENT_TEXT, true);
-        view.setGravity(Gravity.CENTER);
+        TextView view = M3Ui.chip(this, palette, label, false);
         view.setClickable(true);
-        view.setPadding(dp(10), dp(8), dp(10), dp(8));
-        GradientDrawable background = rounded(SECONDARY, 12);
-        background.setStroke(dp(1), SECONDARY_BORDER);
-        view.setBackground(background);
+        view.setFocusable(true);
+        view.setPadding(dp(12), dp(8), dp(12), dp(8));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 WRAP_CONTENT, WRAP_CONTENT);
         params.setMarginEnd(dp(6));
@@ -1141,24 +1076,10 @@ public class MainActivity extends Activity {
         return view;
     }
     private TextView secondaryButton(String label, int textColor, int strokeColor) {
-        TextView view = new TextView(this);
-        view.setText(label);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        view.setTextColor(textColor);
-        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        view.setGravity(Gravity.CENTER);
-        view.setClickable(true);
-        view.setFocusable(true);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-
-        GradientDrawable fill = rounded(SECONDARY, 14);
-        fill.setStroke(dp(1), strokeColor);
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE),
-                fill,
-                null
-        ));
-        return view;
+        if (textColor == ACCENT_TEXT) {
+            return M3Ui.tonalButton(this, palette, label, 0);
+        }
+        return M3Ui.outlinedButton(this, palette, label, 0, textColor);
     }
 
     private TextView secondaryButton(String label, int iconRes, int textColor, int strokeColor) {
@@ -1167,42 +1088,15 @@ public class MainActivity extends Activity {
 
     private TextView secondaryButton(String label, int iconRes, int textColor,
                                      int fillColor, int strokeColor) {
-        TextView view = new TextView(this);
-        view.setText(label);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        view.setTextColor(textColor);
-        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        view.setGravity(Gravity.CENTER);
-        view.setClickable(true);
-        view.setFocusable(true);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-
-        GradientDrawable fill = rounded(fillColor, 14);
-        fill.setStroke(dp(1), strokeColor);
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE),
-                fill,
-                null
-        ));
-
-        Drawable icon = getDrawable(iconRes);
-        if (icon != null) {
-            icon.setTint(textColor);
-            view.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
-            view.setCompoundDrawablePadding(dp(8));
+        if (textColor == ACCENT_TEXT) {
+            return M3Ui.tonalButton(this, palette, label, iconRes);
         }
-        return view;
+        return M3Ui.outlinedButton(this, palette, label, iconRes, textColor);
     }
 
     /** Rounded, subtly bordered card background used by the content sections. */
     private GradientDrawable cardBackground() {
-        GradientDrawable drawable = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{CARD_TOP, CARD_BOTTOM}
-        );
-        drawable.setCornerRadius(dp(20));
-        drawable.setStroke(dp(1), BORDER);
-        return drawable;
+        return M3Ui.card(this, palette);
     }
 
     /** Creates a two-stop gradient drawable for the screen background. */

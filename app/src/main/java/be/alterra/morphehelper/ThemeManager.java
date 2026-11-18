@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.InsetDrawable;
@@ -383,10 +384,13 @@ final class ThemeManager {
         TextView title = dialog.findViewById(android.R.id.title);
         if (title != null) {
             title.setTextColor(palette.text);
+            title.setTextSize(20);
+            title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         }
         TextView message = dialog.findViewById(android.R.id.message);
         if (message != null) {
             message.setTextColor(palette.steps);
+            message.setTextSize(14);
         }
 
         Window window = dialog.getWindow();
@@ -394,7 +398,7 @@ final class ThemeManager {
             float density = context.getResources().getDisplayMetrics().density;
             GradientDrawable background = new GradientDrawable();
             background.setColor(palette.cardTop);
-            background.setCornerRadius(24 * density);
+            background.setCornerRadius(28 * density);
             background.setStroke(Math.max(1, (int) density), palette.border);
             int inset = (int) (10 * density);
             window.setBackgroundDrawable(new InsetDrawable(
@@ -407,6 +411,9 @@ final class ThemeManager {
         Button button = dialog.getButton(which);
         if (button != null) {
             button.setTextColor(color);
+            button.setAllCaps(false);
+            button.setTextSize(14);
+            button.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         }
     }
 

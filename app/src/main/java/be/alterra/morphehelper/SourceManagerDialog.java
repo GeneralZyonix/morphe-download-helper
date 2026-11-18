@@ -1,21 +1,26 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
-import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.RippleDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,11 +40,8 @@ final class SourceManagerDialog {
     private final int footer;
     private final int primary;
     private final int border;
-    private final int accent;
-    private final int secondaryBorder;
-    private final int switchThumb;
 
-    private AlertDialog dialog;
+    private Dialog dialog;
     private LinearLayout list;
 
     private SourceManagerDialog(Activity activity, Runnable onChanged) {
@@ -51,9 +53,6 @@ final class SourceManagerDialog {
         footer = palette.footer;
         primary = palette.primaryStart;
         border = palette.border;
-        accent = palette.accentText;
-        secondaryBorder = palette.secondaryBorder;
-        switchThumb = palette.switchThumb;
     }
 
     static SourceManagerDialog show(Activity activity, Runnable onChanged) {
@@ -69,12 +68,27 @@ final class SourceManagerDialog {
     private void open() {
         LinearLayout content = new LinearLayout(activity);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(4), dp(20), 0);
+        content.setPadding(dp(20), dp(10), dp(20), dp(24));
+        content.setBackground(sheetBackground());
 
-        TextView hint = text(activity.getString(R.string.source_manager_hint), 12, muted, false);
-        hint.setLineSpacing(dp(2), 1f);
-        hint.setPadding(0, 0, 0, dp(8));
-        content.addView(hint);
+        View handle = new View(activity);
+        GradientDrawable handleBackground = new GradientDrawable();
+        handleBackground.setColor(M3Ui.outline(palette));
+        handleBackground.setCornerRadius(dp(999));
+        handle.setBackground(handleBackground);
+        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(
+                dp(44), dp(4));
+        handleParams.gravity = Gravity.CENTER_HORIZONTAL;
+        handleParams.bottomMargin = dp(16);
+        content.addView(handle, handleParams);
+
+        content.addView(M3Ui.display(activity,
+                activity.getString(R.string.main_sources_title), 26, text));
+        TextView subtitle = M3Ui.text(activity,
+                activity.getString(R.string.source_manager_hint), 12, muted, 400);
+        subtitle.setLineSpacing(dp(2), 1f);
+        subtitle.setPadding(0, dp(6), 0, dp(12));
+        content.addView(subtitle);
 
         ScrollView scroll = new ScrollView(activity);
         list = new LinearLayout(activity);
@@ -82,22 +96,62 @@ final class SourceManagerDialog {
         scroll.addView(list, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
+        int maxHeight = Math.min(dp(420),
+                activity.getResources().getDisplayMetrics().heightPixels / 2);
         content.addView(scroll, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(420)));
+                ViewGroup.LayoutParams.MATCH_PARENT, maxHeight));
         rebuildList();
 
-        TextView testAll = secondaryButton(activity.getString(R.string.settings_test_all));
+        TextView testAll = M3Ui.tonalButton(activity, palette,
+                activity.getString(R.string.settings_test_all), 0);
         testAll.setOnClickListener(v -> testAllSources(testAll));
         LinearLayout.LayoutParams testParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         testParams.topMargin = dp(12);
         content.addView(testAll, testParams);
 
-        dialog = ThemeManager.dialog(activity)
-                .setTitle(R.string.main_sources_title)
-                .setView(content)
-                .setNegativeButton(R.string.common_done, null)
-                .show();
+        TextView done = M3Ui.primaryButton(activity, palette,
+                activity.getString(R.string.common_done), 0);
+        done.setOnClickListener(v -> dialog.dismiss());
+        LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
+        doneParams.topMargin = dp(8);
+        content.addView(done, doneParams);
+
+        ViewCompat.setOnApplyWindowInsetsListener(content, (view, insets) -> {
+            int bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+            view.setPadding(dp(20), dp(10), dp(20), dp(24) + bottom);
+            return insets;
+        });
+
+        dialog = new Dialog(activity);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(content);
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setGravity(Gravity.BOTTOM);
+            window.setNavigationBarColor(M3Ui.surfaceContainer(palette));
+            WindowInsetsControllerCompat controller =
+                    ViewCompat.getWindowInsetsController(window.getDecorView());
+            if (controller != null) {
+                controller.setAppearanceLightNavigationBars(palette.light);
+            }
+        }
+    }
+
+    /** Surface with rounded top corners, like a Material 3 bottom sheet. */
+    private GradientDrawable sheetBackground() {
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(M3Ui.surfaceContainer(palette));
+        float radius = dp(28);
+        background.setCornerRadii(new float[]{
+                radius, radius, radius, radius, 0, 0, 0, 0});
+        return background;
     }
 
     /** Rebuilds rows in place so toggling a switch does not flicker the dialog. */
@@ -272,36 +326,9 @@ final class SourceManagerDialog {
         return view;
     }
 
-    private TextView secondaryButton(String label) {
-        TextView view = text(label, 14, accent, true);
-        view.setGravity(Gravity.CENTER);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-        GradientDrawable outline = new GradientDrawable();
-        outline.setColor(palette.bgTop);
-        outline.setCornerRadius(dp(14));
-        outline.setStroke(dp(1), secondaryBorder);
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x22FFFFFF), outline, null));
-        view.setClickable(true);
-        view.setFocusable(true);
-        return view;
-    }
 
     private void styleSwitch(Switch toggle) {
-        toggle.setThumbTintList(new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{switchThumb, muted}
-        ));
-        toggle.setTrackTintList(new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{primary, secondaryBorder}
-        ));
+        M3Ui.styleSwitch(toggle, palette);
     }
 
     private int dp(int value) {

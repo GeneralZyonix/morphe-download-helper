@@ -219,6 +219,7 @@ public class DownloadActivity extends Activity {
     private int GREEN;
     private int RED;
     private String themeSignature;
+    private ThemePalette palette;
 
     // ---------------------------------------------------------------------
     // Feature switches
@@ -2589,6 +2590,7 @@ public class DownloadActivity extends Activity {
 
     private void applyPalette() {
         ThemePalette palette = ThemeManager.palette(this);
+        this.palette = palette;
         BG_TOP = palette.bgTop;
         BG_BOTTOM = palette.bgBottom;
         CARD_TOP = palette.cardTop;
@@ -2624,7 +2626,7 @@ public class DownloadActivity extends Activity {
         // ScrollView keeps the layout usable on small screens and with large fonts.
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackground(gradient(BG_TOP, BG_BOTTOM));
+        scroll.setBackgroundColor(M3Ui.surface(palette));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -2653,7 +2655,8 @@ public class DownloadActivity extends Activity {
         back.setGravity(Gravity.CENTER);
         back.setContentDescription(getString(R.string.common_cancel));
         back.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE), rounded(SECONDARY, 999), null));
+                ColorStateList.valueOf(RIPPLE), M3Ui.filled(this,
+                M3Ui.secondaryContainer(palette), 999, 0, 0), null));
         back.setClickable(true);
         back.setFocusable(true);
         back.setOnClickListener(v -> cancel());
@@ -2662,7 +2665,8 @@ public class DownloadActivity extends Activity {
         LinearLayout topLabels = new LinearLayout(this);
         topLabels.setOrientation(LinearLayout.VERTICAL);
         topLabels.setPadding(dp(12), 0, 0, 0);
-        screenTitle = text(getString(R.string.download_title_progress), 20, TEXT, true);
+        screenTitle = M3Ui.title(this,
+                getString(R.string.download_title_progress), 22, TEXT);
         screenSubtitle = text(getString(R.string.download_subtitle), 12, MUTED, false);
         screenSubtitle.setPadding(0, dp(3), 0, 0);
         topLabels.addView(screenTitle);
@@ -2759,9 +2763,8 @@ public class DownloadActivity extends Activity {
         progressInfo.setOrientation(LinearLayout.HORIZONTAL);
         progressInfo.setGravity(Gravity.CENTER);
         progressInfo.setPadding(dp(12), dp(6), dp(12), dp(6));
-        GradientDrawable progressBackground = rounded(SECONDARY, 999);
-        progressBackground.setStroke(dp(1), SECONDARY_BORDER);
-        progressInfo.setBackground(progressBackground);
+        progressInfo.setBackground(M3Ui.filled(this,
+                M3Ui.secondaryContainer(palette), 999, 0, 0));
         progressInfo.setVisibility(View.GONE);
 
         progressSpeed = text("", 12, TEXT, true);
@@ -2773,7 +2776,7 @@ public class DownloadActivity extends Activity {
         progressInfo.addView(progressSpeed);
 
         progressEtaDivider = new View(this);
-        progressEtaDivider.setBackgroundColor(BORDER);
+        progressEtaDivider.setBackgroundColor(M3Ui.outlineVariant(palette));
         LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
                 dp(1), dp(14));
         dividerParams.setMargins(dp(10), 0, dp(10), 0);
@@ -2809,7 +2812,8 @@ public class DownloadActivity extends Activity {
         metricSize = metricValue();
         metricConnections = metricValue();
         metricSourceBadge = new FrameLayout(this);
-        metricSourceBadge.setBackground(rounded(SECONDARY, 999));
+        metricSourceBadge.setBackground(M3Ui.filled(this,
+                M3Ui.secondaryContainer(palette), 999, 0, 0));
         int sourceBadgePad = dp(2);
         metricSourceBadge.setPadding(
                 sourceBadgePad, sourceBadgePad, sourceBadgePad, sourceBadgePad);
@@ -2832,9 +2836,9 @@ public class DownloadActivity extends Activity {
         packagePill.setSingleLine(true);
         packagePill.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         packagePill.setPadding(dp(12), dp(6), dp(12), dp(6));
-        GradientDrawable packageBackground = rounded(SECONDARY, 999);
-        packageBackground.setStroke(dp(1), SECONDARY_BORDER);
-        packagePill.setBackground(packageBackground);
+        packagePill.setBackground(M3Ui.filled(this,
+                M3Ui.surfaceContainerHigh(palette), 999,
+                Math.max(1, dp(1)), M3Ui.outlineVariant(palette)));
         packagePill.setVisibility(View.GONE);
         LinearLayout.LayoutParams packageParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -2904,7 +2908,7 @@ public class DownloadActivity extends Activity {
         scanNote.setVisibility(View.GONE);
         card.addView(scanNote);
 
-        skipScanButton = text(getString(R.string.virustotal_skip_scan), 14, PRIMARY_START, true);
+        skipScanButton = text(getString(R.string.virustotal_skip_scan), 14, ACCENT_TEXT, true);
         skipScanButton.setGravity(Gravity.CENTER);
         skipScanButton.setPadding(0, dp(12), 0, 0);
         skipScanButton.setVisibility(View.GONE);
@@ -3011,7 +3015,8 @@ public class DownloadActivity extends Activity {
         sourceStepsChevron.setColorFilter(MUTED);
         sourceStepsChevron.setRotation(270f);
         sourceStepsChevron.setPadding(dp(7), dp(7), dp(7), dp(7));
-        sourceStepsChevron.setBackground(rounded(SECONDARY, 999));
+        sourceStepsChevron.setBackground(M3Ui.filled(this,
+                M3Ui.secondaryContainer(palette), 999, 0, 0));
         sourceHeader.addView(sourceStepsChevron, new LinearLayout.LayoutParams(
                 dp(30), dp(30)));
 
@@ -3323,38 +3328,17 @@ public class DownloadActivity extends Activity {
 
     /** Creates the full-width gradient button used for the fallback action. */
     private TextView primaryButton(String label) {
-        TextView view = new TextView(this);
-        view.setText(label);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        view.setTextColor(ON_PRIMARY);
-        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        view.setGravity(Gravity.CENTER);
-        view.setClickable(true);
-        view.setFocusable(true);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-
-        GradientDrawable fill = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{PRIMARY_START, PRIMARY_END}
-        );
-        fill.setCornerRadius(dp(16));
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x33FFFFFF),
-                fill,
-                null
-        ));
-        return view;
+        return M3Ui.primaryButton(this, palette, label, 0);
     }
 
-    /** Creates the dark outlined Cancel/Close button. */
+    /** Creates a small tonal status chip. */
     private TextView chip(String value, int textColor) {
-        TextView chip = text(value, 10, textColor, true);
+        TextView chip = M3Ui.text(this, value, 10, textColor, 500, 0.01f);
         chip.setSingleLine(true);
         chip.setEllipsize(TextUtils.TruncateAt.END);
-        chip.setPadding(dp(8), dp(3), dp(8), dp(3));
-        GradientDrawable background = rounded(SECONDARY, 999);
-        background.setStroke(dp(1), SECONDARY_BORDER);
-        chip.setBackground(background);
+        chip.setPadding(dp(9), dp(4), dp(9), dp(4));
+        chip.setBackground(M3Ui.filled(this,
+                M3Ui.secondaryContainer(palette), 999, 0, 0));
         return chip;
     }
 
@@ -3396,15 +3380,24 @@ public class DownloadActivity extends Activity {
     }
 
     private TextView actionButton(String label, int textColor, int borderColor) {
-        TextView view = text(label, 13, textColor, true);
+        boolean danger = textColor == RED;
+        boolean accent = textColor == ACCENT_TEXT;
+        int foreground = danger ? RED
+                : accent ? M3Ui.onSecondaryContainer(palette) : textColor;
+        TextView view = M3Ui.text(this, label, 13, foreground, 600, 0.01f);
         view.setGravity(Gravity.CENTER);
         view.setPadding(dp(12), dp(12), dp(12), dp(12));
-        GradientDrawable background = rounded(SECONDARY, 14);
-        background.setStroke(dp(1), borderColor);
+        GradientDrawable background = M3Ui.filled(this,
+                danger ? M3Ui.errorContainer(palette)
+                        : accent ? M3Ui.secondaryContainer(palette)
+                        : M3Ui.surfaceContainerHigh(palette),
+                999, Math.max(1, dp(1)),
+                danger ? RED : accent ? M3Ui.secondaryContainer(palette) : borderColor);
         view.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE), background, null));
         view.setClickable(true);
         view.setFocusable(true);
+        M3Ui.motion(view);
         return view;
     }
 
@@ -3414,35 +3407,12 @@ public class DownloadActivity extends Activity {
     }
 
     private TextView secondaryButton(String label) {
-        TextView view = new TextView(this);
-        view.setText(label);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        view.setTextColor(TEXT);
-        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        view.setGravity(Gravity.CENTER);
-        view.setClickable(true);
-        view.setFocusable(true);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-
-        GradientDrawable fill = rounded(SECONDARY, 14);
-        fill.setStroke(dp(1), SECONDARY_BORDER);
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE),
-                fill,
-                null
-        ));
-        return view;
+        return M3Ui.outlinedButton(this, palette, label, 0, TEXT);
     }
 
     /** Rounded, subtly bordered card background used by the status card. */
     private GradientDrawable cardBackground() {
-        GradientDrawable drawable = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{CARD_TOP, CARD_BOTTOM}
-        );
-        drawable.setCornerRadius(dp(20));
-        drawable.setStroke(dp(1), BORDER);
-        return drawable;
+        return M3Ui.card(this, palette);
     }
 
     /** Creates a two-stop vertical gradient for the screen background. */

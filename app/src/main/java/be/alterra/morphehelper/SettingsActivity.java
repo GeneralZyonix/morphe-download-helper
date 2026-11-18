@@ -77,6 +77,7 @@ public class SettingsActivity extends Activity {
     private int GREEN;
     private int SWITCH_THUMB;
     private String themeSignature;
+    private ThemePalette palette;
     private static final int SHIZUKU_REQUEST_CODE = 71;
     private static final int FOLDER_REQUEST_CODE = 72;
     private static final int STORAGE_PERMISSION_CODE = 73;
@@ -140,7 +141,7 @@ public class SettingsActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.setId(R.id.settings_scroll);
         scroll.setFillViewport(true);
-        scroll.setBackground(gradient(BG_TOP, BG_BOTTOM));
+        scroll.setBackgroundColor(M3Ui.surface(palette));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -164,8 +165,8 @@ public class SettingsActivity extends Activity {
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.addView(text(getString(openSources
-                ? R.string.settings_sources : R.string.common_settings), 24, TEXT, true));
+        titles.addView(M3Ui.display(this, getString(openSources
+                ? R.string.settings_sources : R.string.common_settings), 28, TEXT));
         TextView subtitle = text(getString(openSources
                 ? R.string.settings_sources_summary : R.string.settings_subtitle),
                 13, MUTED, false);
@@ -174,18 +175,11 @@ public class SettingsActivity extends Activity {
         header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         if (!openSources) {
-            expandAllButton = text(getString(R.string.settings_expand_all),
-                    10, ACCENT_TEXT, true);
-            expandAllButton.setGravity(Gravity.CENTER);
-            expandAllButton.setPadding(dp(8), dp(6), dp(8), dp(6));
+            expandAllButton = M3Ui.chip(this, palette,
+                    getString(R.string.settings_expand_all), false);
+            expandAllButton.setPadding(dp(12), dp(8), dp(12), dp(8));
             expandAllButton.setClickable(true);
             expandAllButton.setFocusable(true);
-            GradientDrawable expandBackground = new GradientDrawable();
-            expandBackground.setColor(SECONDARY);
-            expandBackground.setCornerRadius(dp(10));
-            expandBackground.setStroke(dp(1), SECONDARY_BORDER);
-            expandAllButton.setBackground(new RippleDrawable(
-                    ColorStateList.valueOf(RIPPLE), expandBackground, null));
             expandAllButton.setOnClickListener(v -> toggleAllSections());
             header.addView(expandAllButton);
         }
@@ -311,6 +305,7 @@ public class SettingsActivity extends Activity {
 
     private void applyPalette() {
         ThemePalette palette = ThemeManager.palette(this);
+        this.palette = palette;
         BG_TOP = palette.bgTop;
         BG_BOTTOM = palette.bgBottom;
         CARD_TOP = palette.cardTop;
@@ -363,14 +358,13 @@ public class SettingsActivity extends Activity {
                 ColorStateList.valueOf(RIPPLE), null, null));
 
         FrameLayout iconTile = new FrameLayout(this);
-        GradientDrawable tileBackground = new GradientDrawable();
-        tileBackground.setColor((ACCENT_TEXT & 0x00FFFFFF) | 0x22000000);
-        tileBackground.setCornerRadius(dp(11));
+        GradientDrawable tileBackground = M3Ui.filled(this,
+                M3Ui.primaryContainer(palette), 14, 0, 0);
         iconTile.setBackground(tileBackground);
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconRes);
-        icon.setColorFilter(ACCENT_TEXT);
+        icon.setColorFilter(M3Ui.onPrimaryContainer(palette));
         icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(
                 dp(20), dp(20));
@@ -378,13 +372,13 @@ public class SettingsActivity extends Activity {
         iconTile.addView(icon, iconInner);
 
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
-                dp(36), dp(36));
+                dp(40), dp(40));
         iconParams.setMarginEnd(dp(12));
         header.addView(iconTile, iconParams);
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text(getString(titleRes), 16, TEXT, true));
+        labels.addView(M3Ui.title(this, getString(titleRes), 16, TEXT));
         TextView summary = text(getString(summaryRes), 11, MUTED, false);
         summary.setPadding(0, dp(3), 0, 0);
         labels.addView(summary);
@@ -467,7 +461,7 @@ public class SettingsActivity extends Activity {
 
     private void addSubsectionDivider(LinearLayout parent) {
         View divider = new View(this);
-        divider.setBackgroundColor(BORDER);
+        divider.setBackgroundColor(M3Ui.outlineVariant(palette));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
         params.topMargin = dp(16);
@@ -2311,20 +2305,7 @@ public class SettingsActivity extends Activity {
      * so a setting's current state is readable at a glance.
      */
     private void styleSwitch(Switch toggle) {
-        toggle.setThumbTintList(new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{SWITCH_THUMB, MUTED}
-        ));
-        toggle.setTrackTintList(new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_checked},
-                        new int[]{}
-                },
-                new int[]{PRIMARY_START, SECONDARY_BORDER}
-        ));
+        M3Ui.styleSwitch(toggle, palette);
     }
 
     private LinearLayout settingRow(String title, String value) {
@@ -2336,19 +2317,17 @@ public class SettingsActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(14), dp(12), dp(14), dp(12));
-        GradientDrawable fill = new GradientDrawable();
-        fill.setColor(BG_TOP);
-        fill.setCornerRadius(dp(12));
-        fill.setStroke(dp(1), BORDER);
         row.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE),
-                fill,
+                M3Ui.filled(this, M3Ui.surfaceContainerHigh(palette), 20,
+                        Math.max(1, dp(1)), M3Ui.outlineVariant(palette)),
                 null
         ));
+        M3Ui.motion(row);
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text(title, 14, TEXT, true));
+        labels.addView(M3Ui.title(this, title, 14, TEXT));
         LinearLayout detailRow = new LinearLayout(this);
         detailRow.setOrientation(LinearLayout.HORIZONTAL);
         detailRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -2379,15 +2358,7 @@ public class SettingsActivity extends Activity {
     }
 
     private TextView actionButton(String label, int color) {
-        TextView view = text(label, 14, color, true);
-        view.setGravity(Gravity.CENTER);
-        view.setPadding(dp(12), dp(12), dp(12), dp(12));
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(BG_TOP);
-        background.setCornerRadius(dp(12));
-        background.setStroke(dp(1), BORDER);
-        view.setBackground(background);
-        view.setClickable(true);
+        TextView view = M3Ui.outlinedButton(this, palette, label, 0, color);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = dp(8);
@@ -2567,55 +2538,15 @@ public class SettingsActivity extends Activity {
     }
 
     private TextView secondaryButton(String label) {
-        TextView view = text(label, 14, PRIMARY_START, true);
-        view.setGravity(Gravity.CENTER);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-        GradientDrawable outline = new GradientDrawable();
-        outline.setColor(BG_TOP);
-        outline.setCornerRadius(dp(14));
-        outline.setStroke(dp(1), SECONDARY_BORDER);
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x22FFFFFF),
-                outline,
-                null
-        ));
-        view.setClickable(true);
-        view.setFocusable(true);
-        return view;
+        return M3Ui.tonalButton(this, palette, label, 0);
     }
 
     private TextView primaryButton(String label) {
-        TextView view = new TextView(this);
-        view.setText(label);
-        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        view.setTextColor(ON_PRIMARY);
-        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        view.setGravity(Gravity.CENTER);
-        view.setClickable(true);
-        view.setFocusable(true);
-        view.setPadding(dp(16), dp(12), dp(16), dp(12));
-
-        GradientDrawable fill = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{PRIMARY_START, PRIMARY_END}
-        );
-        fill.setCornerRadius(dp(16));
-        view.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x33FFFFFF),
-                fill,
-                null
-        ));
-        return view;
+        return M3Ui.primaryButton(this, palette, label, 0);
     }
 
     private GradientDrawable cardBackground() {
-        GradientDrawable drawable = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{CARD_TOP, CARD_BOTTOM}
-        );
-        drawable.setCornerRadius(dp(20));
-        drawable.setStroke(dp(1), BORDER);
-        return drawable;
+        return M3Ui.card(this, palette);
     }
 
     private GradientDrawable gradient(int start, int end) {

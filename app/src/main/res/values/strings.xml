@@ -88,6 +88,10 @@
     <string name="main_developer_role">Developer of Morphe Download Helper</string>
     <string name="main_link_releases">Releases</string>
 
+    <!-- Material 3 Expressive section labels. -->
+    <string name="guide_overline">Setup</string>
+    <string name="appearance_overline">Theme &amp; colour</string>
+
     <!-- Material 3 Expressive proof of concept (POC branch only). -->
     <string name="m3_poc_title">Material 3 preview</string>
     <string name="m3_poc_standard">Standard</string>

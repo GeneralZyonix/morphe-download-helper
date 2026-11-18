@@ -67,6 +67,7 @@ public class UpdateActivity extends Activity {
     private int SECONDARY;
     private int SECONDARY_BORDER;
     private String themeSignature;
+    private ThemePalette palette;
 
     @Override
     protected void onResume() {
@@ -79,6 +80,7 @@ public class UpdateActivity extends Activity {
 
     private void applyPalette() {
         ThemePalette palette = ThemeManager.palette(this);
+        this.palette = palette;
         BG_TOP = palette.bgTop;
         BG_BOTTOM = palette.bgBottom;
         CARD_TOP = palette.cardTop;
@@ -108,9 +110,7 @@ public class UpdateActivity extends Activity {
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackground(new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{BG_TOP, BG_BOTTOM}));
+        scroll.setBackgroundColor(M3Ui.surface(palette));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -127,8 +127,8 @@ public class UpdateActivity extends Activity {
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text(getString(changelogOnly
-                ? R.string.settings_changelog : R.string.app_name), 24, TEXT, true);
+        TextView title = M3Ui.display(this, getString(changelogOnly
+                ? R.string.settings_changelog : R.string.app_name), 30, TEXT);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
@@ -139,16 +139,17 @@ public class UpdateActivity extends Activity {
         version.setGravity(Gravity.CENTER);
         header.addView(version);
 
-        releasePicker = text("", 13, ACCENT_TEXT, true);
+        releasePicker = text("", 13, M3Ui.onSecondaryContainer(palette), true);
         releasePicker.setGravity(Gravity.CENTER);
         releasePicker.setSingleLine(true);
         releasePicker.setPadding(dp(14), dp(8), dp(10), dp(8));
         releasePicker.setCompoundDrawablesWithIntrinsicBounds(
                 0, 0, R.drawable.ic_chevron_right, 0);
         releasePicker.setCompoundDrawablePadding(dp(2));
-        releasePicker.setCompoundDrawableTintList(ColorStateList.valueOf(ACCENT_TEXT));
-        GradientDrawable pickerBackground = rounded(SECONDARY, 12);
-        pickerBackground.setStroke(dp(1), SECONDARY_BORDER);
+        releasePicker.setCompoundDrawableTintList(ColorStateList.valueOf(
+                M3Ui.onSecondaryContainer(palette)));
+        GradientDrawable pickerBackground = M3Ui.filled(this,
+                M3Ui.secondaryContainer(palette), M3Ui.SHAPE_FULL, 0, 0);
         releasePicker.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE), pickerBackground, null));
         releasePicker.setClickable(true);
@@ -463,15 +464,7 @@ public class UpdateActivity extends Activity {
     }
 
     private void addButton(String label, Runnable action) {
-        TextView button = text(label, 15, TEXT, true);
-        button.setGravity(Gravity.CENTER);
-        button.setPadding(dp(16), dp(14), dp(16), dp(14));
-        GradientDrawable background = rounded(SECONDARY, 14);
-        background.setStroke(dp(1), SECONDARY_BORDER);
-        button.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE), background, null));
-        button.setClickable(true);
-        button.setFocusable(true);
+        TextView button = M3Ui.outlinedButton(this, palette, label, 0, TEXT);
         button.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
@@ -480,18 +473,7 @@ public class UpdateActivity extends Activity {
     }
 
     private void addPrimaryButton(String label, Runnable action) {
-        TextView button = text(label, 16, ON_PRIMARY, true);
-        button.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        button.setGravity(Gravity.CENTER);
-        button.setPadding(dp(16), dp(14), dp(16), dp(14));
-        GradientDrawable fill = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{PRIMARY_START, PRIMARY_END});
-        fill.setCornerRadius(dp(16));
-        button.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x33FFFFFF), fill, null));
-        button.setClickable(true);
-        button.setFocusable(true);
+        TextView button = M3Ui.primaryButton(this, palette, label, 0);
         button.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
@@ -508,19 +490,11 @@ public class UpdateActivity extends Activity {
     }
 
     private GradientDrawable cardBackground() {
-        GradientDrawable background = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{CARD_TOP, CARD_BOTTOM});
-        background.setCornerRadius(dp(20));
-        background.setStroke(dp(1), BORDER);
-        return background;
+        return M3Ui.card(this, palette);
     }
 
     private GradientDrawable rounded(int color, int radiusDp) {
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(color);
-        background.setCornerRadius(dp(radiusDp));
-        return background;
+        return M3Ui.filled(this, color, radiusDp, 0, 0);
     }
 
     private LinearLayout.LayoutParams topMarginParams(int topMarginDp) {
