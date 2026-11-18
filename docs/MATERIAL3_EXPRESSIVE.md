@@ -1,6 +1,7 @@
 # Material 3 Expressive test branch
 
-Status: **experimental branch, not merged and not released.**  
+Status: **v2.4.0 pre-release, built from `material3-poc`.** `main` remains on
+the stable v2.3.10 release.
 Branch: `material3-poc`  
 Base: `main` at v2.3.10 (`a05fea2`)
 
@@ -156,8 +157,8 @@ Not yet checked:
   this is a one-time visual modernisation rather than a long-term Compose plan.
 - Material Components is a **debug-only** dependency for the POC; the production
   screens use the token layer because a Material theme would override the app’s
-  manual Dark/AMOLED/Light/System modes. The release APK stays at 4.86 MB; the
-  debug APK with the POC is 11.2 MB.
+  manual Dark/AMOLED/Light/System modes. The release APK is 3.54 MB; the debug
+  APK with the POC is 9.4 MB.
 - The launch splash is still the dark brand splash in every mode.
 - Switches remain framework `Switch` widgets with M3 tints; a custom M3 switch
   was tried and reverted because the platform thumb/track sizing clipped.

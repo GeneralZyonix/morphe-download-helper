@@ -18,8 +18,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 66
-        versionName "2.3.10"
+        versionCode 67
+        versionName "2.4.0"
     }
 
     buildFeatures {
@@ -67,7 +67,6 @@ dependencies {
     // FileProvider + modern AndroidX helpers.
     implementation 'androidx.core:core:1.13.1'
     implementation 'androidx.documentfile:documentfile:1.0.1'
-    implementation 'androidx.appcompat:appcompat:1.7.1'
     debugImplementation 'com.google.android.material:material:1.14.0'
 
     // HTTP client with cookie/redirect support for APK sites.
