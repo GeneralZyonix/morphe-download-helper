@@ -182,7 +182,7 @@ See `docs/branding/material3/`:
 - `main-dark.png`, `main-light.png`, `main-amoled.png`
 - `settings-dark.png`
 - `appearance-dark.png`, `appearance-light.png`
-- `guide-dark.png`
+- `guide-dark.png`, `guide-dark-bottom.png`
 - `download-dark.png`, `download-failure-light.png`
 - `update-dark.png`
 - `sources-sheet.png`
