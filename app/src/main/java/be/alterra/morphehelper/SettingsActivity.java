@@ -94,6 +94,7 @@ public class SettingsActivity extends Activity {
     private static final int IMPORT_SETTINGS_REQUEST_CODE = 75;
     private static final int IMPORT_GITHUB_REQUEST_CODE = 76;
     private static final String STATE_OPEN_SHEET = "open_sheet";
+    private static final String STATE_SHEET_SCROLL_Y = "sheet_scroll_y";
     private static final String STATE_SCROLL_Y = "scroll_y";
     static final String EXTRA_SECTION = "open_section";
     static final String EXTRA_SECTION_SOURCES = "sources";
@@ -116,8 +117,14 @@ public class SettingsActivity extends Activity {
     private final Map<String, Integer> sectionIcons = new HashMap<>();
     private Dialog sectionDialog;
     private LinearLayout sectionSheetView;
+    private MaxHeightScrollView sectionSheetScroll;
+    private int pendingSheetScrollY;
     private boolean sheetDismissing;
     private String openSheetKey;
+    private LinearLayout githubAppsBody;
+    private TextView githubAppsChevron;
+    private TextView githubAppsCount;
+    private boolean githubAppsExpanded;
 
     private final Shizuku.OnRequestPermissionResultListener shizukuListener =
             (requestCode, grantResult) -> {
@@ -249,6 +256,8 @@ public class SettingsActivity extends Activity {
         }
         if (!TextUtils.isEmpty(sheetKey)) {
             final String pendingSheet = sheetKey;
+            pendingSheetScrollY = savedInstanceState == null
+                    ? 0 : savedInstanceState.getInt(STATE_SHEET_SCROLL_Y, 0);
             scroll.post(() -> openSectionSheet(pendingSheet));
         } else if (savedInstanceState != null) {
             int scrollY = savedInstanceState.getInt(STATE_SCROLL_Y, 0);
@@ -314,6 +323,9 @@ public class SettingsActivity extends Activity {
         super.onSaveInstanceState(outState);
         if (settingsScroll != null) {
             outState.putInt(STATE_SCROLL_Y, settingsScroll.getScrollY());
+        }
+        if (sectionSheetScroll != null) {
+            outState.putInt(STATE_SHEET_SCROLL_Y, sectionSheetScroll.getScrollY());
         }
         if (!TextUtils.isEmpty(openSheetKey)) {
             outState.putString(STATE_OPEN_SHEET, openSheetKey);
@@ -505,6 +517,9 @@ public class SettingsActivity extends Activity {
         bodyScroll.setFillViewport(false);
         bodyScroll.setClipToPadding(false);
         bodyScroll.setVerticalScrollBarEnabled(false);
+        sectionSheetScroll = bodyScroll;
+        int restoreScrollY = pendingSheetScrollY;
+        pendingSheetScrollY = 0;
         bodyScroll.addView(body, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -549,6 +564,11 @@ public class SettingsActivity extends Activity {
             if (sectionDialog == d) {
                 sectionDialog = null;
                 sectionSheetView = null;
+                sectionSheetScroll = null;
+                if (githubAppsBody != null) {
+                    githubAppsExpanded = false;
+                    applyGitHubAppsState();
+                }
                 if (!isChangingConfigurations() && !isFinishing()) {
                     openSheetKey = null;
                 }
@@ -558,6 +578,9 @@ public class SettingsActivity extends Activity {
         sectionDialog = dialog;
         sectionSheetView = sheet;
         dialog.show();
+        if (restoreScrollY > 0) {
+            bodyScroll.post(() -> bodyScroll.scrollTo(0, restoreScrollY));
+        }
 
         sheet.setTranslationY(getResources().getDisplayMetrics().heightPixels);
         sheet.post(() -> sheet.animate()
@@ -1894,7 +1917,7 @@ public class SettingsActivity extends Activity {
                         getString(R.string.settings_github_import_result,
                                 result.imported, result.skipped),
                         Toast.LENGTH_LONG).show();
-                recreate();
+                refreshGitHubApps();
             } catch (Exception error) {
                 HelperLog.error("Could not import Obtainium configuration", error);
                 Toast.makeText(this, R.string.settings_github_import_failed,
@@ -1994,27 +2017,100 @@ public class SettingsActivity extends Activity {
     }
 
     private void addGitHubAppsCard(LinearLayout card) {
+        addSubsectionDivider(card);
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(0, dp(12), 0, dp(8));
+        header.setClickable(true);
+        header.setFocusable(true);
+        header.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), null, null));
+
+        TextView title = text(getString(R.string.settings_github_apps), 14, TEXT, true);
+        header.addView(title, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        githubAppsCount = text("", 11, MUTED, false);
+        header.addView(githubAppsCount);
+        githubAppsChevron = text("\u203A", 22, MUTED, true);
+        githubAppsChevron.setGravity(Gravity.CENTER);
+        githubAppsChevron.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams chevronParams = new LinearLayout.LayoutParams(
+                dp(28), dp(32));
+        chevronParams.setMarginStart(dp(6));
+        header.addView(githubAppsChevron, chevronParams);
+        header.setOnClickListener(v -> {
+            githubAppsExpanded = !githubAppsExpanded;
+            applyGitHubAppsState();
+        });
+        card.addView(header);
+
+        githubAppsBody = new LinearLayout(this);
+        githubAppsBody.setOrientation(LinearLayout.VERTICAL);
+        githubAppsBody.setPadding(0, dp(4), 0, dp(4));
+        card.addView(githubAppsBody);
+
+        githubAppsExpanded = false;
+        updateGitHubAppsHeader();
+        applyGitHubAppsState();
+    }
+
+    private void updateGitHubAppsHeader() {
+        if (githubAppsCount != null) {
+            githubAppsCount.setText("(" + GitHubAppStore.all(this).size() + ")");
+        }
+    }
+
+    private void applyGitHubAppsState() {
+        if (githubAppsBody == null) {
+            return;
+        }
+        githubAppsBody.setVisibility(githubAppsExpanded
+                ? View.VISIBLE : View.GONE);
+        if (githubAppsChevron != null) {
+            githubAppsChevron.setRotation(githubAppsExpanded ? 90f : 0f);
+        }
+        if (githubAppsExpanded) {
+            populateGitHubAppsBody();
+        } else {
+            updateGitHubAppsHeader();
+        }
+    }
+
+    private void refreshGitHubApps() {
+        githubAppsExpanded = true;
+        if (githubAppsBody != null) {
+            applyGitHubAppsState();
+        }
+    }
+
+    private void populateGitHubAppsBody() {
+        if (githubAppsBody == null) {
+            return;
+        }
+        githubAppsBody.removeAllViews();
         List<GitHubAppStore.Entry> entries = GitHubAppStore.all(this);
 
-        addSubsectionDivider(card);
-        card.addView(subsectionTitle(getString(R.string.settings_github_apps), TEXT));
-        TextView note = text(getString(R.string.settings_github_apps_note), 12, MUTED, false);
+        TextView note = text(getString(R.string.settings_github_apps_note),
+                12, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(4), 0, dp(4));
-        card.addView(note);
+        githubAppsBody.addView(note);
 
         if (entries.isEmpty()) {
             TextView empty = text(getString(R.string.settings_github_apps_empty),
                     12, MUTED, false);
             empty.setLineSpacing(dp(3), 1f);
             empty.setPadding(0, dp(8), 0, 0);
-            card.addView(empty);
+            githubAppsBody.addView(empty);
         } else {
             for (GitHubAppStore.Entry entry : entries) {
-                addGitHubAppRow(card, entry);
+                addGitHubAppRow(githubAppsBody, entry);
                 View divider = new View(this);
                 divider.setBackgroundColor(BORDER);
-                card.addView(divider, new LinearLayout.LayoutParams(
+                githubAppsBody.addView(divider, new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
             }
         }
@@ -2024,7 +2120,7 @@ public class SettingsActivity extends Activity {
         LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         addParams.topMargin = dp(12);
-        card.addView(add, addParams);
+        githubAppsBody.addView(add, addParams);
 
         TextView importButton = secondaryButton(
                 getString(R.string.settings_github_import_obtainium));
@@ -2032,13 +2128,47 @@ public class SettingsActivity extends Activity {
         LinearLayout.LayoutParams importParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         importParams.topMargin = dp(8);
-        card.addView(importButton, importParams);
+        githubAppsBody.addView(importButton, importParams);
 
         TextView importHint = text(getString(R.string.settings_github_import_hint),
                 11, MUTED, false);
         importHint.setLineSpacing(dp(2), 1f);
         importHint.setPadding(0, dp(6), 0, 0);
-        card.addView(importHint);
+        githubAppsBody.addView(importHint);
+
+        boolean hasManual = false;
+        for (GitHubAppStore.Entry entry : entries) {
+            if (entry.manual) {
+                hasManual = true;
+                break;
+            }
+        }
+        if (hasManual) {
+            TextView clear = actionButton(
+                    getString(R.string.settings_github_app_clear), RED);
+            clear.setOnClickListener(v -> confirmClearGitHubApps());
+            githubAppsBody.addView(clear);
+        }
+
+        updateGitHubAppsHeader();
+    }
+
+    private void confirmClearGitHubApps() {
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_github_app_clear_title)
+                .setMessage(R.string.settings_github_app_clear_message)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.settings_github_app_clear_confirm,
+                        (dialog, which) -> {
+                            int removed = GitHubAppStore.removeManual(this);
+                            PublicSettings.write(this);
+                            Toast.makeText(this,
+                                    getString(R.string.settings_github_app_clear_done,
+                                            removed),
+                                    Toast.LENGTH_SHORT).show();
+                            refreshGitHubApps();
+                        })
+                .show();
     }
 
     private void openGitHubImportPicker() {
@@ -2132,7 +2262,7 @@ public class SettingsActivity extends Activity {
             Toast.makeText(this,
                     getString(R.string.settings_github_app_removed, entry.label),
                     Toast.LENGTH_SHORT).show();
-            recreate();
+            refreshGitHubApps();
         });
         row.addView(remove, new LinearLayout.LayoutParams(dp(44), dp(44)));
         card.addView(row);
@@ -2298,7 +2428,7 @@ public class SettingsActivity extends Activity {
             Toast.makeText(this, R.string.settings_github_app_saved,
                     Toast.LENGTH_SHORT).show();
             dialog.dismiss();
-            recreate();
+            refreshGitHubApps();
         });
     }
 

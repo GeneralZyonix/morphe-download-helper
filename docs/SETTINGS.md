@@ -1,13 +1,13 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 2.5.0. The
+This page explains every section of **Settings** in Morphe Download Helper 2.6.0. The
 section screenshots below were taken from 2.3.10 and show the same options; in 2.5.0 the
 sections open in a bottom sheet instead of expanding inline.
 
 Open Settings from the gear button on the main screen. Tap a section to open its options
 in a sheet; use the close button or Back to return to the section list.
 
-![Settings overview](screenshots/settings-general-2.5.0.png)
+![Settings overview](screenshots/settings-general-2.6.0.png)
 
 ## General
 
@@ -118,7 +118,12 @@ through GitHub or when automatic search picks the wrong repository.
 - **Try this repo first** — runs the pinned mapping before the Morphe link.
 - **Import Obtainium/ObtainX** — imports GitHub entries from an Obtainium or ObtainX JSON
   export. Other source types in the export are skipped.
+- **Clear imported sources** — removes all manually imported mappings at once. Built-in
+  sources and automatically remembered mappings are kept; the action asks for confirmation.
 - **Share** — shares the mapping as text.
+
+The GitHub apps section is collapsed by default. Expand it to see imported mappings; the
+count next to the title shows how many mappings exist.
 
 You are responsible for the repositories you add. The helper still validates the APK's
 package, version, and build code before hand-off.

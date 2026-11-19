@@ -119,6 +119,26 @@ final class GitHubAppStore {
         prefs(context).edit().remove(PREFIX + packageName).apply();
     }
 
+    /** Removes only entries the user added by hand. */
+    static int removeManual(Context context) {
+        SharedPreferences prefs = prefs(context);
+        SharedPreferences.Editor editor = prefs.edit();
+        int removed = 0;
+        for (Map.Entry<String, ?> item : prefs.getAll().entrySet()) {
+            if (!item.getKey().startsWith(PREFIX) || !(item.getValue() instanceof String)) {
+                continue;
+            }
+            Entry entry = parse(item.getKey().substring(PREFIX.length()),
+                    (String) item.getValue());
+            if (entry != null && entry.manual) {
+                editor.remove(item.getKey());
+                removed++;
+            }
+        }
+        editor.apply();
+        return removed;
+    }
+
     /** Adds entries from the public settings file without deleting local ones. */
     static void mergeMissingManual(Context context, List<Entry> entries) {
         for (Entry entry : entries) {

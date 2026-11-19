@@ -1,6 +1,6 @@
 # Material 3 Expressive test branch
 
-Status: **v2.5.0 pre-release, built from `material3-poc`.** `main` remains on
+Status: **v2.6.0 pre-release, built from `material3-poc`.** `main` remains on
 the stable v2.3.10 release.
 Branch: `material3-poc`  
 Base: `main` at v2.3.10 (`a05fea2`)
@@ -190,6 +190,8 @@ See `docs/branding/material3/`:
 - `sources-sheet-main-2.4.2.png`
 - `settings-sections-2.5.0.png`, `settings-sheet-sources-2.5.0.png`,
   `settings-sheet-general-2.5.0.png`
+- `settings-sheet-sources-2.6.0.png`, `github-apps-expanded-2.6.0.png`,
+  `github-apps-cleared-2.6.0.png`
 - `log-actions-2.4.1.png`, `sources-compact-2.4.1.png`
 - `poc-standard.png`, `poc-brand.png`, `poc-sheet.png`
 

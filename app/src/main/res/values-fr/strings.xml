@@ -229,6 +229,11 @@
     <string name="settings_remove_github_app">Supprimer l’appli GitHub %1$s</string>
     <string name="settings_github_app_removed">%1$s supprimé des applis GitHub.</string>
     <string name="settings_github_app_add">Ajouter une appli GitHub</string>
+    <string name="settings_github_app_clear">Effacer les sources importées</string>
+    <string name="settings_github_app_clear_title">Effacer les sources importées ?</string>
+    <string name="settings_github_app_clear_message">Supprimer toutes les sources GitHub importées manuellement ? Les sources intégrées et apprises automatiquement restent inchangées.</string>
+    <string name="settings_github_app_clear_confirm">Effacer</string>
+    <string name="settings_github_app_clear_done">Sources importées supprimées : %1$d</string>
     <string name="settings_github_app_edit">Modifier l’appli GitHub</string>
     <string name="settings_github_app_new">Nouvelle appli GitHub</string>
     <string name="settings_github_app_package">Nom du paquet</string>
