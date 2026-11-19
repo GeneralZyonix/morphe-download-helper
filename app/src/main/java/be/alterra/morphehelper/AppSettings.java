@@ -67,6 +67,10 @@ final class AppSettings {
     private static final String KEY_THEME_CUSTOM_HEX = "theme_custom_hex";
     private static final String KEY_THEME_SCHEME_HEX = "theme_scheme_hex";
     private static final String KEY_THEME_TINT_SURFACES = "theme_tint_surfaces";
+    private static final String KEY_UPDATE_CHANNEL = "update_channel";
+    static final String UPDATE_CHANNEL_AUTO = "auto";
+    static final String UPDATE_CHANNEL_STABLE = "stable";
+    static final String UPDATE_CHANNEL_PRERELEASE = "prerelease";
     private static final String KEY_SHIZUKU_PACKAGE = "shizuku_package";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
@@ -346,6 +350,23 @@ final class AppSettings {
 
     static void setThemeTintSurfaces(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_THEME_TINT_SURFACES, enabled).apply();
+    }
+
+    static String updateChannel(Context context) {
+        String value = prefs(context).getString(KEY_UPDATE_CHANNEL,
+                UPDATE_CHANNEL_AUTO);
+        if (UPDATE_CHANNEL_STABLE.equals(value)
+                || UPDATE_CHANNEL_PRERELEASE.equals(value)) {
+            return value;
+        }
+        return UPDATE_CHANNEL_AUTO;
+    }
+
+    static void setUpdateChannel(Context context, String channel) {
+        String value = UPDATE_CHANNEL_STABLE.equals(channel)
+                || UPDATE_CHANNEL_PRERELEASE.equals(channel)
+                ? channel : UPDATE_CHANNEL_AUTO;
+        prefs(context).edit().putString(KEY_UPDATE_CHANNEL, value).apply();
     }
 
     /**

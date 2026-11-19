@@ -1,6 +1,6 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 2.6.0. The
+This page explains every section of **Settings** in Morphe Download Helper 2.7.0. The
 section screenshots below were taken from 2.3.10 and show the same options; in 2.5.0 the
 sections open in a bottom sheet instead of expanding inline.
 
@@ -43,6 +43,7 @@ The **Updates** section controls the helper's own updater, not app downloads.
 | --- | --- |
 | **Check for updates** | Enables or disables update checks. |
 | **Update mode** | **Notify me when available** shows a notification; **Automatically update via Shizuku** installs silently when Shizuku is available and approved. Without Shizuku it falls back to a notification. |
+| **Update channel** | **Auto** follows the installed build (stable stays on stable, pre-releases also see pre-releases). **Stable only** ignores pre-releases. **Pre-release** also offers pre-release builds. |
 | **In-app update popup** | Shows a popup with the changelog when an update is available. |
 | **Shizuku** | Shows whether Shizuku is installed and running. Tap it to request permission for silent updates. |
 | **Shizuku app package** | Only needed for a Shizuku fork with a different package name. Leave blank for the official app or a fork that keeps its package. |
@@ -64,6 +65,8 @@ If a verification page stops working, turn **Block ads and trackers** off and re
 affects pages opened inside the helper, not your browser.
 
 ## Sources
+
+The main-screen **Sources** button opens a compact quick manager. Changes there apply immediately; the full-screen icon opens this Settings page for GitHub apps and the remaining options.
 
 ![Source list](screenshots/settings-sources-2.3.8.png)
 

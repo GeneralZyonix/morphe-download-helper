@@ -23,6 +23,7 @@
     <string name="main_hero_title">Fetch the original APK.</string>
     <string name="main_hero_body">Morphe patches the app. The helper finds the right build and hands it over.</string>
     <string name="source_manager_hint">Enabled sources are tried first. Use the arrows to reorder; disabled sources stay at the bottom.</string>
+    <string name="source_manager_immediate">Changes apply immediately.</string>
     <string name="source_manager_full_settings">Full source settings</string>
     <string name="settings_test_all">Test all sources</string>
     <string name="settings_testing_all">Testing all sources…</string>
@@ -60,7 +61,7 @@
     <string name="main_sources_title">Download sources</string>
     <string name="main_source_morphe_link">Morphe link</string>
     <string name="main_source_appteka">\u26A0 Appteka</string>
-    <string name="main_open_morphe">Open Morphe</string>
+    <string name="main_open_morphe">Open Morphe Manager</string>
     <string name="main_share_log">Share log</string>
     <string name="main_preview_log">Preview sanitized log</string>
     <string name="main_preview_log_title">Sanitized log preview</string>
@@ -242,6 +243,10 @@
     <string name="settings_mode_shizuku">Automatic via Shizuku</string>
     <string name="settings_mode_notify">Notify me when available</string>
     <string name="settings_update_mode">Update mode</string>
+    <string name="settings_update_channel">Update channel</string>
+    <string name="settings_update_channel_auto">Auto (stable or pre-release)</string>
+    <string name="settings_update_channel_stable">Stable only</string>
+    <string name="settings_update_channel_prerelease">Pre-release</string>
     <string name="settings_mode_notify_option">Notify me when available</string>
     <string name="settings_mode_shizuku_option">Automatically update via Shizuku</string>
     <string name="settings_update_popup">In-app update popup</string>

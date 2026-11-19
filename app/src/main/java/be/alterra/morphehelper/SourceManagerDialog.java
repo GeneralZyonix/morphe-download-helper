@@ -6,13 +6,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.content.res.ColorStateList;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
@@ -83,13 +86,38 @@ final class SourceManagerDialog {
         handleParams.bottomMargin = dp(16);
         content.addView(handle, handleParams);
 
-        content.addView(M3Ui.display(activity,
-                activity.getString(R.string.main_sources_title), 26, text));
+        LinearLayout titleRow = new LinearLayout(activity);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = M3Ui.display(activity,
+                activity.getString(R.string.main_sources_title), 24, text);
+        titleRow.addView(title, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView fullSettings = iconButton(R.drawable.ic_fullscreen,
+                R.string.source_manager_full_settings, () -> {
+                    Intent intent = new Intent(activity, SettingsActivity.class);
+                    intent.putExtra(SettingsActivity.EXTRA_SECTION,
+                            SettingsActivity.EXTRA_SECTION_SOURCES);
+                    activity.startActivity(intent);
+                    dialog.dismiss();
+                });
+        titleRow.addView(fullSettings, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        ImageView close = iconButton(R.drawable.ic_close,
+                R.string.common_close, () -> dialog.dismiss());
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        closeParams.setMarginStart(dp(6));
+        titleRow.addView(close, closeParams);
+        content.addView(titleRow);
+
         TextView subtitle = M3Ui.text(activity,
                 activity.getString(R.string.source_manager_hint), 12, muted, 400);
         subtitle.setLineSpacing(dp(2), 1f);
-        subtitle.setPadding(0, dp(6), 0, dp(12));
+        subtitle.setPadding(0, dp(6), 0, dp(4));
         content.addView(subtitle);
+        TextView applyHint = M3Ui.text(activity,
+                activity.getString(R.string.source_manager_immediate), 11, footer, 400);
+        applyHint.setPadding(0, 0, 0, dp(10));
+        content.addView(applyHint);
 
         ScrollView scroll = new ScrollView(activity);
         list = new LinearLayout(activity);
@@ -102,36 +130,6 @@ final class SourceManagerDialog {
         content.addView(scroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, maxHeight));
         rebuildList();
-
-        TextView testAll = M3Ui.tonalButton(activity, palette,
-                activity.getString(R.string.settings_test_all), 0);
-        testAll.setOnClickListener(v -> testAllSources(testAll));
-        LinearLayout.LayoutParams testParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-        testParams.topMargin = dp(12);
-        content.addView(testAll, testParams);
-
-        TextView fullSettings = M3Ui.textButton(activity, palette,
-                activity.getString(R.string.source_manager_full_settings), 0);
-        fullSettings.setOnClickListener(v -> {
-            Intent intent = new Intent(activity, SettingsActivity.class);
-            intent.putExtra(SettingsActivity.EXTRA_SECTION,
-                    SettingsActivity.EXTRA_SECTION_SOURCES);
-            activity.startActivity(intent);
-            dialog.dismiss();
-        });
-        LinearLayout.LayoutParams fullSettingsParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
-        fullSettingsParams.topMargin = dp(4);
-        content.addView(fullSettings, fullSettingsParams);
-
-        TextView done = M3Ui.primaryButton(activity, palette,
-                activity.getString(R.string.common_done), 0);
-        done.setOnClickListener(v -> dialog.dismiss());
-        LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
-        doneParams.topMargin = dp(8);
-        content.addView(done, doneParams);
 
         ViewCompat.setOnApplyWindowInsetsListener(content, (view, insets) -> {
             int bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
@@ -258,38 +256,21 @@ final class SourceManagerDialog {
         rebuildList();
     }
 
-    private void testAllSources(TextView button) {
-        List<String> keys = new ArrayList<>(AppSettings.sourceOrder(activity));
-        if (!keys.contains(SourceSettings.UPTODOWN)) {
-            keys.add(SourceSettings.UPTODOWN);
-        }
-        if (keys.isEmpty()) {
-            return;
-        }
-        button.setEnabled(false);
-        button.setText(R.string.settings_testing_all);
-        int[] state = {0, 0, 0};
-        Runnable[] runner = new Runnable[1];
-        runner[0] = () -> {
-            if (state[2] >= keys.size()) {
-                button.setEnabled(true);
-                button.setText(R.string.settings_test_all);
-                Toast.makeText(activity,
-                        activity.getString(R.string.settings_test_all_result,
-                                state[0], state[1]), Toast.LENGTH_LONG).show();
-                return;
-            }
-            String key = keys.get(state[2]++);
-            SourceTester.test(activity, key, (ok, message) -> activity.runOnUiThread(() -> {
-                if (ok) {
-                    state[0]++;
-                } else {
-                    state[1]++;
-                }
-                runner[0].run();
-            }));
-        };
-        runner[0].run();
+    private ImageView iconButton(int iconRes, int descRes, Runnable action) {
+        ImageView icon = new ImageView(activity);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(text);
+        icon.setContentDescription(activity.getString(descRes));
+        icon.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(palette.ripple),
+                M3Ui.filled(activity, M3Ui.secondaryContainer(palette), 999, 0, 0),
+                null));
+        icon.setPadding(dp(10), dp(10), dp(10), dp(10));
+        icon.setClickable(true);
+        icon.setFocusable(true);
+        icon.setOnClickListener(v -> action.run());
+        M3Ui.motion(icon);
+        return icon;
     }
 
     /** Enabled sources in saved order, followed by disabled sources. */

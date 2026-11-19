@@ -38,7 +38,7 @@
     <string name="main_sources_title">Sources de téléchargement</string>
     <string name="main_source_morphe_link">Lien Morphe</string>
     <string name="main_source_appteka">\u26A0 Appteka</string>
-    <string name="main_open_morphe">Ouvrir Morphe</string>
+    <string name="main_open_morphe">Ouvrir Morphe Manager</string>
     <string name="main_share_log">Partager le journal</string>
     <string name="main_delete_all_downloads">Supprimer tous les APK téléchargés</string>
     <string name="main_delete_all_title">Supprimer tous les téléchargements&#160;?</string>
@@ -724,4 +724,9 @@
     <string name="report_sha256">SHA-256&#160;: %1$s (vérifié)</string>
     <string name="report_build_exact">Contrôle de build&#160;: code de version exact vérifié</string>
     <string name="report_build_name">Contrôle de build&#160;: nom de version uniquement (aucun code de build fourni)</string>
+    <string name="source_manager_immediate">Les modifications s\u2019appliquent imm\u00e9diatement.</string>
+    <string name="settings_update_channel">Canal de mise \u00e0 jour</string>
+    <string name="settings_update_channel_auto">Auto (stable ou pr\u00e9version)</string>
+    <string name="settings_update_channel_stable">Stable uniquement</string>
+    <string name="settings_update_channel_prerelease">Pr\u00e9version</string>
 </resources>

@@ -120,6 +120,18 @@ final class UpdateManager {
         }
     }
 
+    /** Resolves the saved update channel; auto follows the installed build. */
+    static boolean includePrereleases(Context context) {
+        String channel = AppSettings.updateChannel(context);
+        if (AppSettings.UPDATE_CHANNEL_STABLE.equals(channel)) {
+            return false;
+        }
+        if (AppSettings.UPDATE_CHANNEL_PRERELEASE.equals(channel)) {
+            return true;
+        }
+        return UpdateInfo.isPrerelease(UpdateChecker.installedVersion(context));
+    }
+
     static void remindLater(Context context) {
         long when = System.currentTimeMillis() + 24L * 60L * 60L * 1000L;
         prefs(context).edit().putLong(KEY_SNOOZE_UNTIL, when).apply();
@@ -165,6 +177,19 @@ final class UpdateManager {
         prefs(context).edit().remove(KEY_SNOOZE_UNTIL).apply();
     }
 
+    /** Clears the cached release so a channel change is reflected immediately. */
+    static void clearCachedLatest(Context context) {
+        prefs(context).edit()
+                .remove(KEY_VERSION)
+                .remove(KEY_RELEASE_URL)
+                .remove(KEY_ASSET_URL)
+                .remove(KEY_ASSET_NAME)
+                .remove(KEY_ASSET_SIZE)
+                .remove(KEY_NOTES)
+                .remove(KEY_LAST_CHECK)
+                .apply();
+    }
+
     static long lastCheck(Context context) {
         return prefs(context).getLong(KEY_LAST_CHECK, 0);
     }
@@ -201,7 +226,8 @@ final class UpdateManager {
         new Thread(() -> {
             try {
                 UpdateInfo info = UpdateChecker.check(
-                        UpdateChecker.installedVersion(app));
+                        UpdateChecker.installedVersion(app),
+                        includePrereleases(app));
                 cacheInfo(app, info);
                 MAIN.post(() -> callback.done(info, null));
             } catch (Exception error) {
@@ -336,7 +362,7 @@ final class UpdateManager {
             String message;
             try {
                 String current = UpdateChecker.installedVersion(app);
-                UpdateInfo info = UpdateChecker.check(current);
+                UpdateInfo info = UpdateChecker.check(current, includePrereleases(app));
                 cacheInfo(app, info);
 
                 String skipped = prefs(app).getString(KEY_SKIPPED_VERSION, "");

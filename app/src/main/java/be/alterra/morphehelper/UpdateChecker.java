@@ -78,8 +78,13 @@ final class UpdateChecker {
      * is the latest version.
      */
     static UpdateInfo check(String currentVersion) throws IOException {
+        return check(currentVersion, UpdateInfo.isPrerelease(currentVersion));
+    }
+
+    static UpdateInfo check(String currentVersion, boolean includePrereleases)
+            throws IOException {
         UpdateInfo stable = check();
-        if (!UpdateInfo.isPrerelease(currentVersion)) {
+        if (!includePrereleases) {
             return stable;
         }
         try {

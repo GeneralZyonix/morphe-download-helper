@@ -1007,6 +1007,12 @@ public class SettingsActivity extends Activity {
                 .show());
         card.addView(modeRow);
 
+        LinearLayout channelRow = settingRow(
+                getString(R.string.settings_update_channel),
+                updateChannelLabel());
+        channelRow.setOnClickListener(v -> showUpdateChannelDialog());
+        card.addView(channelRow);
+
         if (!UpdateManager.MODE_SHIZUKU.equals(mode)) {
             LinearLayout popupRow = new LinearLayout(this);
             popupRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -1076,6 +1082,57 @@ public class SettingsActivity extends Activity {
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(8), 0, 0);
         card.addView(note);
+    }
+
+    private String updateChannelLabel() {
+        switch (AppSettings.updateChannel(this)) {
+            case AppSettings.UPDATE_CHANNEL_STABLE:
+                return getString(R.string.settings_update_channel_stable);
+            case AppSettings.UPDATE_CHANNEL_PRERELEASE:
+                return getString(R.string.settings_update_channel_prerelease);
+            default:
+                return getString(R.string.settings_update_channel_auto);
+        }
+    }
+
+    private int updateChannelIndex() {
+        switch (AppSettings.updateChannel(this)) {
+            case AppSettings.UPDATE_CHANNEL_STABLE:
+                return 1;
+            case AppSettings.UPDATE_CHANNEL_PRERELEASE:
+                return 2;
+            default:
+                return 0;
+        }
+    }
+
+    private void showUpdateChannelDialog() {
+        String[] labels = {
+                getString(R.string.settings_update_channel_auto),
+                getString(R.string.settings_update_channel_stable),
+                getString(R.string.settings_update_channel_prerelease)
+        };
+        String[] values = {
+                AppSettings.UPDATE_CHANNEL_AUTO,
+                AppSettings.UPDATE_CHANNEL_STABLE,
+                AppSettings.UPDATE_CHANNEL_PRERELEASE
+        };
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_update_channel)
+                .setSingleChoiceItems(labels, updateChannelIndex(),
+                        (dialog, which) -> {
+                            dialog.dismiss();
+                            String channel = values[which];
+                            if (channel.equals(AppSettings.updateChannel(this))) {
+                                return;
+                            }
+                            AppSettings.setUpdateChannel(this, channel);
+                            UpdateManager.clearCachedLatest(this);
+                            UpdateManager.clearReminder(this);
+                            PublicSettings.write(this);
+                            recreate();
+                        })
+                .show();
     }
 
     private void addBatteryCard(LinearLayout card) {
