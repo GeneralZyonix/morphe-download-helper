@@ -32,10 +32,10 @@ You stay available. The current design remains selectable.
 
 | Tab | Purpose |
 | --- | --- |
-| **Home** | Status chips, hero, Visual guide, Helper log, developer links. |
+| **Home** | Status chips, hero, Visual guide, Helper log, Help, delete-all, developer links. |
 | **Downloads** | Local APK library: name, size, date, open/share/delete. Persistent history is a later data-layer change. |
 | **Sources** | The source list from Settings, embedded with toggles and order controls. |
-| **Settings** | In-shell section list; each section opens a sheet over the shell. |
+| **Settings** | In-shell section list; each section opens a sheet over the shell. There is no redundant Done button. |
 
 The old main screen mixes all of this into one long scroll. The shell keeps the
 main actions visible and gives downloads and sources a stable home.
@@ -80,6 +80,7 @@ main actions visible and gives downloads and sources a stable home.
 - `docs/branding/material3/v3-shell-downloads.png`
 - `docs/branding/material3/v3-shell-sources.png`
 - `docs/branding/material3/v3-shell-settings.png`
+- `docs/branding/material3/v3-shell-log-sheet.png`
 - `docs/branding/material3/v3-shell-storage-sheet.png`
 
 ## Guardrails
@@ -95,7 +96,13 @@ main actions visible and gives downloads and sources a stable home.
 The branch now implements the first pass of phases 1–5:
 
 - `MorphePreviewActivity` with the four-tab shell.
-- Home: header, status chips, gradient hero, guide/log tiles, developer links.
+- Home: header, status chips, gradient hero, guide/log tiles, Help, delete-all,
+  developer links, and the build variant.
+- Helper log: one sheet with Share, Copy, Save, Preview, Report, Suggest, and
+  Clear. Every export is sanitized first; Save uses the system file picker.
+- Sources lives only in the bottom navigation, not as a duplicate home button.
+- Pages add a real bottom spacer so the floating navigation bar never covers
+  the last row and vertical scrolling starts from cards and buttons too.
 - Downloads: persisted hand-off history plus current APKs from the cache and
   public `Downloads/Morphe Helper` folder.
 - Sources: live enabled state and order from `SourceSettings`.

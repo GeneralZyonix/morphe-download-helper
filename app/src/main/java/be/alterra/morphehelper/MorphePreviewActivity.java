@@ -1,12 +1,17 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ContentUris;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -19,9 +24,11 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.StyleSpan;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -34,8 +41,10 @@ import android.widget.Toast;
 import androidx.core.content.FileProvider;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import java.io.File;
+import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
@@ -62,6 +71,10 @@ public class MorphePreviewActivity extends Activity {
     private static final int TAB_SOURCES = 2;
     private static final int TAB_SETTINGS = 3;
     private static final String MORPHE_PACKAGE = "app.morphe.manager";
+    private static final int REQ_SAVE_LOG = 6103;
+    private static final String FEATURE_REQUEST_URL =
+            "https://github.com/GeneralZyonix/morphe-download-helper/issues/new"
+                    + "?template=feature_request.yml";
 
     private ThemePalette palette;
     private FrameLayout contentHost;
@@ -129,6 +142,31 @@ public class MorphePreviewActivity extends Activity {
         selectTab(TAB_HOME, false);
         UpdateManager.maybeCheckOnLaunch(this,
                 () -> UpdateManager.showInAppUpdatePopupIfAvailable(this));
+        handleSharedText(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleSharedText(intent);
+    }
+
+    /** A shared GitHub link still opens the Sources import flow. */
+    private void handleSharedText(Intent intent) {
+        if (intent == null) {
+            return;
+        }
+        String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if (TextUtils.isEmpty(text)) {
+            return;
+        }
+        Intent settings = new Intent(this, SettingsActivity.class);
+        settings.putExtra(SettingsActivity.EXTRA_SECTION,
+                SettingsActivity.EXTRA_SECTION_SOURCES);
+        settings.putExtra(SettingsActivity.EXTRA_SHARE_TEXT, text);
+        startActivity(settings);
+        intent.removeExtra(Intent.EXTRA_TEXT);
     }
 
     @Override
@@ -318,7 +356,9 @@ public class MorphePreviewActivity extends Activity {
         root.addView(statusRow());
         root.addView(heroCard());
         root.addView(featureRow());
+        root.addView(quickActions());
         root.addView(developerBlock());
+        addBottomSpacer(root);
         return scroll;
     }
 
@@ -380,6 +420,12 @@ public class MorphePreviewActivity extends Activity {
         LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(dp(22), dp(22));
         badgeParams.setMarginStart(dp(7));
         helperChip.addView(badge, badgeParams);
+        String buildName = getString(AppSettings.isLauncherIconShown(this)
+                ? R.string.main_build_icon : R.string.main_build_no_icon);
+        TextView buildText = M3Ui.text(this,
+                getString(R.string.main_version_chip_build, buildName), 12, TEXT, 500);
+        buildText.setPadding(dp(6), 0, 0, 0);
+        helperChip.addView(buildText);
         LinearLayout.LayoutParams helperParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         helperParams.setMarginStart(dp(8));
@@ -458,7 +504,6 @@ public class MorphePreviewActivity extends Activity {
             }
         }
         button.setOnClickListener(v -> action.run());
-        M3Ui.motion(button);
         return button;
     }
 
@@ -486,7 +531,7 @@ public class MorphePreviewActivity extends Activity {
                 R.drawable.ic_log_doc,
                 M3Ui.blend(palette.primaryEnd, Color.BLACK, 0.30f),
                 M3Ui.blend(palette.primaryEnd, Color.BLACK, 0.55f),
-                this::showLogDialog);
+                this::showLogSheet);
         LinearLayout.LayoutParams logParams = new LinearLayout.LayoutParams(
                 0, dp(192), 1f);
         logParams.setMarginStart(dp(6));
@@ -508,7 +553,6 @@ public class MorphePreviewActivity extends Activity {
         tile.setClickable(true);
         tile.setFocusable(true);
         tile.setOnClickListener(v -> action.run());
-        M3Ui.motion(tile);
 
         FrameLayout iconTile = new FrameLayout(this);
         iconTile.setBackground(M3Ui.filled(this,
@@ -546,6 +590,57 @@ public class MorphePreviewActivity extends Activity {
         return tile;
     }
 
+    private View quickActions() {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.topMargin = dp(14);
+        block.setLayoutParams(params);
+
+        TextView help = M3Ui.outlinedButton(this, palette,
+                getString(R.string.main_help), 0, TEXT);
+        help.setOnClickListener(v -> showHelp());
+        block.addView(help, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
+
+        TextView delete = M3Ui.outlinedButton(this, palette,
+                getString(R.string.main_delete_all_downloads), 0, RED);
+        delete.setOnClickListener(v -> confirmDeleteAllDownloads());
+        LinearLayout.LayoutParams deleteParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        deleteParams.topMargin = dp(10);
+        block.addView(delete, deleteParams);
+        return block;
+    }
+
+    private void showHelp() {
+        String message = getString(R.string.help_log)
+                + "\n\n" + getString(R.string.help_play_protect)
+                + "\n\n" + getString(R.string.help_uptodown)
+                + "\n\n" + getString(R.string.help_icons)
+                + "\n\n" + getString(R.string.help_sources);
+        ThemeManager.dialog(this)
+                .setTitle(R.string.main_help_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.common_close, null)
+                .show();
+    }
+
+    private void confirmDeleteAllDownloads() {
+        ThemeManager.dialog(this)
+                .setTitle(R.string.main_delete_all_title)
+                .setMessage(R.string.main_delete_all_message)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.common_delete, (dialog, which) -> {
+                    int deleted = AppSettings.deleteAllDownloads(this);
+                    Toast.makeText(this,
+                            getString(R.string.main_delete_all_done, deleted),
+                            Toast.LENGTH_SHORT).show();
+                })
+                .show();
+    }
+
     private View developerBlock() {
         LinearLayout block = new LinearLayout(this);
         block.setOrientation(LinearLayout.VERTICAL);
@@ -564,6 +659,11 @@ public class MorphePreviewActivity extends Activity {
         TextView creditView = M3Ui.text(this, credit.toString(), 13, MUTED, 400);
         creditView.setGravity(Gravity.CENTER);
         block.addView(creditView);
+        TextView role = M3Ui.text(this,
+                getString(R.string.main_developer_role), 11, MUTED, 400);
+        role.setGravity(Gravity.CENTER);
+        role.setPadding(0, dp(3), 0, 0);
+        block.addView(role);
 
         LinearLayout links = new LinearLayout(this);
         links.setOrientation(LinearLayout.HORIZONTAL);
@@ -579,14 +679,26 @@ public class MorphePreviewActivity extends Activity {
                 "https://github.com/GeneralZyonix/morphe-download-helper"));
         LinearLayout.LayoutParams githubParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(42));
-        githubParams.setMarginEnd(dp(8));
+        githubParams.setMarginEnd(dp(4));
         links.addView(github, githubParams);
+
+        TextView releases = M3Ui.outlinedButton(this, palette,
+                getString(R.string.main_link_releases), 0, TEXT);
+        releases.setOnClickListener(v -> openUrl(
+                "https://github.com/GeneralZyonix/morphe-download-helper/releases"));
+        LinearLayout.LayoutParams releaseParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42));
+        releaseParams.setMarginStart(dp(4));
+        releaseParams.setMarginEnd(dp(4));
+        links.addView(releases, releaseParams);
 
         TextView reddit = M3Ui.outlinedButton(this, palette, "Reddit", 0, TEXT);
         reddit.setOnClickListener(v -> openUrl(
                 "https://www.reddit.com/r/MorpheApp/comments/1xjmnf3/i_made_an_helper_that_fetches_the_right_apk_for/"));
-        links.addView(reddit, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42)));
+        LinearLayout.LayoutParams redditParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(42));
+        redditParams.setMarginStart(dp(4));
+        links.addView(reddit, redditParams);
         block.addView(links);
         return block;
     }
@@ -664,6 +776,7 @@ public class MorphePreviewActivity extends Activity {
                     getString(R.string.preview_downloads_empty_title),
                     getString(R.string.preview_downloads_empty_body)));
         }
+        addBottomSpacer(root);
         return scroll;
     }
 
@@ -753,7 +866,6 @@ public class MorphePreviewActivity extends Activity {
         rowParams.topMargin = dp(10);
         row.setLayoutParams(rowParams);
         row.setOnClickListener(v -> openEntry(entry));
-        M3Ui.motion(row);
 
         FrameLayout iconTile = new FrameLayout(this);
         iconTile.setBackground(M3Ui.filled(this,
@@ -805,7 +917,6 @@ public class MorphePreviewActivity extends Activity {
                         Toast.LENGTH_SHORT).show();
             }
         });
-        M3Ui.motion(row);
 
         FrameLayout iconTile = new FrameLayout(this);
         iconTile.setBackground(M3Ui.filled(this,
@@ -1039,6 +1150,7 @@ public class MorphePreviewActivity extends Activity {
         listParams.topMargin = dp(10);
         root.addView(sourceList, listParams);
         rebuildSourceList();
+        addBottomSpacer(root);
         return scroll;
     }
 
@@ -1204,6 +1316,7 @@ public class MorphePreviewActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
         allParams.topMargin = dp(18);
         root.addView(all, allParams);
+        addBottomSpacer(root);
         return scroll;
     }
 
@@ -1224,7 +1337,6 @@ public class MorphePreviewActivity extends Activity {
                 null, null));
         row.setClickable(true);
         row.setFocusable(true);
-        M3Ui.motion(row);
 
         FrameLayout iconTile = new FrameLayout(this);
         iconTile.setBackground(M3Ui.filled(this,
@@ -1280,8 +1392,19 @@ public class MorphePreviewActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
-        scroll.setPadding(dp(20), dp(18), dp(20), dp(118));
+        scroll.setPadding(dp(20), dp(18), dp(20), dp(24));
         return scroll;
+    }
+
+    /**
+     * Adds real height after the last row. ScrollView padding alone does not
+     * create a scroll range when the content is shorter than the viewport, so
+     * the floating navigation bar could cover the last row.
+     */
+    private void addBottomSpacer(LinearLayout root) {
+        View spacer = new View(this);
+        root.addView(spacer, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(130)));
     }
 
     private ImageView iconButton(int iconRes, int descRes, Runnable action) {
@@ -1297,7 +1420,6 @@ public class MorphePreviewActivity extends Activity {
         button.setClickable(true);
         button.setFocusable(true);
         button.setOnClickListener(v -> action.run());
-        M3Ui.motion(button);
         return button;
     }
 
@@ -1319,6 +1441,439 @@ public class MorphePreviewActivity extends Activity {
         params.leftMargin = x;
         params.topMargin = y;
         root.addView(glow, params);
+    }
+
+    /** Full helper-log action sheet, matching the classic home screen actions. */
+    private void showLogSheet() {
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(10), dp(20), dp(24));
+        content.setBackground(sheetBackground());
+        content.setClickable(true);
+        content.setFocusable(true);
+
+        View handle = new View(this);
+        GradientDrawable handleBackground = new GradientDrawable();
+        handleBackground.setColor(M3Ui.outline(palette));
+        handleBackground.setCornerRadius(dp(999));
+        handle.setBackground(handleBackground);
+        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(dp(44), dp(4));
+        handleParams.gravity = Gravity.CENTER_HORIZONTAL;
+        handleParams.bottomMargin = dp(14);
+        content.addView(handle, handleParams);
+
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        FrameLayout iconTile = new FrameLayout(this);
+        iconTile.setBackground(M3Ui.filled(this,
+                M3Ui.primaryContainer(palette), 12, 0, 0));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.ic_log_doc);
+        icon.setColorFilter(M3Ui.onPrimaryContainer(palette));
+        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(20), dp(20));
+        iconInner.gravity = Gravity.CENTER;
+        iconTile.addView(icon, iconInner);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        iconParams.setMarginEnd(dp(12));
+        titleRow.addView(iconTile, iconParams);
+        titleRow.addView(M3Ui.display(this, getString(R.string.main_log_title), 24, TEXT),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView close = iconButton(R.drawable.ic_close, R.string.common_close,
+                dialog::dismiss);
+        titleRow.addView(close, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        content.addView(titleRow);
+
+        TextView subtitle = M3Ui.text(this,
+                getString(R.string.main_logs_local), 12, MUTED, 400);
+        subtitle.setPadding(0, dp(4), 0, 0);
+        content.addView(subtitle);
+        TextView sanitizedNote = M3Ui.text(this,
+                getString(R.string.preview_log_sanitized_note), 11, MUTED, 400);
+        sanitizedNote.setPadding(0, dp(2), 0, dp(10));
+        content.addView(sanitizedNote);
+
+        content.addView(logRow(R.drawable.ic_share, R.string.main_share_log,
+                TEXT, () -> {
+                    dialog.dismiss();
+                    shareLog();
+                }));
+        content.addView(logRow(R.drawable.ic_copy, R.string.main_copy_log,
+                TEXT, () -> {
+                    dialog.dismiss();
+                    copyLog();
+                }));
+        content.addView(logRow(R.drawable.ic_save, R.string.main_save_log,
+                TEXT, () -> {
+                    dialog.dismiss();
+                    saveLog();
+                }));
+        content.addView(logRow(R.drawable.ic_log_doc, R.string.main_preview_log,
+                TEXT, () -> {
+                    dialog.dismiss();
+                    showLogDialog();
+                }));
+        content.addView(logDivider());
+        content.addView(logRow(R.drawable.source_logo_github, R.string.main_report_github,
+                TEXT, () -> {
+                    dialog.dismiss();
+                    showGitHubReportDialog();
+                }));
+        content.addView(logRow(R.drawable.source_logo_github,
+                R.string.main_suggest_feature, TEXT, () -> {
+                    dialog.dismiss();
+                    openUrl(FEATURE_REQUEST_URL);
+                }));
+        content.addView(logDivider());
+        content.addView(logRow(R.drawable.ic_delete, R.string.main_clear_log,
+                RED, () -> {
+                    HelperLog.clear();
+                    Toast.makeText(this, R.string.main_log_cleared,
+                            Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                }));
+
+        ViewCompat.setOnApplyWindowInsetsListener(content, (view, insets) -> {
+            int bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+            view.setPadding(dp(20), dp(10), dp(20), dp(24) + bottom);
+            return insets;
+        });
+
+        dialog.setContentView(content);
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setGravity(Gravity.BOTTOM);
+            window.setNavigationBarColor(M3Ui.surfaceContainer(palette));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                window.setNavigationBarDividerColor(M3Ui.surfaceContainer(palette));
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.setNavigationBarContrastEnforced(false);
+            }
+            WindowInsetsControllerCompat controller =
+                    ViewCompat.getWindowInsetsController(window.getDecorView());
+            if (controller != null) {
+                controller.setAppearanceLightNavigationBars(palette.light);
+            }
+        }
+    }
+
+    private View logRow(int iconRes, int titleRes, int titleColor, Runnable action) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(10), dp(10), dp(8), dp(10));
+        row.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(palette.ripple), null, null));
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setOnClickListener(v -> action.run());
+
+        boolean danger = titleColor == RED;
+        FrameLayout iconTile = new FrameLayout(this);
+        iconTile.setBackground(M3Ui.filled(this,
+                danger ? M3Ui.errorContainer(palette) : M3Ui.secondaryContainer(palette),
+                12, 0, 0));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconRes);
+        icon.setColorFilter(danger ? RED : M3Ui.onPrimaryContainer(palette));
+        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(20), dp(20));
+        iconInner.gravity = Gravity.CENTER;
+        iconTile.addView(icon, iconInner);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        iconParams.setMarginEnd(dp(12));
+        row.addView(iconTile, iconParams);
+
+        row.addView(M3Ui.text(this, getString(titleRes), 14, titleColor, 600),
+                new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        return row;
+    }
+
+    private View logDivider() {
+        View divider = new View(this);
+        divider.setBackgroundColor(M3Ui.outlineVariant(palette));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        params.leftMargin = dp(52);
+        params.topMargin = dp(6);
+        params.bottomMargin = dp(6);
+        divider.setLayoutParams(params);
+        return divider;
+    }
+
+    private GradientDrawable sheetBackground() {
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(M3Ui.surfaceContainer(palette));
+        float radius = dp(28);
+        background.setCornerRadii(new float[]{
+                radius, radius, radius, radius, 0, 0, 0, 0});
+        return background;
+    }
+
+    private String sanitizedLog() {
+        File log = HelperLog.getLogFile();
+        if (log == null || !log.isFile() || log.length() == 0) {
+            return "";
+        }
+        try {
+            return LogSanitizer.sanitizeForExport(readTail(log, 256000));
+        } catch (Exception error) {
+            return "";
+        }
+    }
+
+    private void shareLog() {
+        String text = sanitizedLog();
+        if (TextUtils.isEmpty(text)) {
+            Toast.makeText(this, R.string.main_report_no_log,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.main_log_subject));
+        intent.putExtra(Intent.EXTRA_TEXT, text);
+        try {
+            startActivity(Intent.createChooser(intent,
+                    getString(R.string.main_share_log_title)));
+        } catch (Exception error) {
+            Toast.makeText(this, R.string.main_error_share_log,
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void copyLog() {
+        String text = sanitizedLog();
+        if (TextUtils.isEmpty(text)) {
+            Toast.makeText(this, R.string.main_report_no_log,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            Toast.makeText(this, R.string.main_error_copy_log,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText(
+                getString(R.string.main_log_title), text));
+        Toast.makeText(this, R.string.main_log_copied,
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveLog() {
+        File log = HelperLog.getLogFile();
+        if (log == null || !log.isFile()) {
+            Toast.makeText(this, R.string.main_error_no_log,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, "helper-sanitized.log");
+        startActivityForResult(intent, REQ_SAVE_LOG);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_SAVE_LOG && resultCode == RESULT_OK
+                && data != null && data.getData() != null) {
+            saveLogTo(data.getData());
+        }
+    }
+
+    private void saveLogTo(Uri uri) {
+        File log = HelperLog.getLogFile();
+        if (log == null || !log.isFile()) {
+            Toast.makeText(this, R.string.main_error_no_log,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        new Thread(() -> {
+            try {
+                String text = LogSanitizer.sanitizeForExport(
+                        readTail(log, 300_000));
+                if (text.trim().isEmpty()) {
+                    runOnUiThread(() -> Toast.makeText(this,
+                            R.string.main_error_no_log, Toast.LENGTH_LONG).show());
+                    return;
+                }
+                try (OutputStream output =
+                             getContentResolver().openOutputStream(uri, "wt")) {
+                    if (output == null) {
+                        throw new IllegalStateException("No output stream");
+                    }
+                    output.write(text.getBytes(StandardCharsets.UTF_8));
+                }
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_save_log_success, Toast.LENGTH_SHORT).show());
+            } catch (Exception error) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_save_log_failed, Toast.LENGTH_LONG).show());
+            }
+        }, "save-log").start();
+    }
+
+    /** Lets the user choose a short report or the full sanitized log. */
+    private void showGitHubReportDialog() {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(24), dp(4), dp(24), dp(4));
+
+        TextView message = M3Ui.text(this,
+                getString(R.string.main_report_message), 13, MUTED, 400);
+        message.setLineSpacing(dp(2), 1f);
+        content.addView(message);
+
+        TextView shortReport = reportChoiceButton(
+                getString(R.string.main_report_short));
+        LinearLayout.LayoutParams shortParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        shortParams.topMargin = dp(14);
+        content.addView(shortReport, shortParams);
+
+        TextView fullReport = reportChoiceButton(
+                getString(R.string.main_report_full));
+        LinearLayout.LayoutParams fullParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        fullParams.topMargin = dp(10);
+        content.addView(fullReport, fullParams);
+
+        AlertDialog dialog = ThemeManager.dialog(this)
+                .setTitle(R.string.main_report_title)
+                .setView(content)
+                .setNegativeButton(R.string.common_cancel, null)
+                .show();
+        shortReport.setOnClickListener(v -> {
+            dialog.dismiss();
+            reportToGitHub(false);
+        });
+        fullReport.setOnClickListener(v -> {
+            dialog.dismiss();
+            reportToGitHub(true);
+        });
+    }
+
+    private TextView reportChoiceButton(String label) {
+        TextView view = M3Ui.outlinedButton(this, palette, label, 0, TEXT);
+        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        view.setPadding(dp(14), dp(12), dp(14), dp(12));
+        view.setSingleLine(false);
+        return view;
+    }
+
+    /**
+     * Builds a GitHub issue with a redacted log excerpt. The full option saves
+     * a sanitized copy and copies the redacted log when it is too large to
+     * prefill.
+     */
+    private void reportToGitHub(boolean fullLog) {
+        File logFile = HelperLog.getLogFile();
+        if (logFile == null || !logFile.isFile()) {
+            Toast.makeText(this, R.string.main_report_no_log,
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        new Thread(() -> {
+            String raw;
+            try {
+                raw = readTail(logFile, 300_000);
+            } catch (Exception error) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_report_no_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            String redacted = GitHubReport.redact(raw);
+            if (redacted.trim().isEmpty()) {
+                runOnUiThread(() -> Toast.makeText(this,
+                        R.string.main_report_no_log, Toast.LENGTH_LONG).show());
+                return;
+            }
+            boolean fullPrefilled = fullLog
+                    && GitHubReport.canPrefillFullLog(redacted);
+            boolean saved = fullLog && AppSettings.saveLogCopy(this,
+                    LogSanitizer.sanitizeForExport(raw));
+            String targetApp = GitHubReport.lastRequest(redacted);
+            if (TextUtils.isEmpty(targetApp)) {
+                targetApp = getString(R.string.main_report_target_unknown);
+            }
+            String androidDevice = Build.MANUFACTURER + " " + Build.MODEL
+                    + ", Android " + Build.VERSION.RELEASE
+                    + " (SDK " + Build.VERSION.SDK_INT + ")";
+            String morphe = morpheVersion().isEmpty()
+                    ? getString(R.string.main_report_morphe_missing)
+                    : morpheVersion();
+            final String finalTarget = targetApp;
+            final String finalMorphe = morphe;
+            final String finalDevice = androidDevice;
+            final String finalRedacted = redacted;
+            final boolean finalSaved = saved;
+            final boolean finalFullPrefilled = fullPrefilled;
+            runOnUiThread(() -> {
+                boolean copied = false;
+                boolean logIsCode;
+                String logField;
+                String toast = null;
+                if (!fullLog) {
+                    logField = GitHubReport.excerpt(finalRedacted);
+                    logIsCode = true;
+                } else if (finalFullPrefilled) {
+                    logField = finalRedacted;
+                    logIsCode = true;
+                    if (finalSaved) {
+                        toast = getString(R.string.main_report_full_saved);
+                    }
+                } else {
+                    copied = copyText(finalRedacted);
+                    if (copied) {
+                        logField = getString(R.string.main_report_full_field_note);
+                        logIsCode = false;
+                        toast = finalSaved
+                                ? getString(R.string.main_report_full_saved)
+                                : getString(R.string.main_report_save_failed);
+                    } else if (finalSaved) {
+                        logField = getString(
+                                R.string.main_report_full_saved_field_note);
+                        logIsCode = false;
+                        toast = getString(R.string.main_report_full_saved);
+                    } else {
+                        logField = GitHubReport.excerpt(finalRedacted);
+                        logIsCode = true;
+                        toast = getString(R.string.main_report_full_failed_short);
+                    }
+                }
+                String url = GitHubReport.buildUrl(helperVersion(), finalDevice,
+                        finalMorphe, finalTarget, logField, logIsCode);
+                if (toast != null) {
+                    Toast.makeText(this, toast, Toast.LENGTH_LONG).show();
+                }
+                openUrl(url);
+            });
+        }, "github-report").start();
+    }
+
+    private boolean copyText(String text) {
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            return false;
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText(
+                getString(R.string.main_log_title), text));
+        return true;
     }
 
     private void showLogDialog() {

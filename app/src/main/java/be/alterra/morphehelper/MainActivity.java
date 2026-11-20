@@ -113,7 +113,15 @@ public class MainActivity extends Activity {
 
     /** Moves the launcher entry into the optional Morphe shell. */
     private void openMorpheDesign() {
-        startActivity(new Intent(this, MorphePreviewActivity.class));
+        Intent intent = new Intent(this, MorphePreviewActivity.class);
+        Intent source = getIntent();
+        if (source != null && Intent.ACTION_SEND.equals(source.getAction())) {
+            String text = source.getStringExtra(Intent.EXTRA_TEXT);
+            if (!TextUtils.isEmpty(text)) {
+                intent.putExtra(Intent.EXTRA_TEXT, text);
+            }
+        }
+        startActivity(intent);
         finish();
     }
 

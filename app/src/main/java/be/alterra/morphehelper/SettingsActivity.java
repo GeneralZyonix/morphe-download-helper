@@ -260,14 +260,6 @@ public class SettingsActivity extends Activity {
                 R.drawable.ic_section_backup);
         addBackupCard(backup);
 
-        TextView done = primaryButton(getString(R.string.common_done));
-        done.setOnClickListener(v -> finish());
-        LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
-        doneParams.topMargin = dp(20);
-        doneParams.bottomMargin = dp(24);
-        root.addView(done, doneParams);
-
         setContentView(scroll);
         ThemeManager.applySystemBars(this);
         if (sheetOnly) {
@@ -3057,10 +3049,6 @@ public class SettingsActivity extends Activity {
 
     private TextView secondaryButton(String label) {
         return M3Ui.tonalButton(this, palette, label, 0);
-    }
-
-    private TextView primaryButton(String label) {
-        return M3Ui.primaryButton(this, palette, label, 0);
     }
 
     private GradientDrawable cardBackground() {

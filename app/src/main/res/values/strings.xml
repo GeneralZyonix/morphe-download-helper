@@ -766,6 +766,7 @@
     <string name="preview_background">Background</string>
     <string name="preview_guide_body">Step-by-step instructions</string>
     <string name="preview_log_body">View helper activity and logs</string>
+    <string name="preview_log_sanitized_note">Exports are sanitized before they leave the device.</string>
     <string name="preview_downloads_subtitle">Recent hand-offs and kept APKs</string>
     <string name="preview_downloads_recent">Recent hand-offs</string>
     <string name="preview_downloads_local">On this device</string>
