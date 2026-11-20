@@ -16,7 +16,8 @@ You stay available. The current design remains selectable.
 - Deep navy-to-black surfaces with soft violet and blue glows.
 - Large 28 dp cards, generous spacing, and a single bold focal card per screen.
 - Gradient hero cards with an overline, one large statement, short body copy,
-  and one primary pill action.
+  and one primary pill action. The pill uses a light accent gradient with dark
+  accent text, so it follows the selected accent instead of staying white.
 - Paired feature tiles with a coloured icon tile, title, one-line description,
   and a circular arrow.
 - Rounded pill bottom navigation with four destinations: **Home**,

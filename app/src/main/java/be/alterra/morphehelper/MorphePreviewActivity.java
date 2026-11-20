@@ -504,15 +504,21 @@ public class MorphePreviewActivity extends Activity {
     }
 
     private TextView heroButton(String label, int iconRes, Runnable action) {
-        int foreground = Color.rgb(20, 20, 26);
+        float tint = palette.light ? 0.62f : 0.78f;
+        int fillStart = M3Ui.blend(palette.primaryStart, Color.WHITE, tint);
+        int fillEnd = M3Ui.blend(palette.primaryEnd, Color.WHITE, Math.max(0f, tint - 0.05f));
+        int foreground = M3Ui.blend(palette.primaryStart, Color.BLACK, 0.58f);
+        GradientDrawable background = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{fillStart, fillEnd});
+        background.setCornerRadius(dp(M3Ui.SHAPE_FULL));
         TextView button = M3Ui.text(this, label, 15, foreground, 600);
         button.setGravity(Gravity.CENTER);
         button.setClickable(true);
         button.setFocusable(true);
         button.setPadding(dp(16), dp(13), dp(16), dp(13));
         button.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(0x22000000),
-                M3Ui.filled(this, Color.WHITE, M3Ui.SHAPE_FULL, 0, 0), null));
+                ColorStateList.valueOf(0x33000000), background, null));
         if (iconRes != 0) {
             Drawable icon = getDrawable(iconRes);
             if (icon != null) {
