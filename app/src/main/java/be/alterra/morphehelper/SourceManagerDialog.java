@@ -10,11 +10,13 @@ import android.content.res.ColorStateList;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.os.Build;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -89,8 +91,20 @@ final class SourceManagerDialog {
         LinearLayout titleRow = new LinearLayout(activity);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        FrameLayout iconTile = new FrameLayout(activity);
+        iconTile.setBackground(M3Ui.filled(activity,
+                M3Ui.primaryContainer(palette), 12, 0, 0));
+        ImageView icon = new ImageView(activity);
+        icon.setImageResource(R.drawable.ic_section_sources);
+        icon.setColorFilter(M3Ui.onPrimaryContainer(palette));
+        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(20), dp(20));
+        iconInner.gravity = Gravity.CENTER;
+        iconTile.addView(icon, iconInner);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        iconParams.setMarginEnd(dp(12));
+        titleRow.addView(iconTile, iconParams);
         TextView title = M3Ui.display(activity,
-                activity.getString(R.string.main_sources_title), 24, text);
+                activity.getString(R.string.settings_sources), 24, text);
         titleRow.addView(title, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         ImageView fullSettings = iconButton(R.drawable.ic_fullscreen,
@@ -109,24 +123,28 @@ final class SourceManagerDialog {
         titleRow.addView(close, closeParams);
         content.addView(titleRow);
 
+        ScrollView scroll = new ScrollView(activity);
+        LinearLayout scrollContent = new LinearLayout(activity);
+        scrollContent.setOrientation(LinearLayout.VERTICAL);
         TextView subtitle = M3Ui.text(activity,
                 activity.getString(R.string.source_manager_hint), 12, muted, 400);
         subtitle.setLineSpacing(dp(2), 1f);
         subtitle.setPadding(0, dp(6), 0, dp(4));
-        content.addView(subtitle);
+        scrollContent.addView(subtitle);
         TextView applyHint = M3Ui.text(activity,
                 activity.getString(R.string.source_manager_immediate), 11, footer, 400);
         applyHint.setPadding(0, 0, 0, dp(10));
-        content.addView(applyHint);
-
-        ScrollView scroll = new ScrollView(activity);
+        scrollContent.addView(applyHint);
         list = new LinearLayout(activity);
         list.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(list, new ScrollView.LayoutParams(
+        scrollContent.addView(list, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        int maxHeight = Math.min(dp(420),
-                activity.getResources().getDisplayMetrics().heightPixels / 2);
+        scroll.addView(scrollContent, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        int maxHeight = Math.min(dp(390),
+                (int) (activity.getResources().getDisplayMetrics().heightPixels * 0.48f));
         content.addView(scroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, maxHeight));
         rebuildList();
@@ -149,6 +167,12 @@ final class SourceManagerDialog {
                     ViewGroup.LayoutParams.WRAP_CONTENT);
             window.setGravity(Gravity.BOTTOM);
             window.setNavigationBarColor(M3Ui.surfaceContainer(palette));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                window.setNavigationBarDividerColor(M3Ui.surfaceContainer(palette));
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                window.setNavigationBarContrastEnforced(false);
+            }
             WindowInsetsControllerCompat controller =
                     ViewCompat.getWindowInsetsController(window.getDecorView());
             if (controller != null) {

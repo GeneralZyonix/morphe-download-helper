@@ -145,7 +145,7 @@ public class SettingsActivity extends Activity {
                     Toast.makeText(this, R.string.settings_shizuku_denied,
                             Toast.LENGTH_LONG).show();
                 }
-                recreate();
+                scheduleUpdatesRebuild();
             };
 
     @Override
@@ -1034,7 +1034,7 @@ public class SettingsActivity extends Activity {
                     if (which == 0) {
                         UpdateManager.setMode(this, UpdateManager.MODE_NOTIFY);
                         PublicSettings.write(this);
-                        recreate();
+                        scheduleUpdatesRebuild();
                     } else {
                         requestShizukuMode();
                     }
@@ -1103,7 +1103,7 @@ public class SettingsActivity extends Activity {
             Toast.makeText(this, R.string.settings_checking, Toast.LENGTH_SHORT).show();
             UpdateManager.checkAsync(this, true, message -> {
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-                recreate();
+                scheduleUpdatesRebuild();
             });
         });
         card.addView(check);
@@ -1125,6 +1125,33 @@ public class SettingsActivity extends Activity {
         note.setLineSpacing(dp(3), 1f);
         note.setPadding(0, dp(8), 0, 0);
         card.addView(note);
+    }
+
+    private void scheduleUpdatesRebuild() {
+        LinearLayout body = sectionBodies.get(SECTION_UPDATES);
+        if (body != null) {
+            body.post(this::rebuildUpdatesSheet);
+        } else {
+            recreate();
+        }
+    }
+
+    /** Rebuilds the Updates sheet in place so it does not close and reopen. */
+    private void rebuildUpdatesSheet() {
+        LinearLayout body = sectionBodies.get(SECTION_UPDATES);
+        if (body == null) {
+            return;
+        }
+        int scrollY = sectionSheetScroll == null ? 0 : sectionSheetScroll.getScrollY();
+        body.removeAllViews();
+        addUpdatesCard(body);
+        if (sectionSheetScroll != null) {
+            sectionSheetScroll.post(() -> {
+                if (sectionSheetScroll != null) {
+                    sectionSheetScroll.scrollTo(0, scrollY);
+                }
+            });
+        }
     }
 
     private String updateChannelLabel() {
@@ -1731,7 +1758,7 @@ public class SettingsActivity extends Activity {
                 .setNeutralButton(R.string.settings_shizuku_package_reset, (dialog, which) -> {
                     AppSettings.setShizukuPackage(this, "");
                     PublicSettings.write(this);
-                    recreate();
+                    scheduleUpdatesRebuild();
                 })
                 .setPositiveButton(R.string.settings_shizuku_package_save, (dialog, which) -> {
                     String value = input.getText().toString().trim();
@@ -1742,7 +1769,7 @@ public class SettingsActivity extends Activity {
                     }
                     AppSettings.setShizukuPackage(this, value);
                     PublicSettings.write(this);
-                    recreate();
+                    scheduleUpdatesRebuild();
                 })
                 .show();
     }
@@ -1754,7 +1781,7 @@ public class SettingsActivity extends Activity {
             PublicSettings.write(this);
             Toast.makeText(this, R.string.settings_automatic_enabled,
                     Toast.LENGTH_SHORT).show();
-            recreate();
+            scheduleUpdatesRebuild();
             return;
         }
         if (status == ShizukuHelper.PERMISSION_REQUIRED) {
@@ -1764,7 +1791,7 @@ public class SettingsActivity extends Activity {
                     .setNegativeButton(R.string.settings_use_notifications, (dialog, which) -> {
                         UpdateManager.setMode(this, UpdateManager.MODE_NOTIFY);
                         PublicSettings.write(this);
-                        recreate();
+                        scheduleUpdatesRebuild();
                     })
                     .setPositiveButton(R.string.settings_grant_permission, (dialog, which) ->
                             ShizukuHelper.requestPermission(SHIZUKU_REQUEST_CODE))

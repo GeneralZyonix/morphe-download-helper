@@ -5,6 +5,34 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.7.2] - 2026-11-20
+
+2.7.2 finishes the in-place settings changes and tightens the quick Source
+Manager sheet.
+
+### Fixed
+
+- **No sheet reopen after a settings change:** source toggles and reordering,
+  Test all completion, **Check now**, Update mode changes, and Shizuku package
+  changes now rebuild the open section in place and preserve scroll.
+- **Bottom border in the quick Sources sheet:** navigation-bar contrast/divider
+  is removed so the sheet no longer shows a white line at the bottom.
+
+### Changed
+
+- **Quick Source Manager header:** now says **Sources**, with the same bundle
+  icon as the Settings section. The hint text scrolls with the list, and the
+  sheet is slightly shorter.
+
+### Notes
+
+- 2.7.0 predates the pre-release flag, so Auto update on 2.7.0 cannot see 2.7.1
+  or 2.7.2. Install 2.7.1/2.7.2 manually once; later pre-releases are detected
+  automatically.
+
+Thanks to [@ran-some](https://github.com/ran-some) for the feedback
+([#61](https://github.com/GeneralZyonix/morphe-download-helper/issues/61)).
+
 ## [2.7.1] - 2026-11-20
 
 2.7.1 makes settings changes apply in place instead of closing and reopening
