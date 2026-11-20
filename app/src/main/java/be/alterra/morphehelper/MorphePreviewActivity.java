@@ -406,12 +406,6 @@ public class MorphePreviewActivity extends Activity {
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        ImageView close = iconButton(R.drawable.ic_close, R.string.common_close,
-                this::finish);
-        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(dp(40), dp(40));
-        closeParams.setMarginStart(dp(8));
-        header.addView(close, closeParams);
         return header;
     }
 

@@ -41,6 +41,7 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 - Notification permission, cleanup, launcher-icon state, and update checks now
   run in the shell.
 - The redundant **Done** and **Open all settings** buttons are removed.
+- The redundant close button on Home is removed; system back exits the shell.
 - Delete-all moved from Home to Downloads.
 - The hero action is tinted from the selected accent instead of staying white.
 
