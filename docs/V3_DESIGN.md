@@ -75,6 +75,7 @@ main actions visible and gives downloads and sources a stable home.
 ## Screenshots
 
 - `docs/branding/material3/v3-shell-home.png`
+- `docs/branding/material3/v3-shell-downloads.png`
 - `docs/branding/material3/v3-shell-sources.png`
 - `docs/branding/material3/v3-shell-settings.png`
 

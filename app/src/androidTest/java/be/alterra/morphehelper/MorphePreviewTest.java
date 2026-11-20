@@ -13,6 +13,8 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -21,6 +23,22 @@ import java.io.File;
 /** Smoke tests for the v3 Morphe shell prototype. */
 @RunWith(AndroidJUnit4.class)
 public class MorphePreviewTest {
+
+    private Context context;
+
+    @Before
+    public void selectMorpheDesign() {
+        context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        AppSettings.setDesignStyle(context, ThemeManager.DESIGN_MORPHE);
+    }
+
+    @After
+    public void restoreClassicDesign() {
+        if (context != null) {
+            AppSettings.setDesignStyle(context, ThemeManager.DESIGN_CLASSIC);
+            DownloadHistory.clear(context);
+        }
+    }
 
     @Test
     public void shellShowsTheFourDestinationsAndHero() {
@@ -39,7 +57,6 @@ public class MorphePreviewTest {
 
     @Test
     public void downloadsTabShowsTheLocalApkList() {
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         DownloadHistory.clear(context);
         try (ActivityScenario<MorphePreviewActivity> scenario =
                      ActivityScenario.launch(MorphePreviewActivity.class)) {
@@ -53,7 +70,6 @@ public class MorphePreviewTest {
 
     @Test
     public void downloadHistoryPersistsAndRemovesEntries() {
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         DownloadHistory.clear(context);
         File first = new File(context.getCacheDir(), "history-one.apk");
         File second = new File(context.getCacheDir(), "history-two.apk");
@@ -72,7 +88,6 @@ public class MorphePreviewTest {
 
     @Test
     public void removedHistoryEntryStillAppearsInDownloads() {
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         DownloadHistory.clear(context);
         File missing = new File(context.getCacheDir(), "missing-history.apk");
         DownloadHistory.record(context, "Missing History App", "com.example.missing",
