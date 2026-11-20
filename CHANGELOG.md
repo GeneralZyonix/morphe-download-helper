@@ -5,6 +5,21 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.7.3] - 2026-11-20
+
+2.7.3 finishes the in-place settings work across Storage, Security, and Backup.
+
+### Fixed
+
+- **Storage:** Maximum connections updates the row directly; keep-downloads retention, download folder, custom folder, and storage permission changes rebuild the Storage sheet in place instead of reloading Settings.
+- **Security:** VirusTotal detection action, quota behaviour, and API key save/clear rebuild the Security sheet in place.
+- **Backup:** Creating or deleting the settings file rebuilds the Backup sheet in place.
+
+### Notes
+
+- Language changes and bulk settings import still reload intentionally.
+- 2.7.0 predates the pre-release flag, so Auto update on 2.7.0 cannot see 2.7.1+. Install 2.7.2/2.7.3 manually once.
+
 ## [2.7.2] - 2026-11-20
 
 2.7.2 finishes the in-place settings changes and tightens the quick Source

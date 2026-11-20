@@ -113,6 +113,7 @@ public class SettingsActivity extends Activity {
     private ScrollView settingsScroll;
     private TextView updateChannelValue;
     private TextView updateStatusView;
+    private TextView maxConnectionsValue;
     private final Map<String, LinearLayout> sectionBodies = new HashMap<>();
     private final Map<String, Integer> sectionTitles = new HashMap<>();
     private final Map<String, Integer> sectionSummaries = new HashMap<>();
@@ -1136,6 +1137,47 @@ public class SettingsActivity extends Activity {
         }
     }
 
+    /** Rebuilds a settings section in place so its sheet does not close. */
+    private void scheduleSectionRebuild(String key) {
+        LinearLayout body = sectionBodies.get(key);
+        if (body != null) {
+            body.post(() -> rebuildSection(key));
+        } else {
+            recreate();
+        }
+    }
+
+    private void rebuildSection(String key) {
+        LinearLayout body = sectionBodies.get(key);
+        if (body == null) {
+            return;
+        }
+        int scrollY = sectionSheetScroll == null ? 0 : sectionSheetScroll.getScrollY();
+        body.removeAllViews();
+        if (SECTION_STORAGE.equals(key)) {
+            addStorageCard(body);
+        } else if (SECTION_SECURITY.equals(key)) {
+            addSecurityCard(body);
+        } else if (SECTION_BACKUP.equals(key)) {
+            addBackupCard(body);
+        } else if (SECTION_WEB.equals(key)) {
+            addWebPagesCard(body);
+        } else if (SECTION_BATTERY.equals(key)) {
+            addBatteryCard(body);
+        } else if (SECTION_UPDATES.equals(key)) {
+            addUpdatesCard(body);
+        } else {
+            return;
+        }
+        if (sectionSheetScroll != null) {
+            sectionSheetScroll.post(() -> {
+                if (sectionSheetScroll != null) {
+                    sectionSheetScroll.scrollTo(0, scrollY);
+                }
+            });
+        }
+    }
+
     /** Rebuilds the Updates sheet in place so it does not close and reopen. */
     private void rebuildUpdatesSheet() {
         LinearLayout body = sectionBodies.get(SECTION_UPDATES);
@@ -1263,7 +1305,7 @@ public class SettingsActivity extends Activity {
                                             ? R.string.settings_create_file_success
                                             : R.string.settings_create_file_failed,
                                     Toast.LENGTH_LONG).show();
-                            recreate();
+                            scheduleSectionRebuild(SECTION_BACKUP);
                         })
                 .show();
     }
@@ -1280,7 +1322,7 @@ public class SettingsActivity extends Activity {
                                             ? R.string.settings_delete_file_success
                                             : R.string.settings_delete_file_failed,
                                     Toast.LENGTH_LONG).show();
-                            recreate();
+                            scheduleSectionRebuild(SECTION_BACKUP);
                         })
                 .show();
     }
@@ -1409,7 +1451,7 @@ public class SettingsActivity extends Activity {
                     AppSettings.setVirusTotalDetectionAction(this, values[which]);
                     PublicSettings.write(this);
                     dialog.dismiss();
-                    recreate();
+                    scheduleSectionRebuild(SECTION_SECURITY);
                 })
                 .show();
     }
@@ -1585,7 +1627,7 @@ public class SettingsActivity extends Activity {
                     AppSettings.setVirusTotalAbortOnQuota(this, which == 1);
                     PublicSettings.write(this);
                     dialog.dismiss();
-                    recreate();
+                    scheduleSectionRebuild(SECTION_SECURITY);
                 })
                 .show());
         card.addView(quotaRow);
@@ -1627,7 +1669,11 @@ public class SettingsActivity extends Activity {
                     AppSettings.setMaxConnections(this, values[which]);
                     PublicSettings.write(this);
                     dialog.dismiss();
-                    recreate();
+                    if (maxConnectionsValue != null) {
+                        maxConnectionsValue.setText(getString(
+                                R.string.settings_max_connections_value,
+                                values[which]));
+                    }
                 })
                 .setNegativeButton(R.string.common_cancel, null)
                 .show();
@@ -1729,12 +1775,12 @@ public class SettingsActivity extends Activity {
                 .setNeutralButton(R.string.virustotal_api_key_clear, (dialog, which) -> {
                     AppSettings.setVirusTotalApiKey(this, "");
                     PublicSettings.write(this);
-                    recreate();
+                    scheduleSectionRebuild(SECTION_SECURITY);
                 })
                 .setPositiveButton(R.string.virustotal_api_key_save, (dialog, which) -> {
                     AppSettings.setVirusTotalApiKey(this, input.getText().toString());
                     PublicSettings.write(this);
-                    recreate();
+                    scheduleSectionRebuild(SECTION_SECURITY);
                 })
                 .show();
     }
@@ -1882,7 +1928,7 @@ public class SettingsActivity extends Activity {
                     AppSettings.setRetention(this, values[which]);
                     PublicSettings.write(this);
                     dialog.dismiss();
-                    recreate();
+                    scheduleSectionRebuild(SECTION_STORAGE);
                 })
                 .show());
         card.addView(keep);
@@ -1925,6 +1971,7 @@ public class SettingsActivity extends Activity {
                 getString(R.string.settings_max_connections_value,
                         AppSettings.maxConnections(this)),
                 false);
+        maxConnectionsValue = settingRowValue(maxRow);
         maxRow.setOnClickListener(v -> showMaxConnectionsDialog());
         LinearLayout.LayoutParams maxParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1988,7 +2035,7 @@ public class SettingsActivity extends Activity {
         }
         AppSettings.setLocation(this, value);
         PublicSettings.write(this);
-        recreate();
+        scheduleSectionRebuild(SECTION_STORAGE);
     }
 
     @Override
@@ -2072,7 +2119,7 @@ public class SettingsActivity extends Activity {
         AppSettings.setCustomTreeUri(this, tree.toString());
         AppSettings.setLocation(this, AppSettings.LOCATION_CUSTOM);
         PublicSettings.write(this);
-        recreate();
+        scheduleSectionRebuild(SECTION_STORAGE);
     }
 
     @Override
@@ -2087,7 +2134,7 @@ public class SettingsActivity extends Activity {
         if (granted && pendingLocation != null) {
             AppSettings.setLocation(this, pendingLocation);
             PublicSettings.write(this);
-            recreate();
+            scheduleSectionRebuild(SECTION_STORAGE);
         } else {
             Toast.makeText(this, R.string.settings_storage_denied,
                     Toast.LENGTH_LONG).show();
@@ -2765,6 +2812,25 @@ public class SettingsActivity extends Activity {
         params.topMargin = dp(8);
         row.setLayoutParams(params);
         return row;
+    }
+
+    /** Returns the secondary/value TextView of a {@link #settingRow}. */
+    private TextView settingRowValue(LinearLayout row) {
+        if (row == null || row.getChildCount() == 0
+                || !(row.getChildAt(0) instanceof LinearLayout)) {
+            return null;
+        }
+        LinearLayout labels = (LinearLayout) row.getChildAt(0);
+        if (labels.getChildCount() < 2
+                || !(labels.getChildAt(1) instanceof LinearLayout)) {
+            return null;
+        }
+        LinearLayout detailRow = (LinearLayout) labels.getChildAt(1);
+        if (detailRow.getChildCount() == 0
+                || !(detailRow.getChildAt(0) instanceof TextView)) {
+            return null;
+        }
+        return (TextView) detailRow.getChildAt(0);
     }
 
     private TextView actionButton(String label, int color) {

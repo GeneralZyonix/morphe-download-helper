@@ -1,6 +1,6 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 2.7.2. The
+This page explains every section of **Settings** in Morphe Download Helper 2.7.3. The
 section screenshots below were taken from 2.3.10 and show the same options; in 2.5.0 the
 sections open in a bottom sheet instead of expanding inline.
 

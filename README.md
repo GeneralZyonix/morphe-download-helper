@@ -41,13 +41,13 @@ It is a downloader, not a patcher. It never installs, modifies, or uploads an ap
 Grab one of the two current builds from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-> **2.7.2 is a pre-release.** The latest stable release is still 2.3.10. Use the
+> **2.7.3 is a pre-release.** The latest stable release is still 2.3.10. Use the
 > Releases page to choose between the stable and pre-release builds.
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
-| **Icon** — `MorpheDownloadHelper-v2.7.2-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
-| **No-icon** — `MorpheDownloadHelper-v2.7.2-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+| **Icon** — `MorpheDownloadHelper-v2.7.3-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** — `MorpheDownloadHelper-v2.7.3-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
 
 Both builds have the same package name, version, signing key, and features. Install one or
 the other, not both. The in-app updater stays on the build you installed. When switching
@@ -62,7 +62,7 @@ shortcut if your launcher keeps it.
 
 | Main screen | Download complete | Settings |
 | --- | --- | --- |
-| ![Main screen](docs/screenshots/main-2.7.2.png) | ![Download complete](docs/screenshots/download-2.7.2.png) | ![Settings](docs/screenshots/settings-general-2.7.2.png) |
+| ![Main screen](docs/screenshots/main-2.7.3.png) | ![Download complete](docs/screenshots/download-2.7.3.png) | ![Settings](docs/screenshots/settings-general-2.7.3.png) |
 
 See the **[settings guide with screenshots](docs/SETTINGS.md)** for every section and what
 each option does.
