@@ -1,9 +1,7 @@
 # Morphe design — v3 direction
 
-Status: **prototype branch `v3-design-poc`.** Not merged, not released.
-The stable v2.7.3 release continues to use the current Material 3 Expressive
-screens. On this branch, Morphe is the only home design; Classic has been
-removed and migrated.
+Status: **v3.0.0 release candidate on `v3-design-poc`.** Not yet published.
+Morphe is the only home design; Classic has been removed and migrated.
 
 ## Goal
 
@@ -57,8 +55,8 @@ main actions visible and gives downloads and sources a stable home.
    section icon tiles; the existing sheets inherit the larger type. **First pass
    done.**
 6. **Download and update screens** — gradient backgrounds, Morphe display
-   headers, gradient update badge, and the existing M3 cards/buttons retained.
-   **First pass done**; deeper progress-ring and state polish remains.
+   headers, gradient update badge, and a dedicated failure hero with retry,
+   switch-source, diagnostics, and close actions. **Done.**
 7. **Polish** — motion, haptics, large-font and RTL passes, screenshots, and a
    size comparison.
 
@@ -84,6 +82,8 @@ main actions visible and gives downloads and sources a stable home.
 - `docs/branding/material3/v3-shell-storage-sheet.png`
 - `docs/branding/material3/v3-guide.png`
 - `docs/branding/material3/v3-update.png`
+- `docs/branding/material3/v3-download.png`
+- `docs/branding/material3/v3-download-failure.png`
 
 ## Guardrails
 
@@ -118,9 +118,12 @@ The branch now implements the first pass of phases 1–5:
   to dismiss, and a short drag springs back.
 - Appearance: theme, accent, and colour controls only; no design switch.
 - Guide, Update, Download, and Appearance use the Morphe gradient background
-  and display headers. Update also gets the gradient update tile. Their M3
-  cards, controls, and progress ring are unchanged so download behaviour stays
-  intact.
+  and display headers. Update also gets the gradient update tile.
+- The Download failure state has its own error hero: red gradient card, warning
+  tile, plain-language reason, Retry all / Retry failed, Switch source, Copy
+  details, Edit sources, Open download page (when available), and Close. The
+  source-attempt diagnostics sit in a separate "What happened" card. Download
+  logic, WebView flows, and VirusTotal states are unchanged.
 
 The shell is the launcher home. The old classic home screen is deleted, and the
 legacy design preference is removed on upgrade.

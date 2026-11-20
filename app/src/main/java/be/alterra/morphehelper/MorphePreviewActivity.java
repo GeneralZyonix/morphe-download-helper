@@ -131,11 +131,12 @@ public class MorphePreviewActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
         navBar = buildNavBar();
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int navWidth = Math.min(screenWidth - dp(36), dp(720));
         FrameLayout.LayoutParams navParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        navParams.gravity = Gravity.BOTTOM;
-        navParams.setMargins(dp(18), 0, dp(18), dp(16));
+                navWidth, ViewGroup.LayoutParams.WRAP_CONTENT);
+        navParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        navParams.bottomMargin = dp(16);
         root.addView(navBar, navParams);
 
         setContentView(root);
@@ -1423,7 +1424,9 @@ public class MorphePreviewActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
-        scroll.setPadding(dp(20), dp(18), dp(20), dp(24));
+        int screen = getResources().getDisplayMetrics().widthPixels;
+        int horizontal = Math.max(dp(20), (screen - dp(720)) / 2);
+        scroll.setPadding(horizontal, dp(18), horizontal, dp(24));
         return scroll;
     }
 

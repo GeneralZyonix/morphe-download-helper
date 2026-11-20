@@ -1,7 +1,7 @@
 # Material 3 Expressive test branch
 
-Status: **v2.7.3 pre-release, built from `material3-poc`.** `main` remains on
-the stable v2.3.10 release.
+Status: **v3.0.0 release candidate, built from `v3-design-poc`.** Not yet
+published; `main` remains on the stable v2.3.10 release until the 3.0 merge.
 Branch: `material3-poc`  
 Base: `main` at v2.3.10 (`a05fea2`)
 

@@ -385,6 +385,8 @@
     <string name="download_title_progress">Downloading for Morphe</string>
     <string name="download_title_failure">No APK found</string>
     <string name="download_subtitle_failure">No source produced a matching APK</string>
+    <string name="download_failure_overline">Download failed</string>
+    <string name="download_failure_title">No source returned a usable APK.</string>
     <string name="download_retry_all">Retry all sources</string>
     <string name="download_steps_title">Sources</string>
     <string name="download_metric_source">Source</string>

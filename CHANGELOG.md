@@ -5,6 +5,64 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [3.0.0] - 2026-11-20
+
+3.0.0 makes Morphe the only home design. It includes everything from the
+2.4–2.7 pre-release series and replaces 2.3.10 as the latest stable release.
+
+### Added
+
+- **Four-tab Morphe shell:** Home, Downloads, Sources, and Settings with a
+  floating pill navigation bar and horizontal page slides.
+- **Downloads:** persisted history of the last 40 hand-offs, current APKs from
+  the cache and public `Downloads/Morphe Helper` folder, and delete-all in the
+  tab header.
+- **Sources:** an in-shell source list with live toggles, ordering, and a
+  full-settings shortcut.
+- **Settings:** in-shell section cards with gradient tiles. Each section opens
+  in a sheet over the shell, and the handle drags to dismiss.
+- **Helper log:** one action sheet with Share, Copy, Save, Preview, Report,
+  Suggest, and Clear. Every export is sanitized first; Save uses the system
+  file picker.
+- **Guide, Update, Download, and Appearance:** Morphe gradient backgrounds,
+  display headers, and gradient update/step tiles.
+- **Download failure:** a dedicated error hero with Retry all, Retry failed,
+  Switch source, Copy details, Edit sources, Open download page, and Close,
+  followed by a source-attempt diagnostics card.
+- Help dialog, developer links, shared-link import, and update checks in the
+  new shell.
+
+### Changed
+
+- The Classic home screen is removed; Morphe is the launcher entry point and
+  the only home design.
+- The Appearance **Design** switch is gone. Legacy `design_style` values are
+  removed on first launch.
+- Notification permission, cleanup, launcher-icon state, and update checks now
+  run in the shell.
+- The redundant **Done** and **Open all settings** buttons are removed.
+- Delete-all moved from Home to Downloads.
+- The hero action is tinted from the selected accent instead of staying white.
+
+### Fixed
+
+- Dark / AMOLED / Light / System, accents, custom schemes, and Material You
+  reapply when returning to the shell.
+- Vertical scrolling works from cards and buttons, and the last row clears the
+  floating navigation bar.
+- Source toggles and ordering, Test all, Check now, Update mode, Shizuku, and
+  other settings update in place without closing the sheet.
+- Log exports are sanitized across Share, Copy, Save, Preview, and GitHub
+  reports.
+
+### Upgrade notes
+
+- Upgrading from 2.3.10 or any 2.7.x build keeps app data and settings.
+- 2.7.0 predates the pre-release flag; install 2.7.2/2.7.3 or later once if you
+  were relying on Auto from that build.
+- The release APKs are still signed with the Android debug key for sideloading
+  and are non-debuggable.
+
 ## [2.7.3] - 2026-11-20
 
 2.7.3 finishes the in-place settings work across Storage, Security, and Backup.

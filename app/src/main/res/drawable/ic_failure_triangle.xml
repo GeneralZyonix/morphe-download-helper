@@ -1,0 +1,13 @@
+<!--
+    Rounded alert triangle, tinted in code to the active error color.
+    The exclamation mark is a separate layer so it keeps contrast.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2.5 L22.2,20.8 A1.2,1.2 0 0 1 21.1,22.6 H2.9 A1.2,1.2 0 0 1 1.8,20.8 Z" />
+</vector>

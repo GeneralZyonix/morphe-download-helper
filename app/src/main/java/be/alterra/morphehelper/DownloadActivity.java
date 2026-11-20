@@ -521,6 +521,11 @@ public class DownloadActivity extends Activity {
     private ExecutorService apiProbePool;
     private boolean apkPurePrefetchStarted;
 
+    private LinearLayout progressCard;
+    private LinearLayout failureCard;
+    private LinearLayout failureActions;
+    private TextView failureSwitch;
+    private TextView failureClose;
     private LinearLayout diagnosticsCard;
     private LinearLayout diagnosticsRows;
     private TextView diagnosticsSummary;
@@ -728,6 +733,12 @@ public class DownloadActivity extends Activity {
 
         diagnosticsCard.setVisibility(View.GONE);
         fallbackButton.setVisibility(View.GONE);
+        if (failureCard != null) {
+            failureCard.setVisibility(View.GONE);
+        }
+        if (progressCard != null) {
+            progressCard.setVisibility(View.VISIBLE);
+        }
         sourceLabel.setVisibility(View.GONE);
         cancelButton.setText("\u2715  " + getString(R.string.common_cancel));
         progress.setVisibility(View.VISIBLE);
@@ -2658,8 +2669,11 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView back = text("\u2190", 24, TEXT, true);
-        back.setGravity(Gravity.CENTER);
+        ImageView back = new ImageView(this);
+        back.setImageResource(R.drawable.ic_arrow_back);
+        back.setColorFilter(TEXT);
+        back.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        back.setPadding(dp(10), dp(10), dp(10), dp(10));
         back.setContentDescription(getString(R.string.common_cancel));
         back.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE), M3Ui.filled(this,
@@ -2689,11 +2703,79 @@ public class DownloadActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(20), dp(20), dp(20), dp(20));
         card.setBackground(cardBackground());
+        progressCard = card;
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         cardParams.topMargin = dp(12);
         root.addView(card, cardParams);
+
+        failureCard = new LinearLayout(this);
+        failureCard.setOrientation(LinearLayout.VERTICAL);
+        failureCard.setPadding(dp(20), dp(20), dp(20), dp(20));
+        GradientDrawable failureBackground = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{M3Ui.errorContainer(palette),
+                        M3Ui.surfaceContainer(palette)});
+        failureBackground.setCornerRadius(dp(28));
+        failureBackground.setStroke(Math.max(1, dp(1)),
+                M3Ui.blend(RED, CARD_TOP, 0.55f));
+        failureCard.setBackground(failureBackground);
+        failureCard.setVisibility(View.GONE);
+        LinearLayout.LayoutParams failureParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        failureParams.topMargin = dp(12);
+        root.addView(failureCard, failureParams);
+
+        LinearLayout failureHeader = new LinearLayout(this);
+        failureHeader.setOrientation(LinearLayout.HORIZONTAL);
+        failureHeader.setGravity(Gravity.CENTER_VERTICAL);
+        FrameLayout failureIconTile = new FrameLayout(this);
+        failureIconTile.setBackground(M3Ui.filled(this,
+                M3Ui.blend(RED, CARD_TOP, 0.42f), 16,
+                Math.max(1, dp(1)), M3Ui.blend(RED, CARD_TOP, 0.28f)));
+        ImageView failureIcon = new ImageView(this);
+        failureIcon.setImageResource(R.drawable.ic_failure_triangle);
+        failureIcon.setColorFilter(RED);
+        FrameLayout.LayoutParams failureIconInner = new FrameLayout.LayoutParams(
+                dp(26), dp(26));
+        failureIconInner.gravity = Gravity.CENTER;
+        failureIconTile.addView(failureIcon, failureIconInner);
+
+        ImageView failureBang = new ImageView(this);
+        failureBang.setImageResource(R.drawable.ic_failure_bang);
+        failureBang.setColorFilter(CARD_TOP);
+        FrameLayout.LayoutParams failureBangInner = new FrameLayout.LayoutParams(
+                dp(26), dp(26));
+        failureBangInner.gravity = Gravity.CENTER;
+        failureIconTile.addView(failureBang, failureBangInner);
+        LinearLayout.LayoutParams failureIconParams = new LinearLayout.LayoutParams(
+                dp(48), dp(48));
+        failureIconParams.setMarginEnd(dp(14));
+        failureHeader.addView(failureIconTile, failureIconParams);
+
+        LinearLayout failureLabels = new LinearLayout(this);
+        failureLabels.setOrientation(LinearLayout.VERTICAL);
+        failureLabels.addView(M3Ui.overline(this,
+                getString(R.string.download_failure_overline), RED));
+        TextView failureTitle = M3Ui.display(this,
+                getString(R.string.download_failure_title), 24, TEXT);
+        failureTitle.setPadding(0, dp(4), 0, 0);
+        failureLabels.addView(failureTitle);
+        failureHeader.addView(failureLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        failureCard.addView(failureHeader);
+
+        diagnosticsSummary = M3Ui.text(this, "", 12, MUTED, 400);
+        diagnosticsSummary.setLineSpacing(dp(3), 1f);
+        diagnosticsSummary.setPadding(0, dp(10), 0, 0);
+        failureCard.addView(diagnosticsSummary);
+
+        failureActions = new LinearLayout(this);
+        failureActions.setOrientation(LinearLayout.VERTICAL);
+        failureActions.setPadding(0, dp(14), 0, 0);
+        failureCard.addView(failureActions);
 
         stateIcon = text("\u2715", 56, RED, true);
         stateIcon.setGravity(Gravity.CENTER);
@@ -3053,23 +3135,18 @@ public class DownloadActivity extends Activity {
         diagnosticsParams.topMargin = dp(14);
         root.addView(diagnosticsCard, diagnosticsParams);
 
-        diagnosticsCard.addView(text(getString(R.string.download_what_happened), 16, TEXT, true));
-        diagnosticsSummary = text("", 12, MUTED, false);
-        diagnosticsSummary.setLineSpacing(dp(3), 1f);
-        diagnosticsSummary.setPadding(0, dp(6), 0, dp(4));
-        diagnosticsCard.addView(diagnosticsSummary);
+        diagnosticsCard.addView(M3Ui.title(this,
+                getString(R.string.download_what_happened), 17, TEXT));
 
         diagnosticsRows = new LinearLayout(this);
         diagnosticsRows.setOrientation(LinearLayout.VERTICAL);
         diagnosticsCard.addView(diagnosticsRows);
 
-        retryAllButton = secondaryButton(getString(R.string.download_retry_all));
+        retryAllButton = primaryButton(getString(R.string.download_retry_all));
         retryAllButton.setVisibility(View.GONE);
         retryAllButton.setOnClickListener(v -> retryAllSources());
-        LinearLayout.LayoutParams retryAllParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-        retryAllParams.topMargin = dp(10);
-        diagnosticsCard.addView(retryAllButton, retryAllParams);
+        failureActions.addView(retryAllButton, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(50)));
 
         retryButton = secondaryButton(getString(R.string.download_retry_failed));
         retryButton.setVisibility(View.GONE);
@@ -3077,7 +3154,14 @@ public class DownloadActivity extends Activity {
         LinearLayout.LayoutParams retryParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         retryParams.topMargin = dp(8);
-        diagnosticsCard.addView(retryButton, retryParams);
+        failureActions.addView(retryButton, retryParams);
+
+        failureSwitch = secondaryButton(getString(R.string.download_switch_source_short));
+        failureSwitch.setOnClickListener(v -> showSwitchSourcePicker());
+        LinearLayout.LayoutParams failureSwitchParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        failureSwitchParams.topMargin = dp(8);
+        failureActions.addView(failureSwitch, failureSwitchParams);
 
         copyButton = secondaryButton(getString(R.string.download_copy_details));
         copyButton.setVisibility(View.GONE);
@@ -3085,7 +3169,7 @@ public class DownloadActivity extends Activity {
         LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         copyParams.topMargin = dp(8);
-        diagnosticsCard.addView(copyButton, copyParams);
+        failureActions.addView(copyButton, copyParams);
 
         editSourcesButton = secondaryButton(getString(R.string.download_edit_sources));
         editSourcesButton.setVisibility(View.GONE);
@@ -3094,7 +3178,7 @@ public class DownloadActivity extends Activity {
         LinearLayout.LayoutParams editSourcesParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         editSourcesParams.topMargin = dp(8);
-        diagnosticsCard.addView(editSourcesButton, editSourcesParams);
+        failureActions.addView(editSourcesButton, editSourcesParams);
 
         // Uptodown verification section. Hidden until the WebView flow starts so the
         // normal APKMirror/APKPure screens stay clean.
@@ -3124,7 +3208,7 @@ public class DownloadActivity extends Activity {
                 dp(520)));
 
         // Fallback button is hidden until resolution fails.
-        fallbackButton = primaryButton(getString(R.string.download_open_page));
+        fallbackButton = secondaryButton(getString(R.string.download_open_page));
         fallbackButton.setVisibility(View.GONE);
         fallbackButton.setOnClickListener(v -> {
             if (!TextUtils.isEmpty(fallbackUrl)) {
@@ -3136,10 +3220,16 @@ public class DownloadActivity extends Activity {
             }
         });
         LinearLayout.LayoutParams fallbackParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(52));
-        fallbackParams.topMargin = dp(16);
-        root.addView(fallbackButton, fallbackParams);
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        fallbackParams.topMargin = dp(8);
+        failureActions.addView(fallbackButton, fallbackParams);
+
+        failureClose = secondaryButton(getString(R.string.common_close));
+        failureClose.setOnClickListener(v -> cancel());
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        closeParams.topMargin = dp(8);
+        failureActions.addView(failureClose, closeParams);
 
         // Attach the content column to the ScrollView and show it.
         scroll.addView(root, new ScrollView.LayoutParams(
@@ -4345,6 +4435,15 @@ public class DownloadActivity extends Activity {
             skipScanButton.setVisibility(View.GONE);
             if (sourceStepsCard != null) {
                 sourceStepsCard.setVisibility(View.GONE);
+            }
+            if (progressCard != null) {
+                progressCard.setVisibility(View.GONE);
+            }
+            if (failureCard != null) {
+                failureCard.setVisibility(View.VISIBLE);
+            }
+            if (scrollView != null) {
+                scrollView.scrollTo(0, 0);
             }
             if (stateIcon != null) {
                 stateIcon.setVisibility(View.VISIBLE);

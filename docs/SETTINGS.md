@@ -1,13 +1,14 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 2.7.3. The
-section screenshots below were taken from 2.3.10 and show the same options; in 2.5.0 the
-sections open in a bottom sheet instead of expanding inline.
+This page explains every section of **Settings** in Morphe Download Helper 3.0.0. The
+screenshots were taken from 3.0.0 and show the in-shell section cards; each section opens
+in a sheet over the shell.
 
-Open Settings from the gear button on the main screen. Tap a section to open its options
-in a sheet; use the close button or Back to return to the section list.
+Open Settings from the **Settings** tab in the bottom navigation. Tap a section to open its
+options in a sheet; use the close button, drag the handle down, or press Back to return to
+the section list.
 
-![Settings overview](screenshots/settings-general-2.6.0.png)
+![Settings overview](screenshots/settings-general-3.0.0.png)
 
 ## General
 
@@ -24,7 +25,7 @@ synthetic shortcut behind on Android 10+.
 
 ## Appearance
 
-![Appearance settings](screenshots/settings-appearance-2.3.8.png)
+![Appearance settings](screenshots/settings-appearance-3.0.0.png)
 
 | Setting | What it does |
 | --- | --- |
@@ -37,7 +38,7 @@ synthetic shortcut behind on Android 10+.
 
 The **Updates** section controls the helper's own updater, not app downloads.
 
-![Update settings](screenshots/settings-updates-2.3.8.png)
+![Update settings](screenshots/settings-updates-3.0.0.png)
 
 | Setting | What it does |
 | --- | --- |
@@ -54,7 +55,7 @@ The **Updates** section controls the helper's own updater, not app downloads.
 
 These options affect the in-app WebView pages used for source verification.
 
-![Download page settings](screenshots/settings-download-pages-2.3.8.png)
+![Download page settings](screenshots/settings-download-pages-3.0.0.png)
 
 | Setting | What it does |
 | --- | --- |
@@ -68,7 +69,7 @@ affects pages opened inside the helper, not your browser.
 
 The main-screen **Sources** button opens a compact quick manager. Changes there apply immediately; the full-screen icon opens this Settings page for GitHub apps and the remaining options.
 
-![Source list](screenshots/settings-sources-2.3.8.png)
+![Source list](screenshots/settings-sources-3.0.0.png)
 
 Sources are tried from top to bottom. Drag the handle to reorder them; use the switch to
 enable or disable one. Disabled sources are skipped completely, and at least one source must
@@ -86,7 +87,7 @@ stay enabled. Each row has a **Test** action, and **Test all sources** checks th
 | **Appteka** | Exact version/code; SnapTube only by default and marked hazardous. |
 | **GitHub releases** | Resolver links and remembered/pinned repositories first; automatic search is the final fallback. |
 
-![Fast source checks and test all](screenshots/settings-sources-fast-2.3.8.png)
+![Fast source checks and test all](screenshots/settings-sources-fast-3.0.0.png)
 
 ### Fast source checks
 
@@ -133,7 +134,7 @@ package, version, and build code before hand-off.
 
 ## Storage
 
-![Storage settings](screenshots/settings-storage-2.3.8.png)
+![Storage settings](screenshots/settings-storage-3.0.0.png)
 
 | Setting | What it does |
 | --- | --- |
@@ -149,7 +150,7 @@ package, version, and build code before hand-off.
 
 ## Security
 
-![Security and VirusTotal settings](screenshots/settings-security-2.3.8.png)
+![Security and VirusTotal settings](screenshots/settings-security-3.0.0.png)
 
 VirusTotal is optional and **off by default**.
 
@@ -170,7 +171,7 @@ limits.
 
 ## Background
 
-![Background settings](screenshots/settings-background-2.3.8.png)
+![Background settings](screenshots/settings-background-3.0.0.png)
 
 **Battery optimization** shows whether Android is restricting the helper. Request an
 exemption so update checks, downloads, and notifications are not delayed. This is optional;
@@ -178,7 +179,7 @@ the helper still works while optimized, but Android may delay background work.
 
 ## Backup
 
-![Backup settings](screenshots/settings-backup-2.3.8.png)
+![Backup settings](screenshots/settings-backup-3.0.0.png)
 
 | Setting | What it does |
 | --- | --- |
@@ -203,7 +204,7 @@ unless you tap **Create settings file** again.
 - **How do I force a fresh search?** Tap **Retry all sources** or **Retry failed sources**.
   Both bypass the local result caches.
 - **How do I remove the old settings file?** Settings → Backup → **Delete settings file**.
-- **Where is the log?** Main screen → **Helper log** → **Share log**, **Save log**,
+- **Where is the log?** Home → **Helper log** → **Share log**, **Save log**,
   **Copy log**, or **Report on GitHub**.
 
 Back to the [main README](../README.md) or the [setup guide](../GUIDE.md).
