@@ -129,7 +129,8 @@ final class UpdateManager {
         if (AppSettings.UPDATE_CHANNEL_PRERELEASE.equals(channel)) {
             return true;
         }
-        return UpdateInfo.isPrerelease(UpdateChecker.installedVersion(context));
+        return BuildConfig.PRERELEASE
+                || UpdateInfo.isPrerelease(UpdateChecker.installedVersion(context));
     }
 
     static void remindLater(Context context) {

@@ -363,6 +363,24 @@ final class M3Ui {
         ));
     }
 
+    static TextView versionBadge(Context context, ThemePalette palette, boolean prerelease) {
+        int foreground = prerelease
+                ? palette.onPrimary
+                : (palette.light ? Color.WHITE : Color.BLACK);
+        TextView badge = text(context, prerelease ? "P" : "R", 12,
+                foreground, 700);
+        badge.setGravity(Gravity.CENTER);
+        badge.setIncludeFontPadding(false);
+        badge.setContentDescription(context.getString(prerelease
+                ? R.string.main_version_badge_prerelease
+                : R.string.main_version_badge_release));
+        GradientDrawable background = prerelease
+                ? brandGradient(context, palette, 7)
+                : filled(context, palette.green, 7, 0, Color.TRANSPARENT);
+        badge.setBackground(background);
+        return badge;
+    }
+
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------

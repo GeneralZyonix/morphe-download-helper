@@ -35,6 +35,10 @@
     <string name="main_status_missing">Morphe not installed</string>
     <string name="main_status_missing_chip">🚫 Morphe not installed</string>
     <string name="main_version_chip">Helper v%1$s · %2$s</string>
+    <string name="main_version_chip_version">Helper v%1$s</string>
+    <string name="main_version_chip_build">· %1$s</string>
+    <string name="main_version_badge_prerelease">Pre-release build</string>
+    <string name="main_version_badge_release">Release build</string>
     <string name="main_build_icon">Icon</string>
     <string name="main_build_no_icon">No icon</string>
     <string name="main_log_title">Helper log</string>

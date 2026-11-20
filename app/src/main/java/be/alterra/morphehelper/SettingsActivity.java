@@ -111,6 +111,8 @@ public class SettingsActivity extends Activity {
     private String pendingLocation;
     private boolean exportIncludeSecrets;
     private ScrollView settingsScroll;
+    private TextView updateChannelValue;
+    private TextView updateStatusView;
     private final Map<String, LinearLayout> sectionBodies = new HashMap<>();
     private final Map<String, Integer> sectionTitles = new HashMap<>();
     private final Map<String, Integer> sectionSummaries = new HashMap<>();
@@ -629,6 +631,38 @@ public class SettingsActivity extends Activity {
         return background;
     }
 
+    private void scheduleSourcesRebuild() {
+        LinearLayout body = sectionBodies.get(SECTION_SOURCES);
+        if (body != null) {
+            body.post(this::rebuildSourcesSheet);
+        } else {
+            recreate();
+        }
+    }
+
+    /** Rebuilds the Sources sheet in place so it does not close and reopen. */
+    private void rebuildSourcesSheet() {
+        LinearLayout body = sectionBodies.get(SECTION_SOURCES);
+        if (body == null) {
+            return;
+        }
+        int scrollY = sectionSheetScroll == null ? 0 : sectionSheetScroll.getScrollY();
+        boolean githubExpanded = githubAppsExpanded;
+        body.removeAllViews();
+        addSourcesCard(body);
+        addApptekaWarningCard(body);
+        addGitHubAppsCard(body);
+        githubAppsExpanded = githubExpanded;
+        applyGitHubAppsState();
+        if (sectionSheetScroll != null) {
+            sectionSheetScroll.post(() -> {
+                if (sectionSheetScroll != null) {
+                    sectionSheetScroll.scrollTo(0, scrollY);
+                }
+            });
+        }
+    }
+
     private void addSubsectionDivider(LinearLayout parent) {
         View divider = new View(this);
         divider.setBackgroundColor(M3Ui.outlineVariant(palette));
@@ -722,7 +756,7 @@ public class SettingsActivity extends Activity {
                 button.setText(R.string.settings_test_all);
                 Toast.makeText(this, getString(R.string.settings_test_all_result,
                         state[0], state[1]), Toast.LENGTH_LONG).show();
-                recreate();
+                scheduleSourcesRebuild();
                 return;
             }
             String key = keys.get(state[2]++);
@@ -953,6 +987,7 @@ public class SettingsActivity extends Activity {
         }
         TextView statusView = text(status, 13, MUTED, false);
         statusView.setPadding(0, dp(6), 0, dp(6));
+        updateStatusView = statusView;
         card.addView(statusView);
 
         LinearLayout enabledRow = new LinearLayout(this);
@@ -1011,6 +1046,14 @@ public class SettingsActivity extends Activity {
                 getString(R.string.settings_update_channel),
                 updateChannelLabel());
         channelRow.setOnClickListener(v -> showUpdateChannelDialog());
+        if (channelRow.getChildCount() > 0
+                && channelRow.getChildAt(0) instanceof LinearLayout) {
+            LinearLayout labels = (LinearLayout) channelRow.getChildAt(0);
+            if (labels.getChildCount() > 1
+                    && labels.getChildAt(1) instanceof TextView) {
+                updateChannelValue = (TextView) labels.getChildAt(1);
+            }
+        }
         card.addView(channelRow);
 
         if (!UpdateManager.MODE_SHIZUKU.equals(mode)) {
@@ -1130,7 +1173,14 @@ public class SettingsActivity extends Activity {
                             UpdateManager.clearCachedLatest(this);
                             UpdateManager.clearReminder(this);
                             PublicSettings.write(this);
-                            recreate();
+                            if (updateChannelValue != null) {
+                                updateChannelValue.setText(updateChannelLabel());
+                            }
+                            if (updateStatusView != null) {
+                                updateStatusView.setText(getString(
+                                        R.string.settings_status_not_checked,
+                                        UpdateChecker.installedVersion(this)));
+                            }
                         })
                 .show();
     }
@@ -2563,7 +2613,7 @@ public class SettingsActivity extends Activity {
             up.setOnClickListener(v -> {
                 AppSettings.moveSource(this, key, -1);
                 PublicSettings.write(this);
-                recreate();
+                scheduleSourcesRebuild();
             });
             row.addView(up);
             TextView down = text("\u2193", 18, PRIMARY_START, true);
@@ -2573,7 +2623,7 @@ public class SettingsActivity extends Activity {
             down.setOnClickListener(v -> {
                 AppSettings.moveSource(this, key, 1);
                 PublicSettings.write(this);
-                recreate();
+                scheduleSourcesRebuild();
             });
             row.addView(down);
 
@@ -2600,7 +2650,7 @@ public class SettingsActivity extends Activity {
                         if (tag != null && target >= 0) {
                             AppSettings.moveSourceTo(this, String.valueOf(tag), target);
                             PublicSettings.write(this);
-                            recreate();
+                            scheduleSourcesRebuild();
                         }
                     }
                     return true;
@@ -2615,7 +2665,7 @@ public class SettingsActivity extends Activity {
         reset.setOnClickListener(v -> {
             AppSettings.resetSourceOrder(this);
             PublicSettings.write(this);
-            recreate();
+            scheduleSourcesRebuild();
         });
         card.addView(reset);
     }
@@ -2781,7 +2831,7 @@ public class SettingsActivity extends Activity {
             }
             SourceSettings.setEnabled(this, key, isChecked);
             PublicSettings.write(this);
-            recreate();
+            scheduleSourcesRebuild();
         });
         LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
                 dp(64), dp(48));
@@ -2825,7 +2875,7 @@ public class SettingsActivity extends Activity {
                     order.add(to, dragged);
                     AppSettings.setSourceOrder(this, order);
                     PublicSettings.write(this);
-                    recreate();
+                    scheduleSourcesRebuild();
                 }
                 return true;
             }

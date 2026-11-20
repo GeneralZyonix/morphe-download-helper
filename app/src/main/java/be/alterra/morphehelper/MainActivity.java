@@ -277,13 +277,27 @@ public class MainActivity extends Activity {
         String buildName = getString(AppSettings.isLauncherIconShown(this)
                 ? R.string.main_build_icon
                 : R.string.main_build_no_icon);
-        TextView versionChip = text(
-                getString(R.string.main_version_chip, appVersion, buildName),
-                12, ACCENT_TEXT, true);
+        LinearLayout versionChip = new LinearLayout(this);
+        versionChip.setOrientation(LinearLayout.HORIZONTAL);
+        versionChip.setGravity(Gravity.CENTER_VERTICAL);
         versionChip.setPadding(dp(12), dp(6), dp(12), dp(6));
         GradientDrawable versionFill = rounded(withAlpha(ACCENT_TEXT, 10), 999);
         versionFill.setStroke(dp(1), withAlpha(ACCENT_TEXT, 32));
         versionChip.setBackground(versionFill);
+        versionChip.addView(text(
+                getString(R.string.main_version_chip_version, appVersion),
+                12, ACCENT_TEXT, true));
+        TextView versionBadge = M3Ui.versionBadge(this, palette,
+                BuildConfig.PRERELEASE);
+        LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
+                dp(22), dp(22));
+        badgeParams.setMarginStart(dp(6));
+        versionChip.addView(versionBadge, badgeParams);
+        TextView buildText = text(
+                getString(R.string.main_version_chip_build, buildName),
+                12, ACCENT_TEXT, true);
+        buildText.setPadding(dp(6), 0, 0, 0);
+        versionChip.addView(buildText);
         LinearLayout.LayoutParams versionChipParams = new LinearLayout.LayoutParams(
                 WRAP_CONTENT, WRAP_CONTENT);
         versionChipParams.setMarginStart(dp(8));

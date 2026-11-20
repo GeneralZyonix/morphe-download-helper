@@ -5,6 +5,40 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [2.7.1] - 2026-11-20
+
+2.7.1 makes settings changes apply in place instead of closing and reopening
+the bottom sheet, adds the pre-release/release badge, and adds a stable or
+pre-release update channel.
+
+### Added
+
+- **P/R version badge:** the helper version chip shows a rounded **P** badge on
+  pre-release builds and a green **R** badge on stable builds. The badge has a
+  TalkBack description.
+- **Update channel:** Settings → Updates now offers **Auto**, **Stable only**,
+  and **Pre-release**. Auto follows the installed build; Pre-release lets a
+  stable build opt into pre-release versions.
+- **Compact quick Source Manager:** a full-screen icon opens the full Settings
+  Sources sheet, and a close icon dismisses the quick sheet. The extra Test all,
+  Full source settings, and Done buttons were removed; changes apply
+  immediately.
+
+### Fixed
+
+- **Settings sheet no longer reopens after a setting change:** source toggles,
+  source reordering, test-all completion, and update-channel changes update in
+  place and keep the sheet open. Source changes preserve the sheet scroll
+  position.
+
+### Changed
+
+- The main action is now labelled **Open Morphe Manager**.
+
+Thanks to [@ran-some](https://github.com/ran-some) for the update-channel and
+quick-source-sheet ideas
+([#61](https://github.com/GeneralZyonix/morphe-download-helper/issues/61)).
+
 ## [2.3.10] - 2026-11-18
 
 2.3.10 makes diagnostic log exports safe to share by default and adds a
