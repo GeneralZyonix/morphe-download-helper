@@ -140,6 +140,10 @@ final class PublicSettings {
         if (themeTint != null) {
             AppSettings.setThemeTintSurfaces(context, themeTint);
         }
+        String designStyle = values.get("design_style");
+        if (designStyle != null) {
+            AppSettings.setDesignStyle(context, designStyle);
+        }
 
         Boolean updateChecks = bool(values, "update_checks");
         if (updateChecks != null) {
@@ -428,6 +432,8 @@ final class PublicSettings {
         text.append("theme_scheme_hex=").append(AppSettings.themeSchemeHex(context)).append('\n');
         text.append("theme_tint_surfaces=")
                 .append(AppSettings.themeTintSurfaces(context)).append('\n');
+        text.append("design_style=")
+                .append(AppSettings.designStyle(context)).append('\n');
         text.append("update_checks=")
                 .append(UpdateManager.isEnabled(context)).append('\n');
         text.append("update_mode=")

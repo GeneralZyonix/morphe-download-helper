@@ -15,7 +15,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -602,56 +601,63 @@ public class AppearanceActivity extends Activity {
         return chip;
     }
 
-    /** Entry point for the v3 Morphe shell prototype. */
+    /** Optional Classic / Morphe design selector. */
     private void addDesignCard(LinearLayout root) {
         LinearLayout card = card();
         LinearLayout.LayoutParams params = cardParams();
         params.topMargin = dp(18);
         root.addView(card, params);
 
-        card.addView(text(getString(R.string.preview_appearance_title), 16, TEXT, true));
-        TextView detail = text(getString(R.string.preview_appearance_body), 12, MUTED, false);
+        card.addView(text(getString(R.string.appearance_design), 16, TEXT, true));
+        TextView detail = text(getString(R.string.appearance_design_detail), 12, MUTED, false);
         detail.setLineSpacing(dp(2), 1f);
-        detail.setPadding(0, dp(4), 0, dp(14));
+        detail.setPadding(0, dp(4), 0, dp(12));
         card.addView(detail);
 
+        String design = AppSettings.designStyle(this);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(14), dp(12), dp(14), dp(12));
-        row.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(RIPPLE),
-                M3Ui.filled(this, M3Ui.secondaryContainer(palette), 20,
-                        Math.max(1, dp(1)), M3Ui.outlineVariant(palette)),
-                null));
-        row.setClickable(true);
-        row.setFocusable(true);
-        M3Ui.motion(row);
+        TextView classic = optionChip(getString(R.string.appearance_design_classic),
+                ThemeManager.DESIGN_CLASSIC.equals(design));
+        classic.setOnClickListener(v -> selectDesign(ThemeManager.DESIGN_CLASSIC));
+        LinearLayout.LayoutParams classicParams = new LinearLayout.LayoutParams(
+                0, dp(44), 1f);
+        classicParams.setMarginEnd(dp(4));
+        row.addView(classic, classicParams);
 
-        ImageView icon = new ImageView(this);
-        icon.setImageResource(R.drawable.ic_home);
-        icon.setColorFilter(ACCENT_TEXT);
-        icon.setPadding(dp(9), dp(9), dp(9), dp(9));
-        icon.setBackground(M3Ui.filled(this,
-                M3Ui.primaryContainer(palette), 12, 0, 0));
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(40), dp(40));
-        iconParams.setMarginEnd(dp(12));
-        row.addView(icon, iconParams);
-
-        TextView label = M3Ui.title(this,
-                getString(R.string.preview_appearance_row), 14, TEXT);
-        row.addView(label, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        ImageView chevron = new ImageView(this);
-        chevron.setImageResource(R.drawable.ic_chevron_right);
-        chevron.setColorFilter(MUTED);
-        chevron.setPadding(dp(6), dp(6), dp(6), dp(6));
-        row.addView(chevron, new LinearLayout.LayoutParams(dp(32), dp(32)));
-
-        row.setOnClickListener(v ->
-                startActivity(new Intent(this, MorphePreviewActivity.class)));
+        TextView morphe = optionChip(getString(R.string.appearance_design_morphe),
+                ThemeManager.DESIGN_MORPHE.equals(design));
+        morphe.setOnClickListener(v -> selectDesign(ThemeManager.DESIGN_MORPHE));
+        LinearLayout.LayoutParams morpheParams = new LinearLayout.LayoutParams(
+                0, dp(44), 1f);
+        morpheParams.setMarginStart(dp(4));
+        row.addView(morphe, morpheParams);
         card.addView(row);
+
+        TextView note = text(getString(R.string.appearance_design_note), 11, MUTED, false);
+        note.setLineSpacing(dp(2), 1f);
+        note.setPadding(0, dp(8), 0, 0);
+        card.addView(note);
+
+        if (ThemeManager.DESIGN_MORPHE.equals(design)) {
+            TextView open = M3Ui.tonalButton(this, palette,
+                    getString(R.string.appearance_design_open), R.drawable.ic_home);
+            open.setOnClickListener(v ->
+                    startActivity(new Intent(this, MorphePreviewActivity.class)));
+            LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+            openParams.topMargin = dp(12);
+            card.addView(open, openParams);
+        }
+    }
+
+    private void selectDesign(String design) {
+        if (design.equals(AppSettings.designStyle(this))) {
+            return;
+        }
+        AppSettings.setDesignStyle(this, design);
+        PublicSettings.write(this);
+        recreate();
     }
 
     private LinearLayout card() {

@@ -119,6 +119,17 @@ final class ResolutionReport {
         return new LinkedHashSet<>(failedKeys);
     }
 
+    /** Label of the most recent successful source, for download history. */
+    synchronized String successSourceLabel() {
+        for (int i = attempts.size() - 1; i >= 0; i--) {
+            Attempt attempt = attempts.get(i);
+            if (attempt.success) {
+                return attempt.label;
+            }
+        }
+        return "";
+    }
+
     synchronized boolean isFinished() {
         return finished;
     }

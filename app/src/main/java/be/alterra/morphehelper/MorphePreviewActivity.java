@@ -126,11 +126,18 @@ public class MorphePreviewActivity extends Activity {
         });
 
         selectTab(TAB_HOME, false);
+        UpdateManager.maybeCheckOnLaunch(this,
+                () -> UpdateManager.showInAppUpdatePopupIfAvailable(this));
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (!ThemeManager.isMorpheDesign(this)) {
+            startActivity(new Intent(this, MainActivity.class));
+            finish();
+            return;
+        }
         if (selectedTab == TAB_DOWNLOADS || selectedTab == TAB_SOURCES) {
             selectTab(selectedTab, false);
         }
@@ -564,14 +571,45 @@ public class MorphePreviewActivity extends Activity {
         root.addView(header);
 
         List<DownloadEntry> files = listDownloads();
-        if (files.isEmpty()) {
+        Map<String, DownloadEntry> byName = new LinkedHashMap<>();
+        for (DownloadEntry file : files) {
+            byName.put(file.name, file);
+        }
+
+        List<DownloadHistory.Entry> history = DownloadHistory.list(this);
+        java.util.Set<String> rendered = new java.util.HashSet<>();
+        int shown = 0;
+        if (!history.isEmpty()) {
+            root.addView(sectionLabel(getString(R.string.preview_downloads_recent)));
+            for (DownloadHistory.Entry entry : history) {
+                if (!rendered.add(entry.fileName)) {
+                    continue;
+                }
+                root.addView(historyRow(entry, byName.get(entry.fileName)));
+                shown++;
+            }
+        }
+
+        List<DownloadEntry> remaining = new ArrayList<>();
+        for (DownloadEntry file : files) {
+            if (!rendered.contains(file.name)) {
+                remaining.add(file);
+            }
+        }
+        if (!remaining.isEmpty()) {
+            if (shown > 0) {
+                root.addView(sectionLabel(getString(R.string.preview_downloads_local)));
+            }
+            for (DownloadEntry entry : remaining) {
+                root.addView(downloadRow(entry));
+                shown++;
+            }
+        }
+
+        if (shown == 0) {
             root.addView(emptyCard(R.drawable.ic_downloads,
                     getString(R.string.preview_downloads_empty_title),
                     getString(R.string.preview_downloads_empty_body)));
-        } else {
-            for (DownloadEntry entry : files) {
-                root.addView(downloadRow(entry));
-            }
         }
         return scroll;
     }
@@ -694,6 +732,119 @@ public class MorphePreviewActivity extends Activity {
                 R.string.preview_download_delete, () -> confirmDelete(entry));
         row.addView(delete, new LinearLayout.LayoutParams(dp(38), dp(38)));
         return row;
+    }
+
+    private View historyRow(DownloadHistory.Entry entry, DownloadEntry file) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(12), dp(10), dp(12));
+        row.setBackground(M3Ui.card(this, palette));
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowParams.topMargin = dp(10);
+        row.setLayoutParams(rowParams);
+        row.setOnClickListener(v -> {
+            if (file != null) {
+                openEntry(file);
+            } else {
+                Toast.makeText(this, R.string.preview_download_missing,
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+        M3Ui.motion(row);
+
+        FrameLayout iconTile = new FrameLayout(this);
+        iconTile.setBackground(M3Ui.filled(this,
+                file != null ? M3Ui.primaryContainer(palette) : CARD_HIGH,
+                12, 0, 0));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.ic_downloads);
+        icon.setColorFilter(file != null
+                ? M3Ui.onPrimaryContainer(palette) : MUTED);
+        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(20), dp(20));
+        iconInner.gravity = Gravity.CENTER;
+        iconTile.addView(icon, iconInner);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        iconParams.setMarginEnd(dp(12));
+        row.addView(iconTile, iconParams);
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        String title = TextUtils.isEmpty(entry.appName) ? entry.fileName : entry.appName;
+        TextView name = M3Ui.title(this, title, 13, TEXT);
+        name.setMaxLines(1);
+        name.setEllipsize(TextUtils.TruncateAt.END);
+        labels.addView(name);
+
+        String source = entry.source;
+        String meta = TextUtils.isEmpty(entry.version)
+                ? source : (TextUtils.isEmpty(source)
+                ? "v" + entry.version : "v" + entry.version + "  \u00b7  " + source);
+        if (!TextUtils.isEmpty(meta)) {
+            TextView versionView = M3Ui.text(this, meta, 11, MUTED, 400);
+            versionView.setPadding(0, dp(3), 0, 0);
+            labels.addView(versionView);
+        }
+
+        String detail = entry.fileName + "  \u00b7  " + formatSize(entry.size);
+        if (file == null) {
+            detail += "  \u00b7  " + getString(R.string.preview_download_removed);
+        }
+        TextView detailView = M3Ui.text(this, detail, 10,
+                file != null ? MUTED : palette.footer, 400);
+        detailView.setPadding(0, dp(2), 0, 0);
+        labels.addView(detailView);
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        ImageView delete = iconButton(R.drawable.ic_delete,
+                R.string.preview_download_delete,
+                () -> confirmRemoveHistory(entry, file));
+        row.addView(delete, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        return row;
+    }
+
+    private View sectionLabel(String label) {
+        TextView view = M3Ui.overline(this, label, ACCENT);
+        view.setPadding(0, dp(16), 0, 0);
+        return view;
+    }
+
+    private void confirmRemoveHistory(DownloadHistory.Entry entry, DownloadEntry file) {
+        boolean hasFile = file != null;
+        ThemeManager.dialog(this)
+                .setTitle(hasFile
+                        ? R.string.preview_download_delete_title
+                        : R.string.preview_history_remove_title)
+                .setMessage(hasFile
+                        ? getString(R.string.preview_download_delete_message,
+                        entry.fileName)
+                        : getString(R.string.preview_history_remove_message,
+                        entry.fileName))
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(hasFile
+                                ? R.string.common_delete
+                                : R.string.preview_history_remove,
+                        (dialog, which) -> {
+                            boolean deleted = true;
+                            if (hasFile) {
+                                deleted = file.file != null
+                                        ? file.file.delete()
+                                        : getContentResolver().delete(
+                                        file.uri, null, null) > 0;
+                            }
+                            if (!deleted) {
+                                return;
+                            }
+                            DownloadHistory.remove(this, entry.id);
+                            Toast.makeText(this, getString(hasFile
+                                            ? R.string.preview_download_deleted
+                                            : R.string.preview_history_removed,
+                                    entry.fileName), Toast.LENGTH_SHORT).show();
+                            selectTab(TAB_DOWNLOADS, false);
+                        })
+                .show();
     }
 
     private View emptyCard(int iconRes, String title, String body) {

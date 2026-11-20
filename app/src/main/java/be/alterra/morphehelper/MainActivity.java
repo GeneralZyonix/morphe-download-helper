@@ -99,12 +99,22 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (!isFinishing() && ThemeManager.isMorpheDesign(this)) {
+            openMorpheDesign();
+            return;
+        }
         if (themeSignature != null
                 && !themeSignature.equals(ThemeManager.signature(this))) {
             recreate();
             return;
         }
         UpdateManager.showInAppUpdatePopupIfAvailable(this);
+    }
+
+    /** Moves the launcher entry into the optional Morphe shell. */
+    private void openMorpheDesign() {
+        startActivity(new Intent(this, MorphePreviewActivity.class));
+        finish();
     }
 
     private void applyPalette() {
@@ -148,6 +158,11 @@ public class MainActivity extends Activity {
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 41);
+        }
+
+        if (ThemeManager.isMorpheDesign(this)) {
+            openMorpheDesign();
+            return;
         }
 
         // Root is a ScrollView because the content can be taller than short screens.

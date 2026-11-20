@@ -943,6 +943,11 @@ public class DownloadActivity extends Activity {
                 report.finishSuccess(file);
                 HelperLog.info(report.resultBlock());
             }
+            String historySource = servedFromCache
+                    ? getString(R.string.source_cache)
+                    : (report == null ? "" : report.successSourceLabel());
+            DownloadHistory.record(this, requestedAppName, requestPkg,
+                    requestVersion, requestFileType, historySource, file);
             pendingFile = null;
             HelperLog.info("Returning file " + file.getAbsolutePath()
                     + " (" + file.length() + " bytes)");
