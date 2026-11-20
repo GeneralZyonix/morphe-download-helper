@@ -745,4 +745,33 @@
     <string name="appearance_reset_detail">Back to System with Aurora.</string>
     <string name="appearance_reset_done">Appearance reset.</string>
     <string name="appearance_current">Current: %1$s</string>
+
+    <!-- Morphe design preview (v3 prototype). -->
+    <string name="preview_title">Morphe design</string>
+    <string name="preview_appearance_title">Design preview</string>
+    <string name="preview_appearance_body">Try the experimental Morphe shell with Home, Downloads, Sources, and Settings tabs. The rest of the app keeps the current design.</string>
+    <string name="preview_appearance_row">Open Morphe design preview</string>
+    <string name="preview_home">Home</string>
+    <string name="preview_downloads">Downloads</string>
+    <string name="preview_sources">Sources</string>
+    <string name="preview_settings">Settings</string>
+    <string name="preview_guide_body">Step-by-step instructions</string>
+    <string name="preview_log_body">View helper activity and logs</string>
+    <string name="preview_downloads_subtitle">APKs kept by the helper</string>
+    <string name="preview_downloads_empty_title">Nothing here yet</string>
+    <string name="preview_downloads_empty_body">Downloaded APKs appear here while they are kept on this device.</string>
+    <string name="preview_downloads_refresh">Refresh downloads</string>
+    <string name="preview_download_open">Open APK</string>
+    <string name="preview_download_delete">Delete APK</string>
+    <string name="preview_download_delete_title">Delete this APK?</string>
+    <string name="preview_download_delete_message">%1$s will be removed from the helper download folder.</string>
+    <string name="preview_download_deleted">Deleted %1$s.</string>
+    <string name="preview_download_failed">Could not open the APK.</string>
+    <string name="preview_settings_hint">Open a section in the full settings screen.</string>
+    <string name="preview_settings_all">Open all settings</string>
+    <string name="preview_settings_appearance">Appearance</string>
+    <string name="preview_developer">Developed by</string>
+    <string name="preview_security">Security</string>
+    <string name="preview_background">Background</string>
+    <string name="preview_log_empty">No log entries yet.</string>
 </resources>

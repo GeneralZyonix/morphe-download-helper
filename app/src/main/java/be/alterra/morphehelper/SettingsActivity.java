@@ -179,8 +179,7 @@ public class SettingsActivity extends Activity {
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
 
-        boolean openSources = EXTRA_SECTION_SOURCES.equals(
-                getIntent().getStringExtra(EXTRA_SECTION));
+        String requestedSection = getIntent().getStringExtra(EXTRA_SECTION);
 
         PatchPassLogoView logo = new PatchPassLogoView(this);
         logo.setContentDescription(getString(R.string.app_name));
@@ -254,8 +253,8 @@ public class SettingsActivity extends Activity {
 
         String sheetKey = savedInstanceState == null
                 ? null : savedInstanceState.getString(STATE_OPEN_SHEET);
-        if (TextUtils.isEmpty(sheetKey) && openSources) {
-            sheetKey = SECTION_SOURCES;
+        if (TextUtils.isEmpty(sheetKey) && !TextUtils.isEmpty(requestedSection)) {
+            sheetKey = requestedSection;
         }
         if (!TextUtils.isEmpty(sheetKey)) {
             final String pendingSheet = sheetKey;

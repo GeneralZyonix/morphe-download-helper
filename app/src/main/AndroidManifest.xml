@@ -106,6 +106,15 @@
             android:windowSoftInputMode="adjustResize" />
 
         <!--
+            v3 design prototype: four-tab Morphe shell. Kept separate from
+            MainActivity so the current release UI stays untouched.
+        -->
+        <activity
+            android:name=".MorphePreviewActivity"
+            android:exported="false"
+            android:label="@string/preview_title" />
+
+        <!--
             Helper contract: Morphe sends this action when the user taps
             "Use a helper app". The activity returns a content:// URI to the APK.
         -->

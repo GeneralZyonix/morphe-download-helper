@@ -1,6 +1,7 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -14,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -94,6 +96,7 @@ public class AppearanceActivity extends Activity {
         addModeCard(root);
         addTintCard(root);
         addAccentCard(root);
+        addDesignCard(root);
         addResetCard(root);
 
         TextView done = primaryButton(getString(R.string.common_done));
@@ -597,6 +600,58 @@ public class AppearanceActivity extends Activity {
                 selected ? 0 : Math.max(1, dp(1)), M3Ui.outlineVariant(palette)));
         M3Ui.motion(chip);
         return chip;
+    }
+
+    /** Entry point for the v3 Morphe shell prototype. */
+    private void addDesignCard(LinearLayout root) {
+        LinearLayout card = card();
+        LinearLayout.LayoutParams params = cardParams();
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text(getString(R.string.preview_appearance_title), 16, TEXT, true));
+        TextView detail = text(getString(R.string.preview_appearance_body), 12, MUTED, false);
+        detail.setLineSpacing(dp(2), 1f);
+        detail.setPadding(0, dp(4), 0, dp(14));
+        card.addView(detail);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(12), dp(14), dp(12));
+        row.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE),
+                M3Ui.filled(this, M3Ui.secondaryContainer(palette), 20,
+                        Math.max(1, dp(1)), M3Ui.outlineVariant(palette)),
+                null));
+        row.setClickable(true);
+        row.setFocusable(true);
+        M3Ui.motion(row);
+
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.ic_home);
+        icon.setColorFilter(ACCENT_TEXT);
+        icon.setPadding(dp(9), dp(9), dp(9), dp(9));
+        icon.setBackground(M3Ui.filled(this,
+                M3Ui.primaryContainer(palette), 12, 0, 0));
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        iconParams.setMarginEnd(dp(12));
+        row.addView(icon, iconParams);
+
+        TextView label = M3Ui.title(this,
+                getString(R.string.preview_appearance_row), 14, TEXT);
+        row.addView(label, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        ImageView chevron = new ImageView(this);
+        chevron.setImageResource(R.drawable.ic_chevron_right);
+        chevron.setColorFilter(MUTED);
+        chevron.setPadding(dp(6), dp(6), dp(6), dp(6));
+        row.addView(chevron, new LinearLayout.LayoutParams(dp(32), dp(32)));
+
+        row.setOnClickListener(v ->
+                startActivity(new Intent(this, MorphePreviewActivity.class)));
+        card.addView(row);
     }
 
     private LinearLayout card() {
