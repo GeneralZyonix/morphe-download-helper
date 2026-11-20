@@ -70,6 +70,7 @@ public class MorphePreviewActivity extends Activity {
     private static final int TAB_DOWNLOADS = 1;
     private static final int TAB_SOURCES = 2;
     private static final int TAB_SETTINGS = 3;
+    private static final String STATE_TAB = "selected_tab";
     private static final String MORPHE_PACKAGE = "app.morphe.manager";
     private static final int REQ_SAVE_LOG = 6103;
     private static final String FEATURE_REQUEST_URL =
@@ -84,6 +85,7 @@ public class MorphePreviewActivity extends Activity {
     private final TextView[] navLabels = new TextView[4];
     private final View[] tabs = new View[4];
     private int selectedTab = TAB_HOME;
+    private String themeSignature;
 
     private int TEXT;
     private int MUTED;
@@ -139,10 +141,18 @@ public class MorphePreviewActivity extends Activity {
             return insets;
         });
 
-        selectTab(TAB_HOME, false);
+        int initialTab = savedInstanceState == null
+                ? TAB_HOME : savedInstanceState.getInt(STATE_TAB, TAB_HOME);
+        selectTab(initialTab, false);
         UpdateManager.maybeCheckOnLaunch(this,
                 () -> UpdateManager.showInAppUpdatePopupIfAvailable(this));
         handleSharedText(getIntent());
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(STATE_TAB, selectedTab);
     }
 
     @Override
@@ -177,6 +187,11 @@ public class MorphePreviewActivity extends Activity {
             finish();
             return;
         }
+        if (themeSignature != null
+                && !themeSignature.equals(ThemeManager.signature(this))) {
+            recreate();
+            return;
+        }
         if (selectedTab == TAB_DOWNLOADS || selectedTab == TAB_SOURCES) {
             selectTab(selectedTab, false);
         }
@@ -191,6 +206,7 @@ public class MorphePreviewActivity extends Activity {
         RED = palette.red;
         CARD = M3Ui.surfaceContainer(palette);
         CARD_HIGH = M3Ui.surfaceContainerHigh(palette);
+        themeSignature = ThemeManager.signature(this);
     }
 
     // ------------------------------------------------------------------
@@ -603,14 +619,6 @@ public class MorphePreviewActivity extends Activity {
         help.setOnClickListener(v -> showHelp());
         block.addView(help, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
-
-        TextView delete = M3Ui.outlinedButton(this, palette,
-                getString(R.string.main_delete_all_downloads), 0, RED);
-        delete.setOnClickListener(v -> confirmDeleteAllDownloads());
-        LinearLayout.LayoutParams deleteParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
-        deleteParams.topMargin = dp(10);
-        block.addView(delete, deleteParams);
         return block;
     }
 
@@ -637,6 +645,9 @@ public class MorphePreviewActivity extends Activity {
                     Toast.makeText(this,
                             getString(R.string.main_delete_all_done, deleted),
                             Toast.LENGTH_SHORT).show();
+                    if (selectedTab == TAB_DOWNLOADS) {
+                        selectTab(TAB_DOWNLOADS, false);
+                    }
                 })
                 .show();
     }
@@ -729,6 +740,12 @@ public class MorphePreviewActivity extends Activity {
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView deleteAll = iconButton(R.drawable.ic_delete,
+                R.string.main_delete_all_downloads, this::confirmDeleteAllDownloads);
+        LinearLayout.LayoutParams deleteAllParams = new LinearLayout.LayoutParams(
+                dp(42), dp(42));
+        deleteAllParams.setMarginEnd(dp(6));
+        header.addView(deleteAll, deleteAllParams);
         ImageView refresh = iconButton(R.drawable.ic_refresh,
                 R.string.preview_downloads_refresh,
                 () -> selectTab(TAB_DOWNLOADS, true));

@@ -32,8 +32,8 @@ You stay available. The current design remains selectable.
 
 | Tab | Purpose |
 | --- | --- |
-| **Home** | Status chips, hero, Visual guide, Helper log, Help, delete-all, developer links. |
-| **Downloads** | Local APK library: name, size, date, open/share/delete. Persistent history is a later data-layer change. |
+| **Home** | Status chips, hero, Visual guide, Helper log, Help, developer links. |
+| **Downloads** | Local APK library, history, and delete-all. |
 | **Sources** | The source list from Settings, embedded with toggles and order controls. |
 | **Settings** | In-shell section list; each section opens a sheet over the shell. There is no redundant Done button. |
 
@@ -96,8 +96,11 @@ main actions visible and gives downloads and sources a stable home.
 The branch now implements the first pass of phases 1–5:
 
 - `MorphePreviewActivity` with the four-tab shell.
-- Home: header, status chips, gradient hero, guide/log tiles, Help, delete-all,
-  developer links, and the build variant.
+- Home: header, status chips, gradient hero, guide/log tiles, Help, developer
+  links, and the build variant.
+- Downloads: persisted history plus current APKs, with delete-all in the tab
+  header instead of on Home.
+- Theme and accent changes recreate the shell and preserve the selected tab.
 - Helper log: one sheet with Share, Copy, Save, Preview, Report, Suggest, and
   Clear. Every export is sanitized first; Save uses the system file picker.
 - Sources lives only in the bottom navigation, not as a duplicate home button.
