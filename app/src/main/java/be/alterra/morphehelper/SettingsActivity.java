@@ -28,6 +28,7 @@ import android.util.TypedValue;
 import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -486,15 +487,23 @@ public class SettingsActivity extends Activity {
                 Gravity.BOTTOM);
         windowRoot.addView(sheet, sheetParams);
 
+        FrameLayout handleArea = new FrameLayout(this);
+        handleArea.setContentDescription(getString(R.string.settings_sheet_drag_hint));
+        LinearLayout.LayoutParams handleAreaParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(30));
+        handleAreaParams.topMargin = dp(2);
+        sheet.addView(handleArea, handleAreaParams);
+
         View handle = new View(this);
         GradientDrawable handleBackground = new GradientDrawable();
         handleBackground.setColor(M3Ui.outline(palette));
         handleBackground.setCornerRadius(dp(999));
         handle.setBackground(handleBackground);
-        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(dp(44), dp(4));
-        handleParams.gravity = Gravity.CENTER_HORIZONTAL;
-        handleParams.topMargin = dp(10);
-        sheet.addView(handle, handleParams);
+        handle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(
+                dp(44), dp(4), Gravity.CENTER);
+        handleArea.addView(handle, handleParams);
+        attachSheetDrag(handleArea, sheet);
 
         LinearLayout sheetHeader = new LinearLayout(this);
         sheetHeader.setOrientation(LinearLayout.HORIZONTAL);
@@ -625,6 +634,42 @@ public class SettingsActivity extends Activity {
                 .setDuration(260L)
                 .setInterpolator(new DecelerateInterpolator(1.6f))
                 .start());
+    }
+
+    /** Drag the handle down to dismiss the section sheet. */
+    private void attachSheetDrag(View handle, LinearLayout sheet) {
+        final float[] downY = new float[1];
+        final float[] downTranslation = new float[1];
+        handle.setOnTouchListener((view, event) -> {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    downY[0] = event.getRawY();
+                    downTranslation[0] = sheet.getTranslationY();
+                    sheet.animate().cancel();
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    float offset = event.getRawY() - downY[0];
+                    sheet.setTranslationY(Math.max(0f, downTranslation[0] + offset));
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    float height = sheet.getHeight();
+                    float threshold = height > 0 ? height * 0.22f : dp(160);
+                    if (sheet.getTranslationY() > threshold) {
+                        dismissSectionSheet();
+                    } else {
+                        sheet.animate()
+                                .translationY(0f)
+                                .setDuration(220L)
+                                .setInterpolator(new DecelerateInterpolator(1.6f))
+                                .start();
+                    }
+                    return true;
+                default:
+                    return false;
+            }
+        });
+        handle.setClickable(true);
     }
 
     private void dismissSectionSheet() {

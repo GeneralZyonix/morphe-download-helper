@@ -108,7 +108,8 @@ The branch now implements the first pass of phases 1–5:
 - Sources: live enabled state and order from `SourceSettings`.
 - Settings: the tab stays inside the shell. Each row opens its section as a
   transparent sheet host over the shell, so the main screen never disappears.
-  **Open all settings** still opens the full restyled screen.
+  The sheet handle drags down to dismiss; a short drag springs back. **Open all
+  settings** still opens the full restyled screen.
 - Appearance: **Design** selector (Classic / Morphe) and a direct shell action.
 
 The shell remains a separate activity rather than a rewrite of MainActivity, so

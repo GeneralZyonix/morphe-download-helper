@@ -199,6 +199,7 @@
     <string name="settings_appearance">Appearance</string>
     <string name="settings_appearance_detail">Theme, accent colour, and preview</string>
     <string name="settings_overline">Settings</string>
+    <string name="settings_sheet_drag_hint">Drag down to close</string>
     <string name="settings_general">General</string>
     <string name="settings_general_summary">Language, appearance, and app icon</string>
     <string name="settings_updates_summary">Checks, update mode, and Shizuku</string>
