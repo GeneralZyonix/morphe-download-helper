@@ -1261,101 +1261,102 @@ public class MorphePreviewActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        root.addView(M3Ui.display(this, getString(R.string.preview_settings), 30, TEXT));
+        root.addView(M3Ui.overline(this,
+                getString(R.string.settings_overline), ACCENT));
+        TextView title = M3Ui.display(this,
+                getString(R.string.preview_settings), 32, TEXT);
+        title.setPadding(0, dp(8), 0, 0);
+        root.addView(title);
+        TextView subtitle = M3Ui.text(this,
+                getString(R.string.settings_subtitle), 13, MUTED, 400);
+        subtitle.setPadding(0, dp(6), 0, 0);
+        root.addView(subtitle);
         TextView hint = M3Ui.text(this,
-                getString(R.string.preview_settings_hint), 12, MUTED, 400);
-        hint.setPadding(0, dp(5), 0, dp(14));
+                getString(R.string.preview_settings_hint), 11, MUTED, 400);
+        hint.setPadding(0, dp(8), 0, dp(2));
         root.addView(hint);
 
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(6), dp(6), dp(6), dp(6));
-        card.setBackground(M3Ui.card(this, palette));
-        root.addView(card, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        addSettingsRow(card, R.drawable.ic_section_general,
+        addSettingsCard(root, R.drawable.ic_section_general,
                 R.string.settings_general, R.string.settings_general_summary,
                 "general");
-        addSettingsRow(card, R.drawable.ic_section_updates,
+        addSettingsCard(root, R.drawable.ic_section_updates,
                 R.string.settings_updates, R.string.settings_updates_summary,
                 "updates");
-        addSettingsRow(card, R.drawable.ic_section_web,
+        addSettingsCard(root, R.drawable.ic_section_web,
                 R.string.settings_web_pages, R.string.settings_web_pages_summary,
                 "web");
-        addSettingsRow(card, R.drawable.ic_section_sources,
+        addSettingsCard(root, R.drawable.ic_section_sources,
                 R.string.settings_sources, R.string.settings_sources_summary,
                 "sources");
-        addSettingsRow(card, R.drawable.ic_section_storage,
+        addSettingsCard(root, R.drawable.ic_section_storage,
                 R.string.settings_storage, R.string.settings_storage_summary,
                 "storage");
-        addSettingsRow(card, R.drawable.ic_section_security,
+        addSettingsCard(root, R.drawable.ic_section_security,
                 R.string.preview_security, R.string.settings_security_summary,
                 "security");
-        addSettingsRow(card, R.drawable.ic_section_battery,
+        addSettingsCard(root, R.drawable.ic_section_battery,
                 R.string.preview_background, R.string.settings_background_summary,
                 "battery");
-        addSettingsRow(card, R.drawable.ic_section_backup,
+        addSettingsCard(root, R.drawable.ic_section_backup,
                 R.string.settings_backup, R.string.settings_backup_summary,
                 "backup");
+        addSettingsActionCard(root, R.drawable.ic_section_general,
+                R.string.preview_settings_appearance,
+                R.string.appearance_subtitle,
+                () -> startActivity(new Intent(this, AppearanceActivity.class)));
 
-        LinearLayout appearanceRow = settingsRow(R.drawable.ic_section_general,
-                getString(R.string.preview_settings_appearance),
-                getString(R.string.appearance_subtitle));
-        appearanceRow.setOnClickListener(v ->
-                startActivity(new Intent(this, AppearanceActivity.class)));
-        LinearLayout.LayoutParams appearanceParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        appearanceParams.topMargin = dp(10);
-        root.addView(appearanceRow, appearanceParams);
-
-        TextView all = M3Ui.primaryButton(this, palette,
-                getString(R.string.preview_settings_all), 0);
-        all.setOnClickListener(v -> openSettings(null));
-        LinearLayout.LayoutParams allParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
-        allParams.topMargin = dp(18);
-        root.addView(all, allParams);
         addBottomSpacer(root);
         return scroll;
     }
 
-    private void addSettingsRow(LinearLayout card, int iconRes, int titleRes,
-                                int summaryRes, String section) {
-        LinearLayout row = settingsRow(iconRes, getString(titleRes),
-                getString(summaryRes));
-        row.setOnClickListener(v -> openSectionSheet(section));
-        card.addView(row);
+    private void addSettingsCard(LinearLayout root, int iconRes, int titleRes,
+                                 int summaryRes, String section) {
+        addSettingsActionCard(root, iconRes, titleRes, summaryRes,
+                () -> openSectionSheet(section));
     }
 
-    private LinearLayout settingsRow(int iconRes, String title, String summary) {
+    private void addSettingsActionCard(LinearLayout root, int iconRes, int titleRes,
+                                       int summaryRes, Runnable action) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(M3Ui.card(this, palette));
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cardParams.topMargin = dp(12);
+        root.addView(card, cardParams);
+        card.addView(settingsCardHeader(iconRes, getString(titleRes),
+                getString(summaryRes), action));
+    }
+
+    private LinearLayout settingsCardHeader(int iconRes, String title, String summary,
+                                            Runnable action) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(10), dp(11), dp(8), dp(11));
+        row.setPadding(dp(18), dp(16), dp(12), dp(16));
         row.setBackground(new RippleDrawable(ColorStateList.valueOf(palette.ripple),
                 null, null));
         row.setClickable(true);
         row.setFocusable(true);
+        row.setOnClickListener(v -> action.run());
 
         FrameLayout iconTile = new FrameLayout(this);
-        iconTile.setBackground(M3Ui.filled(this,
-                M3Ui.primaryContainer(palette), 12, 0, 0));
+        iconTile.setBackground(M3Ui.brandGradient(this, palette, 14));
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconRes);
-        icon.setColorFilter(M3Ui.onPrimaryContainer(palette));
-        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(20), dp(20));
+        icon.setColorFilter(palette.onPrimary);
+        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(22), dp(22));
         iconInner.gravity = Gravity.CENTER;
         iconTile.addView(icon, iconInner);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(40), dp(40));
-        iconParams.setMarginEnd(dp(12));
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(44), dp(44));
+        iconParams.setMarginEnd(dp(14));
         row.addView(iconTile, iconParams);
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(M3Ui.text(this, title, 14, TEXT, 600));
-        TextView detail = M3Ui.text(this, summary, 11, MUTED, 400);
-        detail.setPadding(0, dp(2), 0, 0);
+        labels.addView(M3Ui.title(this, title, 17, TEXT));
+        TextView detail = M3Ui.text(this, summary, 12, MUTED, 400);
+        detail.setPadding(0, dp(3), 0, 0);
         labels.addView(detail);
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));

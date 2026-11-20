@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.SystemClock;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -141,24 +142,44 @@ public class MorphePreviewTest {
         try (ActivityScenario<MorphePreviewActivity> scenario =
                      ActivityScenario.launch(MorphePreviewActivity.class)) {
             scenario.onActivity(activity -> clickTab(activity, "Settings"));
+            waitForTabSlide();
             scenario.onActivity(activity -> clickTab(activity, "Storage"));
-            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            SettingsActivity settings = awaitSettingsActivity();
+            assertNotNull("SettingsActivity was not resumed", settings);
+            assertTrue("Section sheet did not use sheet-only mode",
+                    settings.getIntent().getBooleanExtra(
+                            SettingsActivity.EXTRA_SHEET_ONLY, false));
+            settings.finish();
+        }
+    }
+
+    private static SettingsActivity awaitSettingsActivity() {
+        long deadline = SystemClock.uptimeMillis() + 3000L;
+        while (SystemClock.uptimeMillis() < deadline) {
+            final SettingsActivity[] found = new SettingsActivity[1];
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
                 Collection<Activity> resumed = ActivityLifecycleMonitorRegistry
                         .getInstance().getActivitiesInStage(Stage.RESUMED);
-                SettingsActivity settings = null;
                 for (Activity activity : resumed) {
                     if (activity instanceof SettingsActivity) {
-                        settings = (SettingsActivity) activity;
-                        break;
+                        found[0] = (SettingsActivity) activity;
+                        return;
                     }
                 }
-                assertNotNull("SettingsActivity was not resumed", settings);
-                assertTrue("Section sheet did not use sheet-only mode",
-                        settings.getIntent().getBooleanExtra(
-                                SettingsActivity.EXTRA_SHEET_ONLY, false));
-                settings.finish();
             });
+            if (found[0] != null) {
+                return found[0];
+            }
+            SystemClock.sleep(100L);
+        }
+        return null;
+    }
+
+    private static void waitForTabSlide() {
+        try {
+            Thread.sleep(350);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
     }
 

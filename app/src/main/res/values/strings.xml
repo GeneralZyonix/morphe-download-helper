@@ -761,7 +761,6 @@
     <string name="preview_sources">Sources</string>
     <string name="preview_settings">Settings</string>
     <string name="preview_settings_hint">Choose a section. It opens in a sheet over this screen.</string>
-    <string name="preview_settings_all">Open all settings</string>
     <string name="preview_settings_appearance">Appearance</string>
     <string name="preview_security">Security</string>
     <string name="preview_background">Background</string>

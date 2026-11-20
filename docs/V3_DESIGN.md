@@ -106,10 +106,10 @@ The branch now implements the first pass of phases 1–5:
 - Downloads: persisted hand-off history plus current APKs from the cache and
   public `Downloads/Morphe Helper` folder.
 - Sources: live enabled state and order from `SourceSettings`.
-- Settings: the tab stays inside the shell. Each row opens its section as a
-  transparent sheet host over the shell, so the main screen never disappears.
-  The sheet handle drags down to dismiss; a short drag springs back. **Open all
-  settings** still opens the full restyled screen.
+- Settings: the tab stays inside the shell and uses the same Morphe header,
+  gradient tiles, and separate section cards as the full screen. Each row opens
+  its section as a transparent sheet host over the shell; the handle drags down
+  to dismiss, and a short drag springs back.
 - Appearance: **Design** selector (Classic / Morphe) and a direct shell action.
 
 The shell remains a separate activity rather than a rewrite of MainActivity, so
