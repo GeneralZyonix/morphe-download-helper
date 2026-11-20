@@ -32,9 +32,6 @@ final class ThemeManager {
     static final String MODE_LIGHT = "light";
     static final String MODE_SYSTEM = "system";
 
-    static final String DESIGN_CLASSIC = "classic";
-    static final String DESIGN_MORPHE = "morphe";
-
     static final String ACCENT_MORPHE = "morphe";
     static final String ACCENT_AURORA = "aurora";
     static final String ACCENT_MINT = "mint";
@@ -109,14 +106,6 @@ final class ThemeManager {
         int night = context.getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK;
         return night != Configuration.UI_MODE_NIGHT_YES;
-    }
-
-    static String designStyle(Context context) {
-        return AppSettings.designStyle(context);
-    }
-
-    static boolean isMorpheDesign(Context context) {
-        return DESIGN_MORPHE.equals(designStyle(context));
     }
 
     static String accent(Context context) {
@@ -449,8 +438,7 @@ final class ThemeManager {
         String signature = savedMode(context) + "|" + mode(context) + "|" + accent + "|"
                 + AppSettings.themeCustomHex(context) + "|"
                 + AppSettings.themeSchemeHex(context) + "|"
-                + AppSettings.themeTintSurfaces(context) + "|"
-                + designStyle(context);
+                + AppSettings.themeTintSurfaces(context);
         if (ACCENT_MATERIAL.equals(accent)) {
             int[] colors = accentColors(context, accent, "");
             signature += "|" + colors[0] + "|" + colors[1];

@@ -1,15 +1,15 @@
 # Morphe design — v3 direction
 
 Status: **prototype branch `v3-design-poc`.** Not merged, not released.
-This is the design plan behind the optional Morphe design preview. The stable
-v2.7.3 release continues to use the current Material 3 Expressive screens.
+The stable v2.7.3 release continues to use the current Material 3 Expressive
+screens. On this branch, Morphe is the only home design; Classic has been
+removed and migrated.
 
 ## Goal
 
-Add an **optional Morphe design** for a future major release. It should feel
-like one product with Morphe Manager, not like another accent colour. Existing
+Make Morphe the only home design and feel like one product with Morphe Manager.
 Dark / AMOLED / Light / System, all accent presets, custom schemes, and Material
-You stay available. The current design remains selectable.
+You stay available.
 
 ## Visual language
 
@@ -43,12 +43,10 @@ main actions visible and gives downloads and sources a stable home.
 
 ## Phases
 
-1. **Shell prototype** — preview activity with the four-tab pill navigation,
-   gradient Home, live source toggles, local download list, and settings
-   shortcuts. Entry from Appearance, labelled as a preview. **Done.**
-2. **Promote the shell** — add an opt-in **Design** setting. Classic remains the
-   default; Morphe makes the launcher open the four-tab shell. Switching back to
-   Classic returns to the existing home screen. **Done.**
+1. **Shell prototype** — four-tab pill navigation, gradient Home, live source
+   toggles, local download list, and settings shortcuts. **Done.**
+2. **Promote the shell** — make Morphe the launcher entry point, move startup
+   work into it, and delete the Classic home. **Done.**
 3. **Sources** — the embedded panel has live toggles and ordering. **First pass
    done**; the full manager still adds Test all and GitHub apps.
 4. **Downloads** — persisted history of successful hand-offs with app name,
@@ -65,11 +63,11 @@ main actions visible and gives downloads and sources a stable home.
 
 ## Implemented in this branch
 
-- `ThemeManager.DESIGN_CLASSIC` / `DESIGN_MORPHE` stored as `design_style`.
-- Appearance → **Design** selector with Classic and Morphe options, plus a
-  direct **Open Morphe design** action while Morphe is selected.
-- `MainActivity` redirects to the shell only when Morphe is selected;
-  `MorphePreviewActivity` returns to the classic screen when Classic is selected.
+- `MorphePreviewActivity` is the launcher entry point and owns notification
+  permission, cleanup, launcher-icon state, theme changes, and update checks.
+- The legacy `design_style` preference is removed on first launch; Appearance
+  no longer has a design switch.
+- The old `MainActivity` home and its duplicate log/report code are deleted.
 - `DownloadHistory` stores up to 40 successful hand-offs and is written from
   `DownloadActivity` after validation and VirusTotal checks.
 - The Downloads tab merges history with the current APK list, resolves public
@@ -86,7 +84,7 @@ main actions visible and gives downloads and sources a stable home.
 
 ## Guardrails
 
-- The Morphe design is opt-in. Never force an existing user onto it.
+- Classic is gone; existing `design_style` values are removed during migration.
 - AMOLED must stay true black. Material You must keep working on Android 12+.
 - Do not reduce contrast on warnings or VirusTotal decision buttons.
 - Keep `minSdk 23`; no Compose-only dependency is required for this direction.
@@ -115,7 +113,7 @@ The branch now implements the first pass of phases 1–5:
   gradient tiles, and separate section cards as the full screen. Each row opens
   its section as a transparent sheet host over the shell; the handle drags down
   to dismiss, and a short drag springs back.
-- Appearance: **Design** selector (Classic / Morphe) and a direct shell action.
+- Appearance: theme, accent, and colour controls only; no design switch.
 
-The shell remains a separate activity rather than a rewrite of MainActivity, so
-the design can still be turned off and the classic screen restored at any time.
+The shell is the launcher home. The old classic home screen is deleted, and the
+legacy design preference is removed on upgrade.

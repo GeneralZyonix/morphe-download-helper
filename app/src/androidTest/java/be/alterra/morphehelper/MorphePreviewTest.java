@@ -25,22 +25,20 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.util.Collection;
 
-/** Smoke tests for the v3 Morphe shell prototype. */
+/** Smoke tests for the Morphe shell. */
 @RunWith(AndroidJUnit4.class)
 public class MorphePreviewTest {
 
     private Context context;
 
     @Before
-    public void selectMorpheDesign() {
+    public void setUp() {
         context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        AppSettings.setDesignStyle(context, ThemeManager.DESIGN_MORPHE);
     }
 
     @After
-    public void restoreClassicDesign() {
+    public void tearDown() {
         if (context != null) {
-            AppSettings.setDesignStyle(context, ThemeManager.DESIGN_CLASSIC);
             DownloadHistory.clear(context);
         }
     }

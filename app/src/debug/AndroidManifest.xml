@@ -1,16 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <!-- Debug-only Material 3 Expressive preview. -->
         <activity
             android:name=".M3PocActivity"
             android:exported="true"
             android:theme="@style/M3PocTheme" />
-        <!-- Debug-only v3 Morphe shell prototype. -->
-        <activity
-            android:name=".MorphePreviewActivity"
-            android:exported="true"
-            tools:replace="android:exported" />
     </application>
 </manifest>

@@ -183,39 +183,18 @@ public class SettingsActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-
         String requestedSection = getIntent().getStringExtra(EXTRA_SECTION);
 
-        if (ThemeManager.isMorpheDesign(this)) {
-            root.addView(M3Ui.overline(this,
-                    getString(R.string.settings_overline), palette.accentText));
-            TextView title = M3Ui.display(this,
-                    getString(R.string.common_settings), 32, TEXT);
-            title.setPadding(0, dp(8), 0, 0);
-            root.addView(title);
-            TextView subtitle = M3Ui.text(this,
-                    getString(R.string.settings_subtitle), 13, MUTED, 400);
-            subtitle.setPadding(0, dp(6), 0, 0);
-            root.addView(subtitle);
-        } else {
-            PatchPassLogoView logo = new PatchPassLogoView(this);
-            logo.setContentDescription(getString(R.string.app_name));
-            LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(76), dp(76));
-            logoParams.setMarginEnd(dp(14));
-            header.addView(logo, logoParams);
-
-            LinearLayout titles = new LinearLayout(this);
-            titles.setOrientation(LinearLayout.VERTICAL);
-            titles.addView(M3Ui.display(this, getString(R.string.common_settings), 28, TEXT));
-            TextView subtitle = text(getString(R.string.settings_subtitle), 13, MUTED, false);
-            subtitle.setPadding(0, dp(4), 0, 0);
-            titles.addView(subtitle);
-            header.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            root.addView(header);
-        }
+        root.addView(M3Ui.overline(this,
+                getString(R.string.settings_overline), palette.accentText));
+        TextView title = M3Ui.display(this,
+                getString(R.string.common_settings), 32, TEXT);
+        title.setPadding(0, dp(8), 0, 0);
+        root.addView(title);
+        TextView subtitle = M3Ui.text(this,
+                getString(R.string.settings_subtitle), 13, MUTED, 400);
+        subtitle.setPadding(0, dp(6), 0, 0);
+        root.addView(subtitle);
 
         LinearLayout general = addSection(root, SECTION_GENERAL,
                 R.string.settings_general, R.string.settings_general_summary,
@@ -373,13 +352,12 @@ public class SettingsActivity extends Activity {
      */
     private LinearLayout addSection(LinearLayout root, String key,
                                     int titleRes, int summaryRes, int iconRes) {
-        boolean morphe = ThemeManager.isMorpheDesign(this);
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(M3Ui.card(this, palette));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(morphe ? 12 : 14);
+        params.topMargin = dp(12);
         root.addView(card, params);
         sectionTitles.put(key, titleRes);
         sectionSummaries.put(key, summaryRes);
@@ -388,22 +366,18 @@ public class SettingsActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(18), dp(morphe ? 16 : 15), dp(12), dp(morphe ? 16 : 15));
+        header.setPadding(dp(18), dp(16), dp(12), dp(16));
         header.setClickable(true);
         header.setFocusable(true);
         header.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(RIPPLE), null, null));
 
         FrameLayout iconTile = new FrameLayout(this);
-        GradientDrawable tileBackground = morphe
-                ? M3Ui.brandGradient(this, palette, 14)
-                : M3Ui.filled(this, M3Ui.primaryContainer(palette), 14, 0, 0);
-        iconTile.setBackground(tileBackground);
+        iconTile.setBackground(M3Ui.brandGradient(this, palette, 14));
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconRes);
-        icon.setColorFilter(morphe
-                ? palette.onPrimary : M3Ui.onPrimaryContainer(palette));
+        icon.setColorFilter(palette.onPrimary);
         icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(
                 dp(20), dp(20));
@@ -417,7 +391,7 @@ public class SettingsActivity extends Activity {
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(M3Ui.title(this, getString(titleRes), morphe ? 17 : 16, TEXT));
+        labels.addView(M3Ui.title(this, getString(titleRes), 17, TEXT));
         TextView summary = text(getString(summaryRes), 11, MUTED, false);
         summary.setPadding(0, dp(3), 0, 0);
         labels.addView(summary);
@@ -510,17 +484,12 @@ public class SettingsActivity extends Activity {
         sheetHeader.setGravity(Gravity.CENTER_VERTICAL);
         sheetHeader.setPadding(dp(20), dp(12), dp(14), dp(10));
 
-        boolean morphe = ThemeManager.isMorpheDesign(this);
         FrameLayout iconTile = new FrameLayout(this);
-        GradientDrawable tileBackground = morphe
-                ? M3Ui.brandGradient(this, palette, 14)
-                : M3Ui.filled(this, M3Ui.primaryContainer(palette), 14, 0, 0);
-        iconTile.setBackground(tileBackground);
+        iconTile.setBackground(M3Ui.brandGradient(this, palette, 14));
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconRes);
-        icon.setColorFilter(morphe
-                ? palette.onPrimary : M3Ui.onPrimaryContainer(palette));
+        icon.setColorFilter(palette.onPrimary);
         icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(20), dp(20));
         iconInner.gravity = Gravity.CENTER;

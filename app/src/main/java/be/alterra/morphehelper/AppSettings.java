@@ -67,7 +67,7 @@ final class AppSettings {
     private static final String KEY_THEME_CUSTOM_HEX = "theme_custom_hex";
     private static final String KEY_THEME_SCHEME_HEX = "theme_scheme_hex";
     private static final String KEY_THEME_TINT_SURFACES = "theme_tint_surfaces";
-    private static final String KEY_DESIGN_STYLE = "design_style";
+    private static final String LEGACY_KEY_DESIGN_STYLE = "design_style";
     private static final String KEY_UPDATE_CHANNEL = "update_channel";
     static final String UPDATE_CHANNEL_AUTO = "auto";
     static final String UPDATE_CHANNEL_STABLE = "stable";
@@ -353,18 +353,12 @@ final class AppSettings {
         prefs(context).edit().putBoolean(KEY_THEME_TINT_SURFACES, enabled).apply();
     }
 
-    static String designStyle(Context context) {
-        String value = prefs(context).getString(
-                KEY_DESIGN_STYLE, ThemeManager.DESIGN_CLASSIC);
-        return ThemeManager.DESIGN_MORPHE.equals(value)
-                ? ThemeManager.DESIGN_MORPHE : ThemeManager.DESIGN_CLASSIC;
-    }
-
-    static void setDesignStyle(Context context, String style) {
-        prefs(context).edit().putString(KEY_DESIGN_STYLE,
-                ThemeManager.DESIGN_MORPHE.equals(style)
-                        ? ThemeManager.DESIGN_MORPHE : ThemeManager.DESIGN_CLASSIC)
-                .apply();
+    /** Morphe is the only design now; drop the legacy Classic switch. */
+    static void migrateLegacyDesign(Context context) {
+        SharedPreferences preferences = prefs(context);
+        if (preferences.contains(LEGACY_KEY_DESIGN_STYLE)) {
+            preferences.edit().remove(LEGACY_KEY_DESIGN_STYLE).apply();
+        }
     }
 
     static String updateChannel(Context context) {

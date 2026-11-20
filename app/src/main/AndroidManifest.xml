@@ -44,25 +44,6 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <!-- Launcher screen: instructions, source list, log actions, uninstall. -->
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name">
-            <!-- Keep the helper reachable from Android's app-info screen when the
-                 launcher icon is hidden. This is not shown in the launcher. -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.INFO" />
-            </intent-filter>
-            <!-- Share a GitHub repository/release link to add it as a source. -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
-            </intent-filter>
-        </activity>
-
         <!--
             Launcher entry point. The default is set per build flavor:
             - icon: always enabled; the icon is visible and never hidden.
@@ -72,7 +53,7 @@
         -->
         <activity-alias
             android:name=".LauncherEntry"
-            android:targetActivity=".MainActivity"
+            android:targetActivity=".MorphePreviewActivity"
             android:enabled="@bool/launcher_icon_enabled"
             android:exported="true">
             <intent-filter>
@@ -112,14 +93,24 @@
             android:label="@string/appearance_title"
             android:windowSoftInputMode="adjustResize" />
 
-        <!--
-            v3 design prototype: four-tab Morphe shell. Kept separate from
-            MainActivity so the current release UI stays untouched.
-        -->
+        <!-- Main Morphe shell: the only home design. -->
         <activity
             android:name=".MorphePreviewActivity"
-            android:exported="false"
-            android:label="@string/preview_title" />
+            android:exported="true"
+            android:label="@string/app_name">
+            <!-- Keep the helper reachable from Android's app-info screen when
+                 the launcher icon is hidden. This is not shown in the launcher. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.INFO" />
+            </intent-filter>
+            <!-- Share a GitHub repository/release link to add it as a source. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
 
         <!--
             Helper contract: Morphe sends this action when the user taps

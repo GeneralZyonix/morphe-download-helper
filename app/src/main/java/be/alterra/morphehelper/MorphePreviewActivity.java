@@ -1,5 +1,6 @@
 package be.alterra.morphehelper;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -7,6 +8,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentUris;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -58,13 +60,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * v3 design prototype: a four-tab Morphe shell with Home, Downloads, Sources,
- * and Settings.
- *
- * <p>This activity is intentionally separate from {@link MainActivity}. It lets
- * the new layout be reviewed and installed without changing the current release
- * screen. The tabs use the same saved theme, accent, source settings, and
- * download folder as the rest of the app.</p>
+ * The main Morphe shell with Home, Downloads, Sources, and Settings. It is the
+ * launcher entry point and uses the saved theme, accent, source settings, and
+ * download folder for the rest of the app.
  */
 public class MorphePreviewActivity extends Activity {
 
@@ -75,6 +73,7 @@ public class MorphePreviewActivity extends Activity {
     private static final String STATE_TAB = "selected_tab";
     private static final String MORPHE_PACKAGE = "app.morphe.manager";
     private static final int REQ_SAVE_LOG = 6103;
+    private static final int REQ_NOTIFICATIONS = 41;
     private static final String FEATURE_REQUEST_URL =
             "https://github.com/GeneralZyonix/morphe-download-helper/issues/new"
                     + "?template=feature_request.yml";
@@ -103,9 +102,19 @@ public class MorphePreviewActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         PublicSettings.apply(this);
+        AppSettings.migrateLegacyDesign(this);
+        AppSettings.ensureLauncherIconState(this);
         HelperLog.init(getApplicationContext());
         SourceSettings.ensureInitialized(this);
         applyPalette();
+        new Thread(() -> AppSettings.cleanup(this)).start();
+        new Thread(() -> UpdateManager.cleanupStagedUpdates(this)).start();
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    REQ_NOTIFICATIONS);
+        }
 
         FrameLayout root = new FrameLayout(this);
         root.setBackground(new GradientDrawable(
@@ -184,11 +193,6 @@ public class MorphePreviewActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (!ThemeManager.isMorpheDesign(this)) {
-            startActivity(new Intent(this, MainActivity.class));
-            finish();
-            return;
-        }
         if (themeSignature != null
                 && !themeSignature.equals(ThemeManager.signature(this))) {
             recreate();
@@ -197,6 +201,7 @@ public class MorphePreviewActivity extends Activity {
         if (selectedTab == TAB_DOWNLOADS || selectedTab == TAB_SOURCES) {
             selectTab(selectedTab, false);
         }
+        UpdateManager.showInAppUpdatePopupIfAvailable(this);
     }
 
     private void applyPalette() {

@@ -54,7 +54,7 @@ public class DownloadService extends Service {
     }
 
     private Notification notification(String text, int progress, boolean indeterminate) {
-        Intent open = new Intent(this, MainActivity.class);
+        Intent open = new Intent(this, MorphePreviewActivity.class);
         PendingIntent pending = PendingIntent.getActivity(
                 this, 0, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 

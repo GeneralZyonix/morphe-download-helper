@@ -600,7 +600,7 @@ final class UpdateManager {
             return;
         }
         createChannel(context, manager);
-        Intent open = new Intent(context, MainActivity.class)
+        Intent open = new Intent(context, MorphePreviewActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         PendingIntent pending = PendingIntent.getActivity(context, 20, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

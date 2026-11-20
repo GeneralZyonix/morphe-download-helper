@@ -52,7 +52,7 @@ unchanged.
 
 | Screen | What changed |
 | --- | --- |
-| `MainActivity` | tonal hero, 28 dp cards, pill actions, tonal/outlined hierarchy, chips, log actions |
+| `MorphePreviewActivity` | four-tab shell, gradient hero, 28 dp cards, pill actions, log sheet, chips |
 | `SettingsActivity` | 28 dp section cards, tonal icon tiles, 20 dp rows, tonal button, M3 chip for “Expand all” |
 | `AppearanceActivity` | display header, tonal preview, solid-accent mode selector, M3 accent tiles, M3 fields/buttons |
 | `GuideActivity` | numbered step cards, framed and clipped screenshots, display header, pill CTA |

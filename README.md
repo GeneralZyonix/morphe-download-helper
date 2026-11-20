@@ -239,7 +239,7 @@ optionally enable **Open helper right away**.
 ```text
 app/src/main/java/be/alterra/morphehelper/
   DownloadActivity.java       request flow, sources, WebView fallbacks, downloads
-  MainActivity.java           main screen and log actions
+  MorphePreviewActivity.java  main Morphe shell, tabs, and log actions
   SettingsActivity.java       settings, sources, backup, and permissions
   AppearanceActivity.java     theme and accent controls
   GitHubReleaseResolver.java  GitHub search and asset selection

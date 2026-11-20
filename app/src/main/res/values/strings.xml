@@ -749,13 +749,6 @@
     <string name="appearance_current">Current: %1$s</string>
 
     <!-- Morphe design preview (v3 prototype). -->
-    <string name="preview_title">Morphe design</string>
-    <string name="appearance_design">Design</string>
-    <string name="appearance_design_detail">Classic keeps the current layout. Morphe uses the new four-tab shell.</string>
-    <string name="appearance_design_classic">Classic</string>
-    <string name="appearance_design_morphe">Morphe (preview)</string>
-    <string name="appearance_design_note">Morphe design is a preview. Download and update screens still use the current styling.</string>
-    <string name="appearance_design_open">Open Morphe design</string>
     <string name="preview_home">Home</string>
     <string name="preview_downloads">Downloads</string>
     <string name="preview_sources">Sources</string>

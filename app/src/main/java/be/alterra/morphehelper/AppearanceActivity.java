@@ -1,7 +1,6 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -95,7 +94,6 @@ public class AppearanceActivity extends Activity {
         addModeCard(root);
         addTintCard(root);
         addAccentCard(root);
-        addDesignCard(root);
         addResetCard(root);
 
         TextView done = primaryButton(getString(R.string.common_done));
@@ -599,65 +597,6 @@ public class AppearanceActivity extends Activity {
                 selected ? 0 : Math.max(1, dp(1)), M3Ui.outlineVariant(palette)));
         M3Ui.motion(chip);
         return chip;
-    }
-
-    /** Optional Classic / Morphe design selector. */
-    private void addDesignCard(LinearLayout root) {
-        LinearLayout card = card();
-        LinearLayout.LayoutParams params = cardParams();
-        params.topMargin = dp(18);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.appearance_design), 16, TEXT, true));
-        TextView detail = text(getString(R.string.appearance_design_detail), 12, MUTED, false);
-        detail.setLineSpacing(dp(2), 1f);
-        detail.setPadding(0, dp(4), 0, dp(12));
-        card.addView(detail);
-
-        String design = AppSettings.designStyle(this);
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        TextView classic = optionChip(getString(R.string.appearance_design_classic),
-                ThemeManager.DESIGN_CLASSIC.equals(design));
-        classic.setOnClickListener(v -> selectDesign(ThemeManager.DESIGN_CLASSIC));
-        LinearLayout.LayoutParams classicParams = new LinearLayout.LayoutParams(
-                0, dp(44), 1f);
-        classicParams.setMarginEnd(dp(4));
-        row.addView(classic, classicParams);
-
-        TextView morphe = optionChip(getString(R.string.appearance_design_morphe),
-                ThemeManager.DESIGN_MORPHE.equals(design));
-        morphe.setOnClickListener(v -> selectDesign(ThemeManager.DESIGN_MORPHE));
-        LinearLayout.LayoutParams morpheParams = new LinearLayout.LayoutParams(
-                0, dp(44), 1f);
-        morpheParams.setMarginStart(dp(4));
-        row.addView(morphe, morpheParams);
-        card.addView(row);
-
-        TextView note = text(getString(R.string.appearance_design_note), 11, MUTED, false);
-        note.setLineSpacing(dp(2), 1f);
-        note.setPadding(0, dp(8), 0, 0);
-        card.addView(note);
-
-        if (ThemeManager.DESIGN_MORPHE.equals(design)) {
-            TextView open = M3Ui.tonalButton(this, palette,
-                    getString(R.string.appearance_design_open), R.drawable.ic_home);
-            open.setOnClickListener(v ->
-                    startActivity(new Intent(this, MorphePreviewActivity.class)));
-            LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
-            openParams.topMargin = dp(12);
-            card.addView(open, openParams);
-        }
-    }
-
-    private void selectDesign(String design) {
-        if (design.equals(AppSettings.designStyle(this))) {
-            return;
-        }
-        AppSettings.setDesignStyle(this, design);
-        PublicSettings.write(this);
-        recreate();
     }
 
     private LinearLayout card() {
