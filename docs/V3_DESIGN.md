@@ -33,7 +33,7 @@ You stay available. The current design remains selectable.
 | **Home** | Status chips, hero, Visual guide, Helper log, developer links. |
 | **Downloads** | Local APK library: name, size, date, open/share/delete. Persistent history is a later data-layer change. |
 | **Sources** | The source list from Settings, embedded with toggles and order controls. |
-| **Settings** | Section shortcuts into the existing Settings screen. |
+| **Settings** | Opens the restyled full Settings screen; its sections open in sheets. |
 
 The old main screen mixes all of this into one long scroll. The shell keeps the
 main actions visible and gives downloads and sources a stable home.
@@ -96,8 +96,8 @@ The branch now implements the first pass of phases 1–5:
 - Downloads: persisted hand-off history plus current APKs from the cache and
   public `Downloads/Morphe Helper` folder.
 - Sources: live enabled state and order from `SourceSettings`.
-- Settings: shortcuts to each existing Settings section, with a Morphe header
-  and gradient section tiles when the design is selected.
+- Settings: the tab opens the full Settings screen directly, with the Morphe
+  header and gradient section tiles; each section opens in its own sheet.
 - Appearance: **Design** selector (Classic / Morphe) and a direct shell action.
 
 The shell remains a separate activity rather than a rewrite of MainActivity, so
