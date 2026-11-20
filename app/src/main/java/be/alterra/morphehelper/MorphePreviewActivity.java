@@ -26,9 +26,11 @@ import android.text.TextUtils;
 import android.text.style.StyleSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -1473,15 +1475,22 @@ public class MorphePreviewActivity extends Activity {
         content.setClickable(true);
         content.setFocusable(true);
 
+        FrameLayout handleArea = new FrameLayout(this);
+        handleArea.setContentDescription(getString(R.string.settings_sheet_drag_hint));
+        LinearLayout.LayoutParams handleAreaParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(30));
+        handleAreaParams.bottomMargin = dp(2);
+        content.addView(handleArea, handleAreaParams);
+
         View handle = new View(this);
         GradientDrawable handleBackground = new GradientDrawable();
         handleBackground.setColor(M3Ui.outline(palette));
         handleBackground.setCornerRadius(dp(999));
         handle.setBackground(handleBackground);
-        LinearLayout.LayoutParams handleParams = new LinearLayout.LayoutParams(dp(44), dp(4));
-        handleParams.gravity = Gravity.CENTER_HORIZONTAL;
-        handleParams.bottomMargin = dp(14);
-        content.addView(handle, handleParams);
+        handle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(
+                dp(44), dp(4), Gravity.CENTER);
+        handleArea.addView(handle, handleParams);
 
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -1560,16 +1569,26 @@ public class MorphePreviewActivity extends Activity {
             return insets;
         });
 
-        dialog.setContentView(content);
+        FrameLayout windowRoot = new FrameLayout(this);
+        windowRoot.setClipChildren(false);
+        windowRoot.addView(content, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM));
+
+        dialog.setContentView(windowRoot);
         dialog.setCanceledOnTouchOutside(true);
         dialog.show();
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            window.setDimAmount(0.62f);
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
+                    ViewGroup.LayoutParams.MATCH_PARENT);
             window.setGravity(Gravity.BOTTOM);
             window.setNavigationBarColor(M3Ui.surfaceContainer(palette));
+            window.setStatusBarColor(M3Ui.surface(palette));
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 window.setNavigationBarDividerColor(M3Ui.surfaceContainer(palette));
             }
@@ -1580,8 +1599,62 @@ public class MorphePreviewActivity extends Activity {
                     ViewCompat.getWindowInsetsController(window.getDecorView());
             if (controller != null) {
                 controller.setAppearanceLightNavigationBars(palette.light);
+                controller.setAppearanceLightStatusBars(palette.light);
             }
         }
+        windowRoot.setOnClickListener(v -> dialog.dismiss());
+        attachLogSheetDrag(handleArea, content, dialog);
+
+        content.setTranslationY(getResources().getDisplayMetrics().heightPixels);
+        content.post(() -> content.animate()
+                .translationY(0f)
+                .setDuration(260L)
+                .setInterpolator(new DecelerateInterpolator(1.6f))
+                .start());
+    }
+
+    /** Drag the log sheet handle down to dismiss it. */
+    private void attachLogSheetDrag(View handle, LinearLayout sheet, Dialog dialog) {
+        final float[] downY = new float[1];
+        final float[] downTranslation = new float[1];
+        handle.setOnTouchListener((view, event) -> {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    downY[0] = event.getRawY();
+                    downTranslation[0] = sheet.getTranslationY();
+                    sheet.animate().cancel();
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    float offset = event.getRawY() - downY[0];
+                    sheet.setTranslationY(Math.max(0f, downTranslation[0] + offset));
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    float height = sheet.getHeight();
+                    float threshold = height > 0 ? height * 0.22f : dp(160);
+                    if (sheet.getTranslationY() > threshold) {
+                        float distance = height > 0
+                                ? height
+                                : getResources().getDisplayMetrics().heightPixels;
+                        sheet.animate()
+                                .translationY(distance)
+                                .setDuration(220L)
+                                .setInterpolator(new DecelerateInterpolator(1.2f))
+                                .withEndAction(dialog::dismiss)
+                                .start();
+                    } else {
+                        sheet.animate()
+                                .translationY(0f)
+                                .setDuration(220L)
+                                .setInterpolator(new DecelerateInterpolator(1.6f))
+                                .start();
+                    }
+                    return true;
+                default:
+                    return false;
+            }
+        });
+        handle.setClickable(true);
     }
 
     private View logRow(int iconRes, int titleRes, int titleColor, Runnable action) {

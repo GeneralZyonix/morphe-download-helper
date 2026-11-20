@@ -103,6 +103,7 @@ The branch now implements the first pass of phases 1–5:
 - Theme and accent changes recreate the shell and preserve the selected tab.
 - Helper log: one sheet with Share, Copy, Save, Preview, Report, Suggest, and
   Clear. Every export is sanitized first; Save uses the system file picker.
+  The sheet handle drags down to dismiss, with the same snap-back behaviour.
 - Sources lives only in the bottom navigation, not as a duplicate home button.
 - Pages add a real bottom spacer so the floating navigation bar never covers
   the last row and vertical scrolling starts from cards and buttons too.
