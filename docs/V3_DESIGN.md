@@ -56,8 +56,9 @@ main actions visible and gives downloads and sources a stable home.
 5. **Settings** — Morphe header (overline, display title, subtitle) and gradient
    section icon tiles; the existing sheets inherit the larger type. **First pass
    done.**
-6. **Download and update screens** — last, because the progress ring, WebView
-   verification, and VirusTotal states are the highest-risk surfaces.
+6. **Download and update screens** — gradient backgrounds, Morphe display
+   headers, gradient update badge, and the existing M3 cards/buttons retained.
+   **First pass done**; deeper progress-ring and state polish remains.
 7. **Polish** — motion, haptics, large-font and RTL passes, screenshots, and a
    size comparison.
 
@@ -81,6 +82,8 @@ main actions visible and gives downloads and sources a stable home.
 - `docs/branding/material3/v3-shell-settings.png`
 - `docs/branding/material3/v3-shell-log-sheet.png`
 - `docs/branding/material3/v3-shell-storage-sheet.png`
+- `docs/branding/material3/v3-guide.png`
+- `docs/branding/material3/v3-update.png`
 
 ## Guardrails
 
@@ -114,6 +117,10 @@ The branch now implements the first pass of phases 1–5:
   its section as a transparent sheet host over the shell; the handle drags down
   to dismiss, and a short drag springs back.
 - Appearance: theme, accent, and colour controls only; no design switch.
+- Guide, Update, Download, and Appearance use the Morphe gradient background
+  and display headers. Update also gets the gradient update tile. Their M3
+  cards, controls, and progress ring are unchanged so download behaviour stays
+  intact.
 
 The shell is the launcher home. The old classic home screen is deleted, and the
 legacy design preference is removed on upgrade.

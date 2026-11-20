@@ -14,6 +14,8 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -110,7 +112,9 @@ public class UpdateActivity extends Activity {
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(M3Ui.surface(palette));
+        scroll.setBackground(new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{palette.bgTop, palette.bgBottom}));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -127,15 +131,42 @@ public class UpdateActivity extends Activity {
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        TextView overline = M3Ui.overline(this, getString(changelogOnly
+                ? R.string.update_changelog_overline : R.string.update_overline),
+                ACCENT_TEXT);
+        overline.setGravity(Gravity.CENTER);
+        root.addView(overline);
+
         TextView title = M3Ui.display(this, getString(changelogOnly
-                ? R.string.settings_changelog : R.string.app_name), 30, TEXT);
+                ? R.string.settings_changelog : R.string.common_update), 32, TEXT);
         title.setGravity(Gravity.CENTER);
+        title.setPadding(0, dp(8), 0, 0);
         root.addView(title);
+
+        TextView subtitle = M3Ui.text(this, getString(changelogOnly
+                ? R.string.update_changelog_subtitle : R.string.update_subtitle),
+                13, MUTED, 400);
+        subtitle.setGravity(Gravity.CENTER);
+        subtitle.setPadding(0, dp(6), 0, 0);
+        root.addView(subtitle);
 
         LinearLayout header = card();
         root.addView(header, topMarginParams(18));
 
-        version = text(getString(R.string.update_current_version), 14, MUTED, false);
+        FrameLayout iconTile = new FrameLayout(this);
+        iconTile.setBackground(M3Ui.brandGradient(this, palette, 16));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.ic_section_updates);
+        icon.setColorFilter(ON_PRIMARY);
+        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(24), dp(24));
+        iconInner.gravity = Gravity.CENTER;
+        iconTile.addView(icon, iconInner);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(50), dp(50));
+        iconParams.gravity = Gravity.CENTER_HORIZONTAL;
+        iconParams.bottomMargin = dp(12);
+        header.addView(iconTile, iconParams);
+
+        version = text(getString(R.string.update_current_version), 15, MUTED, false);
         version.setGravity(Gravity.CENTER);
         header.addView(version);
 
@@ -178,7 +209,7 @@ public class UpdateActivity extends Activity {
         header.addView(progress, progressParams);
 
         notesCard = card();
-        notesTitle = text(getString(R.string.update_whats_new), 16, TEXT, true);
+        notesTitle = M3Ui.title(this, getString(R.string.update_whats_new), 17, TEXT);
         notesTitle.setPadding(0, 0, 0, dp(8));
         notesTitle.setVisibility(View.GONE);
         notesCard.addView(notesTitle);

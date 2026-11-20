@@ -2631,7 +2631,9 @@ public class DownloadActivity extends Activity {
         // ScrollView keeps the layout usable on small screens and with large fonts.
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(M3Ui.surface(palette));
+        scroll.setBackground(new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{palette.bgTop, palette.bgBottom}));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -2670,8 +2672,11 @@ public class DownloadActivity extends Activity {
         LinearLayout topLabels = new LinearLayout(this);
         topLabels.setOrientation(LinearLayout.VERTICAL);
         topLabels.setPadding(dp(12), 0, 0, 0);
-        screenTitle = M3Ui.title(this,
-                getString(R.string.download_title_progress), 22, TEXT);
+        topLabels.addView(M3Ui.overline(this,
+                getString(R.string.download_overline), ACCENT_TEXT));
+        screenTitle = M3Ui.display(this,
+                getString(R.string.download_title_progress), 26, TEXT);
+        screenTitle.setPadding(0, dp(4), 0, 0);
         screenSubtitle = text(getString(R.string.download_subtitle), 12, MUTED, false);
         screenSubtitle.setPadding(0, dp(3), 0, 0);
         topLabels.addView(screenTitle);

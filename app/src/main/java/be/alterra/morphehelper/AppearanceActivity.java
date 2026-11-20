@@ -63,7 +63,9 @@ public class AppearanceActivity extends Activity {
         scrollView = new ScrollView(this);
         scrollView.setId(R.id.appearance_scroll);
         scrollView.setFillViewport(true);
-        scrollView.setBackgroundColor(M3Ui.surface(palette));
+        scrollView.setBackground(new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{palette.bgTop, palette.bgBottom}));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);

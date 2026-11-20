@@ -2,6 +2,7 @@ package be.alterra.morphehelper;
 
 import android.app.Activity;
 import android.graphics.Outline;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -39,7 +40,9 @@ public class GuideActivity extends Activity {
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(M3Ui.surface(palette));
+        scroll.setBackground(new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{palette.bgTop, palette.bgBottom}));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -104,16 +107,15 @@ public class GuideActivity extends Activity {
         card.setBackground(M3Ui.card(this, palette));
 
         TextView badge = M3Ui.text(this, number, 14,
-                M3Ui.onPrimaryContainer(palette), 700);
+                palette.onPrimary, 700);
         badge.setGravity(Gravity.CENTER);
-        badge.setBackground(M3Ui.filled(this,
-                M3Ui.primaryContainer(palette), 999, 0, 0));
+        badge.setBackground(M3Ui.brandGradient(this, palette, 999));
         card.addView(badge, new LinearLayout.LayoutParams(dp(36), dp(36)));
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
         labels.setPadding(dp(12), 0, 0, 0);
-        labels.addView(M3Ui.title(this, heading, 16, palette.text));
+        labels.addView(M3Ui.title(this, heading, 17, palette.text));
         TextView description = M3Ui.text(this, body, 13, palette.steps, 400);
         description.setLineSpacing(dp(3), 1f);
         description.setPadding(0, dp(5), 0, 0);

@@ -199,6 +199,11 @@
     <string name="settings_appearance">Appearance</string>
     <string name="settings_appearance_detail">Theme, accent colour, and preview</string>
     <string name="settings_overline">Settings</string>
+    <string name="update_overline">Morphe updates</string>
+    <string name="update_changelog_overline">Release history</string>
+    <string name="update_subtitle">Install the latest helper build.</string>
+    <string name="update_changelog_subtitle">Browse release notes for previous versions.</string>
+    <string name="download_overline">Download</string>
     <string name="settings_sheet_drag_hint">Drag down to close</string>
     <string name="settings_general">General</string>
     <string name="settings_general_summary">Language, appearance, and app icon</string>
