@@ -7,11 +7,16 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 
 ## [3.0.0] - 2026-11-20
 
-3.0.0 makes Morphe the only home design. It includes everything from the
-2.4–2.7 pre-release series and replaces 2.3.10 as the latest stable release.
+3.0.0 is a full Material 3 Expressive redesign. Morphe is now the only home
+design, and every screen shares its gradient language. It includes everything
+from the 2.4–2.7 pre-release series and replaces 2.3.10 as the latest stable
+release.
 
 ### Added
 
+- **Full Expressive redesign:** Home, Downloads, Sources, Settings, Guide,
+  Update, Appearance, and the download/failure screens use Morphe gradient
+  hero cards, display typography, tonal surfaces, and sheet motion.
 - **Four-tab Morphe shell:** Home, Downloads, Sources, and Settings with a
   floating pill navigation bar and horizontal page slides.
 - **Downloads:** persisted history of the last 40 hand-offs, current APKs from

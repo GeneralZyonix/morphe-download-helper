@@ -42,7 +42,7 @@ Grab one of the two current builds from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
 > **3.0.0 is the latest stable release.** It replaces 2.3.10 and includes the
-> complete Morphe redesign. The 2.7.x builds remain available as pre-releases.
+> full Material 3 Expressive redesign. The 2.7.x builds remain available as pre-releases.
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
