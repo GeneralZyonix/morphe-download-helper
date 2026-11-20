@@ -98,6 +98,13 @@
             android:exported="false"
             android:label="@string/common_settings" />
 
+        <!-- Transparent host for one section sheet, opened over the Morphe shell. -->
+        <activity
+            android:name=".SettingsSheetActivity"
+            android:exported="false"
+            android:label="@string/common_settings"
+            android:theme="@style/SettingsSheetOnlyTheme" />
+
         <!-- Appearance settings: theme mode, accent presets, and custom HEX. -->
         <activity
             android:name=".AppearanceActivity"

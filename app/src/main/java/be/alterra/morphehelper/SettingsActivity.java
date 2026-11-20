@@ -99,6 +99,8 @@ public class SettingsActivity extends Activity {
     static final String EXTRA_SECTION = "open_section";
     static final String EXTRA_SECTION_SOURCES = "sources";
     static final String EXTRA_SHARE_TEXT = "share_text";
+    /** Shows only the requested section sheet, over the caller's screen. */
+    static final String EXTRA_SHEET_ONLY = "sheet_only";
     private static final String SECTION_GENERAL = "general";
     private static final String SECTION_UPDATES = "updates";
     private static final String SECTION_WEB = "web";
@@ -110,6 +112,7 @@ public class SettingsActivity extends Activity {
     private boolean batteryIgnoring;
     private String pendingLocation;
     private boolean exportIncludeSecrets;
+    private boolean sheetOnly;
     private ScrollView settingsScroll;
     private TextView updateChannelValue;
     private TextView updateStatusView;
@@ -151,6 +154,10 @@ public class SettingsActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        sheetOnly = getIntent().getBooleanExtra(EXTRA_SHEET_ONLY, false);
+        if (sheetOnly) {
+            setTheme(R.style.SettingsSheetOnlyTheme);
+        }
         super.onCreate(savedInstanceState);
         SourceSettings.ensureInitialized(this);
         PublicSettings.apply(this);
@@ -263,11 +270,25 @@ public class SettingsActivity extends Activity {
 
         setContentView(scroll);
         ThemeManager.applySystemBars(this);
+        if (sheetOnly) {
+            getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            getWindow().setStatusBarColor(Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(Color.TRANSPARENT);
+            if (Build.VERSION.SDK_INT >= 29) {
+                getWindow().setStatusBarContrastEnforced(false);
+                getWindow().setNavigationBarContrastEnforced(false);
+            }
+            scroll.setVisibility(View.INVISIBLE);
+        }
 
         String sheetKey = savedInstanceState == null
                 ? null : savedInstanceState.getString(STATE_OPEN_SHEET);
         if (TextUtils.isEmpty(sheetKey) && !TextUtils.isEmpty(requestedSection)) {
             sheetKey = requestedSection;
+        }
+        if (sheetOnly && TextUtils.isEmpty(sheetKey)) {
+            finish();
+            return;
         }
         if (!TextUtils.isEmpty(sheetKey)) {
             final String pendingSheet = sheetKey;
@@ -593,6 +614,9 @@ public class SettingsActivity extends Activity {
                 if (!isChangingConfigurations() && !isFinishing()) {
                     openSheetKey = null;
                 }
+            }
+            if (sheetOnly && !isChangingConfigurations() && !isFinishing()) {
+                finish();
             }
         });
 

@@ -121,6 +121,17 @@
     </style>
 
     <!-- Transparent, full-width dialog window used by the settings bottom sheet. -->
+    <!-- Transparent host for a section sheet opened over the Morphe shell. -->
+    <style name="SettingsSheetOnlyTheme" parent="AppTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
     <style name="SettingsSheetTheme" parent="@android:style/Theme.Material.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">true</item>

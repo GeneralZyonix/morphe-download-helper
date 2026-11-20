@@ -123,22 +123,41 @@ public class MorphePreviewTest {
     }
 
     @Test
-    public void settingsTabOpensTheFullSettingsScreen() {
+    public void settingsTabStaysInsideTheShell() {
+        try (ActivityScenario<MorphePreviewActivity> scenario =
+                     ActivityScenario.launch(MorphePreviewActivity.class)) {
+            scenario.onActivity(activity -> {
+                clickTab(activity, "Settings");
+                View root = activity.getWindow().getDecorView();
+                assertTrue(containsText(root,
+                        "Choose a section. It opens in a sheet over this screen."));
+                assertTrue(containsText(root, "Storage"));
+            });
+        }
+    }
+
+    @Test
+    public void settingsSectionOpensASheetOnly() {
         try (ActivityScenario<MorphePreviewActivity> scenario =
                      ActivityScenario.launch(MorphePreviewActivity.class)) {
             scenario.onActivity(activity -> clickTab(activity, "Settings"));
+            scenario.onActivity(activity -> clickTab(activity, "Storage"));
             InstrumentationRegistry.getInstrumentation().waitForIdleSync();
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
                 Collection<Activity> resumed = ActivityLifecycleMonitorRegistry
                         .getInstance().getActivitiesInStage(Stage.RESUMED);
-                boolean settingsVisible = false;
+                SettingsActivity settings = null;
                 for (Activity activity : resumed) {
                     if (activity instanceof SettingsActivity) {
-                        settingsVisible = true;
+                        settings = (SettingsActivity) activity;
                         break;
                     }
                 }
-                assertTrue("SettingsActivity was not resumed", settingsVisible);
+                assertNotNull("SettingsActivity was not resumed", settings);
+                assertTrue("Section sheet did not use sheet-only mode",
+                        settings.getIntent().getBooleanExtra(
+                                SettingsActivity.EXTRA_SHEET_ONLY, false));
+                settings.finish();
             });
         }
     }

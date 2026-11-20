@@ -20,7 +20,9 @@ You stay available. The current design remains selectable.
 - Paired feature tiles with a coloured icon tile, title, one-line description,
   and a circular arrow.
 - Rounded pill bottom navigation with four destinations: **Home**,
-  **Downloads**, **Sources**, **Settings**.
+  **Downloads**, **Sources**, **Settings**. Tab changes slide horizontally:
+  the outgoing page moves aside while the incoming page follows the finger
+  direction, over 260 ms.
 - Typography: bold display for the hero, medium titles, 11–13 sp body text,
   uppercase overline with wide tracking.
 - Motion: short spring press, tab cross-fade, and a soft selected-pill morph.
@@ -33,7 +35,7 @@ You stay available. The current design remains selectable.
 | **Home** | Status chips, hero, Visual guide, Helper log, developer links. |
 | **Downloads** | Local APK library: name, size, date, open/share/delete. Persistent history is a later data-layer change. |
 | **Sources** | The source list from Settings, embedded with toggles and order controls. |
-| **Settings** | Opens the restyled full Settings screen; its sections open in sheets. |
+| **Settings** | In-shell section list; each section opens a sheet over the shell. |
 
 The old main screen mixes all of this into one long scroll. The shell keeps the
 main actions visible and gives downloads and sources a stable home.
@@ -78,6 +80,7 @@ main actions visible and gives downloads and sources a stable home.
 - `docs/branding/material3/v3-shell-downloads.png`
 - `docs/branding/material3/v3-shell-sources.png`
 - `docs/branding/material3/v3-shell-settings.png`
+- `docs/branding/material3/v3-shell-storage-sheet.png`
 
 ## Guardrails
 
@@ -96,8 +99,9 @@ The branch now implements the first pass of phases 1–5:
 - Downloads: persisted hand-off history plus current APKs from the cache and
   public `Downloads/Morphe Helper` folder.
 - Sources: live enabled state and order from `SourceSettings`.
-- Settings: the tab opens the full Settings screen directly, with the Morphe
-  header and gradient section tiles; each section opens in its own sheet.
+- Settings: the tab stays inside the shell. Each row opens its section as a
+  transparent sheet host over the shell, so the main screen never disappears.
+  **Open all settings** still opens the full restyled screen.
 - Appearance: **Design** selector (Classic / Morphe) and a direct shell action.
 
 The shell remains a separate activity rather than a rewrite of MainActivity, so
