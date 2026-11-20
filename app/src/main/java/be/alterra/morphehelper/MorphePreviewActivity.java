@@ -184,8 +184,6 @@ public class MorphePreviewActivity extends Activity {
                 return buildDownloads();
             case TAB_SOURCES:
                 return buildSources();
-            case TAB_SETTINGS:
-                return buildSettings();
             default:
                 return buildHome();
         }
@@ -200,21 +198,26 @@ public class MorphePreviewActivity extends Activity {
                 Math.max(1, dp(1)), M3Ui.outlineVariant(palette)));
         bar.setElevation(dp(12));
 
-        addNavItem(bar, TAB_HOME, R.drawable.ic_home, R.string.preview_home);
-        addNavItem(bar, TAB_DOWNLOADS, R.drawable.ic_downloads, R.string.preview_downloads);
-        addNavItem(bar, TAB_SOURCES, R.drawable.ic_section_sources, R.string.preview_sources);
-        addNavItem(bar, TAB_SETTINGS, R.drawable.ic_settings_gear, R.string.preview_settings);
+        addNavItem(bar, TAB_HOME, R.drawable.ic_home,
+                R.string.preview_home, () -> selectTab(TAB_HOME, true));
+        addNavItem(bar, TAB_DOWNLOADS, R.drawable.ic_downloads,
+                R.string.preview_downloads, () -> selectTab(TAB_DOWNLOADS, true));
+        addNavItem(bar, TAB_SOURCES, R.drawable.ic_section_sources,
+                R.string.preview_sources, () -> selectTab(TAB_SOURCES, true));
+        addNavItem(bar, TAB_SETTINGS, R.drawable.ic_settings_gear,
+                R.string.preview_settings, () -> openSettings(null));
         return bar;
     }
 
-    private void addNavItem(LinearLayout bar, int index, int iconRes, int labelRes) {
+    private void addNavItem(LinearLayout bar, int index, int iconRes, int labelRes,
+                            Runnable action) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
         item.setPadding(dp(6), dp(8), dp(6), dp(7));
         item.setClickable(true);
         item.setFocusable(true);
-        item.setOnClickListener(v -> selectTab(index, true));
+        item.setOnClickListener(v -> action.run());
 
         ImageView icon = new ImageView(this);
         icon.setImageResource(iconRes);
@@ -1086,129 +1089,6 @@ public class MorphePreviewActivity extends Activity {
         AppSettings.moveSource(this, key, delta);
         PublicSettings.write(this);
         rebuildSourceList();
-    }
-
-    // ------------------------------------------------------------------
-    // Settings
-    // ------------------------------------------------------------------
-
-    private View buildSettings() {
-        ScrollView scroll = tabScroll();
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(root, new ScrollView.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        root.addView(M3Ui.display(this, getString(R.string.preview_settings), 30, TEXT));
-        TextView hint = M3Ui.text(this,
-                getString(R.string.preview_settings_hint), 12, MUTED, 400);
-        hint.setPadding(0, dp(5), 0, dp(14));
-        root.addView(hint);
-
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(6), dp(6), dp(6), dp(6));
-        card.setBackground(M3Ui.card(this, palette));
-        root.addView(card, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        addSettingsRow(card, R.drawable.ic_section_general,
-                R.string.settings_general, R.string.settings_general_summary,
-                "general");
-        addSettingsRow(card, R.drawable.ic_section_updates,
-                R.string.settings_updates, R.string.settings_updates_summary,
-                "updates");
-        addSettingsRow(card, R.drawable.ic_section_web,
-                R.string.settings_web_pages, R.string.settings_web_pages_summary,
-                "web");
-        addSettingsRow(card, R.drawable.ic_section_sources,
-                R.string.settings_sources, R.string.settings_sources_summary,
-                SettingsActivity.EXTRA_SECTION_SOURCES);
-        addSettingsRow(card, R.drawable.ic_section_storage,
-                R.string.settings_storage, R.string.settings_storage_summary,
-                "storage");
-        addSettingsRow(card, R.drawable.ic_section_security,
-                R.string.preview_security, R.string.settings_security_summary,
-                "security");
-        addSettingsRow(card, R.drawable.ic_section_battery,
-                R.string.preview_background, R.string.settings_background_summary,
-                "battery");
-        addSettingsRow(card, R.drawable.ic_section_backup,
-                R.string.settings_backup, R.string.settings_backup_summary,
-                "backup");
-
-        LinearLayout appearanceRow = settingsRow(R.drawable.ic_section_general,
-                getString(R.string.preview_settings_appearance),
-                getString(R.string.appearance_subtitle));
-        appearanceRow.setOnClickListener(v ->
-                startActivity(new Intent(this, AppearanceActivity.class)));
-        root.addView(appearanceRow, topMargin(dp(10)));
-
-        TextView all = M3Ui.primaryButton(this, palette,
-                getString(R.string.preview_settings_all), 0);
-        all.setOnClickListener(v -> openSettings(null));
-        LinearLayout.LayoutParams allParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
-        allParams.topMargin = dp(18);
-        root.addView(all, allParams);
-        return scroll;
-    }
-
-    private void addSettingsRow(LinearLayout card, int iconRes, int titleRes,
-                                int summaryRes, String section) {
-        LinearLayout row = settingsRow(iconRes, getString(titleRes),
-                getString(summaryRes));
-        row.setOnClickListener(v -> openSettings(section));
-        card.addView(row);
-    }
-
-    private LinearLayout settingsRow(int iconRes, String title, String summary) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(10), dp(11), dp(8), dp(11));
-        row.setBackground(new RippleDrawable(ColorStateList.valueOf(palette.ripple),
-                null, null));
-        row.setClickable(true);
-        row.setFocusable(true);
-        M3Ui.motion(row);
-
-        FrameLayout iconTile = new FrameLayout(this);
-        iconTile.setBackground(M3Ui.filled(this,
-                M3Ui.primaryContainer(palette), 12, 0, 0));
-        ImageView icon = new ImageView(this);
-        icon.setImageResource(iconRes);
-        icon.setColorFilter(M3Ui.onPrimaryContainer(palette));
-        FrameLayout.LayoutParams iconInner = new FrameLayout.LayoutParams(dp(20), dp(20));
-        iconInner.gravity = Gravity.CENTER;
-        iconTile.addView(icon, iconInner);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(40), dp(40));
-        iconParams.setMarginEnd(dp(12));
-        row.addView(iconTile, iconParams);
-
-        LinearLayout labels = new LinearLayout(this);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(M3Ui.text(this, title, 14, TEXT, 600));
-        TextView detail = M3Ui.text(this, summary, 11, MUTED, 400);
-        detail.setPadding(0, dp(2), 0, 0);
-        labels.addView(detail);
-        row.addView(labels, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-        ImageView chevron = new ImageView(this);
-        chevron.setImageResource(R.drawable.ic_chevron_right);
-        chevron.setColorFilter(MUTED);
-        chevron.setPadding(dp(6), dp(6), dp(6), dp(6));
-        row.addView(chevron, new LinearLayout.LayoutParams(dp(32), dp(32)));
-        return row;
-    }
-
-    private LinearLayout.LayoutParams topMargin(int margin) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = margin;
-        return params;
     }
 
     private void openSettings(String section) {

@@ -779,11 +779,6 @@
     <string name="preview_history_remove_message">%1$s is no longer on this device. Remove this entry?</string>
     <string name="preview_history_remove">Remove</string>
     <string name="preview_history_removed">Removed %1$s from history.</string>
-    <string name="preview_settings_hint">Open a section in the full settings screen.</string>
-    <string name="preview_settings_all">Open all settings</string>
-    <string name="preview_settings_appearance">Appearance</string>
     <string name="preview_developer">Developed by</string>
-    <string name="preview_security">Security</string>
-    <string name="preview_background">Background</string>
     <string name="preview_log_empty">No log entries yet.</string>
 </resources>
