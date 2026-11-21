@@ -18,8 +18,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 81
-        versionName "3.1.0"
+        versionCode 82
+        versionName "3.2.0"
 
         // true for pre-release builds; set false only for a stable release.
         // Drives the P/R badge and the Auto update channel.
@@ -52,10 +52,11 @@ android {
 
     buildTypes {
         release {
-            // Keep shrinking disabled so release APKs behave like debug builds.
-            // Sign with the existing debug key so current users can update in
-            // place, but leave debuggable=false for a production-like build.
-            minifyEnabled false
+            // Shrink and obfuscate the release build while keeping the debug key
+            // for in-place updates.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
             signingConfig signingConfigs.debug
         }
     }

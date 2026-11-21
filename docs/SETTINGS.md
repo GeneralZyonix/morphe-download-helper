@@ -69,9 +69,10 @@ affects pages opened inside the helper, not your browser.
 ## Sources
 
 The **Sources** tab is the single source editor. Reorder sources with the arrows,
-enable or disable them, reset the order, and run **Test** on a single source or
-**Test all sources**. Each row keeps its last result, including the response
-detail and how long ago it ran.
+enable or disable them, reset the order, and run **Test** on a single source. The
+**Test sources** menu can check enabled sources or all sources and runs up to two
+checks at a time. Each row keeps its last result, including the response detail
+and how long ago it ran.
 
 The advanced gear opens the remaining source options in Settings: Fast source
 checks, the Appteka warning, and GitHub apps.

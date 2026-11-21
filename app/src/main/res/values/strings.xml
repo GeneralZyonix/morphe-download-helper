@@ -28,6 +28,8 @@
     <string name="settings_test_all">Test all sources</string>
     <string name="settings_testing_all">Testing all sources…</string>
     <string name="sources_testing">Testing…</string>
+    <string name="sources_test">Test sources</string>
+    <string name="sources_test_enabled">Test enabled sources</string>
     <string name="settings_test_all_result">%1$d passed, %2$d failed.</string>
     <string name="settings_source_drag_hint">Drag the handle to change which source is tried first. Disabled sources stay at the bottom.</string>
     <string name="main_logs_local">Logs stay on this device</string>
@@ -805,9 +807,30 @@
     <string name="patches_sort_updated">Last update</string>
     <string name="patches_sort_patches">Most patches</string>
     <string name="patches_official_only">Official only</string>
+    <string name="patches_official_note">Official is the upstream index label. Sources are still third-party.</string>
     <string name="patches_no_official_sources">No official sources for %1$s.</string>
     <string name="patches_show_all">Show all</string>
     <string name="patches_source_updated">Updated %1$s</string>
+    <string name="patches_just_now">just now</string>
+    <string name="patches_source_actions">Source actions</string>
+    <string name="patches_source_view_repo">View repository</string>
+    <string name="patches_source_copy_link">Copy add-source link</string>
+    <string name="patches_source_report">Report source</string>
+    <string name="patches_link_copied">Source link copied.</string>
+    <string name="patches_link_copy_failed">Could not copy the link.</string>
+    <string name="patches_view_details">View patch names (%1$d)</string>
+    <string name="patches_details_loading">Loading patches…</string>
+    <string name="patches_details_failed">Could not load patch details.</string>
+    <string name="patches_details_title">%1$s patches</string>
+    <string name="patches_details_intro">%1$s · %2$s</string>
+    <string name="patches_details_empty">No patch names are listed for this app.</string>
+    <string name="patches_all_versions">All versions</string>
+    <string name="patches_targets">Targets: %1$s</string>
+    <string name="patches_retry">Retry</string>
+    <string name="patches_installed">Apps on this phone</string>
+    <string name="patches_installed_detail">Installed apps that have patch sources in the index.</string>
+    <string name="patches_popular">Popular apps</string>
+    <string name="patches_recent">Recent</string>
     <string name="patches_search_empty_body">Type an app name to see which patch sources currently support it.</string>
     <string name="patches_no_results">No apps match “%1$s”.</string>
     <string name="patches_status_loading">Loading patch sources…</string>
@@ -843,5 +866,17 @@
     <plurals name="patches_app_count">
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>
+    </plurals>
+    <plurals name="patches_minutes_ago">
+        <item quantity="one">%1$d minute ago</item>
+        <item quantity="other">%1$d minutes ago</item>
+    </plurals>
+    <plurals name="patches_hours_ago">
+        <item quantity="one">%1$d hour ago</item>
+        <item quantity="other">%1$d hours ago</item>
+    </plurals>
+    <plurals name="patches_days_ago">
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
     </plurals>
 </resources>

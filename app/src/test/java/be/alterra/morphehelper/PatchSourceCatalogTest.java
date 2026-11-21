@@ -31,8 +31,10 @@ public class PatchSourceCatalogTest {
             + "],"
             + "\"apps\":{"
             + "\"com.google.android.youtube\":{\"name\":\"YouTube\",\"icon\":\"\","
+            + "\"installs\":10000000000,"
             + "\"sources\":[[1,1794623001000,1],[0,1795182964000,121]]},"
             + "\"com.spotify.music\":{\"name\":\"Spotify\",\"icon\":\"\","
+            + "\"installs\":1000000,"
             + "\"sources\":[[2,1794000000000,4]]},"
             + "\"com.example.none\":{\"name\":\"None\",\"icon\":\"\","
             + "\"sources\":[]}"
@@ -82,6 +84,15 @@ public class PatchSourceCatalogTest {
         assertEquals(1, byPackage.size());
         assertEquals("com.google.android.youtube",
                 byPackage.get(0).packageName);
+
+        List<PatchSourceCatalog.App> abbreviation = catalog.search("yt", 10);
+        assertFalse(abbreviation.isEmpty());
+        assertEquals("YouTube", abbreviation.get(0).name);
+
+        List<PatchSourceCatalog.App> popular = catalog.popular(2);
+        assertEquals(2, popular.size());
+        assertEquals("YouTube", popular.get(0).name);
+        assertEquals(10000000000L, popular.get(0).installs);
 
         assertTrue(catalog.search("", 10).isEmpty());
         assertTrue(catalog.search("  ", 10).isEmpty());

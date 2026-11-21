@@ -5,6 +5,44 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [3.2.0] - 2026-11-21
+
+### Added
+
+- App icons and source avatars in the Patches tab, loaded from the upstream
+  index with gradient-monogram fallbacks and on-disk caching.
+- The stars badge is always visible at the end of each source card and uses the
+  theme gradient instead of scrolling with the other chips.
+- French translation parity at 802/802 strings with 0 placeholder mismatches,
+  including the new Patches, icon, quick-section, and relative-date strings.
+- Patches quick sections for **Installed with patch sources**, **Popular apps**,
+  and **Recent** apps.
+- Source trust details: descriptions, stars, relative update times, and a menu
+  to view the repository, copy the add-source link, or report the source.
+- Tap a source's patch count to see patch names and target versions on demand.
+  Details are stored in a separate cached index so the main catalog stays small.
+- Patch search accepts common abbreviations and ignores punctuation and spacing,
+  with a clear button and keyboard search action.
+- Automatically scroll the expanded app into view.
+- **Test sources** on the Sources tab now offers enabled-only or all sources and
+  runs up to two checks at a time.
+- Collapsing sticky tab headers with a divider under the header.
+
+### Changed
+
+- Catalog refreshes compare `dataHash` and preserve scroll, search, and expanded
+  state when the data did not change.
+- Relative dates now follow the app language instead of the system locale, with
+  explicit minutes/hours/days strings.
+- Added a retry action when the catalog check fails.
+- Increased Patches chip text and per-source Test touch targets for readability
+  and accessibility.
+- Enabled R8 minification and resource shrinking for release builds. The icon APK
+  dropped from about 3.63 MB to about 1.66 MB.
+- Added a tag-driven release workflow that runs unit tests, builds both flavors,
+  writes checksums, and publishes the GitHub release.
+- Added a Patches instrumentation test with a fake catalog.
+
 ## [3.1.0] - 2026-11-21
 
 ### Added

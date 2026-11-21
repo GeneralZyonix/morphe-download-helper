@@ -9,6 +9,7 @@ import android.content.ClipboardManager;
 import android.content.ContentUris;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -45,6 +46,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -67,12 +69,15 @@ import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The main Morphe shell with Home, Downloads, Sources, and Settings. It is the
@@ -120,14 +125,19 @@ public class MorphePreviewActivity extends Activity {
     private int CARD_HIGH;
 
     private LinearLayout sourceList;
+    private TextView homeSubtitle;
     private TextView sourceTestAllButton;
     private boolean sourceTestingAll;
     private final Map<String, TextView> sourceHealthViews = new LinkedHashMap<>();
 
     private PatchSourceCatalog patchCatalog;
+    private String patchCatalogHash;
+    private boolean patchHasRendered;
+    private ScrollView patchScroll;
     private LinearLayout patchResults;
     private TextView patchStatus;
     private View patchStatusDot;
+    private TextView patchRetry;
     private EditText patchSearch;
     private final Handler patchHandler = new Handler(Looper.getMainLooper());
     private Runnable patchSearchTask;
@@ -139,6 +149,9 @@ public class MorphePreviewActivity extends Activity {
     private ImageView expandedPatchChevron;
     private int patchSortMode = PATCH_SORT_RECOMMENDED;
     private boolean patchOfficialOnly;
+    private final Map<String, LinearLayout> patchHeaders = new LinkedHashMap<>();
+    private List<PatchSourceCatalog.App> patchInstalledApps;
+    private String patchInstalledHash;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -527,7 +540,7 @@ public class MorphePreviewActivity extends Activity {
         root.addView(quickActions());
         root.addView(developerBlock());
         addBottomSpacer(root);
-        return stickyTab(header, scroll);
+        return stickyTab(header, scroll, homeSubtitle);
     }
 
     private View homeHeader() {
@@ -547,6 +560,7 @@ public class MorphePreviewActivity extends Activity {
         TextView subtitle = M3Ui.text(this, getString(R.string.main_subtitle),
                 12, MUTED, 400);
         subtitle.setPadding(0, dp(3), 0, 0);
+        homeSubtitle = subtitle;
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -952,7 +966,7 @@ public class MorphePreviewActivity extends Activity {
                     getString(R.string.preview_downloads_empty_body)));
         }
         addBottomSpacer(root);
-        return stickyTab(header, scroll);
+        return stickyTab(header, scroll, subtitle);
     }
 
     /**
@@ -1326,10 +1340,10 @@ public class MorphePreviewActivity extends Activity {
         immediateParams.setMarginEnd(dp(8));
         tools.addView(immediate, immediateParams);
         sourceTestAllButton = M3Ui.outlinedButton(this, palette,
-                getString(R.string.settings_test_all), 0, ACCENT);
+                getString(R.string.sources_test), 0, ACCENT);
         sourceTestAllButton.setTextSize(12);
         sourceTestAllButton.setPadding(dp(12), dp(7), dp(12), dp(7));
-        sourceTestAllButton.setOnClickListener(v -> runAllSourceTests());
+        sourceTestAllButton.setOnClickListener(this::showSourceTestMenu);
         tools.addView(sourceTestAllButton, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(38)));
         updateSourceTestAllButton();
@@ -1345,7 +1359,7 @@ public class MorphePreviewActivity extends Activity {
         root.addView(sourceList, listParams);
         rebuildSourceList();
         addBottomSpacer(root);
-        return stickyTab(header, scroll);
+        return stickyTab(header, scroll, subtitle);
     }
 
     private void rebuildSourceList() {
@@ -1405,7 +1419,7 @@ public class MorphePreviewActivity extends Activity {
             labels.addView(detail);
         }
         TextView health = M3Ui.text(this, SourceHealth.summary(this, key),
-                10, sourceHealthColor(key), 400);
+                11, sourceHealthColor(key), 400);
         health.setPadding(0, dp(3), 0, 0);
         labels.addView(health);
         sourceHealthViews.put(key, health);
@@ -1438,7 +1452,7 @@ public class MorphePreviewActivity extends Activity {
                 }
             }));
         });
-        row.addView(test, new LinearLayout.LayoutParams(dp(36), dp(40)));
+        row.addView(test, new LinearLayout.LayoutParams(dp(44), dp(44)));
 
         Switch toggle = new Switch(this);
         toggle.setChecked(enabled);
@@ -1519,15 +1533,34 @@ public class MorphePreviewActivity extends Activity {
         }
         sourceTestAllButton.setEnabled(!sourceTestingAll);
         sourceTestAllButton.setText(sourceTestingAll
-                ? R.string.sources_testing : R.string.settings_test_all);
+                ? R.string.sources_testing : R.string.sources_test);
     }
 
-    private void runAllSourceTests() {
+    private void showSourceTestMenu(View anchor) {
         if (sourceTestingAll) {
             return;
         }
-        List<String> keys = new ArrayList<>(displayOrder());
-        if (!keys.contains(SourceSettings.UPTODOWN)) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(0, 1, 0, getString(R.string.sources_test_enabled));
+        menu.getMenu().add(0, 2, 1, getString(R.string.settings_test_all));
+        menu.setOnMenuItemClickListener(item -> {
+            runAllSourceTests(item.getItemId() == 1);
+            return true;
+        });
+        menu.show();
+    }
+
+    private void runAllSourceTests(boolean enabledOnly) {
+        if (sourceTestingAll) {
+            return;
+        }
+        List<String> keys = new ArrayList<>();
+        for (String key : displayOrder()) {
+            if (!enabledOnly || SourceSettings.isEnabled(this, key)) {
+                keys.add(key);
+            }
+        }
+        if (!enabledOnly && !keys.contains(SourceSettings.UPTODOWN)) {
             keys.add(SourceSettings.UPTODOWN);
         }
         if (keys.isEmpty()) {
@@ -1535,38 +1568,44 @@ public class MorphePreviewActivity extends Activity {
         }
         sourceTestingAll = true;
         updateSourceTestAllButton();
-        int[] state = {0, 0, 0}; // passed, failed, next index
-        Runnable[] next = new Runnable[1];
-        next[0] = () -> {
-            if (state[2] >= keys.size()) {
-                sourceTestingAll = false;
-                updateSourceTestAllButton();
-                Toast.makeText(this, getString(R.string.settings_test_all_result,
-                        state[0], state[1]), Toast.LENGTH_LONG).show();
-                return;
+        int[] state = {0, 0, 0, 0}; // passed, failed, next, active
+        Runnable[] launch = new Runnable[1];
+        launch[0] = () -> {
+            while (state[3] < 2 && state[2] < keys.size()) {
+                String key = keys.get(state[2]++);
+                state[3]++;
+                TextView health = sourceHealthViews.get(key);
+                if (health != null) {
+                    health.setText(R.string.settings_testing_source);
+                    health.setTextColor(MUTED);
+                }
+                SourceTester.test(this, key, (ok, message) ->
+                        runOnUiThread(() -> {
+                            state[3]--;
+                            if (ok) {
+                                state[0]++;
+                            } else {
+                                state[1]++;
+                            }
+                            TextView result = sourceHealthViews.get(key);
+                            if (result != null) {
+                                result.setText(SourceHealth.summary(this, key));
+                                result.setTextColor(ok ? GREEN : RED);
+                            }
+                            if (state[2] >= keys.size() && state[3] == 0) {
+                                sourceTestingAll = false;
+                                updateSourceTestAllButton();
+                                Toast.makeText(this, getString(
+                                                R.string.settings_test_all_result,
+                                                state[0], state[1]),
+                                        Toast.LENGTH_LONG).show();
+                            } else {
+                                launch[0].run();
+                            }
+                        }));
             }
-            String key = keys.get(state[2]++);
-            TextView health = sourceHealthViews.get(key);
-            if (health != null) {
-                health.setText(R.string.settings_testing_source);
-                health.setTextColor(MUTED);
-            }
-            SourceTester.test(this, key, (ok, message) ->
-                    runOnUiThread(() -> {
-                        if (ok) {
-                            state[0]++;
-                        } else {
-                            state[1]++;
-                        }
-                        TextView result = sourceHealthViews.get(key);
-                        if (result != null) {
-                            result.setText(SourceHealth.summary(this, key));
-                            result.setTextColor(ok ? GREEN : RED);
-                        }
-                        next[0].run();
-                    }));
         };
-        next[0].run();
+        launch[0].run();
     }
 
     private void showSourceMoveMenu(View anchor, String key) {
@@ -1642,6 +1681,7 @@ public class MorphePreviewActivity extends Activity {
 
     private View buildPatches() {
         ScrollView scroll = tabScroll();
+        patchScroll = scroll;
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(root, new ScrollView.LayoutParams(
@@ -1687,8 +1727,38 @@ public class MorphePreviewActivity extends Activity {
         patchSearch.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
         patchSearch.setInputType(android.text.InputType.TYPE_CLASS_TEXT
                 | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+        patchSearch.setCompoundDrawablePadding(dp(8));
         patchSearch.setOnFocusChangeListener((view, hasFocus) ->
                 view.setBackground(hasFocus ? searchFocused : searchIdle));
+        patchSearch.setOnEditorActionListener((view, actionId, event) -> {
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                InputMethodManager keyboard = (InputMethodManager)
+                        getSystemService(INPUT_METHOD_SERVICE);
+                if (keyboard != null) {
+                    keyboard.hideSoftInputFromWindow(view.getWindowToken(), 0);
+                }
+                renderPatchResults(false);
+                return true;
+            }
+            return false;
+        });
+        patchSearch.setOnTouchListener((view, event) -> {
+            if (event.getAction() != MotionEvent.ACTION_UP) {
+                return false;
+            }
+            Drawable clear = patchSearch.getCompoundDrawablesRelative()[2];
+            if (clear == null) {
+                return false;
+            }
+            float start = patchSearch.getWidth()
+                    - patchSearch.getPaddingRight()
+                    - clear.getBounds().width() - dp(8);
+            if (event.getX() >= start) {
+                patchSearch.setText("");
+                return true;
+            }
+            return false;
+        });
         LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -1707,6 +1777,7 @@ public class MorphePreviewActivity extends Activity {
                 expandedPatchPanel = null;
                 expandedPatchApp = null;
                 expandedPatchChevron = null;
+                updatePatchSearchClear();
                 schedulePatchSearch();
             }
 
@@ -1731,6 +1802,14 @@ public class MorphePreviewActivity extends Activity {
         patchStatus.setLineSpacing(dp(2), 1f);
         statusRow.addView(patchStatus, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        patchRetry = M3Ui.text(this, getString(R.string.patches_retry),
+                11, ACCENT, 600);
+        patchRetry.setPadding(dp(10), dp(6), dp(2), dp(6));
+        patchRetry.setClickable(true);
+        patchRetry.setFocusable(true);
+        patchRetry.setVisibility(View.GONE);
+        patchRetry.setOnClickListener(v -> refreshPatchCatalog(true));
+        statusRow.addView(patchRetry);
         root.addView(statusRow);
 
         patchResults = new LinearLayout(this);
@@ -1744,9 +1823,9 @@ public class MorphePreviewActivity extends Activity {
         root.addView(patchResults, resultsParams);
 
         addBottomSpacer(root);
-        renderPatchResults();
+        renderPatchResults(false);
         refreshPatchCatalog(false);
-        return stickyTab(header, scroll);
+        return stickyTab(header, scroll, subtitle);
     }
 
     private SpannableStringBuilder patchSubtitleText() {
@@ -1778,16 +1857,40 @@ public class MorphePreviewActivity extends Activity {
         }
         patchSearchTask = () -> {
             patchSearchTask = null;
-            renderPatchResults();
+            renderPatchResults(false);
         };
         patchHandler.postDelayed(patchSearchTask, 220L);
     }
 
-    private void renderPatchResults() {
+    private void updatePatchSearchClear() {
+        if (patchSearch == null) {
+            return;
+        }
+        boolean hasText = patchSearch.length() > 0;
+        patchSearch.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                0, 0, hasText ? R.drawable.ic_close : 0, 0);
+        if (hasText) {
+            patchSearch.setCompoundDrawableTintList(
+                    ColorStateList.valueOf(MUTED));
+        }
+    }
+
+    private void renderPatchResults(boolean keepScroll) {
         if (patchResults == null) {
             return;
         }
+        int scrollY = keepScroll && patchScroll != null
+                ? patchScroll.getScrollY() : 0;
+        renderPatchResultsContent();
+        patchHasRendered = true;
+        if (patchScroll != null) {
+            patchScroll.post(() -> patchScroll.scrollTo(0, scrollY));
+        }
+    }
+
+    private void renderPatchResultsContent() {
         patchResults.removeAllViews();
+        patchHeaders.clear();
         expandedPatchPanel = null;
         expandedPatchApp = null;
         expandedPatchChevron = null;
@@ -1795,7 +1898,7 @@ public class MorphePreviewActivity extends Activity {
                 ? "" : patchSearch.getText().toString().trim();
         if (TextUtils.isEmpty(query)) {
             expandedPatchPackage = null;
-            addPatchMessage(getString(R.string.patches_search_empty_body));
+            renderPatchBrowse();
             return;
         }
         if (patchCatalog == null) {
@@ -1833,6 +1936,174 @@ public class MorphePreviewActivity extends Activity {
         patchResults.addView(view);
     }
 
+    private void renderPatchBrowse() {
+        if (patchCatalog == null) {
+            addPatchMessage(getString(R.string.patches_status_loading));
+            return;
+        }
+        Set<String> seen = new HashSet<>();
+        boolean any = addPatchBrowseSection(R.string.patches_installed,
+                R.string.patches_installed_detail, installedPatchApps(), seen);
+        any |= addPatchBrowseSection(R.string.patches_popular, 0,
+                patchCatalog.popular(5), seen);
+        any |= addPatchBrowseSection(R.string.patches_recent, 0,
+                recentPatchApps(), seen);
+        if (!any) {
+            addPatchMessage(getString(R.string.patches_search_empty_body));
+        }
+    }
+
+    private boolean addPatchBrowseSection(int titleRes, int detailRes,
+                                          List<PatchSourceCatalog.App> apps,
+                                          Set<String> seen) {
+        List<PatchSourceCatalog.App> filtered = new ArrayList<>();
+        for (PatchSourceCatalog.App app : apps) {
+            if (seen.add(app.packageName)) {
+                filtered.add(app);
+            }
+        }
+        if (filtered.isEmpty()) {
+            return false;
+        }
+        TextView title = M3Ui.overline(this, getString(titleRes), ACCENT);
+        title.setPadding(dp(8), dp(14), dp(8), dp(4));
+        patchResults.addView(title);
+        if (detailRes != 0) {
+            TextView detail = M3Ui.text(this, getString(detailRes), 10,
+                    palette.footer, 400);
+            detail.setLineSpacing(dp(2), 1f);
+            detail.setPadding(dp(8), 0, dp(8), dp(6));
+            patchResults.addView(detail);
+        }
+        for (int i = 0; i < filtered.size(); i++) {
+            patchResults.addView(patchQuickRow(filtered.get(i)));
+            if (i < filtered.size() - 1) {
+                patchResults.addView(patchDivider(dp(52)));
+            }
+        }
+        return true;
+    }
+
+    private View patchQuickRow(PatchSourceCatalog.App app) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(8), dp(9), dp(8), dp(9));
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setBackground(M3Ui.ripple(this, null, palette.ripple));
+
+        PatchIconView icon = new PatchIconView(this, 36);
+        icon.bind(app.iconUrl, app.name);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
+                dp(36), dp(36));
+        iconParams.setMarginEnd(dp(10));
+        row.addView(icon, iconParams);
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        TextView name = M3Ui.text(this, app.name, 14, TEXT, 600);
+        name.setSingleLine(true);
+        name.setEllipsize(TextUtils.TruncateAt.END);
+        labels.addView(name);
+        TextView detail = M3Ui.text(this, getResources().getQuantityString(
+                        R.plurals.patches_source_count,
+                        app.sources.size(), app.sources.size())
+                        + " \u00b7 "
+                        + getString(R.string.patches_source_updated,
+                        PatchSourceCatalog.formatRelativeDate(this,
+                                app.latestUpdate())),
+                11, MUTED, 400);
+        detail.setSingleLine(true);
+        detail.setEllipsize(TextUtils.TruncateAt.END);
+        detail.setPadding(0, dp(2), 0, 0);
+        labels.addView(detail);
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        ImageView chevron = new ImageView(this);
+        chevron.setImageResource(R.drawable.ic_chevron_right);
+        chevron.setColorFilter(ACCENT);
+        chevron.setPadding(dp(6), dp(6), dp(6), dp(6));
+        row.addView(chevron, new LinearLayout.LayoutParams(dp(24), dp(24)));
+
+        row.setOnClickListener(v -> openPatchApp(app));
+        return row;
+    }
+
+    private List<PatchSourceCatalog.App> installedPatchApps() {
+        if (patchCatalog == null) {
+            return Collections.emptyList();
+        }
+        if (patchInstalledApps != null
+                && patchCatalogHash != null
+                && patchCatalogHash.equals(patchInstalledHash)) {
+            return patchInstalledApps;
+        }
+        Set<String> launcherPackages = new HashSet<>();
+        Intent intent = new Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER);
+        for (ResolveInfo info : getPackageManager()
+                .queryIntentActivities(intent, 0)) {
+            if (info.activityInfo != null) {
+                launcherPackages.add(info.activityInfo.packageName);
+            }
+        }
+        List<PatchSourceCatalog.App> installed = new ArrayList<>();
+        for (String packageName : launcherPackages) {
+            if (packageName.equals(getPackageName())) {
+                continue;
+            }
+            PatchSourceCatalog.App app = patchCatalog.findApp(packageName);
+            if (app != null) {
+                installed.add(app);
+            }
+        }
+        installed.sort((left, right) ->
+                Long.compare(right.installs, left.installs));
+        if (installed.size() > 4) {
+            installed = new ArrayList<>(installed.subList(0, 4));
+        }
+        patchInstalledApps = installed;
+        patchInstalledHash = patchCatalogHash;
+        return installed;
+    }
+
+    private List<PatchSourceCatalog.App> recentPatchApps() {
+        if (patchCatalog == null) {
+            return Collections.emptyList();
+        }
+        List<PatchSourceCatalog.App> recent = new ArrayList<>();
+        for (String packageName : PatchHistory.recent(this)) {
+            PatchSourceCatalog.App app = patchCatalog.findApp(packageName);
+            if (app != null) {
+                recent.add(app);
+            }
+            if (recent.size() >= 4) {
+                break;
+            }
+        }
+        return recent;
+    }
+
+    private void openPatchApp(PatchSourceCatalog.App app) {
+        PatchHistory.remember(this, app.packageName);
+        patchSearch.setText(app.name);
+        patchSearch.setSelection(patchSearch.length());
+        InputMethodManager keyboard = (InputMethodManager)
+                getSystemService(INPUT_METHOD_SERVICE);
+        if (keyboard != null) {
+            keyboard.hideSoftInputFromWindow(patchSearch.getWindowToken(), 0);
+        }
+        final String packageName = app.packageName;
+        patchHandler.postDelayed(() -> {
+            LinearLayout header = patchHeaders.get(packageName);
+            if (header != null) {
+                header.performClick();
+            }
+        }, 350L);
+    }
+
     private View patchAppEntry(PatchSourceCatalog.App app) {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
@@ -1868,7 +2139,7 @@ public class MorphePreviewActivity extends Activity {
                 R.string.patches_app_row_detail,
                 getResources().getQuantityString(R.plurals.patches_source_count,
                         app.sources.size(), app.sources.size()),
-                PatchSourceCatalog.formatDate(app.latestUpdate())),
+                PatchSourceCatalog.formatRelativeDate(this, app.latestUpdate())),
                 11, MUTED, 500);
         detail.setPadding(0, dp(4), 0, 0);
         labels.addView(detail);
@@ -1880,6 +2151,7 @@ public class MorphePreviewActivity extends Activity {
         chevron.setColorFilter(ACCENT);
         chevron.setPadding(dp(6), dp(6), dp(6), dp(6));
         header.addView(chevron, new LinearLayout.LayoutParams(dp(24), dp(24)));
+        patchHeaders.put(app.packageName, header);
         container.addView(header);
 
         LinearLayout panel = new LinearLayout(this);
@@ -1915,17 +2187,13 @@ public class MorphePreviewActivity extends Activity {
     }
 
     private View patchAvatar(PatchSourceCatalog.App app) {
-        String value = app.name == null ? "" : app.name.trim();
-        String initial = value.isEmpty()
-                ? "?" : value.substring(0, 1).toUpperCase(Locale.getDefault());
-        TextView avatar = M3Ui.text(this, initial, 17, palette.onPrimary, 700);
-        avatar.setGravity(Gravity.CENTER);
-        avatar.setBackground(M3Ui.brandGradient(this, palette, 21));
-        return avatar;
+        PatchIconView icon = new PatchIconView(this, 42);
+        icon.bind(app.iconUrl, app.name);
+        return icon;
     }
 
     private TextView patchPackageChip(String packageName) {
-        TextView chip = M3Ui.text(this, packageName, 10, ACCENT, 500);
+        TextView chip = M3Ui.text(this, packageName, 11, ACCENT, 500);
         chip.setTypeface(Typeface.MONOSPACE);
         chip.setSingleLine(true);
         chip.setEllipsize(TextUtils.TruncateAt.END);
@@ -1970,6 +2238,26 @@ public class MorphePreviewActivity extends Activity {
         expandedPatchApp = app;
         expandedPatchChevron = chevron;
         chevron.animate().rotation(90f).setDuration(180).start();
+        PatchHistory.remember(this, app.packageName);
+        scrollPatchPanelIntoView(panel);
+    }
+
+    private void scrollPatchPanelIntoView(View panel) {
+        if (patchScroll == null) {
+            return;
+        }
+        patchScroll.post(() -> {
+            int top = 0;
+            View current = panel;
+            while (current != null && current != patchScroll) {
+                top += current.getTop();
+                if (!(current.getParent() instanceof View)) {
+                    break;
+                }
+                current = (View) current.getParent();
+            }
+            patchScroll.smoothScrollTo(0, Math.max(0, top - dp(8)));
+        });
     }
 
     private View patchDivider(int inset) {
@@ -2023,6 +2311,22 @@ public class MorphePreviewActivity extends Activity {
                         ViewGroup.LayoutParams.WRAP_CONTENT);
         controlsParams.bottomMargin = dp(8);
         panel.addView(controlsScroll, controlsParams);
+
+        boolean hasOfficial = false;
+        for (PatchSourceCatalog.SourceEntry entry : app.sources) {
+            if (entry.source.official) {
+                hasOfficial = true;
+                break;
+            }
+        }
+        if (hasOfficial) {
+            TextView note = M3Ui.text(this,
+                    getString(R.string.patches_official_note), 10,
+                    palette.footer, 400);
+            note.setLineSpacing(dp(2), 1f);
+            note.setPadding(0, 0, 0, dp(8));
+            panel.addView(note);
+        }
 
         List<PatchSourceCatalog.SourceEntry> entries =
                 patchSourceEntries(app);
@@ -2175,6 +2479,13 @@ public class MorphePreviewActivity extends Activity {
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
 
+        PatchIconView sourceIcon = new PatchIconView(this, 32);
+        sourceIcon.bind(source.avatar, source.name);
+        LinearLayout.LayoutParams sourceIconParams = new LinearLayout.LayoutParams(
+                dp(32), dp(32));
+        sourceIconParams.setMarginEnd(dp(10));
+        top.addView(sourceIcon, sourceIconParams);
+
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
         TextView name = M3Ui.text(this, source.name, 14, TEXT, 600);
@@ -2186,12 +2497,28 @@ public class MorphePreviewActivity extends Activity {
         repo.setEllipsize(TextUtils.TruncateAt.END);
         repo.setPadding(0, dp(1), dp(8), 0);
         labels.addView(repo);
+        if (!TextUtils.isEmpty(source.description)) {
+            TextView description = M3Ui.text(this, source.description, 10,
+                    palette.footer, 400);
+            description.setSingleLine(true);
+            description.setEllipsize(TextUtils.TruncateAt.END);
+            description.setPadding(0, dp(2), dp(8), 0);
+            labels.addView(description);
+        }
+        TextView updated = M3Ui.text(this, getString(
+                        R.string.patches_source_updated,
+                        PatchSourceCatalog.formatRelativeDate(this,
+                                entry.updatedAt)),
+                10, palette.footer, 400);
+        updated.setPadding(0, dp(3), dp(8), 0);
+        labels.addView(updated);
         top.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView add = M3Ui.outlinedButton(this, palette,
                 getString(R.string.patches_add), 0, ACCENT);
         add.setPadding(dp(12), dp(7), dp(12), dp(7));
+        add.setMinHeight(dp(44));
         add.setOnClickListener(v ->
                 confirmAddPatchSource(app, source));
         LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(
@@ -2199,6 +2526,19 @@ public class MorphePreviewActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         addParams.setMarginStart(dp(8));
         top.addView(add, addParams);
+
+        TextView more = M3Ui.text(this, "\u22EE", 18, MUTED, 700);
+        more.setGravity(Gravity.CENTER);
+        more.setContentDescription(getString(R.string.patches_source_actions));
+        more.setPadding(dp(4), dp(4), dp(4), dp(4));
+        more.setClickable(true);
+        more.setFocusable(true);
+        more.setBackground(M3Ui.ripple(this, null, palette.ripple));
+        more.setOnClickListener(v -> showPatchSourceMenu(v, source, app));
+        LinearLayout.LayoutParams moreParams = new LinearLayout.LayoutParams(
+                dp(40), dp(44));
+        moreParams.setMarginStart(dp(2));
+        top.addView(more, moreParams);
         card.addView(top);
 
         LinearLayout chips = new LinearLayout(this);
@@ -2216,17 +2556,17 @@ public class MorphePreviewActivity extends Activity {
         TextView countChip = patchMetaChip(
                 getResources().getQuantityString(
                         R.plurals.patches_patch_count,
-                        entry.patchCount, entry.patchCount),
+                        entry.patchCount, entry.patchCount) + " \u203A",
                 M3Ui.surfaceContainer(palette), MUTED,
                 M3Ui.outlineVariant(palette));
+        countChip.setClickable(true);
+        countChip.setFocusable(true);
+        countChip.setContentDescription(getString(
+                R.string.patches_view_details, entry.patchCount));
+        countChip.setBackground(M3Ui.ripple(this, countChip.getBackground(),
+                palette.ripple));
+        countChip.setOnClickListener(v -> showPatchDetails(app, entry));
         chips.addView(countChip, patchChipParams());
-
-        TextView updateChip = patchMetaChip(
-                getString(R.string.patches_source_updated,
-                        PatchSourceCatalog.formatDate(entry.updatedAt)),
-                M3Ui.surfaceContainer(palette), MUTED,
-                M3Ui.outlineVariant(palette));
-        chips.addView(updateChip, patchChipParams());
 
         if (source.preRelease) {
             TextView preChip = patchMetaChip(
@@ -2235,21 +2575,182 @@ public class MorphePreviewActivity extends Activity {
             chips.addView(preChip, patchChipParams());
         }
 
+        LinearLayout chipsLine = new LinearLayout(this);
+        chipsLine.setOrientation(LinearLayout.HORIZONTAL);
+        chipsLine.setGravity(Gravity.CENTER_VERTICAL);
+
         HorizontalScrollView chipsScroll = new HorizontalScrollView(this);
         chipsScroll.setHorizontalScrollBarEnabled(false);
         chipsScroll.setClipToPadding(false);
         chipsScroll.addView(chips);
+        chipsLine.addView(chipsScroll, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        if (source.stars > 0) {
+            TextView starsChip = patchStarChip(source.stars);
+            LinearLayout.LayoutParams starsParams =
+                    new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT);
+            starsParams.setMarginStart(dp(6));
+            chipsLine.addView(starsChip, starsParams);
+        }
+
         LinearLayout.LayoutParams chipsParams =
                 new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT);
         chipsParams.topMargin = dp(8);
-        card.addView(chipsScroll, chipsParams);
+        card.addView(chipsLine, chipsParams);
         return card;
     }
 
-    private LinearLayout.LayoutParams patchChipParams() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+    private TextView patchStarChip(int stars) {
+        TextView chip = M3Ui.text(this,
+                "\u2605 " + PatchSourceCatalog.formatCount(this, stars),
+                11, palette.onPrimary, 600);
+        chip.setSingleLine(true);
+        chip.setGravity(Gravity.CENTER);
+        chip.setPadding(dp(9), dp(4), dp(9), dp(4));
+        chip.setBackground(M3Ui.brandGradient(this, palette,
+                M3Ui.SHAPE_FULL));
+        return chip;
+    }
+
+    private void showPatchSourceMenu(View anchor,
+                                     PatchSourceCatalog.Source source,
+                                     PatchSourceCatalog.App app) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        menu.getMenu().add(0, 1, 0, getString(R.string.patches_source_view_repo));
+        menu.getMenu().add(0, 2, 1, getString(R.string.patches_source_copy_link));
+        menu.getMenu().add(0, 3, 2, getString(R.string.patches_source_report));
+        menu.setOnMenuItemClickListener(item -> {
+            switch (item.getItemId()) {
+                case 1:
+                    openUrl(sourceRepoUrl(source));
+                    return true;
+                case 2:
+                    boolean copied = copyText(PatchSourceCatalog.addSourceLink(
+                            source, app));
+                    Toast.makeText(this, copied
+                                    ? R.string.patches_link_copied
+                                    : R.string.patches_link_copy_failed,
+                            Toast.LENGTH_SHORT).show();
+                    return true;
+                case 3:
+                    reportPatchSource(source, app);
+                    return true;
+                default:
+                    return false;
+            }
+        });
+        menu.show();
+    }
+
+    private String sourceRepoUrl(PatchSourceCatalog.Source source) {
+        String host = "gitlab".equals(source.provider)
+                ? "https://gitlab.com/" : "https://github.com/";
+        return host + source.repo;
+    }
+
+    private void reportPatchSource(PatchSourceCatalog.Source source,
+                                   PatchSourceCatalog.App app) {
+        String title = "Source report: " + source.repo + " for " + app.name;
+        String body = "Source: " + source.repo
+                + "\nApp: " + app.name + " (" + app.packageName + ")"
+                + "\n\nWhat is wrong?\n";
+        String url = "https://github.com/GeneralZyonix/morphe-download-helper/"
+                + "issues/new?title=" + Uri.encode(title)
+                + "&body=" + Uri.encode(body);
+        openUrl(url);
+    }
+
+    private void showPatchDetails(PatchSourceCatalog.App app,
+                                  PatchSourceCatalog.SourceEntry entry) {
+        Toast.makeText(this, R.string.patches_details_loading,
+                Toast.LENGTH_SHORT).show();
+        PatchDetailsCatalog.load(this, entry.source.repo, app.packageName,
+                new PatchDetailsCatalog.Callback() {
+                    @Override
+                    public void onDetails(List<PatchDetailsCatalog.Detail> details) {
+                        if (isFinishing() || isDestroyed()) {
+                            return;
+                        }
+                        showPatchDetailsDialog(app, entry, details);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (isFinishing() || isDestroyed()) {
+                            return;
+                        }
+                        Toast.makeText(MorphePreviewActivity.this,
+                                R.string.patches_details_failed,
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    private void showPatchDetailsDialog(PatchSourceCatalog.App app,
+                                        PatchSourceCatalog.SourceEntry entry,
+                                        List<PatchDetailsCatalog.Detail> details) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(4), dp(20), dp(8));
+
+        TextView intro = M3Ui.text(this, getString(
+                R.string.patches_details_intro,
+                entry.source.name, app.name), 12, MUTED, 400);
+        intro.setLineSpacing(dp(2), 1f);
+        intro.setPadding(0, 0, 0, dp(8));
+        content.addView(intro);
+
+        if (details.isEmpty()) {
+            TextView empty = M3Ui.text(this,
+                    getString(R.string.patches_details_empty), 13, MUTED, 400);
+            empty.setPadding(0, dp(12), 0, dp(12));
+            content.addView(empty);
+        } else {
+            for (int i = 0; i < details.size(); i++) {
+                PatchDetailsCatalog.Detail detail = details.get(i);
+                TextView name = M3Ui.text(this, detail.name, 13, TEXT, 600);
+                name.setLineSpacing(dp(2), 1f);
+                content.addView(name);
+                TextView versions = M3Ui.text(this,
+                        versionsLabel(detail.versions), 11, MUTED, 400);
+                versions.setLineSpacing(dp(2), 1f);
+                versions.setPadding(0, dp(2), 0, dp(10));
+                content.addView(versions);
+                if (i < details.size() - 1) {
+                    content.addView(patchDivider(0));
+                }
+            }
+        }
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(content);
+        ThemeManager.dialog(this)
+                .setTitle(getString(R.string.patches_details_title,
+                        entry.source.name))
+                .setView(scroll)
+                .setNegativeButton(R.string.common_close, null)
+                .show();
+    }
+
+    private String versionsLabel(List<String> versions) {
+        if (versions.isEmpty()) {
+            return getString(R.string.patches_all_versions);
+        }
+        int shown = Math.min(4, versions.size());
+        StringBuilder label = new StringBuilder(TextUtils.join(", ",
+                versions.subList(0, shown)));
+        if (versions.size() > shown) {
+            label.append(" +").append(versions.size() - shown);
+        }
+        return getString(R.string.patches_targets, label.toString());
+    }
+
+    private LinearLayout.LayoutParams patchChipParams() {        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         params.setMarginEnd(dp(6));
@@ -2258,7 +2759,7 @@ public class MorphePreviewActivity extends Activity {
 
     private TextView patchMetaChip(String label, int fill, int foreground,
                                    int borderColor) {
-        TextView chip = M3Ui.text(this, label, 10, foreground, 500);
+        TextView chip = M3Ui.text(this, label, 11, foreground, 500);
         chip.setSingleLine(true);
         chip.setPadding(dp(9), dp(4), dp(9), dp(4));
         chip.setBackground(M3Ui.filled(this, fill, M3Ui.SHAPE_FULL,
@@ -2303,7 +2804,7 @@ public class MorphePreviewActivity extends Activity {
                 patchCatalog = catalog;
                 patchLastLoadedAt = System.currentTimeMillis();
                 updatePatchStatus(true);
-                renderPatchResults();
+                renderPatchResults(true);
                 PatchSourceCatalog.App freshApp =
                         catalog.findApp(app.packageName);
                 PatchSourceCatalog.SourceEntry freshEntry = freshApp == null
@@ -2344,6 +2845,9 @@ public class MorphePreviewActivity extends Activity {
             setPatchStatusTone(MUTED, MUTED);
             patchStatus.setText(R.string.patches_status_loading);
         }
+        if (patchRetry != null) {
+            patchRetry.setVisibility(View.GONE);
+        }
         PatchSourceCatalog.load(this, new PatchSourceCatalog.Callback() {
             @Override
             public void onCatalog(PatchSourceCatalog catalog,
@@ -2353,9 +2857,19 @@ public class MorphePreviewActivity extends Activity {
                 if (isFinishing() || isDestroyed()) {
                     return;
                 }
+                boolean sameData = patchCatalog != null && patchHasRendered
+                        && catalog.dataHash.equals(patchCatalogHash);
                 patchCatalog = catalog;
+                patchCatalogHash = catalog.dataHash;
                 updatePatchStatus(checkedNetwork);
-                renderPatchResults();
+                if (patchRetry != null) {
+                    patchRetry.setVisibility(View.GONE);
+                }
+                if (!sameData) {
+                    patchInstalledApps = null;
+                    patchInstalledHash = null;
+                    renderPatchResults(true);
+                }
             }
 
             @Override
@@ -2367,6 +2881,10 @@ public class MorphePreviewActivity extends Activity {
                 }
                 if (cached != null) {
                     patchCatalog = cached;
+                    patchCatalogHash = cached.dataHash;
+                }
+                if (patchRetry != null) {
+                    patchRetry.setVisibility(View.VISIBLE);
                 }
                 if (patchStatus != null) {
                     if (patchCatalog == null) {
@@ -2377,16 +2895,18 @@ public class MorphePreviewActivity extends Activity {
                         patchStatus.setText(getString(
                                 R.string.patches_status_stale_error,
                                 PatchSourceCatalog.formatDate(
+                                        MorphePreviewActivity.this,
                                         patchCatalog.generatedAt)));
                     } else {
                         setPatchStatusTone(RED, RED);
                         patchStatus.setText(getString(
                                 R.string.patches_status_error_cached,
                                 PatchSourceCatalog.formatDate(
+                                        MorphePreviewActivity.this,
                                         patchCatalog.generatedAt)));
                     }
                 }
-                renderPatchResults();
+                renderPatchResults(true);
             }
         });
     }
@@ -2395,7 +2915,11 @@ public class MorphePreviewActivity extends Activity {
         if (patchStatus == null || patchCatalog == null) {
             return;
         }
-        String date = PatchSourceCatalog.formatDate(patchCatalog.generatedAt);
+        if (patchRetry != null) {
+            patchRetry.setVisibility(View.GONE);
+        }
+        String date = PatchSourceCatalog.formatDate(this,
+                patchCatalog.generatedAt);
         if (patchCatalog.isStale()) {
             setPatchStatusTone(RED, RED);
             patchStatus.setText(getString(R.string.patches_status_stale, date));
@@ -2474,7 +2998,7 @@ public class MorphePreviewActivity extends Activity {
                 "backup");
 
         addBottomSpacer(root);
-        return stickyTab(header, scroll);
+        return stickyTab(header, scroll, subtitle, hint);
     }
 
     private void addSettingsCard(LinearLayout root, int iconRes, int titleRes,
@@ -2568,10 +3092,10 @@ public class MorphePreviewActivity extends Activity {
     }
 
     /**
-     * Keeps the page header fixed above a scrolling body. The scroll view must
-     * not add its own top padding; the header host provides the spacing.
+     * Keeps the page header fixed above a scrolling body. Optional views (such
+     * as the subtitle and hint) collapse once the body starts scrolling.
      */
-    private View stickyTab(View header, ScrollView scroll) {
+    private View stickyTab(View header, ScrollView scroll, View... collapsing) {
         int screen = getResources().getDisplayMetrics().widthPixels;
         int horizontal = Math.max(dp(20), (screen - dp(720)) / 2);
         LinearLayout page = new LinearLayout(this);
@@ -2585,6 +3109,30 @@ public class MorphePreviewActivity extends Activity {
         page.addView(headerHost, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        View divider = new View(this);
+        divider.setBackgroundColor(M3Ui.outlineVariant(palette));
+        page.addView(divider, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
+        final boolean[] compact = {false};
+        scroll.setOnScrollChangeListener((view, scrollX, scrollY,
+                                          oldScrollX, oldScrollY) -> {
+            boolean next = scrollY > dp(18);
+            if (next == compact[0]) {
+                return;
+            }
+            compact[0] = next;
+            if (collapsing.length > 0) {
+                TransitionManager.beginDelayedTransition(headerHost,
+                        new AutoTransition().setDuration(160));
+                for (View part : collapsing) {
+                    if (part != null) {
+                        part.setVisibility(next ? View.GONE : View.VISIBLE);
+                    }
+                }
+            }
+        });
 
         scroll.setPadding(horizontal, 0, horizontal, dp(24));
         page.addView(scroll, new LinearLayout.LayoutParams(

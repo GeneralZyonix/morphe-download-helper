@@ -41,6 +41,7 @@ public class MorphePreviewTest {
         if (context != null) {
             DownloadHistory.clear(context);
         }
+        PatchSourceCatalog.clearTestOverride();
     }
 
     @Test
@@ -56,6 +57,34 @@ public class MorphePreviewTest {
                 assertTrue(containsText(root, "Settings"));
                 assertTrue(containsText(root, "Fetch the original APK."));
             });
+        }
+    }
+
+    @Test
+    public void patchesTabRendersAFakeCatalog() throws Exception {
+        PatchSourceCatalog catalog = PatchSourceCatalog.parse("{"
+                + "\"version\":1,\"dataHash\":\"test\","
+                + "\"generatedAt\":\"2026-11-21T03:49:50Z\","
+                + "\"sources\":[{\"source\":\"github\","
+                + "\"repo\":\"MorpheApp/morphe-patches\",\"name\":\"MorpheApp\","
+                + "\"description\":\"Official patches\",\"avatar\":\"\","
+                + "\"updatedAt\":1795182964000,\"stars\":5000,"
+                + "\"isPreRelease\":false,\"isArchived\":false,"
+                + "\"isOfficial\":true}],"
+                + "\"apps\":{\"com.google.android.youtube\":{"
+                + "\"name\":\"YouTube\",\"icon\":\"\",\"installs\":10000000000,"
+                + "\"sources\":[[0,1795182964000,121]]}}}");
+        PatchSourceCatalog.setTestOverride(catalog);
+        try (ActivityScenario<MorphePreviewActivity> scenario =
+                     ActivityScenario.launch(MorphePreviewActivity.class)) {
+            scenario.onActivity(activity -> clickTab(activity, "Patches"));
+            waitForTabSlide();
+            scenario.onActivity(activity -> {
+                View root = activity.getWindow().getDecorView();
+                assertTrue(containsText(root, "YouTube"));
+            });
+        } finally {
+            PatchSourceCatalog.clearTestOverride();
         }
     }
 

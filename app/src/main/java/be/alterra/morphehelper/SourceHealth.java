@@ -3,7 +3,6 @@ package be.alterra.morphehelper;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.text.TextUtils;
-import android.text.format.DateUtils;
 
 /** Last-known health of each download source. */
 final class SourceHealth {
@@ -37,8 +36,7 @@ final class SourceHealth {
         } catch (Exception ignored) {
             when = System.currentTimeMillis();
         }
-        String ago = DateUtils.getRelativeTimeSpanString(
-                when, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString();
+        String ago = PatchSourceCatalog.formatRelativeDate(context, when);
         String detail = parts.length > 2 ? parts[2] : "";
         return (ok ? context.getString(R.string.common_ok)
                 : context.getString(R.string.source_health_failed))

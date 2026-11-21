@@ -51,13 +51,27 @@ final class PatchSourceCatalog {
     private static final long MAX_AGE_MILLIS = 30L * 24L * 60L * 60L * 1000L;
     private static final String CACHE_NAME = "patch-sources.json";
     private static final String ETAG_NAME = "patch-sources.etag";
-    private static final String USER_AGENT = "Morphe-Download-Helper/3.1";
+    private static final String USER_AGENT = "Morphe-Download-Helper/3.2";
+    private static final Map<String, String> SEARCH_ALIASES = new LinkedHashMap<>();
+
+    static {
+        SEARCH_ALIASES.put("yt", "youtube");
+        SEARCH_ALIASES.put("ytm", "youtubemusic");
+        SEARCH_ALIASES.put("ytmusic", "youtubemusic");
+        SEARCH_ALIASES.put("ig", "instagram");
+        SEARCH_ALIASES.put("wa", "whatsapp");
+        SEARCH_ALIASES.put("fb", "facebook");
+        SEARCH_ALIASES.put("tt", "tiktok");
+        SEARCH_ALIASES.put("tg", "telegram");
+        SEARCH_ALIASES.put("gm", "gmail");
+    }
 
     private static final OkHttpClient HTTP = new OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .followRedirects(true)
             .build();
+    private static volatile PatchSourceCatalog testOverride;
 
     interface Callback {
         void onCatalog(PatchSourceCatalog catalog, boolean checkedNetwork);
@@ -72,19 +86,21 @@ final class PatchSourceCatalog {
         final String description;
         final String avatar;
         final long updatedAt;
+        final int stars;
         final boolean preRelease;
         final boolean archived;
         final boolean official;
 
         Source(String provider, String repo, String name, String description,
-               String avatar, long updatedAt, boolean preRelease, boolean archived,
-               boolean official) {
+               String avatar, long updatedAt, int stars, boolean preRelease,
+               boolean archived, boolean official) {
             this.provider = provider;
             this.repo = repo;
             this.name = name;
             this.description = description;
             this.avatar = avatar;
             this.updatedAt = updatedAt;
+            this.stars = stars;
             this.preRelease = preRelease;
             this.archived = archived;
             this.official = official;
@@ -112,13 +128,15 @@ final class PatchSourceCatalog {
         final String packageName;
         final String name;
         final String iconUrl;
+        final long installs;
         final List<SourceEntry> sources;
 
-        App(String packageName, String name, String iconUrl,
+        App(String packageName, String name, String iconUrl, long installs,
             List<SourceEntry> sources) {
             this.packageName = packageName;
             this.name = name;
             this.iconUrl = iconUrl;
+            this.installs = installs;
             this.sources = sources;
         }
 
@@ -150,13 +168,16 @@ final class PatchSourceCatalog {
 
     final long generatedAt;
     final String generatedAtText;
+    final String dataHash;
     final List<Source> sources;
     final Map<String, App> apps;
 
     private PatchSourceCatalog(long generatedAt, String generatedAtText,
-                               List<Source> sources, Map<String, App> apps) {
+                               String dataHash, List<Source> sources,
+                               Map<String, App> apps) {
         this.generatedAt = generatedAt;
         this.generatedAtText = generatedAtText;
+        this.dataHash = dataHash;
         this.sources = sources;
         this.apps = apps;
     }
@@ -164,6 +185,7 @@ final class PatchSourceCatalog {
     static PatchSourceCatalog parse(String json) throws JSONException {
         JSONObject root = new JSONObject(json);
         String generatedAtText = root.optString("generatedAt", "");
+        String dataHash = root.optString("dataHash", "");
         long generatedAt = parseDate(generatedAtText);
 
         JSONArray sourceArray = root.getJSONArray("sources");
@@ -177,6 +199,7 @@ final class PatchSourceCatalog {
                     item.optString("description", ""),
                     item.optString("avatar", ""),
                     item.optLong("updatedAt", 0L),
+                    item.optInt("stars", 0),
                     item.optBoolean("isPreRelease", false),
                     item.optBoolean("isArchived", false),
                     item.optBoolean("isOfficial", false)
@@ -218,11 +241,12 @@ final class PatchSourceCatalog {
                         packageName,
                         item.optString("name", packageName),
                         item.optString("icon", ""),
+                        item.optLong("installs", 0L),
                         entries
                 ));
             }
         }
-        return new PatchSourceCatalog(generatedAt, generatedAtText,
+        return new PatchSourceCatalog(generatedAt, generatedAtText, dataHash,
                 Collections.unmodifiableList(sources),
                 Collections.unmodifiableMap(apps));
     }
@@ -237,26 +261,39 @@ final class PatchSourceCatalog {
     }
 
     List<App> search(String query, int limit) {
-        String normalized = query == null
-                ? "" : query.trim().toLowerCase(Locale.ROOT);
+        String normalized = normalize(query);
         if (normalized.isEmpty()) {
             return Collections.emptyList();
         }
         List<ScoredApp> matches = new ArrayList<>();
+        String matchTerm = SEARCH_ALIASES.containsKey(normalized)
+                ? SEARCH_ALIASES.get(normalized) : normalized;
         for (App app : apps.values()) {
             String name = app.name.toLowerCase(Locale.ROOT);
+            String normalizedName = normalize(app.name);
             String packageName = app.packageName.toLowerCase(Locale.ROOT);
+            String normalizedPackage = normalize(app.packageName);
             int score = -1;
-            if (name.equals(normalized)) {
+            if (name.equals(matchTerm) || normalizedName.equals(matchTerm)
+                    || packageName.equals(matchTerm)
+                    || normalizedPackage.equals(matchTerm)) {
                 score = 0;
-            } else if (name.startsWith(normalized)) {
+            } else if (name.startsWith(matchTerm)
+                    || normalizedName.startsWith(matchTerm)) {
                 score = 1;
-            } else if (packageName.equals(normalized)) {
+            } else if (packageName.startsWith(matchTerm)
+                    || normalizedPackage.startsWith(matchTerm)) {
                 score = 2;
-            } else if (name.contains(normalized)) {
+            } else if (name.contains(matchTerm)
+                    || normalizedName.contains(matchTerm)) {
                 score = 3;
-            } else if (packageName.contains(normalized)) {
+            } else if (packageName.contains(matchTerm)
+                    || normalizedPackage.contains(matchTerm)) {
                 score = 4;
+            } else if (normalized.length() >= 2
+                    && normalizedName.startsWith(normalized.substring(0, 1))
+                    && isSubsequence(normalized, normalizedName)) {
+                score = 5;
             }
             if (score >= 0) {
                 matches.add(new ScoredApp(app, score));
@@ -264,6 +301,7 @@ final class PatchSourceCatalog {
         }
         matches.sort(Comparator
                 .comparingInt((ScoredApp match) -> match.score)
+                .thenComparing((ScoredApp match) -> -match.app.installs)
                 .thenComparing(match -> match.app.name,
                         String.CASE_INSENSITIVE_ORDER));
         List<App> result = new ArrayList<>();
@@ -274,9 +312,50 @@ final class PatchSourceCatalog {
         return result;
     }
 
+    List<App> popular(int limit) {
+        List<App> result = new ArrayList<>(apps.values());
+        result.sort(Comparator
+                .comparingLong((App app) -> -app.installs)
+                .thenComparingInt(app -> -app.sources.size())
+                .thenComparing(app -> app.name, String.CASE_INSENSITIVE_ORDER));
+        if (result.size() > limit) {
+            return new ArrayList<>(result.subList(0, Math.max(1, limit)));
+        }
+        return result;
+    }
+
+    private static String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+        StringBuilder normalized = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = Character.toLowerCase(value.charAt(i));
+            if (Character.isLetterOrDigit(c)) {
+                normalized.append(c);
+            }
+        }
+        return normalized.toString();
+    }
+
+    private static boolean isSubsequence(String needle, String haystack) {
+        int index = 0;
+        for (int i = 0; i < haystack.length() && index < needle.length(); i++) {
+            if (haystack.charAt(i) == needle.charAt(index)) {
+                index++;
+            }
+        }
+        return index == needle.length();
+    }
+
     static void load(Context context, Callback callback) {
         final Context appContext = context.getApplicationContext();
         final Handler main = new Handler(Looper.getMainLooper());
+        PatchSourceCatalog override = testOverride;
+        if (override != null) {
+            main.post(() -> callback.onCatalog(override, true));
+            return;
+        }
         new Thread(() -> {
             File cache = cacheFile(appContext);
             PatchSourceCatalog cached = null;
@@ -361,6 +440,68 @@ final class PatchSourceCatalog {
         DateFormat format = DateFormat.getDateInstance(
                 DateFormat.MEDIUM, Locale.getDefault());
         return format.format(new Date(timestamp));
+    }
+
+    static String formatDate(Context context, long timestamp) {
+        if (timestamp <= 0) {
+            return "Unknown";
+        }
+        DateFormat format = DateFormat.getDateInstance(
+                DateFormat.MEDIUM, appLocale(context));
+        return format.format(new Date(timestamp));
+    }
+
+    static String formatRelativeDate(Context context, long timestamp) {
+        if (timestamp <= 0) {
+            return "Unknown";
+        }
+        long delta = Math.max(0L, System.currentTimeMillis() - timestamp);
+        if (delta < 60_000L) {
+            return context.getString(R.string.patches_just_now);
+        }
+        long minutes = delta / 60_000L;
+        if (minutes < 60L) {
+            return context.getResources().getQuantityString(
+                    R.plurals.patches_minutes_ago, (int) minutes, minutes);
+        }
+        long hours = delta / 3_600_000L;
+        if (hours < 24L) {
+            return context.getResources().getQuantityString(
+                    R.plurals.patches_hours_ago, (int) hours, hours);
+        }
+        long days = delta / 86_400_000L;
+        if (days < 7L) {
+            return context.getResources().getQuantityString(
+                    R.plurals.patches_days_ago, (int) days, days);
+        }
+        return formatDate(context, timestamp);
+    }
+
+    static String formatCount(Context context, long value) {
+        Locale locale = appLocale(context);
+        if (value >= 1_000_000_000L) {
+            return String.format(locale, "%.1fB", value / 1_000_000_000d);
+        }
+        if (value >= 1_000_000L) {
+            return String.format(locale, "%.1fM", value / 1_000_000d);
+        }
+        if (value >= 1_000L) {
+            return String.format(locale, "%.1fK", value / 1_000d);
+        }
+        return Long.toString(value);
+    }
+
+    private static Locale appLocale(Context context) {
+        return context.getResources().getConfiguration()
+                .getLocales().get(0);
+    }
+
+    static void setTestOverride(PatchSourceCatalog catalog) {
+        testOverride = catalog;
+    }
+
+    static void clearTestOverride() {
+        testOverride = null;
     }
 
     private static boolean isEmpty(CharSequence value) {
