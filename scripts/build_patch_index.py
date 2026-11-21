@@ -25,6 +25,7 @@ UPSTREAM_URL = (
     "main/web/public/bundles.json"
 )
 DEFAULT_OUTPUT = Path("docs/data/patch-sources.json")
+DEFAULT_DETAILS_OUTPUT = Path("docs/data/patch-details.json")
 USER_AGENT = "Morphe-Download-Helper-Patch-Index/1.0"
 
 
@@ -56,7 +57,6 @@ def build_catalog(upstream: dict) -> dict:
             "avatar": bundle.get("avatarUrl") or "",
             "stars": int(bundle.get("stars") or 0),
             "updatedAt": int(bundle.get("updatedAt") or 0),
-            "firstSeen": int(bundle.get("firstSeen") or 0),
             "isPreRelease": bool(bundle.get("isPreRelease")),
             "isArchived": bool(bundle.get("isArchived")),
             "isOfficial": bool(bundle.get("isOfficial")),
@@ -110,6 +110,7 @@ def build_catalog(upstream: dict) -> dict:
         apps[package_name] = {
             "name": meta.get("name") or package_name,
             "icon": meta.get("iconUrl") or "",
+            "installs": int(meta.get("minInstalls") or 0),
             "sources": source_list,
         }
 
@@ -118,6 +119,45 @@ def build_catalog(upstream: dict) -> dict:
         "version": 1,
         "sources": sources,
         "apps": apps,
+    }
+
+
+def build_details(upstream: dict) -> dict:
+    bundles = upstream.get("bundles") or []
+    compatibilities = upstream.get("compatibilities") or []
+
+    repos = {}
+    for bundle in bundles:
+        repo = bundle.get("repo") or ""
+        if not repo or bundle.get("isArchived"):
+            continue
+        repo_details = repos.setdefault(repo, {})
+        for patch in bundle.get("patches") or []:
+            key = patch.get("compatiblePackagesKey")
+            if key is None:
+                continue
+            try:
+                packages = compatibilities[key]
+            except (IndexError, TypeError):
+                continue
+            name = patch.get("name") or "Patch"
+            for package in packages or []:
+                package_name = package.get("packageName")
+                if not package_name or package_name == "__universal__":
+                    continue
+                versions = []
+                for target in package.get("targets") or []:
+                    version = target.get("version")
+                    if version and version not in versions:
+                        versions.append(version)
+                entries = repo_details.setdefault(package_name, [])
+                signature = [name, versions]
+                if signature not in entries:
+                    entries.append(signature)
+
+    return {
+        "version": 1,
+        "repos": dict(sorted(repos.items())),
     }
 
 
@@ -135,10 +175,18 @@ def data_hash(catalog: dict) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def details_hash(details: dict) -> str:
+    encoded = json.dumps(
+        details, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--upstream", default=UPSTREAM_URL)
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    parser.add_argument("--details-output", default=str(DEFAULT_DETAILS_OUTPUT))
     args = parser.parse_args()
 
     try:
@@ -147,10 +195,16 @@ def main() -> int:
         print(f"Could not read upstream catalog: {error}", file=sys.stderr)
         return 1
 
+    generated_at = (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
     catalog = build_catalog(upstream)
     digest = data_hash(catalog)
     output = Path(args.output)
-
     if output.exists():
         try:
             previous = json.loads(output.read_text(encoding="utf-8"))
@@ -161,35 +215,71 @@ def main() -> int:
                 f"Catalog unchanged: {len(catalog['sources'])} sources, "
                 f"{len(catalog['apps'])} apps"
             )
-            return 0
+        else:
+            write_document(output, catalog, digest, generated_at)
+            print(
+                f"Wrote {output}: {len(catalog['sources'])} sources, "
+                f"{len(catalog['apps'])} apps, {output.stat().st_size} bytes"
+            )
+    else:
+        write_document(output, catalog, digest, generated_at)
+        print(
+            f"Wrote {output}: {len(catalog['sources'])} sources, "
+            f"{len(catalog['apps'])} apps, {output.stat().st_size} bytes"
+        )
 
-    generated_at = (
-        datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    details = build_details(upstream)
+    detail_digest = details_hash(details)
+    details_output = Path(args.details_output)
+    if details_output.exists():
+        try:
+            previous_details = json.loads(
+                details_output.read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError):
+            previous_details = None
+        if previous_details and previous_details.get("dataHash") == detail_digest:
+            print(f"Patch details unchanged: {len(details['repos'])} repos")
+        else:
+            write_document(
+                details_output, details, detail_digest, generated_at,
+                hash_name="dataHash",
+            )
+            print(
+                f"Wrote {details_output}: {len(details['repos'])} repos, "
+                f"{details_output.stat().st_size} bytes"
+            )
+    else:
+        write_document(
+            details_output, details, detail_digest, generated_at,
+            hash_name="dataHash",
+        )
+        print(
+            f"Wrote {details_output}: {len(details['repos'])} repos, "
+            f"{details_output.stat().st_size} bytes"
+        )
+
+    return 0
+
+
+def write_document(path: Path, payload: dict, digest: str, generated_at: str,
+                   hash_name: str = "dataHash") -> None:
     document = {
-        "version": catalog["version"],
+        "version": payload["version"],
         "generatedAt": generated_at,
-        "dataHash": digest,
-        "sourceCount": len(catalog["sources"]),
-        "appCount": len(catalog["apps"]),
-        "sources": catalog["sources"],
-        "apps": catalog["apps"],
+        hash_name: digest,
     }
-    output.parent.mkdir(parents=True, exist_ok=True)
-    temporary = output.with_suffix(output.suffix + ".tmp")
+    for key, value in payload.items():
+        if key == "version":
+            continue
+        document[key] = value
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(
         json.dumps(document, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
-    temporary.replace(output)
-    print(
-        f"Wrote {output}: {len(catalog['sources'])} sources, "
-        f"{len(catalog['apps'])} apps, {output.stat().st_size} bytes"
-    )
-    return 0
+    temporary.replace(path)
 
 
 if __name__ == "__main__":
