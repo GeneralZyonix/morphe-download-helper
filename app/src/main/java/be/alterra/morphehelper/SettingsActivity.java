@@ -728,21 +728,11 @@ public class SettingsActivity extends Activity {
     }
 
     private void addSourcesCard(LinearLayout card) {
-        TextView sourceHint = text(
-                getString(R.string.settings_sources_hint), 12, MUTED, false);
-        sourceHint.setLineSpacing(dp(3), 1f);
-        sourceHint.setPadding(0, dp(4), 0, dp(6));
-        card.addView(sourceHint);
-
-        TextView dragHint = text(
-                getString(R.string.settings_source_drag_hint), 11, MUTED, false);
-        dragHint.setLineSpacing(dp(2), 1f);
-        dragHint.setPadding(0, 0, 0, dp(8));
-        card.addView(dragHint);
-
-        for (String key : sourceDisplayOrder()) {
-            addSourceRow(card, key, sourceTitle(key), sourceDescription(key));
-        }
+        TextView advancedHint = text(
+                getString(R.string.settings_sources_advanced_hint), 12, MUTED, false);
+        advancedHint.setLineSpacing(dp(3), 1f);
+        advancedHint.setPadding(0, dp(4), 0, dp(6));
+        card.addView(advancedHint);
 
         // General information, not a warning: keep it neutral and below the list.
         TextView sourceWebViewHint = text(

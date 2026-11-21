@@ -28,6 +28,8 @@ import android.text.TextUtils;
 import android.text.style.StyleSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.DragEvent;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,6 +39,7 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -1273,7 +1276,7 @@ public class MorphePreviewActivity extends Activity {
         sourceList.removeAllViews();
         List<String> order = displayOrder();
         for (int i = 0; i < order.size(); i++) {
-            sourceList.addView(sourceRow(order.get(i), i, order.size()));
+            sourceList.addView(sourceRow(order.get(i)));
             if (i < order.size() - 1) {
                 View divider = new View(this);
                 divider.setBackgroundColor(M3Ui.outlineVariant(palette));
@@ -1285,12 +1288,24 @@ public class MorphePreviewActivity extends Activity {
         }
     }
 
-    private View sourceRow(String key, int index, int count) {
+    private View sourceRow(String key) {
         boolean enabled = SourceSettings.isEnabled(this, key);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(8), dp(10), dp(4), dp(10));
+        row.setTag(key);
+
+        TextView drag = M3Ui.text(this, "\u2261", 18, MUTED, 700);
+        drag.setGravity(Gravity.CENTER);
+        drag.setContentDescription(getString(R.string.settings_drag_source));
+        drag.setPadding(dp(2), dp(4), dp(6), dp(4));
+        drag.setOnClickListener(v -> showSourceMoveMenu(v, key));
+        drag.setOnLongClickListener(v -> {
+            startSourceDrag(row);
+            return true;
+        });
+        row.addView(drag, new LinearLayout.LayoutParams(dp(26), dp(44)));
 
         View badge = SourceBadge.create(this, key);
         row.addView(badge, new LinearLayout.LayoutParams(dp(34), dp(34)));
@@ -1312,19 +1327,26 @@ public class MorphePreviewActivity extends Activity {
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView up = M3Ui.text(this, "\u2191", 16,
-                index > 0 ? ACCENT : palette.footer, 700);
-        up.setGravity(Gravity.CENTER);
-        up.setClickable(index > 0);
-        up.setOnClickListener(v -> moveSource(key, -1));
-        row.addView(up, new LinearLayout.LayoutParams(dp(24), dp(40)));
-
-        TextView down = M3Ui.text(this, "\u2193", 16,
-                index < count - 1 ? ACCENT : palette.footer, 700);
-        down.setGravity(Gravity.CENTER);
-        down.setClickable(index < count - 1);
-        down.setOnClickListener(v -> moveSource(key, 1));
-        row.addView(down, new LinearLayout.LayoutParams(dp(24), dp(40)));
+        TextView test = M3Ui.text(this, getString(R.string.source_type_test), 10,
+                enabled ? ACCENT : palette.footer, 600);
+        test.setGravity(Gravity.CENTER);
+        test.setSingleLine(true);
+        test.setEllipsize(TextUtils.TruncateAt.END);
+        test.setPadding(dp(4), dp(4), dp(4), dp(4));
+        test.setClickable(true);
+        test.setFocusable(true);
+        test.setOnClickListener(v -> {
+            test.setEnabled(false);
+            test.setText("\u2026");
+            SourceTester.test(this, key, (ok, message) -> runOnUiThread(() -> {
+                test.setEnabled(true);
+                test.setText(R.string.source_type_test);
+                Toast.makeText(this,
+                        getString(R.string.settings_test_result, name, message),
+                        Toast.LENGTH_SHORT).show();
+            }));
+        });
+        row.addView(test, new LinearLayout.LayoutParams(dp(36), dp(40)));
 
         Switch toggle = new Switch(this);
         toggle.setChecked(enabled);
@@ -1341,7 +1363,89 @@ public class MorphePreviewActivity extends Activity {
             rebuildSourceList();
         });
         row.addView(toggle, new LinearLayout.LayoutParams(dp(56), dp(44)));
+
+        row.setOnDragListener((view, event) -> {
+            int action = event.getAction();
+            if (action == DragEvent.ACTION_DRAG_ENTERED) {
+                view.setAlpha(0.65f);
+                return true;
+            }
+            if (action == DragEvent.ACTION_DRAG_EXITED
+                    || action == DragEvent.ACTION_DRAG_ENDED) {
+                view.setAlpha(1f);
+                return true;
+            }
+            if (action == DragEvent.ACTION_DROP) {
+                view.setAlpha(1f);
+                Object local = event.getLocalState();
+                if (!(local instanceof View)) {
+                    return true;
+                }
+                Object draggedTag = ((View) local).getTag();
+                Object targetTag = view.getTag();
+                if (draggedTag == null || targetTag == null) {
+                    return true;
+                }
+                String dragged = String.valueOf(draggedTag);
+                String target = String.valueOf(targetTag);
+                if (dragged.equals(target)
+                        || SourceSettings.isEnabled(this, dragged)
+                        != SourceSettings.isEnabled(this, target)) {
+                    return true;
+                }
+                List<String> order = displayOrder();
+                int from = order.indexOf(dragged);
+                int to = order.indexOf(target);
+                if (from >= 0 && to >= 0) {
+                    order.remove(from);
+                    order.add(to, dragged);
+                    AppSettings.setSourceOrder(this, order);
+                    PublicSettings.write(this);
+                    rebuildSourceList();
+                }
+                return true;
+            }
+            return action == DragEvent.ACTION_DRAG_STARTED;
+        });
         return row;
+    }
+
+    private void showSourceMoveMenu(View anchor, String key) {
+        PopupMenu menu = new PopupMenu(this, anchor);
+        List<String> order = displayOrder();
+        int index = order.indexOf(key);
+        MenuItem up = menu.getMenu().add(0, 1, 0,
+                getString(R.string.settings_move_up));
+        up.setEnabled(index > 0);
+        MenuItem down = menu.getMenu().add(0, 2, 1,
+                getString(R.string.settings_move_down));
+        down.setEnabled(index >= 0 && index < order.size() - 1);
+        menu.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == 1) {
+                moveSource(key, -1);
+                return true;
+            }
+            if (item.getItemId() == 2) {
+                moveSource(key, 1);
+                return true;
+            }
+            return false;
+        });
+        menu.show();
+    }
+
+    private void startSourceDrag(View row) {
+        Object tag = row.getTag();
+        if (tag == null) {
+            return;
+        }
+        ClipData clip = ClipData.newPlainText("source", String.valueOf(tag));
+        View.DragShadowBuilder shadow = new View.DragShadowBuilder(row);
+        if (Build.VERSION.SDK_INT >= 24) {
+            row.startDragAndDrop(clip, shadow, row, 0);
+        } else {
+            row.startDrag(clip, shadow, row, 0);
+        }
     }
 
     private List<String> displayOrder() {

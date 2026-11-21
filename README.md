@@ -156,8 +156,9 @@ The full illustrated reference is in **[docs/SETTINGS.md](docs/SETTINGS.md)**. Q
   bar order, and reset.
 - **Updates** — automatic checks, update mode, in-app popup, and a manual check.
 - **Download pages** — ad/tracker blocking and optional live AdGuard host checks.
-- **Sources** — enable/disable, reorder, reset, test sources, Fast source checks,
-  and GitHub apps.
+- **Sources** — the single source editor: enable/disable, reorder, reset, and
+  per-source Test. Settings → Sources keeps Fast source checks, Test all, the
+  Appteka warning, and GitHub apps.
 - **Storage** — download folder, retention, multi-connection downloads, maximum connections,
   and deleting all downloaded APKs.
 - **Security** — optional VirusTotal API key, detection action, upload rules, and quota

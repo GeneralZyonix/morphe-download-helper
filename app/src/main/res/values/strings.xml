@@ -22,9 +22,9 @@
     <string name="main_hero_kicker">READY WHEN YOU ARE</string>
     <string name="main_hero_title">Fetch the original APK.</string>
     <string name="main_hero_body">Morphe patches the app. The helper finds the right build and hands it over.</string>
-    <string name="source_manager_hint">Enabled sources are tried first. Use the arrows to reorder; disabled sources stay at the bottom.</string>
+    <string name="source_manager_hint">Enabled sources are tried first. Drag the handle to reorder; tap it for Move up/down. Disabled sources stay at the bottom.</string>
     <string name="source_manager_immediate">Changes apply immediately.</string>
-    <string name="source_manager_full_settings">Full source settings</string>
+    <string name="source_manager_full_settings">Advanced source options</string>
     <string name="settings_test_all">Test all sources</string>
     <string name="settings_testing_all">Testing all sources…</string>
     <string name="settings_test_all_result">%1$d passed, %2$d failed.</string>
@@ -208,7 +208,8 @@
     <string name="settings_general">General</string>
     <string name="settings_general_summary">Language, appearance, and app icon</string>
     <string name="settings_updates_summary">Checks, update mode, and Shizuku</string>
-    <string name="settings_sources_summary">Enabled sources, order, and GitHub apps</string>
+    <string name="settings_sources_summary">Checks, Test all, warnings, and GitHub apps</string>
+    <string name="settings_sources_advanced_hint">Source order and toggles are on the Sources tab. These options control checks, warnings, and GitHub apps.</string>
     <string name="settings_web_pages_summary">Ad blocking and embedded pages</string>
     <string name="settings_storage_summary">Download folder, retention, and cleanup</string>
     <string name="settings_security_summary">VirusTotal scanning and upload rules</string>

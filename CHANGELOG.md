@@ -5,13 +5,27 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [3.0.3] - 2026-11-21
+
+### Changed
+
+- Consolidated source editing on the Sources tab. Settings → Sources now
+  contains only Fast source checks, Test all, the Appteka warning, and GitHub
+  apps.
+- Added a per-source Test action to the Sources tab.
+
+### Fixed
+
+- Source reset is available on the single source editor, and the reset icon is
+  now a properly centered standard glyph.
+- Corrected the 3.0.2 note that claimed the full Sources settings already had a
+  reset button.
+
 ## [3.0.2] - 2026-11-21
 
 ### Added
 
 - Reset-to-default action on the Sources tab and in the compact Sources sheet.
-- The full Sources settings already had a reset button; the tab and quick sheet
-  now match it.
 
 ### Changed
 
