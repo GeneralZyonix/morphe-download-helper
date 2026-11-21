@@ -251,6 +251,12 @@ public class MorphePreviewActivity extends Activity {
         if (!isTabAvailable(index)) {
             return;
         }
+        // Re-tapping the active tab should not rebuild the page or replay the
+        // slide. onResume still calls this with animate=false to refresh data.
+        if (index == selectedTab && animate && contentHost.getChildCount() > 0) {
+            updateNav();
+            return;
+        }
         int previous = selectedTab;
         selectedTab = index;
         if (index == TAB_DOWNLOADS || index == TAB_SOURCES) {

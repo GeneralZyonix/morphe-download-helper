@@ -18,6 +18,8 @@ and this project follows a simple `MAJOR.MINOR` version scheme.
 
 - Source reset is available on the single source editor, and the reset icon is
   now a properly centered standard glyph.
+- Re-tapping the active Sources or Downloads tab no longer rebuilds the page and
+  replays the slide.
 - Corrected the 3.0.2 note that claimed the full Sources settings already had a
   reset button.
 
