@@ -36,6 +36,7 @@ IDEAS.md
 !/docs/PATCHES.md
 !/docs/data/
 !/docs/data/patch-sources.json
+!/docs/data/patch-details.json
 !/docs/guide/
 /docs/guide/*
 !/docs/guide/*-2.3.8.png
