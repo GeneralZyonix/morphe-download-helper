@@ -1,6 +1,6 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 3.0.3. The
+This page explains every section of **Settings** in Morphe Download Helper 3.0.4. The
 screenshots were taken from 3.0.0; the Appearance screen now also includes the
 Navigation bar card.
 

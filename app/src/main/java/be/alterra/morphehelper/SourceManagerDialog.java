@@ -118,7 +118,7 @@ final class SourceManagerDialog {
         LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(dp(40), dp(40));
         resetParams.setMarginEnd(dp(4));
         titleRow.addView(reset, resetParams);
-        ImageView fullSettings = iconButton(R.drawable.ic_fullscreen,
+        ImageView advancedSettings = iconButton(R.drawable.ic_settings_gear,
                 R.string.source_manager_full_settings, () -> {
                     Intent intent = new Intent(activity, SettingsActivity.class);
                     intent.putExtra(SettingsActivity.EXTRA_SECTION,
@@ -126,7 +126,7 @@ final class SourceManagerDialog {
                     activity.startActivity(intent);
                     dialog.dismiss();
                 });
-        titleRow.addView(fullSettings, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        titleRow.addView(advancedSettings, new LinearLayout.LayoutParams(dp(40), dp(40)));
         ImageView close = iconButton(R.drawable.ic_close,
                 R.string.common_close, () -> dialog.dismiss());
         LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(dp(40), dp(40));

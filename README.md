@@ -41,14 +41,14 @@ It is a downloader, not a patcher. It never installs, modifies, or uploads an ap
 Grab one of the two current builds from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-> **3.0.3 is the latest stable release.** It adds the consolidated Sources
-> editor, drag-to-reorder, per-source testing, and the latest fixes on top of the
-> 3.0.0 Expressive redesign. The 2.7.x builds remain available as pre-releases.
+> **3.0.4 is the latest stable release.** It replaces the Sources fullscreen glyph
+> with an advanced-settings gear and includes the 3.0.3 source-editor cleanup.
+> The 2.7.x builds remain available as pre-releases.
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
-| **Icon** — `MorpheDownloadHelper-v3.0.3-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
-| **No-icon** — `MorpheDownloadHelper-v3.0.3-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+| **Icon** — `MorpheDownloadHelper-v3.0.4-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** — `MorpheDownloadHelper-v3.0.4-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
 
 Both builds have the same package name, version, signing key, and features. Install one or
 the other, not both. The in-app updater stays on the build you installed. When switching

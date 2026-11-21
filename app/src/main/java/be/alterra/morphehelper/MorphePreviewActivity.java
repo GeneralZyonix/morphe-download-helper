@@ -1251,10 +1251,10 @@ public class MorphePreviewActivity extends Activity {
         LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(dp(42), dp(42));
         resetParams.setMarginEnd(dp(4));
         header.addView(reset, resetParams);
-        ImageView full = iconButton(R.drawable.ic_fullscreen,
+        ImageView advanced = iconButton(R.drawable.ic_settings_gear,
                 R.string.source_manager_full_settings,
                 () -> openSettings(SettingsActivity.EXTRA_SECTION_SOURCES));
-        header.addView(full, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        header.addView(advanced, new LinearLayout.LayoutParams(dp(42), dp(42)));
         root.addView(header);
 
         TextView immediate = M3Ui.text(this,

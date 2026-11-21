@@ -18,8 +18,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 79
-        versionName "3.0.3"
+        versionCode 80
+        versionName "3.0.4"
 
         // true for pre-release builds; set false only for a stable release.
         // Drives the P/R badge and the Auto update channel.

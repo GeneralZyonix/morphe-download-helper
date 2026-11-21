@@ -5,6 +5,14 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [3.0.4] - 2026-11-21
+
+### Changed
+
+- Replaced the fullscreen glyph on the Sources tab and compact Sources sheet
+  with an advanced-settings gear, since the action opens advanced source
+  options rather than a second source list.
+
 ## [3.0.3] - 2026-11-21
 
 ### Changed
