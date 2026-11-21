@@ -5,6 +5,14 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Added
+
+- Hotbar tabs can be reordered in Appearance. The default order is Home,
+  Sources, Downloads, and Settings. The Patches tab is reserved between Sources
+  and Downloads for the upcoming patch-source search.
+
 ## [3.0.0] - 2026-11-20
 
 3.0.0 is a full Material 3 Expressive redesign. Morphe is now the only home

@@ -72,6 +72,12 @@ final class AppSettings {
     static final String UPDATE_CHANNEL_AUTO = "auto";
     static final String UPDATE_CHANNEL_STABLE = "stable";
     static final String UPDATE_CHANNEL_PRERELEASE = "prerelease";
+    private static final String KEY_HOTBAR_ORDER = "hotbar_order";
+    static final String HOTBAR_HOME = "home";
+    static final String HOTBAR_SOURCES = "sources";
+    static final String HOTBAR_PATCHES = "patches";
+    static final String HOTBAR_DOWNLOADS = "downloads";
+    static final String HOTBAR_SETTINGS = "settings";
     private static final String KEY_SHIZUKU_PACKAGE = "shizuku_package";
     private static final String KEY_APPTEKA_SNAPTUBE_ONLY = "appteka_snaptube_only";
     private static final String KEY_VT_ENABLED = "virustotal_enabled";
@@ -120,6 +126,139 @@ final class AppSettings {
 
     static List<String> defaultOrder() {
         return new ArrayList<>(DEFAULT_ORDER);
+    }
+
+    /**
+     * Requested shell order: Home, Sources, Patches, Downloads, Settings.
+     * Patches stays hidden until its patch-source screen is available, but its
+     * slot is already reserved between Sources and Downloads.
+     */
+    private static final List<String> DEFAULT_HOTBAR_ORDER = Arrays.asList(
+            HOTBAR_HOME,
+            HOTBAR_SOURCES,
+            HOTBAR_PATCHES,
+            HOTBAR_DOWNLOADS,
+            HOTBAR_SETTINGS
+    );
+
+    /** Flip when the app-first patch source search ships. */
+    static boolean hotbarTabAvailable(String key) {
+        return !HOTBAR_PATCHES.equals(key);
+    }
+
+    static List<String> defaultHotbarOrder() {
+        List<String> order = new ArrayList<>();
+        for (String key : DEFAULT_HOTBAR_ORDER) {
+            if (hotbarTabAvailable(key)) {
+                order.add(key);
+            }
+        }
+        return order;
+    }
+
+    /**
+     * Keeps a saved order, drops unknown or duplicate keys, and appends tabs
+     * added in a later build. Patches is inserted before Downloads so existing
+     * custom orders keep the requested default relative position.
+     */
+    static List<String> normalizeHotbarOrder(List<String> saved) {
+        List<String> order = new ArrayList<>();
+        if (saved != null) {
+            for (String key : saved) {
+                if (key != null
+                        && DEFAULT_HOTBAR_ORDER.contains(key)
+                        && hotbarTabAvailable(key)
+                        && !order.contains(key)) {
+                    order.add(key);
+                }
+            }
+        }
+        for (String key : DEFAULT_HOTBAR_ORDER) {
+            if (!hotbarTabAvailable(key) || order.contains(key)) {
+                continue;
+            }
+            if (HOTBAR_PATCHES.equals(key)) {
+                int downloads = order.indexOf(HOTBAR_DOWNLOADS);
+                if (downloads >= 0) {
+                    order.add(downloads, key);
+                    continue;
+                }
+            }
+            order.add(key);
+        }
+        if (order.isEmpty()) {
+            order.addAll(defaultHotbarOrder());
+        }
+        return order;
+    }
+
+    static List<String> hotbarOrder(Context context) {
+        String raw = prefs(context).getString(KEY_HOTBAR_ORDER, "");
+        List<String> saved = new ArrayList<>();
+        if (raw != null && !raw.isEmpty()) {
+            for (String key : raw.split(",")) {
+                if (!key.isEmpty()) {
+                    saved.add(key);
+                }
+            }
+        }
+        return normalizeHotbarOrder(saved);
+    }
+
+    static String hotbarOrderSignature(Context context) {
+        return android.text.TextUtils.join(",", hotbarOrder(context));
+    }
+
+    static void setHotbarOrder(Context context, List<String> order) {
+        prefs(context).edit()
+                .putString(KEY_HOTBAR_ORDER, android.text.TextUtils.join(",", order))
+                .apply();
+    }
+
+    static void resetHotbarOrder(Context context) {
+        prefs(context).edit().remove(KEY_HOTBAR_ORDER).apply();
+    }
+
+    static void moveHotbarTab(Context context, String key, int delta) {
+        List<String> order = hotbarOrder(context);
+        int index = order.indexOf(key);
+        int target = index + delta;
+        if (index < 0 || target < 0 || target >= order.size()) {
+            return;
+        }
+        order.remove(index);
+        order.add(target, key);
+        setHotbarOrder(context, order);
+    }
+
+    static int hotbarLabelRes(String key) {
+        switch (key) {
+            case HOTBAR_SOURCES:
+                return R.string.preview_sources;
+            case HOTBAR_PATCHES:
+                return R.string.preview_patches;
+            case HOTBAR_DOWNLOADS:
+                return R.string.preview_downloads;
+            case HOTBAR_SETTINGS:
+                return R.string.preview_settings;
+            default:
+                return R.string.preview_home;
+        }
+    }
+
+    static int hotbarIconRes(String key) {
+        switch (key) {
+            case HOTBAR_SOURCES:
+                return R.drawable.ic_section_sources;
+            case HOTBAR_PATCHES:
+                return R.drawable.ic_patches;
+            case HOTBAR_DOWNLOADS:
+                return R.drawable.ic_downloads;
+            case HOTBAR_SETTINGS:
+                return R.drawable.ic_settings_gear;
+            default:
+                return R.drawable.ic_home;
+        }
     }
 
     private static SharedPreferences prefs(Context context) {

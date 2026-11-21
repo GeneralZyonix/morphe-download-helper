@@ -67,9 +67,10 @@ import java.util.Map;
 public class MorphePreviewActivity extends Activity {
 
     private static final int TAB_HOME = 0;
-    private static final int TAB_DOWNLOADS = 1;
-    private static final int TAB_SOURCES = 2;
-    private static final int TAB_SETTINGS = 3;
+    private static final int TAB_SOURCES = 1;
+    private static final int TAB_PATCHES = 2;
+    private static final int TAB_DOWNLOADS = 3;
+    private static final int TAB_SETTINGS = 4;
     private static final String STATE_TAB = "selected_tab";
     private static final String MORPHE_PACKAGE = "app.morphe.manager";
     private static final int REQ_SAVE_LOG = 6103;
@@ -81,12 +82,13 @@ public class MorphePreviewActivity extends Activity {
     private ThemePalette palette;
     private FrameLayout contentHost;
     private LinearLayout navBar;
-    private final LinearLayout[] navItems = new LinearLayout[4];
-    private final ImageView[] navIcons = new ImageView[4];
-    private final TextView[] navLabels = new TextView[4];
-    private final View[] tabs = new View[4];
+    private final LinearLayout[] navItems = new LinearLayout[5];
+    private final ImageView[] navIcons = new ImageView[5];
+    private final TextView[] navLabels = new TextView[5];
+    private final View[] tabs = new View[5];
     private int selectedTab = TAB_HOME;
     private String themeSignature;
+    private String hotbarSignature;
 
     private int TEXT;
     private int MUTED;
@@ -107,6 +109,7 @@ public class MorphePreviewActivity extends Activity {
         HelperLog.init(getApplicationContext());
         SourceSettings.ensureInitialized(this);
         applyPalette();
+        hotbarSignature = AppSettings.hotbarOrderSignature(this);
         new Thread(() -> AppSettings.cleanup(this)).start();
         new Thread(() -> UpdateManager.cleanupStagedUpdates(this)).start();
         if (Build.VERSION.SDK_INT >= 33
@@ -155,6 +158,9 @@ public class MorphePreviewActivity extends Activity {
 
         int initialTab = savedInstanceState == null
                 ? TAB_HOME : savedInstanceState.getInt(STATE_TAB, TAB_HOME);
+        if (!isTabAvailable(initialTab)) {
+            initialTab = TAB_HOME;
+        }
         selectTab(initialTab, false);
         UpdateManager.maybeCheckOnLaunch(this,
                 () -> UpdateManager.showInAppUpdatePopupIfAvailable(this));
@@ -199,7 +205,14 @@ public class MorphePreviewActivity extends Activity {
             recreate();
             return;
         }
-        if (selectedTab == TAB_DOWNLOADS || selectedTab == TAB_SOURCES) {
+        if (hotbarSignature != null
+                && !hotbarSignature.equals(AppSettings.hotbarOrderSignature(this))) {
+            recreate();
+            return;
+        }
+        if (!isTabAvailable(selectedTab)) {
+            selectTab(TAB_HOME, false);
+        } else if (selectedTab == TAB_DOWNLOADS || selectedTab == TAB_SOURCES) {
             selectTab(selectedTab, false);
         }
         UpdateManager.showInAppUpdatePopupIfAvailable(this);
@@ -222,6 +235,9 @@ public class MorphePreviewActivity extends Activity {
     // ------------------------------------------------------------------
 
     private void selectTab(int index, boolean animate) {
+        if (!isTabAvailable(index)) {
+            return;
+        }
         int previous = selectedTab;
         selectedTab = index;
         if (index == TAB_DOWNLOADS || index == TAB_SOURCES) {
@@ -259,7 +275,7 @@ public class MorphePreviewActivity extends Activity {
         float width = contentHost.getWidth() > 0
                 ? contentHost.getWidth()
                 : getResources().getDisplayMetrics().widthPixels;
-        float direction = index >= previous ? 1f : -1f;
+        float direction = tabPosition(index) >= tabPosition(previous) ? 1f : -1f;
         old.setTranslationX(0f);
         old.setAlpha(1f);
         next.setTranslationX(direction * width);
@@ -310,19 +326,46 @@ public class MorphePreviewActivity extends Activity {
                 Math.max(1, dp(1)), M3Ui.outlineVariant(palette)));
         bar.setElevation(dp(12));
 
-        addNavItem(bar, TAB_HOME, R.drawable.ic_home,
-                R.string.preview_home, () -> selectTab(TAB_HOME, true));
-        addNavItem(bar, TAB_DOWNLOADS, R.drawable.ic_downloads,
-                R.string.preview_downloads, () -> selectTab(TAB_DOWNLOADS, true));
-        addNavItem(bar, TAB_SOURCES, R.drawable.ic_section_sources,
-                R.string.preview_sources, () -> selectTab(TAB_SOURCES, true));
-        addNavItem(bar, TAB_SETTINGS, R.drawable.ic_settings_gear,
-                R.string.preview_settings, () -> selectTab(TAB_SETTINGS, true));
+        List<String> order = AppSettings.hotbarOrder(this);
+        int labelSize = order.size() >= 5 ? 9 : 10;
+        for (String key : order) {
+            switch (key) {
+                case AppSettings.HOTBAR_HOME:
+                    addNavItem(bar, TAB_HOME, AppSettings.hotbarIconRes(key),
+                            AppSettings.hotbarLabelRes(key), labelSize,
+                            () -> selectTab(TAB_HOME, true));
+                    break;
+                case AppSettings.HOTBAR_SOURCES:
+                    addNavItem(bar, TAB_SOURCES, AppSettings.hotbarIconRes(key),
+                            AppSettings.hotbarLabelRes(key), labelSize,
+                            () -> selectTab(TAB_SOURCES, true));
+                    break;
+                case AppSettings.HOTBAR_PATCHES:
+                    if (AppSettings.hotbarTabAvailable(key)) {
+                        addNavItem(bar, TAB_PATCHES, AppSettings.hotbarIconRes(key),
+                                AppSettings.hotbarLabelRes(key), labelSize,
+                                () -> selectTab(TAB_PATCHES, true));
+                    }
+                    break;
+                case AppSettings.HOTBAR_DOWNLOADS:
+                    addNavItem(bar, TAB_DOWNLOADS, AppSettings.hotbarIconRes(key),
+                            AppSettings.hotbarLabelRes(key), labelSize,
+                            () -> selectTab(TAB_DOWNLOADS, true));
+                    break;
+                case AppSettings.HOTBAR_SETTINGS:
+                    addNavItem(bar, TAB_SETTINGS, AppSettings.hotbarIconRes(key),
+                            AppSettings.hotbarLabelRes(key), labelSize,
+                            () -> selectTab(TAB_SETTINGS, true));
+                    break;
+                default:
+                    break;
+            }
+        }
         return bar;
     }
 
     private void addNavItem(LinearLayout bar, int index, int iconRes, int labelRes,
-                            Runnable action) {
+                            int labelSize, Runnable action) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
@@ -336,10 +379,12 @@ public class MorphePreviewActivity extends Activity {
         icon.setColorFilter(MUTED);
         item.addView(icon, new LinearLayout.LayoutParams(dp(22), dp(22)));
 
-        TextView label = M3Ui.text(this, getString(labelRes), 10, MUTED, 500);
+        TextView label = M3Ui.text(this, getString(labelRes), labelSize, MUTED, 500);
         label.setGravity(Gravity.CENTER);
+        label.setSingleLine(true);
+        label.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         labelParams.topMargin = dp(2);
         item.addView(label, labelParams);
 
@@ -350,8 +395,35 @@ public class MorphePreviewActivity extends Activity {
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
     }
 
+    private boolean isTabAvailable(int index) {
+        return AppSettings.hotbarTabAvailable(tabKey(index));
+    }
+
+    private String tabKey(int index) {
+        switch (index) {
+            case TAB_SOURCES:
+                return AppSettings.HOTBAR_SOURCES;
+            case TAB_PATCHES:
+                return AppSettings.HOTBAR_PATCHES;
+            case TAB_DOWNLOADS:
+                return AppSettings.HOTBAR_DOWNLOADS;
+            case TAB_SETTINGS:
+                return AppSettings.HOTBAR_SETTINGS;
+            default:
+                return AppSettings.HOTBAR_HOME;
+        }
+    }
+
+    private int tabPosition(int index) {
+        int position = AppSettings.hotbarOrder(this).indexOf(tabKey(index));
+        return position < 0 ? 0 : position;
+    }
+
     private void updateNav() {
         for (int i = 0; i < navItems.length; i++) {
+            if (navItems[i] == null) {
+                continue;
+            }
             boolean selected = i == selectedTab;
             navItems[i].setBackground(selected
                     ? M3Ui.filled(this, M3Ui.primaryContainer(palette),

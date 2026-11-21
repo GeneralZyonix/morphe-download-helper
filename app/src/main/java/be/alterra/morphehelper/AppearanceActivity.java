@@ -14,6 +14,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -24,6 +25,8 @@ import android.widget.Toast;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import java.util.List;
+
 /** Appearance settings: preview, mode, accent presets, and custom HEX. */
 public class AppearanceActivity extends Activity {
 
@@ -32,6 +35,7 @@ public class AppearanceActivity extends Activity {
     private TextView schemeError;
     private LinearLayout schemeEditor;
     private View schemeRow;
+    private LinearLayout navigationRows;
     private ScrollView scrollView;
     private int RED;
 
@@ -93,6 +97,7 @@ public class AppearanceActivity extends Activity {
         root.addView(current, currentParams);
 
         addPreviewCard(root);
+        addNavigationCard(root);
         addModeCard(root);
         addTintCard(root);
         addAccentCard(root);
@@ -226,6 +231,85 @@ public class AppearanceActivity extends Activity {
         hint.setPadding(dp(8), 0, 0, 0);
         hintRow.addView(hint);
         preview.addView(hintRow);
+    }
+
+    private void addNavigationCard(LinearLayout root) {
+        LinearLayout card = card();
+        LinearLayout.LayoutParams params = cardParams();
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text(getString(R.string.appearance_navigation), 16, TEXT, true));
+        TextView detail = text(getString(R.string.appearance_navigation_detail), 12, MUTED, false);
+        detail.setLineSpacing(dp(2), 1f);
+        detail.setPadding(0, dp(4), 0, dp(8));
+        card.addView(detail);
+
+        navigationRows = new LinearLayout(this);
+        navigationRows.setOrientation(LinearLayout.VERTICAL);
+        card.addView(navigationRows);
+        rebuildNavigationRows();
+
+        TextView reset = M3Ui.outlinedButton(this, palette,
+                getString(R.string.appearance_navigation_reset), 0, TEXT);
+        reset.setOnClickListener(v -> {
+            AppSettings.resetHotbarOrder(this);
+            rebuildNavigationRows();
+        });
+        LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        resetParams.topMargin = dp(10);
+        card.addView(reset, resetParams);
+    }
+
+    private void rebuildNavigationRows() {
+        if (navigationRows == null) {
+            return;
+        }
+        navigationRows.removeAllViews();
+        List<String> order = AppSettings.hotbarOrder(this);
+        for (int i = 0; i < order.size(); i++) {
+            navigationRows.addView(navigationRow(order.get(i), i, order.size()));
+        }
+    }
+
+    private View navigationRow(String key, int index, int count) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(2), dp(7), dp(2), dp(7));
+
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(AppSettings.hotbarIconRes(key));
+        icon.setColorFilter(PRIMARY_START);
+        row.addView(icon, new LinearLayout.LayoutParams(dp(21), dp(21)));
+
+        TextView label = text(getString(AppSettings.hotbarLabelRes(key)), 14, TEXT, false);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        labelParams.setMarginStart(dp(12));
+        row.addView(label, labelParams);
+
+        TextView up = text("\u2191", 16,
+                index > 0 ? PRIMARY_START : palette.footer, true);
+        up.setGravity(Gravity.CENTER);
+        up.setClickable(index > 0);
+        up.setOnClickListener(v -> {
+            AppSettings.moveHotbarTab(this, key, -1);
+            rebuildNavigationRows();
+        });
+        row.addView(up, new LinearLayout.LayoutParams(dp(30), dp(40)));
+
+        TextView down = text("\u2193", 16,
+                index < count - 1 ? PRIMARY_START : palette.footer, true);
+        down.setGravity(Gravity.CENTER);
+        down.setClickable(index < count - 1);
+        down.setOnClickListener(v -> {
+            AppSettings.moveHotbarTab(this, key, 1);
+            rebuildNavigationRows();
+        });
+        row.addView(down, new LinearLayout.LayoutParams(dp(30), dp(40)));
+        return row;
     }
 
     private void addModeCard(LinearLayout root) {
