@@ -103,14 +103,6 @@ public class AppearanceActivity extends Activity {
         addAccentCard(root);
         addResetCard(root);
 
-        TextView done = primaryButton(getString(R.string.common_done));
-        done.setOnClickListener(v -> finish());
-        LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
-        doneParams.topMargin = dp(20);
-        doneParams.bottomMargin = dp(24);
-        root.addView(done, doneParams);
-
         setContentView(scrollView);
         ViewCompat.setOnApplyWindowInsetsListener(scrollView, (view, insets) -> {
             int ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
@@ -160,7 +152,9 @@ public class AppearanceActivity extends Activity {
 
     private void addPreviewCard(LinearLayout root) {
         LinearLayout card = card();
-        root.addView(card, cardParams());
+        LinearLayout.LayoutParams params = cardParams();
+        params.topMargin = dp(12);
+        root.addView(card, params);
 
         card.addView(text(getString(R.string.appearance_preview), 16, TEXT, true));
 

@@ -369,6 +369,7 @@
     <string name="settings_drag_source">Drag to reorder</string>
     <string name="settings_source_order_note">Use the arrows to change which source is tried first. This is the same order shown on the main screen. Disabled sources are skipped. Uptodown uses its API first and falls back to an in-app verification page.</string>
     <string name="settings_reset_order">Reset to default order</string>
+    <string name="settings_reset_order_done">Source order reset.</string>
     <string name="settings_test">Test</string>
     <string name="settings_testing">…</string>
     <string name="settings_test_result">%1$s: %2$s</string>

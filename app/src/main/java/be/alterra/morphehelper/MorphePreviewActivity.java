@@ -180,6 +180,16 @@ public class MorphePreviewActivity extends Activity {
         handleSharedText(intent);
     }
 
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (selectedTab != TAB_HOME) {
+            selectTab(TAB_HOME, true);
+            return;
+        }
+        super.onBackPressed();
+    }
+
     /** A shared GitHub link still opens the Sources import flow. */
     private void handleSharedText(Intent intent) {
         if (intent == null) {
@@ -1227,6 +1237,11 @@ public class MorphePreviewActivity extends Activity {
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView reset = iconButton(R.drawable.ic_reset,
+                R.string.settings_reset_order, this::resetSourceOrder);
+        LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(dp(42), dp(42));
+        resetParams.setMarginEnd(dp(4));
+        header.addView(reset, resetParams);
         ImageView full = iconButton(R.drawable.ic_fullscreen,
                 R.string.source_manager_full_settings,
                 () -> openSettings(SettingsActivity.EXTRA_SECTION_SOURCES));
@@ -1350,6 +1365,14 @@ public class MorphePreviewActivity extends Activity {
         rebuildSourceList();
     }
 
+    private void resetSourceOrder() {
+        AppSettings.resetSourceOrder(this);
+        PublicSettings.write(this);
+        rebuildSourceList();
+        Toast.makeText(this, R.string.settings_reset_order_done,
+                Toast.LENGTH_SHORT).show();
+    }
+
     private View buildSettings() {
         ScrollView scroll = tabScroll();
         LinearLayout root = new LinearLayout(this);
@@ -1376,6 +1399,10 @@ public class MorphePreviewActivity extends Activity {
         addSettingsCard(root, R.drawable.ic_section_general,
                 R.string.settings_general, R.string.settings_general_summary,
                 "general");
+        addSettingsActionCard(root, R.drawable.ic_section_general,
+                R.string.preview_settings_appearance,
+                R.string.appearance_subtitle,
+                () -> startActivity(new Intent(this, AppearanceActivity.class)));
         addSettingsCard(root, R.drawable.ic_section_updates,
                 R.string.settings_updates, R.string.settings_updates_summary,
                 "updates");
@@ -1397,10 +1424,6 @@ public class MorphePreviewActivity extends Activity {
         addSettingsCard(root, R.drawable.ic_section_backup,
                 R.string.settings_backup, R.string.settings_backup_summary,
                 "backup");
-        addSettingsActionCard(root, R.drawable.ic_section_general,
-                R.string.preview_settings_appearance,
-                R.string.appearance_subtitle,
-                () -> startActivity(new Intent(this, AppearanceActivity.class)));
 
         addBottomSpacer(root);
         return scroll;

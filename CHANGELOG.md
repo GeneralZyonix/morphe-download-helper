@@ -5,6 +5,26 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [3.0.2] - 2026-11-21
+
+### Added
+
+- Reset-to-default action on the Sources tab and in the compact Sources sheet.
+- The full Sources settings already had a reset button; the tab and quick sheet
+  now match it.
+
+### Changed
+
+- Appearance now sits between General and Updates in Settings.
+- Back from any tab returns to Home; Back on Home exits the shell.
+- Removed the redundant **Done** button from Appearance; changes already apply
+  immediately and Back returns to the shell.
+
+### Fixed
+
+- APKCube now shows its description on the Sources tab.
+- More spacing between the Current chip and the Preview card in Appearance.
+
 ## [3.0.1] - 2026-11-21
 
 3.0.1 is a patch release on top of the 3.0.0 Expressive redesign.

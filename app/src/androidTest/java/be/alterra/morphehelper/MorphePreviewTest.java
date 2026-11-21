@@ -117,6 +117,8 @@ public class MorphePreviewTest {
                 View root = activity.getWindow().getDecorView();
                 assertTrue(containsText(root, "Changes apply immediately."));
                 assertTrue(containsText(root, "Morphe link"));
+                assertTrue(containsText(root,
+                        "Play catalogue search with a specific build and ABI"));
             });
         }
     }
@@ -148,6 +150,20 @@ public class MorphePreviewTest {
                     settings.getIntent().getBooleanExtra(
                             SettingsActivity.EXTRA_SHEET_ONLY, false));
             settings.finish();
+        }
+    }
+
+    @Test
+    public void backFromAnotherTabReturnsHome() {
+        try (ActivityScenario<MorphePreviewActivity> scenario =
+                     ActivityScenario.launch(MorphePreviewActivity.class)) {
+            scenario.onActivity(activity -> clickTab(activity, "Settings"));
+            waitForTabSlide();
+            scenario.onActivity(MorphePreviewActivity::onBackPressed);
+            waitForTabSlide();
+            scenario.onActivity(activity -> assertTrue(containsText(
+                    activity.getWindow().getDecorView(),
+                    "Fetch the original APK.")));
         }
     }
 

@@ -41,14 +41,14 @@ It is a downloader, not a patcher. It never installs, modifies, or uploads an ap
 Grab one of the two current builds from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-> **3.0.1 is the latest stable release.** It adds a reorderable hotbar on top
-> of the full Material 3 Expressive redesign from 3.0.0. The 2.7.x builds remain
-> available as pre-releases.
+> **3.0.2 is the latest stable release.** It adds hotbar reordering, Sources
+> reset actions, and the latest UI fixes on top of the 3.0.0 Expressive redesign.
+> The 2.7.x builds remain available as pre-releases.
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
-| **Icon** — `MorpheDownloadHelper-v3.0.1-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
-| **No-icon** — `MorpheDownloadHelper-v3.0.1-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+| **Icon** — `MorpheDownloadHelper-v3.0.2-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** — `MorpheDownloadHelper-v3.0.2-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
 
 Both builds have the same package name, version, signing key, and features. Install one or
 the other, not both. The in-app updater stays on the build you installed. When switching
@@ -151,10 +151,13 @@ times out, the helper marks that source failed and continues with the next one.
 
 The full illustrated reference is in **[docs/SETTINGS.md](docs/SETTINGS.md)**. Quick map:
 
-- **General** — app language, appearance, and the installed launcher variant.
+- **General** — app language and the installed launcher variant.
+- **Appearance** — theme mode, accent, custom scheme, surface tinting, navigation
+  bar order, and reset.
 - **Updates** — automatic checks, update mode, in-app popup, and a manual check.
 - **Download pages** — ad/tracker blocking and optional live AdGuard host checks.
-- **Sources** — enable/disable, reorder, test sources, Fast source checks, and GitHub apps.
+- **Sources** — enable/disable, reorder, reset, test sources, Fast source checks,
+  and GitHub apps.
 - **Storage** — download folder, retention, multi-connection downloads, maximum connections,
   and deleting all downloaded APKs.
 - **Security** — optional VirusTotal API key, detection action, upload rules, and quota
@@ -162,7 +165,6 @@ The full illustrated reference is in **[docs/SETTINGS.md](docs/SETTINGS.md)**. Q
 - **Background** — battery-optimization exemption for reliable background checks.
 - **Backup** — export/import configuration, plus optional creation or deletion of
   `helper-settings.txt`.
-- **Appearance** — theme mode, accent, custom scheme, surface tinting, and reset.
 
 ## Privacy and security
 

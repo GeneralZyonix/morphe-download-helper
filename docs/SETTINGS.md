@@ -1,6 +1,6 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 3.0.1. The
+This page explains every section of **Settings** in Morphe Download Helper 3.0.2. The
 screenshots were taken from 3.0.0; the Appearance screen now also includes the
 Navigation bar card.
 
@@ -75,6 +75,8 @@ The main-screen **Sources** button opens a compact quick manager. Changes there 
 Sources are tried from top to bottom. Drag the handle to reorder them; use the switch to
 enable or disable one. Disabled sources are skipped completely, and at least one source must
 stay enabled. Each row has a **Test** action, and **Test all sources** checks the whole list.
+Use the reset icon on the Sources tab or the **Reset to default order** button in this sheet
+to restore the standard order.
 
 | Source | Notes |
 | --- | --- |

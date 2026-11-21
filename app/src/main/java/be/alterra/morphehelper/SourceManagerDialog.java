@@ -107,6 +107,17 @@ final class SourceManagerDialog {
                 activity.getString(R.string.settings_sources), 24, text);
         titleRow.addView(title, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView reset = iconButton(R.drawable.ic_reset,
+                R.string.settings_reset_order, () -> {
+                    AppSettings.resetSourceOrder(activity);
+                    PublicSettings.write(activity);
+                    changed();
+                    Toast.makeText(activity, R.string.settings_reset_order_done,
+                            Toast.LENGTH_SHORT).show();
+                });
+        LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        resetParams.setMarginEnd(dp(4));
+        titleRow.addView(reset, resetParams);
         ImageView fullSettings = iconButton(R.drawable.ic_fullscreen,
                 R.string.source_manager_full_settings, () -> {
                     Intent intent = new Intent(activity, SettingsActivity.class);
@@ -319,6 +330,8 @@ final class SourceManagerDialog {
                 return context.getString(R.string.settings_source_fallback_desc);
             case SourceSettings.APKMIRROR:
                 return context.getString(R.string.settings_source_apkmirror_desc);
+            case SourceSettings.APKCUBE:
+                return context.getString(R.string.settings_source_apkcube_desc);
             case SourceSettings.APKPURE:
                 return context.getString(R.string.settings_source_apkpure_desc);
             case SourceSettings.UPTODOWN:
