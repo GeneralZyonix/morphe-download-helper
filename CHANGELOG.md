@@ -5,7 +5,9 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [Unreleased]
+## [3.0.1] - 2026-11-21
+
+3.0.1 is a patch release on top of the 3.0.0 Expressive redesign.
 
 ### Added
 

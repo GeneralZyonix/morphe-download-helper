@@ -1,8 +1,8 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 3.0.0. The
-screenshots were taken from 3.0.0 and show the in-shell section cards; each section opens
-in a sheet over the shell.
+This page explains every section of **Settings** in Morphe Download Helper 3.0.1. The
+screenshots were taken from 3.0.0; the Appearance screen now also includes the
+Navigation bar card.
 
 Open Settings from the **Settings** tab in the bottom navigation. Tap a section to open its
 options in a sheet; use the close button, drag the handle down, or press Back to return to
@@ -32,6 +32,7 @@ synthetic shortcut behind on Android 10+.
 | **Mode** | **Dark** uses the blue-black palette, **AMOLED** uses true black, **Light** uses bright cards, and **System** follows the device. |
 | **Tint backgrounds from accent** | Colors the background, cards, borders, and controls from the selected accent. Turn it off for neutral surfaces. A custom scheme always keeps its tint. |
 | **Accent** | Sets the color used by buttons, progress, switches, highlights, and the preview. Eleven color presets are included, plus a custom color scheme and, on Android 12+, Material You. |
+| **Navigation bar** | Reorders the hotbar tabs with up/down arrows. The default is Home, Sources, Downloads, Settings; Patches will slot in between Sources and Downloads when the patch-source screen ships. Reset restores the default. |
 | **Reset appearance** | Returns to System mode with the Aurora accent. |
 
 ## Updates
