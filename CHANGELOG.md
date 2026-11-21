@@ -5,6 +5,41 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [3.1.0] - 2026-11-21
+
+### Added
+
+- A **Patches** tab between Sources and Downloads. Search an app, expand it
+  inline to see which community patch sources currently support it, review each
+  source's official/community status, patch count, and last update, then hand the
+  source to Morphe's add-source screen scoped to that app.
+- Sort sources by recommended order, name, last update, or most patches, and
+  filter the expanded list to official sources only.
+- A compact app-aware catalog generated from Awesome Morphe's `bundles.json`.
+  The same index is refreshed hourly by a GitHub Actions workflow.
+- ETag revalidation on tab open and a mandatory network re-check before adding a
+  source, with a 30-day hard stale limit. No offline catalog is bundled.
+- Attribution to Awesome Morphe and the upstream indexes.
+- App monograms in the Patches results use the same theme gradient as the
+  Settings section icons.
+
+### Changed
+
+- Removed the redundant **General** Settings section. Its language and launcher
+  icon information now live in **Appearance**, so there is only one Appearance
+  entry and one theme editor.
+- Removed the Appearance preview card. Theme, accent, and navigation changes are
+  visible on the screen immediately; the compact **Current** summary remains.
+- Release and Reddit links on Home now have icons, Help is a compact
+  question-mark button, and Updates has more space before the Shizuku options.
+- Tag headers on every shell tab now stay fixed while the page scrolls.
+- **Test all sources** is back on the Sources tab. Each source row keeps its
+  detailed result (HTTP status, error, or API detail) and relative time, instead
+  of a summary count. The duplicate Test all button was removed from
+  Settings → Sources.
+- The Patches hotbar slot is now shown by default. Existing custom hotbar orders
+  gain it before Downloads.
+
 ## [3.0.4] - 2026-11-21
 
 ### Changed

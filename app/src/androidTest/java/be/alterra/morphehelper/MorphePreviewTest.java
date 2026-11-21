@@ -44,7 +44,7 @@ public class MorphePreviewTest {
     }
 
     @Test
-    public void shellShowsTheFourDestinationsAndHero() {
+    public void shellShowsTheFiveDestinationsAndHero() {
         try (ActivityScenario<MorphePreviewActivity> scenario =
                      ActivityScenario.launch(MorphePreviewActivity.class)) {
             scenario.onActivity(activity -> {
@@ -52,6 +52,7 @@ public class MorphePreviewTest {
                 assertTrue(containsText(root, "Home"));
                 assertTrue(containsText(root, "Downloads"));
                 assertTrue(containsText(root, "Sources"));
+                assertTrue(containsText(root, "Patches"));
                 assertTrue(containsText(root, "Settings"));
                 assertTrue(containsText(root, "Fetch the original APK."));
             });

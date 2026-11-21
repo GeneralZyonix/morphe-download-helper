@@ -4,17 +4,14 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.LocaleManager;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
-import android.content.res.XmlResourceParser;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
-import android.os.LocaleList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -52,10 +49,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
-import org.xmlpull.v1.XmlPullParser;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -102,7 +97,6 @@ public class SettingsActivity extends Activity {
     static final String EXTRA_SHARE_TEXT = "share_text";
     /** Shows only the requested section sheet, over the caller's screen. */
     static final String EXTRA_SHEET_ONLY = "sheet_only";
-    private static final String SECTION_GENERAL = "general";
     private static final String SECTION_UPDATES = "updates";
     private static final String SECTION_WEB = "web";
     private static final String SECTION_SOURCES = "sources";
@@ -195,13 +189,6 @@ public class SettingsActivity extends Activity {
                 getString(R.string.settings_subtitle), 13, MUTED, 400);
         subtitle.setPadding(0, dp(6), 0, 0);
         root.addView(subtitle);
-
-        LinearLayout general = addSection(root, SECTION_GENERAL,
-                R.string.settings_general, R.string.settings_general_summary,
-                R.drawable.ic_section_general);
-        addLanguageRow(general);
-        addAppearanceRow(general);
-        addLauncherVariantInfo(general);
 
         LinearLayout updates = addSection(root, SECTION_UPDATES,
                 R.string.settings_updates, R.string.settings_updates_summary,
@@ -766,49 +753,6 @@ public class SettingsActivity extends Activity {
         });
         fastRow.addView(fastSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(fastRow);
-
-        TextView testAll = secondaryButton(getString(R.string.settings_test_all));
-        testAll.setOnClickListener(v -> testAllSources(testAll));
-        LinearLayout.LayoutParams testAllParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-        testAllParams.topMargin = dp(10);
-        card.addView(testAll, testAllParams);
-    }
-
-    private void testAllSources(TextView button) {
-        List<String> keys = new ArrayList<>(AppSettings.sourceOrder(this));
-        // Uptodown is a WebView fallback, not an ordered catalogue source, but
-        // it still has a reachability check and should be included here.
-        if (!keys.contains(SourceSettings.UPTODOWN)) {
-            keys.add(SourceSettings.UPTODOWN);
-        }
-        if (keys.isEmpty()) {
-            return;
-        }
-        button.setEnabled(false);
-        button.setText(R.string.settings_testing_all);
-        int[] state = {0, 0, 0}; // passed, failed, index
-        final Runnable[] runner = new Runnable[1];
-        runner[0] = () -> {
-            if (state[2] >= keys.size()) {
-                button.setEnabled(true);
-                button.setText(R.string.settings_test_all);
-                Toast.makeText(this, getString(R.string.settings_test_all_result,
-                        state[0], state[1]), Toast.LENGTH_LONG).show();
-                scheduleSourcesRebuild();
-                return;
-            }
-            String key = keys.get(state[2]++);
-            SourceTester.test(this, key, (ok, message) -> runOnUiThread(() -> {
-                if (ok) {
-                    state[0]++;
-                } else {
-                    state[1]++;
-                }
-                runner[0].run();
-            }));
-        };
-        runner[0].run();
     }
 
     /** Enabled sources in saved order, followed by disabled sources. */
@@ -889,128 +833,6 @@ public class SettingsActivity extends Activity {
                 return getString(R.string.settings_source_github_desc);
             default: return "";
         }
-    }
-
-    private void addLanguageRow(LinearLayout root) {
-        LinearLayout row = settingRow(getString(R.string.settings_language),
-                currentLanguageLabel());
-        row.setOnClickListener(v -> showLanguageDialog());
-        root.addView(row);
-    }
-
-    private void addAppearanceRow(LinearLayout root) {
-        LinearLayout row = settingRow(getString(R.string.settings_appearance),
-                ThemeManager.summary(this));
-        row.setOnClickListener(v ->
-                startActivity(new Intent(this, AppearanceActivity.class)));
-        root.addView(row);
-    }
-
-    private String currentLanguageLabel() {
-        if (Build.VERSION.SDK_INT >= 33) {
-            LocaleManager manager = getSystemService(LocaleManager.class);
-            if (manager != null) {
-                LocaleList locales = manager.getApplicationLocales();
-                if (!locales.isEmpty()) {
-                    return languageLabel(locales.get(0));
-                }
-            }
-        }
-        return getString(R.string.settings_language_system);
-    }
-
-    private String languageLabel(Locale locale) {
-        return locale == null ? getString(R.string.settings_language_system)
-                : locale.getDisplayLanguage(locale);
-    }
-
-    private List<String> supportedLanguageTags() {
-        List<String> tags = new ArrayList<>();
-        try (XmlResourceParser parser = getResources().getXml(R.xml.locales_config)) {
-            int event;
-            while ((event = parser.next()) != XmlPullParser.END_DOCUMENT) {
-                if (event == XmlPullParser.START_TAG && "locale".equals(parser.getName())) {
-                    String tag = parser.getAttributeValue(
-                            "http://schemas.android.com/apk/res/android", "name");
-                    if (tag == null) {
-                        tag = parser.getAttributeValue(null, "name");
-                    }
-                    if (tag != null && !tag.isEmpty() && !tags.contains(tag)) {
-                        tags.add(tag);
-                    }
-                }
-            }
-        } catch (Exception error) {
-            HelperLog.error("Could not read locales_config.xml", error);
-        }
-        if (tags.isEmpty()) {
-            tags.add("en");
-            tags.add("fr");
-        }
-        return tags;
-    }
-
-    private void showLanguageDialog() {
-        if (Build.VERSION.SDK_INT < 33) {
-            ThemeManager.dialog(this)
-                    .setTitle(R.string.settings_language)
-                    .setMessage(R.string.settings_language_android13)
-                    .setPositiveButton(R.string.common_ok, null)
-                    .show();
-            return;
-        }
-
-        LocaleManager manager = getSystemService(LocaleManager.class);
-        if (manager == null) {
-            return;
-        }
-        List<String> tags = supportedLanguageTags();
-        String[] labels = new String[tags.size() + 1];
-        labels[0] = getString(R.string.settings_language_system);
-        int selected = 0;
-        LocaleList current = manager.getApplicationLocales();
-        String currentLanguage = current.isEmpty()
-                ? "" : current.get(0).getLanguage();
-        for (int i = 0; i < tags.size(); i++) {
-            Locale locale = Locale.forLanguageTag(tags.get(i));
-            labels[i + 1] = languageLabel(locale);
-            if (!currentLanguage.isEmpty()
-                    && currentLanguage.equals(locale.getLanguage())) {
-                selected = i + 1;
-            }
-        }
-
-        ThemeManager.dialog(this)
-                .setTitle(R.string.settings_language)
-                .setSingleChoiceItems(labels, selected, (dialog, which) -> {
-                    LocaleList locales = which == 0
-                            ? LocaleList.getEmptyLocaleList()
-                            : LocaleList.forLanguageTags(tags.get(which - 1));
-                    manager.setApplicationLocales(locales);
-                    dialog.dismiss();
-                    recreate();
-                })
-                .show();
-    }
-
-    private void addLauncherVariantInfo(LinearLayout card) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(4), 0, dp(4));
-        LinearLayout labels = new LinearLayout(this);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text(getString(R.string.settings_launcher_icon), 14, TEXT, true));
-        TextView detail = text(getString(
-                AppSettings.isLauncherIconShown(this)
-                        ? R.string.settings_launcher_icon_build_shown
-                        : R.string.settings_launcher_icon_build_hidden),
-                12, MUTED, false);
-        detail.setPadding(0, dp(3), 0, 0);
-        labels.addView(detail);
-        row.addView(labels, new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        card.addView(row);
     }
 
     private void addUpdatesCard(LinearLayout card) {
@@ -1126,6 +948,9 @@ public class SettingsActivity extends Activity {
         }
 
         int shizukuStatus = ShizukuHelper.status(this);
+        View shizukuSpace = new View(this);
+        card.addView(shizukuSpace, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(12)));
         LinearLayout shizukuRow = settingRow("Shizuku",
                 ShizukuHelper.statusLabel(this, shizukuStatus));
         shizukuRow.setOnClickListener(v -> requestShizukuMode());

@@ -141,9 +141,9 @@ final class AppSettings {
             HOTBAR_SETTINGS
     );
 
-    /** Flip when the app-first patch source search ships. */
+    /** Patches is available now that the app-first source search ships. */
     static boolean hotbarTabAvailable(String key) {
-        return !HOTBAR_PATCHES.equals(key);
+        return true;
     }
 
     static List<String> defaultHotbarOrder() {

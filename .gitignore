@@ -33,6 +33,7 @@ IDEAS.md
 /docs/*
 !/docs/icon.png
 !/docs/SETTINGS.md
+!/docs/PATCHES.md
 !/docs/data/
 !/docs/data/patch-sources.json
 !/docs/guide/

@@ -27,6 +27,7 @@
     <string name="source_manager_full_settings">Advanced source options</string>
     <string name="settings_test_all">Test all sources</string>
     <string name="settings_testing_all">Testing all sources…</string>
+    <string name="sources_testing">Testing…</string>
     <string name="settings_test_all_result">%1$d passed, %2$d failed.</string>
     <string name="settings_source_drag_hint">Drag the handle to change which source is tried first. Disabled sources stay at the bottom.</string>
     <string name="main_logs_local">Logs stay on this device</string>
@@ -720,6 +721,7 @@
     <string name="appearance_subtitle">Choose how the helper looks</string>
     <string name="appearance_preview">Preview</string>
     <string name="appearance_preview_title">Morphe Download Helper</string>
+    <string name="appearance_app_card">App &amp; language</string>
     <string name="appearance_preview_body">Downloads are checked against the package, version, and build Morphe requested.</string>
     <string name="appearance_preview_button">Preview button</string>
     <string name="appearance_navigation">Navigation bar</string>
@@ -793,4 +795,53 @@
     <string name="preview_history_removed">Removed %1$s from history.</string>
     <string name="preview_developer">Developed by</string>
     <string name="preview_log_empty">No log entries yet.</string>
+
+    <string name="patches_subtitle">Data from %1$s · third-party sources</string>
+    <string name="patches_attribution_name">Awesome Morphe</string>
+    <string name="patches_search_hint">Search apps</string>
+    <string name="patches_sort_label">Sort: %1$s</string>
+    <string name="patches_sort_recommended">Recommended</string>
+    <string name="patches_sort_name">Name A–Z</string>
+    <string name="patches_sort_updated">Last update</string>
+    <string name="patches_sort_patches">Most patches</string>
+    <string name="patches_official_only">Official only</string>
+    <string name="patches_no_official_sources">No official sources for %1$s.</string>
+    <string name="patches_show_all">Show all</string>
+    <string name="patches_source_updated">Updated %1$s</string>
+    <string name="patches_search_empty_body">Type an app name to see which patch sources currently support it.</string>
+    <string name="patches_no_results">No apps match “%1$s”.</string>
+    <string name="patches_status_loading">Loading patch sources…</string>
+    <string name="patches_status_updated">Catalog updated %1$s · %2$s · %3$s</string>
+    <string name="patches_status_cached">Cached catalog from %1$s. Checking for updates…</string>
+    <string name="patches_status_stale">The catalog is out of date (%1$s). Refresh before adding a source.</string>
+    <string name="patches_status_error">Could not load the patch catalog. Check your connection and tap refresh.</string>
+    <string name="patches_status_error_cached">Could not check for updates. Showing the cached catalog from %1$s.</string>
+    <string name="patches_status_stale_error">The cached catalog from %1$s is too old to add sources safely. Tap refresh to retry.</string>
+    <string name="patches_refresh">Refresh patch catalog</string>
+    <string name="patches_app_row_detail">%1$s · latest %2$s</string>
+    <string name="patches_add">Add</string>
+    <string name="patches_source_official">Official</string>
+    <string name="patches_source_community">Community</string>
+    <string name="patches_source_archived">Archived</string>
+    <string name="patches_source_prerelease">Pre-release</string>
+    <string name="patches_confirm_title">Add this source to Morphe?</string>
+    <string name="patches_confirm_message">This opens Morphe to add %1$s to your patch sources, scoped to %2$s.\n\nPatch sources are maintained outside this helper. Check the source in Morphe and trust it before patching.</string>
+    <string name="patches_open">Open Morphe</string>
+    <string name="patches_stale_blocked">Refresh the catalog before adding a source.</string>
+    <string name="patches_verifying">Checking the source…</string>
+    <string name="patches_verify_failed">Could not verify the source. Check your connection and try again.</string>
+    <string name="patches_source_gone">That source is no longer listed for %1$s. Refresh and try again.</string>
+
+    <plurals name="patches_source_count">
+        <item quantity="one">%1$d source</item>
+        <item quantity="other">%1$d sources</item>
+    </plurals>
+    <plurals name="patches_patch_count">
+        <item quantity="one">%1$d patch</item>
+        <item quantity="other">%1$d patches</item>
+    </plurals>
+    <plurals name="patches_app_count">
+        <item quantity="one">%1$d app</item>
+        <item quantity="other">%1$d apps</item>
+    </plurals>
 </resources>

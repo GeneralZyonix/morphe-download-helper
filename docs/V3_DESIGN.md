@@ -1,6 +1,6 @@
 # Morphe design — v3 direction
 
-Status: **v3.0.4 stable on `main`.** Morphe is the only home design; Classic has been removed and migrated.
+Status: **v3.1.0 stable on `main`.** Morphe is the only home design; Classic has been removed and migrated.
 
 ## Goal
 
@@ -17,10 +17,11 @@ You stay available.
   accent text, so it follows the selected accent instead of staying white.
 - Paired feature tiles with a coloured icon tile, title, one-line description,
   and a circular arrow.
-- Rounded pill bottom navigation with four destinations: **Home**,
-  **Downloads**, **Sources**, **Settings**. Tab changes slide horizontally:
+- Rounded pill bottom navigation with five destinations: **Home**, **Sources**,
+  **Patches**, **Downloads**, **Settings**. Tab changes slide horizontally:
   the outgoing page moves aside while the incoming page follows the finger
-  direction, over 260 ms.
+  direction, over 260 ms. Each tab keeps its title and primary actions fixed
+  while the content scrolls.
 - Typography: bold display for the hero, medium titles, 11–13 sp body text,
   uppercase overline with wide tracking.
 - Motion: short spring press, tab cross-fade, and a soft selected-pill morph.
@@ -32,7 +33,8 @@ You stay available.
 | --- | --- |
 | **Home** | Status chips, hero, Visual guide, Helper log, Help, developer links. |
 | **Downloads** | Local APK library, history, and delete-all. |
-| **Sources** | The source list from Settings, embedded with toggles and order controls. |
+| **Sources** | The single source list and editor, with toggles, drag-to-reorder, reset, and per-source Test. |
+| **Patches** | App-first search of community patch sources from Awesome Morphe, with add-time revalidation and a scoped handoff to Morphe. |
 | **Settings** | In-shell section list; each section opens a sheet over the shell. There is no redundant Done button. |
 
 The old main screen mixes all of this into one long scroll. The shell keeps the
@@ -56,8 +58,11 @@ main actions visible and gives downloads and sources a stable home.
 6. **Download and update screens** — gradient backgrounds, Morphe display
    headers, gradient update badge, and a dedicated failure hero with retry,
    switch-source, diagnostics, and close actions. **Done.**
-7. **Polish** — motion, haptics, large-font and RTL passes, screenshots, and a
+7. **Polish** - motion, haptics, large-font and RTL passes, screenshots, and a
    size comparison.
+8. **Community patch discovery** - the Patches tab searches a compact app-first
+   index from Awesome Morphe, revalidates before adding, and hands the source to
+   Morphe scoped to the app. **Done** for 3.1.0.
 
 ## Implemented in this branch
 

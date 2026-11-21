@@ -1,39 +1,39 @@
 # Settings guide
 
-This page explains every section of **Settings** in Morphe Download Helper 3.0.4. The
-screenshots were taken from 3.0.0; the Appearance screen now also includes the
-Navigation bar card.
+This page explains every section of **Settings** in Morphe Download Helper 3.1.0. The
+screenshots were taken before 3.1.0; the General section has been merged into
+**Appearance**, and the Appearance screen now also includes the Navigation bar and
+App &amp; language cards.
 
 Open Settings from the **Settings** tab in the bottom navigation. Tap a section to open its
 options in a sheet; use the close button, drag the handle down, or press Back to return to
 the section list.
 
+The **Patches** tab is separate: it searches community patch sources and is documented in
+the **[Patches tab guide](PATCHES.md)**. Patches does not change source order or the
+download path.
+
 ![Settings overview](screenshots/settings-general-3.0.0.png)
-
-## General
-
-The **General** section contains the settings that affect the whole app.
-
-| Setting | What it does |
-| --- | --- |
-| **App language** | Follow the system language or force English/French. In-app language selection requires Android 13 or newer. |
-| **Appearance** | Opens the theme and accent editor. |
-| **App icon** | Read-only. It shows whether this build always shows the launcher icon (**Icon**) or always hides it (**No-icon**). |
-
-The launcher behavior is fixed per build. There is no hide/show toggle that can leave a
-synthetic shortcut behind on Android 10+.
 
 ## Appearance
 
 ![Appearance settings](screenshots/settings-appearance-3.0.0.png)
+
+The **Appearance** section is the single place for the app's theme, navigation bar,
+language, and launcher icon. The old General section has been removed.
 
 | Setting | What it does |
 | --- | --- |
 | **Mode** | **Dark** uses the blue-black palette, **AMOLED** uses true black, **Light** uses bright cards, and **System** follows the device. |
 | **Tint backgrounds from accent** | Colors the background, cards, borders, and controls from the selected accent. Turn it off for neutral surfaces. A custom scheme always keeps its tint. |
 | **Accent** | Sets the color used by buttons, progress, switches, highlights, and the preview. Eleven color presets are included, plus a custom color scheme and, on Android 12+, Material You. |
-| **Navigation bar** | Reorders the hotbar tabs with up/down arrows. The default is Home, Sources, Downloads, Settings; Patches will slot in between Sources and Downloads when the patch-source screen ships. Reset restores the default. |
+| **Navigation bar** | Reorders the hotbar tabs with up/down arrows. The default is Home, Sources, Patches, Downloads, Settings. Reset restores the default. |
+| **App language** | Follow the system language or force English/French. In-app language selection requires Android 13 or newer. |
+| **App icon** | Read-only. It shows whether this build always shows the launcher icon (**Icon**) or always hides it (**No-icon**). |
 | **Reset appearance** | Returns to System mode with the Aurora accent. |
+
+The launcher behavior is fixed per build. There is no hide/show toggle that can leave a
+synthetic shortcut behind on Android 10+.
 
 ## Updates
 
@@ -69,9 +69,12 @@ affects pages opened inside the helper, not your browser.
 ## Sources
 
 The **Sources** tab is the single source editor. Reorder sources with the arrows,
-enable or disable them, reset the order, and run **Test** on a single source. The
-full-screen icon opens the advanced source options in Settings: Fast source checks,
-Test all sources, the Appteka warning, and GitHub apps.
+enable or disable them, reset the order, and run **Test** on a single source or
+**Test all sources**. Each row keeps its last result, including the response
+detail and how long ago it ran.
+
+The advanced gear opens the remaining source options in Settings: Fast source
+checks, the Appteka warning, and GitHub apps.
 
 ![Source list](screenshots/settings-sources-3.0.0.png)
 
@@ -91,7 +94,7 @@ The reset icon restores the standard order.
 | **Appteka** | Exact version/code; SnapTube only by default and marked hazardous. |
 | **GitHub releases** | Resolver links and remembered/pinned repositories first; automatic search is the final fallback. |
 
-![Fast source checks and test all](screenshots/settings-sources-fast-3.0.0.png)
+![Fast source checks](screenshots/settings-sources-fast-3.0.0.png)
 
 ### Fast source checks
 

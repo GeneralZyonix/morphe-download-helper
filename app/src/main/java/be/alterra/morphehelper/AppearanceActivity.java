@@ -1,12 +1,16 @@
 package be.alterra.morphehelper;
 
 import android.app.Activity;
+import android.app.LocaleManager;
 import android.content.res.ColorStateList;
+import android.content.res.XmlResourceParser;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.LocaleList;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -16,7 +20,6 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -25,7 +28,9 @@ import android.widget.Toast;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /** Appearance settings: preview, mode, accent presets, and custom HEX. */
 public class AppearanceActivity extends Activity {
@@ -96,11 +101,11 @@ public class AppearanceActivity extends Activity {
         currentParams.topMargin = dp(14);
         root.addView(current, currentParams);
 
-        addPreviewCard(root);
         addNavigationCard(root);
         addModeCard(root);
         addTintCard(root);
         addAccentCard(root);
+        addAppLanguageCard(root);
         addResetCard(root);
 
         setContentView(scrollView);
@@ -148,83 +153,6 @@ public class AppearanceActivity extends Activity {
         RED = palette.red;
         LIGHT = palette.light;
         themeSignature = ThemeManager.signature(this);
-    }
-
-    private void addPreviewCard(LinearLayout root) {
-        LinearLayout card = card();
-        LinearLayout.LayoutParams params = cardParams();
-        params.topMargin = dp(12);
-        root.addView(card, params);
-
-        card.addView(text(getString(R.string.appearance_preview), 16, TEXT, true));
-
-        LinearLayout preview = new LinearLayout(this);
-        preview.setOrientation(LinearLayout.VERTICAL);
-        preview.setPadding(dp(16), dp(16), dp(16), dp(16));
-        preview.setBackground(M3Ui.hero(this, palette));
-        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        previewParams.topMargin = dp(12);
-        card.addView(preview, previewParams);
-
-        int previewForeground = M3Ui.onPrimaryContainer(palette);
-        LinearLayout previewHeader = new LinearLayout(this);
-        previewHeader.setOrientation(LinearLayout.HORIZONTAL);
-        previewHeader.setGravity(Gravity.CENTER_VERTICAL);
-        PatchPassLogoView previewLogo = new PatchPassLogoView(this);
-        previewLogo.setContentDescription(getString(R.string.appearance_preview_title));
-        LinearLayout.LayoutParams previewLogoParams =
-                new LinearLayout.LayoutParams(dp(56), dp(56));
-        previewLogoParams.setMarginEnd(dp(12));
-        previewHeader.addView(previewLogo, previewLogoParams);
-        previewHeader.addView(
-                M3Ui.title(this, getString(R.string.appearance_preview_title), 15,
-                        previewForeground),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        preview.addView(previewHeader);
-        TextView body = M3Ui.text(this, getString(R.string.appearance_preview_body), 12,
-                M3Ui.blend(previewForeground, M3Ui.primaryContainer(palette), 0.25f), 400);
-        body.setLineSpacing(dp(3), 1f);
-        body.setPadding(0, dp(6), 0, dp(14));
-        preview.addView(body);
-
-        TextView action = M3Ui.primaryButton(this, palette,
-                getString(R.string.appearance_preview_button), 0);
-        action.setGravity(Gravity.CENTER);
-        preview.addView(action, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
-
-        ProgressBar progress = new ProgressBar(
-                this, null, android.R.attr.progressBarStyleHorizontal);
-        progress.setMax(100);
-        progress.setProgress(62);
-        progress.setIndeterminateTintList(ColorStateList.valueOf(previewForeground));
-        progress.setProgressTintList(ColorStateList.valueOf(previewForeground));
-        progress.setProgressBackgroundTintList(ColorStateList.valueOf(
-                M3Ui.blend(previewForeground, M3Ui.primaryContainer(palette), 0.72f)));
-        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(14));
-        progressParams.topMargin = dp(14);
-        preview.addView(progress, progressParams);
-
-        LinearLayout hintRow = new LinearLayout(this);
-        hintRow.setOrientation(LinearLayout.HORIZONTAL);
-        hintRow.setGravity(Gravity.CENTER_VERTICAL);
-        hintRow.setPadding(0, dp(10), 0, 0);
-
-        View dot = new View(this);
-        GradientDrawable dotBackground = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{PRIMARY_START, PRIMARY_END});
-        dotBackground.setShape(GradientDrawable.OVAL);
-        dot.setBackground(dotBackground);
-        hintRow.addView(dot, new LinearLayout.LayoutParams(dp(10), dp(10)));
-
-        TextView hint = M3Ui.text(this, ThemeManager.summary(this), 12,
-                previewForeground, 400);
-        hint.setPadding(dp(8), 0, 0, 0);
-        hintRow.addView(hint);
-        preview.addView(hintRow);
     }
 
     private void addNavigationCard(LinearLayout root) {
@@ -555,6 +483,152 @@ public class AppearanceActivity extends Activity {
         PublicSettings.write(this);
         Toast.makeText(this, R.string.appearance_scheme_applied, Toast.LENGTH_SHORT).show();
         recreate();
+    }
+
+    private void addAppLanguageCard(LinearLayout root) {
+        LinearLayout card = card();
+        LinearLayout.LayoutParams params = cardParams();
+        params.topMargin = dp(18);
+        root.addView(card, params);
+
+        card.addView(text(getString(R.string.appearance_app_card), 16, TEXT, true));
+
+        LinearLayout languageRow = new LinearLayout(this);
+        languageRow.setOrientation(LinearLayout.HORIZONTAL);
+        languageRow.setGravity(Gravity.CENTER_VERTICAL);
+        languageRow.setPadding(0, dp(12), 0, dp(12));
+        languageRow.setClickable(true);
+        languageRow.setFocusable(true);
+        languageRow.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(RIPPLE), null, null));
+        M3Ui.motion(languageRow);
+
+        LinearLayout languageLabels = new LinearLayout(this);
+        languageLabels.setOrientation(LinearLayout.VERTICAL);
+        languageLabels.addView(text(getString(R.string.settings_language),
+                14, TEXT, true));
+        TextView languageValue = text(currentLanguageLabel(), 12, MUTED, false);
+        languageValue.setPadding(0, dp(3), 0, 0);
+        languageLabels.addView(languageValue);
+        languageRow.addView(languageLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView languageChevron = text("\u203A", 22, MUTED, true);
+        languageChevron.setGravity(Gravity.CENTER);
+        languageChevron.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        languageRow.addView(languageChevron,
+                new LinearLayout.LayoutParams(dp(28), dp(36)));
+        languageRow.setOnClickListener(v -> showLanguageDialog());
+        card.addView(languageRow);
+
+        View divider = new View(this);
+        divider.setBackgroundColor(M3Ui.outlineVariant(palette));
+        card.addView(divider, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
+        LinearLayout iconRow = new LinearLayout(this);
+        iconRow.setOrientation(LinearLayout.VERTICAL);
+        iconRow.setPadding(0, dp(12), 0, dp(4));
+        iconRow.addView(text(getString(R.string.settings_launcher_icon),
+                14, TEXT, true));
+        TextView iconDetail = text(getString(
+                AppSettings.isLauncherIconShown(this)
+                        ? R.string.settings_launcher_icon_build_shown
+                        : R.string.settings_launcher_icon_build_hidden),
+                12, MUTED, false);
+        iconDetail.setPadding(0, dp(3), 0, 0);
+        iconRow.addView(iconDetail);
+        card.addView(iconRow);
+    }
+
+    private void showLanguageDialog() {
+        if (Build.VERSION.SDK_INT < 33) {
+            ThemeManager.dialog(this)
+                    .setTitle(R.string.settings_language)
+                    .setMessage(R.string.settings_language_android13)
+                    .setPositiveButton(R.string.common_ok, null)
+                    .show();
+            return;
+        }
+
+        LocaleManager manager = getSystemService(LocaleManager.class);
+        if (manager == null) {
+            return;
+        }
+        List<String> tags = supportedLanguageTags();
+        String[] labels = new String[tags.size() + 1];
+        labels[0] = getString(R.string.settings_language_system);
+        int selected = 0;
+        LocaleList current = manager.getApplicationLocales();
+        String currentLanguage = current.isEmpty()
+                ? "" : current.get(0).getLanguage();
+        for (int i = 0; i < tags.size(); i++) {
+            Locale locale = Locale.forLanguageTag(tags.get(i));
+            labels[i + 1] = languageLabel(locale);
+            if (!currentLanguage.isEmpty()
+                    && currentLanguage.equals(locale.getLanguage())) {
+                selected = i + 1;
+            }
+        }
+
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_language)
+                .setSingleChoiceItems(labels, selected, (dialog, which) -> {
+                    LocaleList locales = which == 0
+                            ? LocaleList.getEmptyLocaleList()
+                            : LocaleList.forLanguageTags(tags.get(which - 1));
+                    manager.setApplicationLocales(locales);
+                    dialog.dismiss();
+                    recreate();
+                })
+                .show();
+    }
+
+    private String currentLanguageLabel() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            LocaleManager manager = getSystemService(LocaleManager.class);
+            if (manager != null) {
+                LocaleList locales = manager.getApplicationLocales();
+                if (!locales.isEmpty()) {
+                    return languageLabel(locales.get(0));
+                }
+            }
+        }
+        return getString(R.string.settings_language_system);
+    }
+
+    private String languageLabel(Locale locale) {
+        return locale == null ? getString(R.string.settings_language_system)
+                : locale.getDisplayLanguage(locale);
+    }
+
+    private List<String> supportedLanguageTags() {
+        List<String> tags = new ArrayList<>();
+        try (XmlResourceParser parser = getResources()
+                .getXml(R.xml.locales_config)) {
+            int event;
+            while ((event = parser.next()) != XmlResourceParser.END_DOCUMENT) {
+                if (event == XmlResourceParser.START_TAG
+                        && "locale".equals(parser.getName())) {
+                    String tag = parser.getAttributeValue(
+                            "http://schemas.android.com/apk/res/android", "name");
+                    if (tag == null) {
+                        tag = parser.getAttributeValue(null, "name");
+                    }
+                    if (tag != null && !tag.isEmpty() && !tags.contains(tag)) {
+                        tags.add(tag);
+                    }
+                }
+            }
+        } catch (Exception error) {
+            HelperLog.error("Could not read locales_config.xml", error);
+        }
+        if (tags.isEmpty()) {
+            tags.add("en");
+            tags.add("fr");
+        }
+        return tags;
     }
 
     private void addResetCard(LinearLayout root) {

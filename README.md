@@ -27,6 +27,8 @@ It is a downloader, not a patcher. It never installs, modifies, or uploads an ap
   ABI, and archive type before handing a file to Morphe.
 - **Many sources, one flow.** Morphe's resolver link, APKMirror, APKPure, APKCube,
   Uptodown, F-Droid, Aptoide, Appteka, and GitHub releases are tried in your chosen order.
+- **Patch discovery.** Search an app on the Patches tab to see which community patch
+  sources support it, then add one through Morphe's own confirmation.
 - **Fast source resolution.** Parallel metadata checks, APKCube no-match preflight,
   APKPure endpoint racing, and a short-lived not-found cache cut the usual waiting.
 - **Repeat requests are instant.** An exact repeat request is served from the helper's
@@ -41,14 +43,15 @@ It is a downloader, not a patcher. It never installs, modifies, or uploads an ap
 Grab one of the two current builds from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-> **3.0.4 is the latest stable release.** It replaces the Sources fullscreen glyph
-> with an advanced-settings gear and includes the 3.0.3 source-editor cleanup.
+> **3.1.0 is the latest stable release.** It adds the **Patches** tab for
+> community patch-source discovery, sticky tab headers, Test all with detailed
+> per-source results, and the Appearance/Settings cleanup.
 > The 2.7.x builds remain available as pre-releases.
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
-| **Icon** — `MorpheDownloadHelper-v3.0.4-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
-| **No-icon** — `MorpheDownloadHelper-v3.0.4-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+| **Icon** - `MorpheDownloadHelper-v3.1.0-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** - `MorpheDownloadHelper-v3.1.0-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
 
 Both builds have the same package name, version, signing key, and features. Install one or
 the other, not both. The in-app updater stays on the build you installed. When switching
@@ -66,7 +69,8 @@ shortcut if your launcher keeps it.
 | ![Home](docs/screenshots/main-3.0.0.png) | ![Downloads](docs/screenshots/download-3.0.0.png) | ![Settings](docs/screenshots/settings-general-3.0.0.png) |
 
 See the **[settings guide with screenshots](docs/SETTINGS.md)** for every section and what
-each option does.
+each option does. The **[Patches tab guide](docs/PATCHES.md)** explains community source
+discovery and its network requirements.
 
 ## Setup
 
@@ -156,9 +160,9 @@ The full illustrated reference is in **[docs/SETTINGS.md](docs/SETTINGS.md)**. Q
   bar order, and reset.
 - **Updates** — automatic checks, update mode, in-app popup, and a manual check.
 - **Download pages** — ad/tracker blocking and optional live AdGuard host checks.
-- **Sources** — the single source editor: enable/disable, reorder, reset, and
-  per-source Test. Settings → Sources keeps Fast source checks, Test all, the
-  Appteka warning, and GitHub apps.
+- **Sources** - the single source editor: enable/disable, reorder, reset,
+  per-source Test, and Test all with detailed results. Settings → Sources keeps
+  Fast source checks, the Appteka warning, and GitHub apps.
 - **Storage** — download folder, retention, multi-connection downloads, maximum connections,
   and deleting all downloaded APKs.
 - **Security** — optional VirusTotal API key, detection action, upload rules, and quota
