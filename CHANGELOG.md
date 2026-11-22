@@ -5,10 +5,25 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [3.3.0-rc.2] - 2026-11-22
+## Signing key migration (3.3.0+)
+
+Builds before **3.3.0-rc.3** were signed with temporary GitHub Actions debug
+keys, so Android cannot update them in place. 3.3.0-rc.3 and all later releases
+use the permanent release key.
+
+**Before uninstalling**, open the helper and use **Settings → Backup → Export
+configuration**. Then uninstall the helper once, install the new build, and
+restore the backup. Download history and cached APKs are removed; Morphe Manager
+and your patches are not affected.
+
+The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
+the first **3.3.0 stable** release notes for users still on 3.2.1.
+
+## [3.3.0-rc.3] - 2026-11-22
 
 <!-- prerelease -->
 Pre-release build for testing. This is not the latest stable release.
+This is the first build signed with the permanent release key.
 
 ### Added
 

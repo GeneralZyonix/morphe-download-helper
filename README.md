@@ -47,6 +47,11 @@ Grab one of the two current builds from the
 > details, and French UI, and fixes the slow-scroll header glitch, Share log,
 > and APKMirror verification.
 
+> **Important: one-time reinstall for 3.3.0.** Builds before 3.3.0-rc.3 were
+> signed with temporary CI debug keys. Export your settings, uninstall the
+> helper once, then install 3.3.0-rc.3 or the first 3.3.0 stable release. Full
+> instructions: [SIGNING.md](SIGNING.md).
+
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
 | **Icon** - `MorpheDownloadHelper-v3.2.1-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |

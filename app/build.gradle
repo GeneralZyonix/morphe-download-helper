@@ -3,6 +3,27 @@ plugins {
     id 'com.android.application'
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+def releaseStoreFile = System.getenv('RELEASE_STORE_FILE')
+        ?: keystoreProperties.getProperty('storeFile')
+def releaseStorePassword = System.getenv('RELEASE_STORE_PASSWORD')
+        ?: keystoreProperties.getProperty('storePassword')
+def releaseKeyAlias = System.getenv('RELEASE_KEY_ALIAS')
+        ?: keystoreProperties.getProperty('keyAlias')
+def releaseKeyPassword = System.getenv('RELEASE_KEY_PASSWORD')
+        ?: keystoreProperties.getProperty('keyPassword')
+
+if (System.getenv('CI') != null && !releaseStoreFile) {
+    throw new GradleException(
+            'Release signing secrets are missing. Refusing to build a release ' +
+                    'with a temporary debug key.')
+}
+
 android {
     namespace 'be.alterra.morphehelper'
     compileSdk 35
@@ -18,8 +39,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 86
-        versionName "3.3.0-rc.2"
+        versionCode 87
+        versionName "3.3.0-rc.3"
 
         // true for pre-release builds; set false only for a stable release.
         // Drives the P/R badge and the Auto update channel.
@@ -50,15 +71,27 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            if (releaseStoreFile) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Shrink and obfuscate the release build while keeping the debug key
-            // for in-place updates.
+            // Shrink and obfuscate the release build. CI must use the permanent
+            // release key; a debug fallback would break every future update.
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
                     'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            signingConfig releaseStoreFile
+                    ? signingConfigs.release : signingConfigs.debug
         }
     }
 

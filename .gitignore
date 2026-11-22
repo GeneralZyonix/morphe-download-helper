@@ -13,6 +13,11 @@ captures/
 # Local SDK configuration
 local.properties
 
+# Release signing material (never commit)
+keystore.properties
+*.jks
+*.keystore
+
 # Generated outputs
 app/build/
 *.apk
