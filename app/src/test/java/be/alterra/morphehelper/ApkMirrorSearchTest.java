@@ -13,6 +13,17 @@ public class ApkMirrorSearchTest {
         return "<a class=\"fontBlack\" href=\"" + href + "\">" + text + "</a>";
     }
 
+    private static String variantRow(String href, String abi, String minAndroid) {
+        return "<div class=\"table-row\">"
+                + "<div class=\"table-cell\"><a href=\"" + href + "\">App 2.0.3</a>"
+                + "<span class=\"apkm-badge success\">BUNDLE</span>"
+                + "<span class=\"colorLightBlack\">20003000</span></div>"
+                + "<div class=\"table-cell\">" + abi + "</div>"
+                + "<div class=\"table-cell\">" + minAndroid + "</div>"
+                + "<div class=\"table-cell\">480-640dpi</div>"
+                + "</div>";
+    }
+
     @Test
     public void picksTheExactAppInsteadOfADeveloperNameCollision() {
         String html = link(
@@ -109,5 +120,109 @@ public class ApkMirrorSearchTest {
         assertTrue(ApkMirrorSearch.pageMatchesPackage(page, "com.google.android.youtube"));
         assertFalse(ApkMirrorSearch.pageMatchesPackage(page, "com.instagram.android"));
         assertTrue(ApkMirrorSearch.pageMatchesPackage("<html></html>", "com.example.app"));
+    }
+
+    @Test
+    public void variantRowsExposeTheirMinimumAndroidVersion() {
+        assertEquals(29, ApkMirrorSearch.minSdkFromVariantRow(
+                "<div class=\"table-cell\">arm64-v8a</div>"
+                        + "<div class=\"table-cell\">Android 10+</div>"));
+        assertEquals(26, ApkMirrorSearch.minSdkFromVariantRow(
+                "<div class=\"table-cell\">universal</div>"
+                        + "<div class=\"table-cell\">Android 8.0+</div>"));
+        assertEquals(27, ApkMirrorSearch.minSdkFromVariantRow(
+                "<div class=\"table-cell\">universal</div>"
+                        + "<div class=\"table-cell\">Android 8.1+</div>"));
+        assertEquals(32, ApkMirrorSearch.minSdkFromVariantRow(
+                "<div class=\"table-cell\">universal</div>"
+                        + "<div class=\"table-cell\">Android 12L+</div>"));
+        assertEquals(-1, ApkMirrorSearch.minSdkFromVariantRow(
+                "<div class=\"table-cell\">universal</div>"));
+    }
+
+    @Test
+    public void variantPageReadsTheMinApiRow() {
+        String page = "<div class=\"infoSlide\">\n"
+                + "  <span class=\"infoSlide-value\">Min: Android 10 (Q, API 29)</span>\n"
+                + "</div>";
+
+        assertEquals(29, ApkMirrorSearch.minSdkFromVariantPage(page));
+        assertEquals(26, ApkMirrorSearch.minSdkFromVariantPage(
+                "<title>App 2.0 (Android 8.0+) APK Download</title>"));
+    }
+
+    @Test
+    public void variantCompatibilityUsesTheDeviceSdk() {
+        String android8 = "<div class=\"table-cell\">Android 8.0+</div>";
+        String android10 = "<div class=\"table-cell\">Android 10+</div>";
+
+        assertTrue(ApkMirrorSearch.variantSupportsSdk(android8, 26));
+        assertFalse(ApkMirrorSearch.variantSupportsSdk(android10, 26));
+        assertTrue(ApkMirrorSearch.variantSupportsSdk(android10, 29));
+        assertTrue(ApkMirrorSearch.variantSupportsSdk(
+                "<div class=\"table-cell\">unknown</div>", 23));
+    }
+
+    @Test
+    public void androidVersionNamesCoverCurrentApiLevels() {
+        assertEquals("8.0", ApkMirrorSearch.androidVersionName(26));
+        assertEquals("10", ApkMirrorSearch.androidVersionName(29));
+        assertEquals("12L", ApkMirrorSearch.androidVersionName(32));
+        assertEquals("16", ApkMirrorSearch.androidVersionName(36));
+    }
+
+    @Test
+    public void api26PicksTheUniversalAndroid8Variant() throws Exception {
+        String arm64 = "/apk/darken/sd-maid/sd-maid-2-0-3-rc0-release/"
+                + "sd-maid-2-0-3-rc0-3-android-apk-download/";
+        String universal12l = "/apk/darken/sd-maid/sd-maid-2-0-3-rc0-release/"
+                + "sd-maid-2-0-3-rc0-android-apk-download/";
+        String universal8 = "/apk/darken/sd-maid/sd-maid-2-0-3-rc0-release/"
+                + "sd-maid-2-0-3-rc0-2-android-apk-download/";
+        String page = variantRow(arm64, "arm64-v8a", "Android 10+")
+                + variantRow(universal12l, "universal", "Android 12L+")
+                + variantRow(universal8, "universal", "Android 8.0+");
+
+        String picked = ApkMirrorSearch.chooseVariant(
+                page, "apkm", new String[]{"arm64-v8a"}, new long[]{20003000}, 26);
+
+        assertEquals(universal8, picked);
+    }
+
+    @Test
+    public void modernDeviceStillPrefersTheExactAbi() throws Exception {
+        String arm64 = "/apk/darken/sd-maid/sd-maid-2-0-3-rc0-release/"
+                + "sd-maid-2-0-3-rc0-3-android-apk-download/";
+        String universal8 = "/apk/darken/sd-maid/sd-maid-2-0-3-rc0-release/"
+                + "sd-maid-2-0-3-rc0-2-android-apk-download/";
+        String page = variantRow(arm64, "arm64-v8a", "Android 10+")
+                + variantRow(universal8, "universal", "Android 8.0+");
+
+        String picked = ApkMirrorSearch.chooseVariant(
+                page, "apkm", new String[]{"arm64-v8a"}, new long[]{20003000}, 36);
+
+        assertEquals(arm64, picked);
+    }
+
+    @Test
+    public void incompatibleVariantsFailBeforeDownloading() throws Exception {
+        String page = variantRow(
+                "/apk/darken/sd-maid/sd-maid-2-0-3-rc0-release/"
+                        + "sd-maid-2-0-3-rc0-3-android-apk-download/",
+                "arm64-v8a", "Android 10+")
+                + variantRow(
+                "/apk/darken/sd-maid/sd-maid-2-0-3-rc0-release/"
+                        + "sd-maid-2-0-3-rc0-android-apk-download/",
+                "universal", "Android 12L+");
+
+        try {
+            ApkMirrorSearch.chooseVariant(
+                    page, "apkm", new String[]{"arm64-v8a"}, new long[]{20003000}, 26);
+        } catch (ApkMirrorSearch.IncompatibleVariantException expected) {
+            assertEquals(29, expected.minSdk);
+            assertTrue(expected.getMessage().contains("requires Android 10"));
+            return;
+        }
+        throw new AssertionError("Expected an incompatible-build rejection");
     }
 }

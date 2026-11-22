@@ -34,6 +34,9 @@ the first **3.3.0 stable** release notes for users still on 3.2.1.
 
 - Long accent names such as **Zonsondergang** now shrink to fit on one line
   instead of wrapping mid-word.
+- APKMirror variant selection now respects the minimum Android version. When a
+  version offers an Android 8 universal build, it is chosen on Android 8 instead
+  of an arm64 build that requires Android 10.
 
 ## [3.3.0-rc.5] - 2026-11-22
 

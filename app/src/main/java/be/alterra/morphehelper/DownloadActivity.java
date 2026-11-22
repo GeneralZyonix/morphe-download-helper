@@ -5229,9 +5229,10 @@ public class DownloadActivity extends Activity {
         }
     }
 
-    /** True for a package/version rejection rather than a network error. */
+    /** True for a package/version/Android-version rejection rather than a network error. */
     private boolean isVerificationFailure(IOException error) {
-        return error instanceof DownloadedFileValidator.VersionMismatchException;
+        return error instanceof DownloadedFileValidator.VersionMismatchException
+                || error instanceof ApkMirrorSearch.IncompatibleVariantException;
     }
 
     /**
@@ -5815,6 +5816,9 @@ public class DownloadActivity extends Activity {
                 } catch (UptodownHandoffException handoff) {
                     throw handoff;
                 } catch (Exception failed) {
+                    if (failed instanceof ApkMirrorSearch.IncompatibleVariantException) {
+                        verificationFailure = failed.getMessage();
+                    }
                     HelperLog.error("Morphe resolver APKMirror link failed", failed);
                 }
             } else if (githubRepo != null) {
@@ -6146,6 +6150,9 @@ public class DownloadActivity extends Activity {
         } catch (UptodownHandoffException handoff) {
             throw handoff;
         } catch (Exception failed) {
+            if (failed instanceof ApkMirrorSearch.IncompatibleVariantException) {
+                verificationFailure = failed.getMessage();
+            }
             HelperLog.error("APKMirror failed", failed);
             markSource(SourceSettings.APKMIRROR, false, failed.getMessage());
             return null;
@@ -6419,7 +6426,33 @@ public class DownloadActivity extends Activity {
 
             // -android-apk-download/ is a variant page (APK/APKM/APKS choices).
             if (lower.contains("-android-apk-download/")) {
-                return downloadFromVariantPage(url, pkg, version, fileType);
+                try {
+                    return downloadFromVariantPage(url, pkg, version, fileType);
+                } catch (ApkMirrorSearch.IncompatibleVariantException incompatible) {
+                    // The resolver may link to the arm64 variant even when the
+                    // same version has a universal build for an older Android
+                    // release. Re-run selection on the release page and retry.
+                    String releaseUrl = parentReleaseUrl(url);
+                    if (releaseUrl == null) {
+                        throw incompatible;
+                    }
+                    HelperLog.info("APKMirror variant is incompatible; trying "
+                            + releaseUrl);
+                    String releaseHtml;
+                    try {
+                        releaseHtml = httpGet(releaseUrl, null);
+                    } catch (IOException error) {
+                        HelperLog.info("APKMirror release page failed: "
+                                + error.getMessage());
+                        throw incompatible;
+                    }
+                    String variant = chooseVariant(releaseHtml, fileType, abis);
+                    if (variant == null) {
+                        throw incompatible;
+                    }
+                    return downloadFromVariantPage(
+                            absolute(variant), pkg, version, fileType);
+                }
             }
 
             // -release/ is a version page; pick the best variant for the requested type.
@@ -6472,6 +6505,31 @@ public class DownloadActivity extends Activity {
 
         // Unknown host or unsupported page shape.
         throw new IOException("Fallback URL is not a supported APK source");
+    }
+
+    /**
+     * Returns the release page that contains an APKMirror variant page. For
+     * example, the parent of {@code .../app-1-2-3-release/app-1-2-3-android-apk-download/}
+     * is {@code .../app-1-2-3-release/}.
+     */
+    private String parentReleaseUrl(String variantUrl) {
+        if (variantUrl == null) {
+            return null;
+        }
+        String value = variantUrl;
+        int query = value.indexOf('?');
+        if (query >= 0) {
+            value = value.substring(0, query);
+        }
+        int hash = value.indexOf('#');
+        if (hash >= 0) {
+            value = value.substring(0, hash);
+        }
+        if (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        int slash = value.lastIndexOf('/');
+        return slash > 0 ? value.substring(0, slash + 1) : null;
     }
 
     /**
@@ -6669,6 +6727,12 @@ public class DownloadActivity extends Activity {
             String found = ApkMirrorSearch.playPackage(html);
             throw new IOException("APKMirror variant page is " + found
                     + ", expected " + pkg);
+        }
+
+        int minSdk = ApkMirrorSearch.minSdkFromVariantPage(html);
+        if (minSdk > Build.VERSION.SDK_INT) {
+            throw new ApkMirrorSearch.IncompatibleVariantException(
+                    minSdk, Build.VERSION.SDK_INT);
         }
 
         // Newer APKMirror layouts use a downloadButton link; older layouts use the
@@ -7125,109 +7189,10 @@ public class DownloadActivity extends Activity {
      * none matches, this returns {@code null} instead of downloading a wrong
      * build and only rejecting it later.</p>
      */
-    private String chooseVariant(String versionHtml, String fileType, String[] abis) {
-        // Each variant is a table row; split on the row wrapper to inspect one at a time.
-        String[] rows = versionHtml.split("<div class=\"table-row");
-        String fallback = null;
-        String plainApk = null;
-        String plainApkAbi = null;
-        String plainApkExact = null;
-        String plainApkExactAbi = null;
-        String plainApkUniversal = null;
-        String bundle = null;
-        String bundleAbi = null;
-        String bundleExact = null;
-        String bundleExactAbi = null;
-        boolean sawVersionCode = false;
-        String preferredAbi = (abis != null && abis.length > 0) ? abis[0] : null;
-        long[] requestedCodes = requestVersionCodes;
-        boolean wantsExactBuild = requestedCodes != null && requestedCodes.length > 0;
-
-        for (String row : rows) {
-            Matcher m = Pattern.compile(
-                    "href=\"([^\"]+-android-apk-download/)\"",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(row);
-            if (!m.find()) continue;
-
-            String href = decodeHtml(m.group(1));
-            if (fallback == null) fallback = href;
-
-            // Badge text and row classes identify bundles and plain APKs.
-            boolean isBundle = row.contains("BUNDLE") || row.contains("apkm-badge success");
-            boolean isPlainApk = row.contains(">APK<") || row.contains("apkm-badge\">APK");
-            // "nodpi" is the density cell shown on every APK row, so it does not
-            // mean the file is a universal APK. Only the explicit label does.
-            boolean universal = row.contains("universal");
-            boolean hasAbi = preferredAbi != null && row.contains(preferredAbi);
-            long rowCode = variantCode(row);
-            if (rowCode > 0) {
-                sawVersionCode = true;
-            }
-            boolean exactCode = rowCode > 0 && contains(requestedCodes, rowCode);
-
-            if (isPlainApk && exactCode && hasAbi && plainApkExactAbi == null) {
-                plainApkExactAbi = href;
-            }
-            if (isPlainApk && exactCode && plainApkExact == null) {
-                plainApkExact = href;
-            }
-            if (isPlainApk && universal && plainApkUniversal == null) plainApkUniversal = href;
-            if (isPlainApk && hasAbi && plainApkAbi == null) plainApkAbi = href;
-            if (isPlainApk && plainApk == null) plainApk = href;
-            if (isBundle && exactCode && hasAbi && bundleExactAbi == null) {
-                bundleExactAbi = href;
-            }
-            if (isBundle && exactCode && bundleExact == null) {
-                bundleExact = href;
-            }
-            if (isBundle && hasAbi && bundleAbi == null) bundleAbi = href;
-            if (isBundle && bundle == null) bundle = href;
-        }
-
-        boolean exactPlain = plainApkExactAbi != null || plainApkExact != null;
-        boolean exactBundle = bundleExactAbi != null || bundleExact != null;
-        if ("apk".equalsIgnoreCase(fileType) || TextUtils.isEmpty(fileType)) {
-            if (plainApkExactAbi != null) return plainApkExactAbi;
-            if (plainApkExact != null) return plainApkExact;
-            // Split-bundle rows still expose an APK variant, and its key page
-            // can serve the base APK. Prefer the exact build over a plain APK
-            // with the wrong build number.
-            if (bundleExactAbi != null) return bundleExactAbi;
-            if (bundleExact != null) return bundleExact;
-            if (wantsExactBuild && sawVersionCode && !exactPlain && !exactBundle) return null;
-            if (plainApkUniversal != null) return plainApkUniversal;
-            // APKMirror publishes one row per CPU variant. Picking the first plain
-            // APK can download a different ABI with a different versionCode, which
-            // then fails validation after the whole file has been transferred.
-            if (plainApkAbi != null) return plainApkAbi;
-            if (plainApk != null) return plainApk;
-        } else {
-            if (bundleExactAbi != null) return bundleExactAbi;
-            if (bundleExact != null) return bundleExact;
-            if (plainApkExactAbi != null) return plainApkExactAbi;
-            if (plainApkExact != null) return plainApkExact;
-            if (wantsExactBuild && sawVersionCode && !exactBundle) return null;
-            if (bundleAbi != null) return bundleAbi;
-            if (bundle != null) return bundle;
-            if (plainApkAbi != null) return plainApkAbi;
-            if (plainApk != null) return plainApk;
-        }
-        return fallback;
-    }
-
-    /** Reads the numeric build number shown in an APKMirror variant row. */
-    private long variantCode(String row) {
-        Matcher matcher = Pattern.compile(
-                "class=\"colorLightBlack\">\\s*(\\d+)\\s*</span>",
-                Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(row);
-        if (!matcher.find()) {
-            return -1;
-        }
-        try {
-            return Long.parseLong(matcher.group(1));
-        } catch (NumberFormatException ignored) {
-            return -1;
-        }
+    private String chooseVariant(String versionHtml, String fileType, String[] abis)
+            throws IOException {
+        return ApkMirrorSearch.chooseVariant(versionHtml, fileType, abis,
+                requestVersionCodes, Build.VERSION.SDK_INT);
     }
 
     // ---------------------------------------------------------------------

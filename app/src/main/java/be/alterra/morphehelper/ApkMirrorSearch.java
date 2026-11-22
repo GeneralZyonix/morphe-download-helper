@@ -1,5 +1,6 @@
 package be.alterra.morphehelper;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
@@ -28,6 +29,15 @@ final class ApkMirrorSearch {
             "com", "org", "net", "android", "google", "app", "apps", "mobile",
             "client", "release", "beta", "free", "pro", "plus", "lite", "inc",
             "llc", "co", "io", "the", "and", "for", "with"));
+    private static final Pattern VARIANT_ANDROID = Pattern.compile(
+            "Android\\s+(\\d+(?:\\.\\d+)?L?)\\s*\\+",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern VARIANT_MIN_API = Pattern.compile(
+            "Min:[\\s\\S]{0,120}?Android\\s+[^<(]{0,30}\\([^)]*API\\s+(\\d+)\\)",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern PAGE_TITLE = Pattern.compile(
+            "<title[^>]*>([\\s\\S]*?)</title>",
+            Pattern.CASE_INSENSITIVE);
 
     private ApkMirrorSearch() {
     }
@@ -176,6 +186,137 @@ final class ApkMirrorSearch {
         return matcher.find() ? matcher.group(1) : "";
     }
 
+    /**
+     * Reads the minimum Android version from one APKMirror variant row, such as
+     * {@code Android 8.0+} or {@code Android 12L+}. Returns -1 when the row has
+     * no recognizable version.
+     */
+    static int minSdkFromVariantRow(String rowHtml) {
+        if (rowHtml == null || rowHtml.isEmpty()) {
+            return -1;
+        }
+        Matcher matcher = VARIANT_ANDROID.matcher(rowHtml);
+        return matcher.find() ? apiForAndroidVersion(matcher.group(1)) : -1;
+    }
+
+    /**
+     * Reads the minimum SDK from an APKMirror variant page. The page normally
+     * shows {@code Min: Android 10 (Q, API 29)}; the variant title is used as a
+     * fallback for layouts that omit that row.
+     */
+    static int minSdkFromVariantPage(String html) {
+        if (html == null || html.isEmpty()) {
+            return -1;
+        }
+        Matcher matcher = VARIANT_MIN_API.matcher(html);
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException ignored) {
+                // Fall through to the version label.
+            }
+        }
+        Matcher title = PAGE_TITLE.matcher(html);
+        if (title.find()) {
+            int sdk = minSdkFromVariantRow(title.group(1));
+            if (sdk >= 0) {
+                return sdk;
+            }
+        }
+        return minSdkFromVariantRow(html);
+    }
+
+    /** True when a variant has no known minimum SDK or supports this device. */
+    static boolean variantSupportsSdk(String rowHtml, int deviceSdk) {
+        int minSdk = minSdkFromVariantRow(rowHtml);
+        return minSdk < 0 || minSdk <= deviceSdk;
+    }
+
+    /** Maps an APKMirror Android label such as {@code 8.0} or {@code 12L} to an API level. */
+    static int apiForAndroidVersion(String version) {
+        if (version == null) {
+            return -1;
+        }
+        String value = version.trim().toUpperCase(Locale.US);
+        if (value.endsWith("L")) {
+            return "12L".equals(value) ? 32 : -1;
+        }
+        String[] parts = value.split("\\.");
+        int major;
+        int minor = -1;
+        try {
+            major = Integer.parseInt(parts[0]);
+            if (parts.length > 1) {
+                minor = Integer.parseInt(parts[1]);
+            }
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+        switch (major) {
+            case 4:
+                if (minor >= 4) return 19;
+                if (minor == 3) return 18;
+                if (minor == 2) return 17;
+                if (minor == 1) return 16;
+                return 14;
+            case 5:
+                return minor >= 1 ? 22 : 21;
+            case 6:
+                return 23;
+            case 7:
+                return minor >= 1 ? 25 : 24;
+            case 8:
+                return minor >= 1 ? 27 : 26;
+            case 9:
+                return 28;
+            case 10:
+                return 29;
+            case 11:
+                return 30;
+            case 12:
+                return 31;
+            case 13:
+                return 33;
+            case 14:
+                return 34;
+            case 15:
+                return 35;
+            case 16:
+                return 36;
+            default:
+                return -1;
+        }
+    }
+
+    /** Human-readable Android version for an API level. */
+    static String androidVersionName(int api) {
+        switch (api) {
+            case 14: return "4.0";
+            case 15: return "4.0.3";
+            case 16: return "4.1";
+            case 17: return "4.2";
+            case 18: return "4.3";
+            case 19: return "4.4";
+            case 21: return "5.0";
+            case 22: return "5.1";
+            case 23: return "6";
+            case 24: return "7.0";
+            case 25: return "7.1";
+            case 26: return "8.0";
+            case 27: return "8.1";
+            case 28: return "9";
+            case 29: return "10";
+            case 30: return "11";
+            case 31: return "12";
+            case 32: return "12L";
+            case 33: return "13";
+            case 34: return "14";
+            case 35: return "15";
+            case 36: return "16";
+            default: return "API " + api;
+        }
+    }
+
     private static Set<String> tokens(String pkg) {
         Set<String> result = new HashSet<>();
         if (pkg == null) {
@@ -235,5 +376,168 @@ final class ApkMirrorSearch {
                 .replace("&lt;", "<")
                 .replace("&gt;", ">")
                 .replace("&nbsp;", " ");
+    }
+
+    /** A build exists, but its minimum Android version is newer than the device. */
+    static final class IncompatibleVariantException extends IOException {
+        final int minSdk;
+
+        IncompatibleVariantException(int minSdk, int deviceSdk) {
+            super("This version requires Android " + androidVersionName(minSdk)
+                    + " (API " + minSdk + "), but this device runs Android "
+                    + androidVersionName(deviceSdk) + " (API " + deviceSdk + ").");
+            this.minSdk = minSdk;
+        }
+    }
+
+    /**
+     * Picks the best compatible APKMirror variant row for the requested archive
+     * type and ABI. Rows whose minimum Android version is newer than
+     * {@code deviceSdk} are ignored, so a universal Android 8 build can be
+     * selected instead of an arm64 build that requires Android 10.
+     */
+    static String chooseVariant(String versionHtml, String fileType, String[] abis,
+                                long[] requestedCodes, int deviceSdk)
+            throws IOException {
+        if (versionHtml == null || versionHtml.isEmpty()) {
+            return null;
+        }
+        String[] rows = versionHtml.split("<div class=\"table-row");
+        String fallback = null;
+        String plainApk = null;
+        String plainApkAbi = null;
+        String plainApkExact = null;
+        String plainApkExactAbi = null;
+        String plainApkUniversal = null;
+        String bundle = null;
+        String bundleAbi = null;
+        String bundleExact = null;
+        String bundleExactAbi = null;
+        boolean sawVersionCode = false;
+        boolean sawCompatible = false;
+        int rejectedMinSdk = Integer.MAX_VALUE;
+        String preferredAbi = (abis != null && abis.length > 0) ? abis[0] : null;
+        boolean wantsExactBuild = requestedCodes != null && requestedCodes.length > 0;
+
+        for (String row : rows) {
+            Matcher m = Pattern.compile(
+                    "href=\"([^\"]+-android-apk-download/)\"",
+                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(row);
+            if (!m.find()) continue;
+
+            String href = decode(m.group(1));
+            long rowCode = variantCode(row);
+            if (rowCode > 0) {
+                sawVersionCode = true;
+            }
+
+            int rowMinSdk = minSdkFromVariantRow(row);
+            if (rowMinSdk > deviceSdk) {
+                rejectedMinSdk = Math.min(rejectedMinSdk, rowMinSdk);
+                continue;
+            }
+            sawCompatible = true;
+            if (fallback == null) fallback = href;
+
+            // Badge text and row classes identify bundles and plain APKs.
+            boolean isBundle = row.contains("BUNDLE") || row.contains("apkm-badge success");
+            boolean isPlainApk = row.contains(">APK<") || row.contains("apkm-badge\">APK");
+            // "nodpi" is the density cell shown on every APK row, so it does not
+            // mean the file is a universal APK. Only the explicit label does.
+            boolean universal = row.contains("universal");
+            boolean hasAbi = preferredAbi != null && row.contains(preferredAbi);
+            boolean exactCode = rowCode > 0 && contains(requestedCodes, rowCode);
+
+            if (isPlainApk && exactCode && hasAbi && plainApkExactAbi == null) {
+                plainApkExactAbi = href;
+            }
+            if (isPlainApk && exactCode && plainApkExact == null) {
+                plainApkExact = href;
+            }
+            if (isPlainApk && universal && plainApkUniversal == null) plainApkUniversal = href;
+            if (isPlainApk && hasAbi && plainApkAbi == null) plainApkAbi = href;
+            if (isPlainApk && plainApk == null) plainApk = href;
+            if (isBundle && exactCode && hasAbi && bundleExactAbi == null) {
+                bundleExactAbi = href;
+            }
+            if (isBundle && exactCode && bundleExact == null) {
+                bundleExact = href;
+            }
+            if (isBundle && hasAbi && bundleAbi == null) bundleAbi = href;
+            if (isBundle && bundle == null) bundle = href;
+        }
+
+        boolean exactPlain = plainApkExactAbi != null || plainApkExact != null;
+        boolean exactBundle = bundleExactAbi != null || bundleExact != null;
+        if ("apk".equalsIgnoreCase(fileType) || fileType == null || fileType.isEmpty()) {
+            if (plainApkExactAbi != null) return plainApkExactAbi;
+            if (plainApkExact != null) return plainApkExact;
+            // Split-bundle rows still expose an APK variant, and its key page
+            // can serve the base APK. Prefer the exact build over a plain APK
+            // with the wrong build number.
+            if (bundleExactAbi != null) return bundleExactAbi;
+            if (bundleExact != null) return bundleExact;
+            if (wantsExactBuild && sawVersionCode && !exactPlain && !exactBundle) {
+                return noMatchingVariant(rejectedMinSdk, sawCompatible, deviceSdk);
+            }
+            if (plainApkUniversal != null) return plainApkUniversal;
+            // APKMirror publishes one row per CPU variant. Picking the first plain
+            // APK can download a different ABI with a different versionCode, which
+            // then fails validation after the whole file has been transferred.
+            if (plainApkAbi != null) return plainApkAbi;
+            if (plainApk != null) return plainApk;
+        } else {
+            if (bundleExactAbi != null) return bundleExactAbi;
+            if (bundleExact != null) return bundleExact;
+            if (plainApkExactAbi != null) return plainApkExactAbi;
+            if (plainApkExact != null) return plainApkExact;
+            if (wantsExactBuild && sawVersionCode && !exactBundle) {
+                return noMatchingVariant(rejectedMinSdk, sawCompatible, deviceSdk);
+            }
+            if (bundleAbi != null) return bundleAbi;
+            if (bundle != null) return bundle;
+            if (plainApkAbi != null) return plainApkAbi;
+            if (plainApk != null) return plainApk;
+        }
+        if (fallback == null && rejectedMinSdk != Integer.MAX_VALUE) {
+            throw new IncompatibleVariantException(rejectedMinSdk, deviceSdk);
+        }
+        return fallback;
+    }
+
+    /** Returns null for a missing build, or throws when only incompatible builds exist. */
+    private static String noMatchingVariant(int rejectedMinSdk, boolean sawCompatible,
+                                            int deviceSdk) throws IOException {
+        if (!sawCompatible && rejectedMinSdk != Integer.MAX_VALUE) {
+            throw new IncompatibleVariantException(rejectedMinSdk, deviceSdk);
+        }
+        return null;
+    }
+
+    /** Reads the numeric build number shown in an APKMirror variant row. */
+    private static long variantCode(String row) {
+        Matcher matcher = Pattern.compile(
+                "class=\"colorLightBlack\">\\s*(\\d+)\\s*</span>",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(row);
+        if (!matcher.find()) {
+            return -1;
+        }
+        try {
+            return Long.parseLong(matcher.group(1));
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+    }
+
+    private static boolean contains(long[] values, long target) {
+        if (values == null) {
+            return false;
+        }
+        for (long value : values) {
+            if (value == target) {
+                return true;
+            }
+        }
+        return false;
     }
 }
