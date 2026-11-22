@@ -19,6 +19,15 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
+## [Unreleased]
+
+### Fixed
+
+- Dutch: the source-switch action now reads **Wissel bron** and the button can
+  grow for longer translations instead of clipping the second line.
+- The APKMirror verification note now explains that a CAPTCHA must be completed
+  manually and cannot be bypassed by the helper.
+
 ## [3.3.0-rc.6] - 2026-11-22
 
 <!-- prerelease -->

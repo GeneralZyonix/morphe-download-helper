@@ -423,7 +423,7 @@
     <string name="download_open_page">Downloadpagina openen</string>
     <string name="download_pause">Pauze</string>
     <string name="download_switch_source">Stop &amp; schakel bron</string>
-    <string name="download_switch_source_short">Van bron wisselen</string>
+    <string name="download_switch_source_short">Wissel bron</string>
     <string name="download_choose_source">Schakel over naar bron</string>
     <string name="download_switch_source_to">Schakel over naar %1$s</string>
     <string name="download_switching_source">De huidige bron stoppen en schakelen...</string>
@@ -441,7 +441,7 @@
     <string name="download_apkpure_title">APKPure downloaden</string>
     <string name="download_apkpure_explanation">APKPure maakt gebruik van Cloudflare-bescherming. Als er een zoekpagina verschijnt, tikt u eerst op het app-resultaat. Tik op de app-pagina op Download APK (niet op de app-knop APKPure). De helper zal de XAPK of APK vangen en teruggeven aan Morphe.</string>
     <string name="download_apkmirror_title">APKMirror-verificatie</string>
-    <string name="download_apkmirror_explanation">APKMirror heeft een snelle Cloudflare-controle nodig. De helper navigeert naar de downloadpagina en drukt automatisch op de downloadknop zodra de pagina gereed is.</string>
+    <string name="download_apkmirror_explanation">APKMirror vereist een snelle Cloudflare-controle. Als er een CAPTCHA verschijnt, voltooi deze op de pagina; de helper kan deze niet omzeilen. Zodra de pagina gereed is, drukt de helper automatisch op de downloadknop.</string>
     <string name="download_error_page_timeout">Het duurde te lang voordat de downloadpagina reageerde.</string>
     <string name="download_error_page_timeout_detail">Er is een time-out opgetreden tijdens het wachten op de downloadpagina</string>
     <string name="download_error_page_failed">De downloadpagina kan niet worden geladen.</string>

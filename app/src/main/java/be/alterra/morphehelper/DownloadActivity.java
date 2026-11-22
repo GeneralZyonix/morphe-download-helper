@@ -3221,9 +3221,10 @@ public class DownloadActivity extends Activity {
                 "\u21C4  " + getString(R.string.download_switch_source_short),
                 WARN_TEXT, WARN_TEXT);
         switchSourceButton.setVisibility(View.GONE);
+        switchSourceButton.setMinHeight(dp(48));
         switchSourceButton.setOnClickListener(v -> showSwitchSourcePicker());
         LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
-                0, dp(48), 1f);
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         switchParams.setMarginStart(dp(6));
         downloadButtonsRow.addView(switchSourceButton, switchParams);
 
