@@ -1883,6 +1883,26 @@ public class SettingsActivity extends Activity {
                 })
                 .show());
         card.addView(delete);
+
+        // Keep download behavior together, then storage/cleanup controls.
+        card.removeAllViews();
+        addGroupLabel(card, R.string.settings_group_downloads);
+        card.addView(metered, meteredParams);
+        card.addView(meteredNote);
+        card.addView(multiRow);
+        card.addView(maxRow, maxParams);
+        card.addView(maxNote);
+        addGroupLabel(card, R.string.settings_group_storage);
+        card.addView(folder);
+        card.addView(keep);
+        card.addView(note);
+        card.addView(delete);
+    }
+
+    private void addGroupLabel(LinearLayout card, int textRes) {
+        TextView label = M3Ui.overline(this, getString(textRes), ACCENT_TEXT);
+        label.setPadding(0, dp(16), 0, dp(4));
+        card.addView(label);
     }
 
     private int locationIndex(String location) {

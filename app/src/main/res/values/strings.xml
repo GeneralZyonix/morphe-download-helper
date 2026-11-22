@@ -216,7 +216,7 @@
     <string name="settings_sources_summary">Checks, Test all, warnings, and GitHub apps</string>
     <string name="settings_sources_advanced_hint">Source order and toggles are on the Sources tab. These options control checks, warnings, and GitHub apps.</string>
     <string name="settings_web_pages_summary">Ad blocking and embedded pages</string>
-    <string name="settings_storage_summary">Download folder, retention, and cleanup</string>
+    <string name="settings_storage_summary">Download behavior, folder, and cleanup</string>
     <string name="settings_security_summary">VirusTotal scanning and upload rules</string>
     <string name="settings_background_summary">Battery optimization and background limits</string>
     <string name="settings_backup">Backup</string>
@@ -304,7 +304,9 @@
     <string name="settings_shizuku_not_installed_message">Install Shizuku to enable silent automatic updates. Without it, updates are announced by notification.</string>
     <string name="settings_get_shizuku">Get Shizuku</string>
     <string name="settings_shizuku_unsupported">This Shizuku version is not supported.</string>
-    <string name="settings_storage">Storage</string>
+    <string name="settings_storage">Downloads &amp; storage</string>
+    <string name="settings_group_downloads">Downloads</string>
+    <string name="settings_group_storage">Storage</string>
     <string name="settings_download_folder">Download folder</string>
     <string name="settings_folder_public">Downloads/Morphe Helper (default)</string>
     <string name="settings_folder_internal">Internal app cache</string>

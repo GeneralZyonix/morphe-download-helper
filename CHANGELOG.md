@@ -19,6 +19,24 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
+## [3.3.0-rc.4] - 2026-11-22
+
+<!-- prerelease -->
+Pre-release build for testing. This is not the latest stable release.
+
+### Changed
+
+- Renamed the **Storage** settings section to **Downloads & storage**.
+- Grouped **Mobile data**, multi-connection downloads, and maximum connections
+  under **Downloads**.
+- Grouped download folder, retention, cleanup, and delete-all under **Storage**.
+
+### Notes
+
+- Already on rc.3? This build uses the same permanent signing key, so it installs
+  in place. The one-time export/uninstall/reinstall migration still applies only
+  to 3.2.1, rc.1, and rc.2.
+
 ## [3.3.0-rc.3] - 2026-11-22
 
 <!-- prerelease -->

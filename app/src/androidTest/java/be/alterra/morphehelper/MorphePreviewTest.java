@@ -162,7 +162,7 @@ public class MorphePreviewTest {
                 View root = activity.getWindow().getDecorView();
                 assertTrue(containsText(root,
                         "Choose a section. It opens in a sheet over this screen."));
-                assertTrue(containsText(root, "Storage"));
+                assertTrue(containsText(root, "Downloads & storage"));
             });
         }
     }
@@ -173,7 +173,7 @@ public class MorphePreviewTest {
                      ActivityScenario.launch(MorphePreviewActivity.class)) {
             scenario.onActivity(activity -> clickTab(activity, "Settings"));
             waitForTabSlide();
-            scenario.onActivity(activity -> clickTab(activity, "Storage"));
+            scenario.onActivity(activity -> clickTab(activity, "Downloads & storage"));
             SettingsActivity settings = awaitSettingsActivity();
             assertNotNull("SettingsActivity was not resumed", settings);
             assertTrue("Section sheet did not use sheet-only mode",

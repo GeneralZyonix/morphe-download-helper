@@ -205,7 +205,9 @@
     <string name="settings_shizuku_not_installed_message">Installez Shizuku pour activer les mises à jour automatiques silencieuses. Sans lui, les mises à jour sont annoncées par notification.</string>
     <string name="settings_get_shizuku">Obtenir Shizuku</string>
     <string name="settings_shizuku_unsupported">Cette version de Shizuku n’est pas prise en charge.</string>
-    <string name="settings_storage">Stockage</string>
+    <string name="settings_storage">Téléchargements et stockage</string>
+    <string name="settings_group_downloads">Téléchargements</string>
+    <string name="settings_group_storage">Stockage</string>
     <string name="settings_download_folder">Dossier de téléchargement</string>
     <string name="settings_folder_public">Downloads/Morphe Helper (par défaut)</string>
     <string name="settings_folder_internal">Cache interne de l’appli</string>
@@ -598,7 +600,7 @@
     <string name="settings_sources_summary">Vérifications, Tester toutes les sources, avertissements et applis GitHub</string>
     <string name="settings_sources_advanced_hint">L’ordre et l’activation des sources se règlent dans l’onglet Sources. Ces options gèrent les vérifications, les avertissements et les applis GitHub.</string>
     <string name="settings_web_pages_summary">Blocage des publicités et pages intégrées</string>
-    <string name="settings_storage_summary">Dossier, conservation et nettoyage</string>
+    <string name="settings_storage_summary">Comportement des téléchargements, dossier et nettoyage</string>
     <string name="settings_security_summary">Analyse VirusTotal et règles d’envoi</string>
     <string name="settings_background_summary">Optimisation de la batterie et limites d’arrière-plan</string>
     <string name="settings_backup">Sauvegarde</string>
