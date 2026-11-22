@@ -1,6 +1,6 @@
 # Morphe design — v3 direction
 
-Status: **v3.2.1 release candidate on `main`.** Not yet published. Morphe is the only home design; Classic has been removed and migrated.
+Status: **v3.2.1 stable on `main`.** Published 2026-11-22. Morphe is the only home design; Classic has been removed and migrated.
 
 ## Goal
 
