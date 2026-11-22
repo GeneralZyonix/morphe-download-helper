@@ -5,6 +5,29 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [Unreleased]
+
+### Added
+
+- **Manual APK import**: when automatic sources fail, choose an APK, APKS, XAPK,
+  or APKM you downloaded yourself. It is validated against the request and handed
+  to Morphe through the normal path.
+- **Mobile-data policy**: Ask on mobile data, Wi-Fi only, or Always allow.
+  Wi-Fi only shows a one-time override button and applies before every source,
+  including the Uptodown WebView.
+- **File details**: SHA-256, package, version, version code, source URL, and the
+  signing certificate for downloads in the Downloads tab. If the app is installed,
+  the certificate is compared for information only; a difference is expected when
+  the installed app is patched, so it never blocks the hand-off.
+- **WebView toolbar**: Reload, open in browser, and copy page URL on verification
+  pages.
+- **History actions**: file details, share file, and copy source link.
+
+### Changed
+
+- The release notes and source labels now use the existing download history
+  source URL for new downloads.
+
 ## [3.2.1] - 2026-11-22
 
 ### Fixed

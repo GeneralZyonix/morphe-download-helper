@@ -1847,6 +1847,34 @@ public class SettingsActivity extends Activity {
         maxNote.setPadding(0, dp(6), dp(0), 0);
         card.addView(maxNote);
 
+        LinearLayout metered = settingRow(
+                getString(R.string.settings_metered_data), meteredPolicyLabel());
+        metered.setOnClickListener(v -> ThemeManager.dialog(this)
+                .setTitle(R.string.settings_metered_data)
+                .setSingleChoiceItems(new String[]{
+                        getString(R.string.settings_metered_ask),
+                        getString(R.string.settings_metered_wifi),
+                        getString(R.string.settings_metered_allow)
+                }, meteredPolicyIndex(), (dialog, which) -> {
+                    String[] values = {MeteredPolicy.ASK, MeteredPolicy.WIFI_ONLY,
+                            MeteredPolicy.ALLOW};
+                    AppSettings.setMeteredPolicy(this, values[which]);
+                    PublicSettings.write(this);
+                    dialog.dismiss();
+                    scheduleSectionRebuild(SECTION_STORAGE);
+                })
+                .show());
+        LinearLayout.LayoutParams meteredParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        meteredParams.topMargin = dp(8);
+        card.addView(metered, meteredParams);
+        TextView meteredNote = text(
+                getString(R.string.settings_metered_detail), 11, MUTED, false);
+        meteredNote.setLineSpacing(dp(2), 1f);
+        meteredNote.setPadding(0, dp(6), dp(0), 0);
+        card.addView(meteredNote);
+
         TextView delete = actionButton(getString(R.string.settings_delete_all), RED);
         delete.setOnClickListener(v -> ThemeManager.dialog(this)
                 .setTitle(R.string.settings_delete_dialog_title)
@@ -1868,6 +1896,24 @@ public class SettingsActivity extends Activity {
         if (AppSettings.LOCATION_INTERNAL.equals(location)) return 1;
         if (AppSettings.LOCATION_EXTERNAL.equals(location)) return 2;
         return 3;
+    }
+
+    private String meteredPolicyLabel() {
+        String policy = AppSettings.meteredPolicy(this);
+        if (MeteredPolicy.WIFI_ONLY.equals(policy)) {
+            return getString(R.string.settings_metered_wifi);
+        }
+        if (MeteredPolicy.ALLOW.equals(policy)) {
+            return getString(R.string.settings_metered_allow);
+        }
+        return getString(R.string.settings_metered_ask);
+    }
+
+    private int meteredPolicyIndex() {
+        String policy = AppSettings.meteredPolicy(this);
+        if (MeteredPolicy.WIFI_ONLY.equals(policy)) return 1;
+        if (MeteredPolicy.ALLOW.equals(policy)) return 2;
+        return 0;
     }
 
     private void chooseLocation(int which) {

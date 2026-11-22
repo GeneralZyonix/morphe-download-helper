@@ -6,6 +6,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.database.Cursor;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
@@ -24,6 +25,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.StatFs;
+import android.provider.OpenableColumns;
 import android.text.TextUtils;
 import android.text.SpannableString;
 import android.text.Spanned;
@@ -358,12 +360,31 @@ public class DownloadActivity extends Activity {
     private static final int DECISION_NONE = 0;
     private static final int DECISION_CONTINUE = 1;
     private static final int DECISION_DELETE = 2;
+    private static final int IMPORT_APK_REQUEST_CODE = 91;
 
     /** Download progress bar. Indeterminate while resolving, determinate while downloading. */
     private ProgressDisplay progress;
 
     /** Button that opens the fallback web page when automatic resolution fails. */
     private TextView fallbackButton;
+
+    /** Opens a file picker so a manually downloaded APK can be handed to Morphe. */
+    private TextView importFileButton;
+
+    /** Shown when Wi-Fi only blocks a metered request; allows a one-time override. */
+    private TextView meteredOverrideButton;
+
+    /** Action to resume after the user overrides the Wi-Fi-only policy. */
+    private Runnable meteredOverrideAction;
+
+    /** True after the user allows this request to continue over metered data. */
+    private boolean meteredApproved;
+
+    /** Last download URL, kept for the Downloads tab details sheet. */
+    private volatile String lastDownloadUrl = "";
+
+    /** Overrides the source label written to download history. */
+    private String historySourceOverride;
 
     /** Cancel/Close button. */
     private TextView cancelButton;
@@ -535,6 +556,8 @@ public class DownloadActivity extends Activity {
     private TextView editSourcesButton;
     private TextView screenTitle;
     private TextView screenSubtitle;
+    private TextView failureTitle;
+    private TextView failureOverline;
     private TextView stateIcon;
     private LinearLayout sourceStepsCard;
     private LinearLayout sourceStepsList;
@@ -638,7 +661,7 @@ public class DownloadActivity extends Activity {
                     && sourceAllowed(SourceSettings.FALLBACK)) {
                 setStatus(R.string.download_opening_uptodown);
                 progress.setIndeterminate(true);
-                startUptodownWebFlow(fallbackUrl, pkg, version, fileType);
+                withMeteredPolicy(() -> startUptodownWebFlow(fallbackUrl, pkg, version, fileType));
                 return;
             }
             HelperLog.info("Uptodown fallback disabled; trying other sources");
@@ -663,7 +686,117 @@ public class DownloadActivity extends Activity {
         setStatus(getString(R.string.download_preparing, label));
         progress.setIndeterminate(true);
 
-        startResolution(false);
+        startInitialResolution();
+    }
+
+    /**
+     * Applies the mobile-data policy before the first source lookup. Retries and
+     * source switches reuse the same approval for this request.
+     */
+    private void startInitialResolution() {
+        withMeteredPolicy(() -> startResolution(false));
+    }
+
+    /**
+     * Runs the next step only when the mobile-data policy allows it. A Wi-Fi-only
+     * block shows the failure card with a one-time override button.
+     */
+    private void withMeteredPolicy(Runnable proceed) {
+        boolean metered = isMeteredNetwork();
+        String policy = AppSettings.meteredPolicy(this);
+        if (MeteredPolicy.shouldBlock(policy, metered, meteredApproved)) {
+            showMeteredBlocked(proceed);
+            return;
+        }
+        if (MeteredPolicy.shouldAsk(policy, metered, meteredApproved)) {
+            ThemeManager.dialog(this)
+                    .setTitle(R.string.download_metered_title)
+                    .setMessage(R.string.download_metered_message)
+                    .setNegativeButton(R.string.common_cancel,
+                            (dialog, which) -> {
+                                setResult(RESULT_CANCELED);
+                                finish();
+                            })
+                    .setPositiveButton(R.string.download_metered_continue,
+                            (dialog, which) -> {
+                                meteredApproved = true;
+                                proceed.run();
+                            })
+                    .show();
+            return;
+        }
+        proceed.run();
+    }
+
+    private boolean isMeteredNetwork() {
+        try {
+            ConnectivityManager manager =
+                    (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            Network network = manager == null ? null : manager.getActiveNetwork();
+            NetworkCapabilities caps = network == null
+                    ? null : manager.getNetworkCapabilities(network);
+            return caps != null && !caps.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private void showMeteredBlocked(Runnable override) {
+        meteredOverrideAction = override;
+        main.post(() -> {
+            progress.setVisibility(View.GONE);
+            if (progressInfo != null) {
+                progressInfo.setVisibility(View.GONE);
+            }
+            if (progressCard != null) {
+                progressCard.setVisibility(View.GONE);
+            }
+            if (sourceStepsCard != null) {
+                sourceStepsCard.setVisibility(View.GONE);
+            }
+            if (diagnosticsCard != null) {
+                diagnosticsCard.setVisibility(View.GONE);
+            }
+            if (failureCard != null) {
+                failureCard.setVisibility(View.VISIBLE);
+            }
+            if (scrollView != null) {
+                scrollView.scrollTo(0, 0);
+            }
+            if (stateIcon != null) {
+                stateIcon.setVisibility(View.VISIBLE);
+                stateIcon.setText("\u26A0");
+            }
+            if (screenTitle != null) {
+                screenTitle.setText(R.string.download_metered_blocked_title);
+            }
+            if (screenSubtitle != null) {
+                screenSubtitle.setText(R.string.download_metered_blocked_body);
+                screenSubtitle.setVisibility(View.VISIBLE);
+            }
+            if (failureTitle != null) {
+                failureTitle.setText(R.string.download_metered_blocked_title);
+            }
+            if (failureOverline != null) {
+                failureOverline.setText(R.string.download_metered_overline);
+            }
+            setStatus(R.string.download_metered_blocked_body);
+            sourceLabel.setVisibility(View.GONE);
+            scanNote.setVisibility(View.GONE);
+            skipScanButton.setVisibility(View.GONE);
+            retryAllButton.setVisibility(View.GONE);
+            retryButton.setVisibility(View.GONE);
+            failureSwitch.setVisibility(View.GONE);
+            copyButton.setVisibility(View.GONE);
+            editSourcesButton.setVisibility(View.GONE);
+            meteredOverrideButton.setVisibility(View.VISIBLE);
+            importFileButton.setVisibility(View.VISIBLE);
+            if (!TextUtils.isEmpty(fallbackUrl)) {
+                fallbackButton.setVisibility(View.VISIBLE);
+            }
+            cancelButton.setText("\u2715  " + getString(R.string.common_close));
+        });
     }
 
     private void startResolution(boolean retryOnly) {
@@ -712,6 +845,8 @@ public class DownloadActivity extends Activity {
         verificationFailure = null;
         webRetries = 0;
         pendingSourceKey = null;
+        historySourceOverride = null;
+        lastDownloadUrl = "";
         resolutionComplete = false;
         cacheAllowed = !retryOnly && !continueAfterWeb
                 && forcedSource == null && !bypassCache;
@@ -957,8 +1092,12 @@ public class DownloadActivity extends Activity {
             String historySource = servedFromCache
                     ? getString(R.string.source_cache)
                     : (report == null ? "" : report.successSourceLabel());
+            if (!TextUtils.isEmpty(historySourceOverride)) {
+                historySource = historySourceOverride;
+            }
             DownloadHistory.record(this, requestedAppName, requestPkg,
-                    requestVersion, requestFileType, historySource, file);
+                    requestVersion, requestFileType, historySource,
+                    lastDownloadUrl, file);
             pendingFile = null;
             HelperLog.info("Returning file " + file.getAbsolutePath()
                     + " (" + file.length() + " bytes)");
@@ -2777,10 +2916,12 @@ public class DownloadActivity extends Activity {
 
         LinearLayout failureLabels = new LinearLayout(this);
         failureLabels.setOrientation(LinearLayout.VERTICAL);
-        failureLabels.addView(M3Ui.overline(this,
-                getString(R.string.download_failure_overline), RED));
+        failureOverline = M3Ui.overline(this,
+                getString(R.string.download_failure_overline), RED);
+        failureLabels.addView(failureOverline);
         TextView failureTitle = M3Ui.display(this,
                 getString(R.string.download_failure_title), 24, TEXT);
+        this.failureTitle = failureTitle;
         failureTitle.setPadding(0, dp(4), 0, 0);
         failureLabels.addView(failureTitle);
         failureHeader.addView(failureLabels, new LinearLayout.LayoutParams(
@@ -3222,6 +3363,25 @@ public class DownloadActivity extends Activity {
         uptodownExplanation.setPadding(0, dp(8), 0, dp(12));
         uptodownSection.addView(uptodownExplanation);
 
+        LinearLayout webToolbar = new LinearLayout(this);
+        webToolbar.setOrientation(LinearLayout.HORIZONTAL);
+        webToolbar.setGravity(Gravity.END);
+        webToolbar.setPadding(0, 0, 0, dp(8));
+        webToolbar.addView(webToolbarButton(R.drawable.ic_refresh,
+                R.string.download_web_reload, () -> {
+                    if (uptodownWebView != null) {
+                        uptodownWebView.reload();
+                    }
+                }), new LinearLayout.LayoutParams(dp(38), dp(38)));
+        webToolbar.addView(webToolbarButton(R.drawable.ic_external_link,
+                R.string.download_web_open, this::openWebPageInBrowser),
+                new LinearLayout.LayoutParams(dp(38), dp(38)));
+        webToolbar.addView(webToolbarButton(R.drawable.ic_copy,
+                R.string.download_web_copy, this::copyWebPageUrl),
+                new LinearLayout.LayoutParams(dp(38), dp(38)));
+        uptodownSection.addView(webToolbar, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
         uptodownWebContainer = new FrameLayout(this);
         uptodownSection.addView(uptodownWebContainer, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -3243,6 +3403,32 @@ public class DownloadActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
         fallbackParams.topMargin = dp(8);
         failureActions.addView(fallbackButton, fallbackParams);
+
+        meteredOverrideButton = primaryButton(
+                getString(R.string.download_metered_override));
+        meteredOverrideButton.setVisibility(View.GONE);
+        meteredOverrideButton.setOnClickListener(v -> {
+            meteredApproved = true;
+            meteredOverrideButton.setVisibility(View.GONE);
+            Runnable action = meteredOverrideAction;
+            meteredOverrideAction = null;
+            if (action != null) {
+                action.run();
+            } else {
+                startResolution(false);
+            }
+        });
+        LinearLayout.LayoutParams meteredParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
+        meteredParams.topMargin = dp(8);
+        failureActions.addView(meteredOverrideButton, meteredParams);
+
+        importFileButton = secondaryButton(getString(R.string.download_import_file));
+        importFileButton.setOnClickListener(v -> pickManualImport());
+        LinearLayout.LayoutParams importParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        importParams.topMargin = dp(8);
+        failureActions.addView(importFileButton, importParams);
 
         failureClose = secondaryButton(getString(R.string.common_close));
         failureClose.setOnClickListener(v -> cancel());
@@ -4471,6 +4657,12 @@ public class DownloadActivity extends Activity {
             if (screenTitle != null) {
                 screenTitle.setText(R.string.download_title_failure);
             }
+            if (failureTitle != null) {
+                failureTitle.setText(R.string.download_failure_title);
+            }
+            if (failureOverline != null) {
+                failureOverline.setText(R.string.download_failure_overline);
+            }
             if (screenSubtitle != null) {
                 screenSubtitle.setText(R.string.download_subtitle_failure);
                 screenSubtitle.setVisibility(View.VISIBLE);
@@ -4478,11 +4670,180 @@ public class DownloadActivity extends Activity {
             if (!TextUtils.isEmpty(fallbackUrl)) {
                 fallbackButton.setVisibility(View.VISIBLE);
             }
+            if (meteredOverrideButton != null) {
+                meteredOverrideButton.setVisibility(View.GONE);
+            }
+            if (importFileButton != null) {
+                importFileButton.setVisibility(View.VISIBLE);
+            }
             cancelButton.setText("\u2715  " + getString(R.string.common_close));
             if (report != null) {
                 populateDiagnostics(report);
             }
         });
+    }
+
+    private ImageView webToolbarButton(int iconRes, int descRes, Runnable action) {
+        ImageView button = new ImageView(this);
+        button.setImageResource(iconRes);
+        button.setColorFilter(MUTED);
+        button.setPadding(dp(9), dp(9), dp(9), dp(9));
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(RIPPLE),
+                M3Ui.filled(this, M3Ui.secondaryContainer(palette), 999, 0, 0), null));
+        button.setContentDescription(getString(descRes));
+        button.setClickable(true);
+        button.setFocusable(true);
+        button.setOnClickListener(view -> action.run());
+        return button;
+    }
+
+    private void openWebPageInBrowser() {
+        String url = uptodownWebView == null ? "" : uptodownWebView.getUrl();
+        if (TextUtils.isEmpty(url)) {
+            Toast.makeText(this, R.string.download_web_unavailable,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception error) {
+            Toast.makeText(this, R.string.download_web_unavailable,
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void copyWebPageUrl() {
+        String url = uptodownWebView == null ? "" : uptodownWebView.getUrl();
+        if (TextUtils.isEmpty(url)) {
+            Toast.makeText(this, R.string.download_web_unavailable,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard != null) {
+            clipboard.setPrimaryClip(ClipData.newPlainText("URL", url));
+            Toast.makeText(this, R.string.download_web_copied,
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Lets the user hand over a file downloaded outside the helper. This is the
+     * escape hatch for Cloudflare blocks, region locks, and dead sources.
+     */
+    private void pickManualImport() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*");
+        try {
+            startActivityForResult(intent, IMPORT_APK_REQUEST_CODE);
+        } catch (Exception error) {
+            Toast.makeText(this, R.string.download_import_no_picker,
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != IMPORT_APK_REQUEST_CODE
+                || resultCode != RESULT_OK
+                || data == null
+                || data.getData() == null) {
+            return;
+        }
+        Uri uri = data.getData();
+        setStatus(R.string.download_import_validating);
+        progress.setVisibility(View.VISIBLE);
+        progress.setIndeterminate(true);
+        if (failureCard != null) {
+            failureCard.setVisibility(View.GONE);
+        }
+        executor.execute(() -> {
+            File file = null;
+            try {
+                file = copyImportToCache(uri);
+                if (file == null || file.length() == 0) {
+                    throw new IOException(getString(R.string.download_import_empty));
+                }
+                long[] codes = resolvedVersionCodes != null
+                        ? resolvedVersionCodes : requestVersionCodes;
+                DownloadedFileValidator.validate(this, file, requestPkg,
+                        requestVersion, codes);
+                historySourceOverride = getString(R.string.download_import_source);
+                lastDownloadUrl = "";
+                deliverFile(file);
+            } catch (Exception error) {
+                if (file != null) {
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                }
+                HelperLog.error("Manual import failed", error);
+                String message = error.getMessage();
+                if (TextUtils.isEmpty(message)) {
+                    message = getString(R.string.file_details_unavailable);
+                }
+                final String detail = message;
+                runOnUiThread(() -> {
+                    progress.setVisibility(View.GONE);
+                    setStatus(getString(R.string.download_import_failed, detail));
+                    showFailure();
+                });
+            }
+        });
+    }
+
+    private File copyImportToCache(Uri uri) throws IOException {
+        String name = displayName(uri);
+        String extension = ".apk";
+        int dot = name.lastIndexOf('.');
+        if (dot >= 0) {
+            String candidate = name.substring(dot).toLowerCase(Locale.US);
+            if (candidate.equals(".apk") || candidate.equals(".apks")
+                    || candidate.equals(".xapk") || candidate.equals(".apkm")) {
+                extension = candidate;
+            }
+        }
+        File dir = AppSettings.downloadDir(this);
+        File file = new File(dir, "manual-import-"
+                + System.currentTimeMillis() + extension);
+        try (InputStream input = getContentResolver().openInputStream(uri);
+             FileOutputStream output = new FileOutputStream(file)) {
+            if (input == null) {
+                throw new IOException("Could not open the selected file");
+            }
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+        } catch (Exception error) {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+            throw error instanceof IOException
+                    ? (IOException) error
+                    : new IOException("Could not copy the selected file", error);
+        }
+        return ArchiveTypeDetector.normalizeExtension(file);
+    }
+
+    private String displayName(Uri uri) {
+        try (Cursor cursor = getContentResolver().query(uri,
+                new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (column >= 0) {
+                    String name = cursor.getString(column);
+                    if (!TextUtils.isEmpty(name)) {
+                        return name;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        String fallback = uri.getLastPathSegment();
+        return TextUtils.isEmpty(fallback) ? "imported.apk" : fallback;
     }
 
     private void populateDiagnostics(ResolutionReport resolutionReport) {
@@ -4818,6 +5179,7 @@ public class DownloadActivity extends Activity {
                 setSourceLabel(R.string.source_cache);
                 setStatus(R.string.download_using_cache);
                 servedFromCache = true;
+                lastDownloadUrl = "";
                 if (report != null) {
                     report.record(SourceSettings.CACHE, true,
                             getString(R.string.source_detail_cache));
@@ -7182,6 +7544,7 @@ public class DownloadActivity extends Activity {
      */
     private File downloadFile(String url, String referer, String pkg, String versionName,
                               String fileType, String cookie) throws IOException {
+        lastDownloadUrl = url == null ? "" : url;
         File dir = AppSettings.downloadDir(this);
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IOException("Cannot create download directory");

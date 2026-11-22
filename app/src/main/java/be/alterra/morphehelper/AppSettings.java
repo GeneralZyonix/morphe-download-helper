@@ -60,6 +60,7 @@ final class AppSettings {
     private static final String KEY_FAST_SOURCE_CHECKS = "fast_source_checks";
     private static final String KEY_MULTI_THREAD = "multi_thread_downloads";
     private static final String KEY_MAX_CONNECTIONS = "max_connections";
+    private static final String KEY_METERED_POLICY = "metered_policy";
     static final int[] MAX_CONNECTION_OPTIONS = {2, 4, 8, 16, 32};
     private static final String KEY_LIVE_ADGUARD = "live_adguard_checks";
     private static final String KEY_THEME_MODE = "theme_mode";
@@ -448,6 +449,19 @@ final class AppSettings {
             }
         }
         return best;
+    }
+
+    /** One of {@link MeteredPolicy#ASK}, {@link MeteredPolicy#WIFI_ONLY}, or
+     * {@link MeteredPolicy#ALLOW}. */
+    static String meteredPolicy(Context context) {
+        return MeteredPolicy.normalize(prefs(context)
+                .getString(KEY_METERED_POLICY, MeteredPolicy.ASK));
+    }
+
+    static void setMeteredPolicy(Context context, String policy) {
+        prefs(context).edit()
+                .putString(KEY_METERED_POLICY, MeteredPolicy.normalize(policy))
+                .apply();
     }
 
     static String themeMode(Context context) {

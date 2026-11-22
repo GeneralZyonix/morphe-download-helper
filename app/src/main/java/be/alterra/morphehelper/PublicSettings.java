@@ -241,6 +241,10 @@ final class PublicSettings {
             } catch (NumberFormatException ignored) {
             }
         }
+        String meteredPolicy = values.get("metered_policy");
+        if (meteredPolicy != null) {
+            AppSettings.setMeteredPolicy(context, meteredPolicy);
+        }
         applyBoolean(context, values, "live_adguard_checks",
                 AppSettings::setLiveAdGuardChecks);
         applyBoolean(context, values, "virustotal_enabled",
@@ -455,6 +459,8 @@ final class PublicSettings {
                 .append(AppSettings.multiThreadDownloads(context)).append('\n');
         text.append("max_connections=")
                 .append(AppSettings.maxConnections(context)).append('\n');
+        text.append("metered_policy=")
+                .append(AppSettings.meteredPolicy(context)).append('\n');
         text.append("live_adguard_checks=")
                 .append(AppSettings.liveAdGuardChecks(context)).append('\n');
         text.append("virustotal_enabled=")

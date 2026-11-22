@@ -881,4 +881,64 @@
         <item quantity="one">%1$d day ago</item>
         <item quantity="other">%1$d days ago</item>
     </plurals>
+
+    <!-- Manual APK import. -->
+    <string name="download_import_file">I already have the file</string>
+    <string name="download_import_pick_title">Select APK, APKS, XAPK or APKM</string>
+    <string name="download_import_validating">Checking the selected file…</string>
+    <string name="download_import_empty">The selected file is empty.</string>
+    <string name="download_import_failed">Could not import that file: %1$s</string>
+    <string name="download_import_no_picker">No file picker available.</string>
+    <string name="download_import_source">Manual import</string>
+
+    <!-- Metered-network guard. -->
+    <string name="settings_metered_data">Mobile data</string>
+    <string name="settings_metered_detail">Large APKs can use hundreds of megabytes. Choose what happens when Wi-Fi is unavailable.</string>
+    <string name="settings_metered_ask">Ask on mobile data</string>
+    <string name="settings_metered_wifi">Wi-Fi only</string>
+    <string name="settings_metered_allow">Always allow</string>
+    <string name="download_metered_title">Mobile data is metered</string>
+    <string name="download_metered_message">This download can use a lot of data. Continue on mobile data?</string>
+    <string name="download_metered_continue">Download anyway</string>
+    <string name="download_metered_blocked_title">Wi-Fi only is enabled</string>
+    <string name="download_metered_blocked_body">Connect to Wi-Fi, or allow this download once on mobile data.</string>
+    <string name="download_metered_overline">Waiting for Wi-Fi</string>
+    <string name="download_metered_override">Download once on mobile data</string>
+
+    <!-- Verification WebView toolbar. -->
+    <string name="download_web_reload">Reload page</string>
+    <string name="download_web_open">Open in browser</string>
+    <string name="download_web_copy">Copy page URL</string>
+    <string name="download_web_copied">Page URL copied.</string>
+    <string name="download_web_unavailable">The page has no URL yet.</string>
+
+    <!-- File details and history actions. -->
+    <string name="preview_file_details">File details</string>
+    <string name="file_details_title">File details</string>
+    <string name="file_details_size">Size</string>
+    <string name="file_details_sha">SHA-256</string>
+    <string name="file_details_package">Package</string>
+    <string name="file_details_version">Version</string>
+    <string name="file_details_code">Version code</string>
+    <string name="file_details_source">Source</string>
+    <string name="file_details_source_url">Source URL</string>
+    <string name="file_details_signature">Signing certificate</string>
+    <string name="file_details_installed">Installed app</string>
+    <string name="file_details_signature_match">Matches the installed app</string>
+    <string name="file_details_signature_different">Differs from the installed app. This is normal when the installed app is patched; Morphe handles signing.</string>
+    <string name="file_details_not_installed">Not installed</string>
+    <string name="file_details_calculating">Calculating…</string>
+    <string name="file_details_unavailable">Unavailable</string>
+    <string name="file_details_copy_sha">Copy SHA-256</string>
+    <string name="file_details_copy_url">Copy link</string>
+    <string name="file_details_share">Share file</string>
+    <string name="file_details_close">Close</string>
+    <string name="file_details_missing">The file is no longer available.</string>
+    <string name="file_details_error">Could not read file details.</string>
+    <string name="file_details_copied">Copied.</string>
+    <string name="preview_share_file">Share file</string>
+    <string name="preview_share_failed">No app can share this file.</string>
+    <string name="preview_copy_source">Copy source link</string>
+    <string name="preview_source_copied">Source link copied.</string>
+    <string name="preview_no_source_link">No source link was recorded for this download.</string>
 </resources>

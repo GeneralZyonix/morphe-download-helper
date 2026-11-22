@@ -1155,11 +1155,242 @@ public class MorphePreviewActivity extends Activity {
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
+        ImageView details = iconButton(R.drawable.ic_log_doc,
+                R.string.preview_file_details,
+                () -> showFileDetails(entry, file));
+        row.addView(details, new LinearLayout.LayoutParams(dp(38), dp(38)));
+
         ImageView delete = iconButton(R.drawable.ic_delete,
                 R.string.preview_download_delete,
                 () -> confirmRemoveHistory(entry, file));
         row.addView(delete, new LinearLayout.LayoutParams(dp(38), dp(38)));
         return row;
+    }
+
+    private void showFileDetails(DownloadHistory.Entry entry, DownloadEntry file) {
+        if (file == null) {
+            Toast.makeText(this, R.string.file_details_missing,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(20);
+        content.setPadding(padding, dp(4), padding, dp(8));
+
+        TextView sizeValue = addFileDetail(content,
+                getString(R.string.file_details_size),
+                formatSize(file.size));
+        TextView shaValue = addFileDetail(content,
+                getString(R.string.file_details_sha),
+                getString(R.string.file_details_calculating));
+        TextView packageValue = addFileDetail(content,
+                getString(R.string.file_details_package),
+                entry.packageName);
+        TextView versionValue = addFileDetail(content,
+                getString(R.string.file_details_version),
+                entry.version);
+        TextView codeValue = addFileDetail(content,
+                getString(R.string.file_details_code),
+                getString(R.string.file_details_unavailable));
+        TextView sourceValue = addFileDetail(content,
+                getString(R.string.file_details_source),
+                entry.source);
+        TextView sourceUrlValue = addFileDetail(content,
+                getString(R.string.file_details_source_url),
+                TextUtils.isEmpty(entry.sourceUrl)
+                        ? getString(R.string.file_details_unavailable)
+                        : entry.sourceUrl);
+        TextView signatureValue = addFileDetail(content,
+                getString(R.string.file_details_signature),
+                getString(R.string.file_details_calculating));
+        TextView installedValue = addFileDetail(content,
+                getString(R.string.file_details_installed),
+                getString(R.string.file_details_calculating));
+
+        TextView share = M3Ui.primaryButton(this, palette,
+                getString(R.string.file_details_share), R.drawable.ic_share);
+        share.setOnClickListener(v -> shareDownloadFile(file));
+        LinearLayout.LayoutParams shareParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        shareParams.topMargin = dp(18);
+        content.addView(share, shareParams);
+
+        TextView copySha = M3Ui.outlinedButton(this, palette,
+                getString(R.string.file_details_copy_sha), 0, TEXT);
+        copySha.setOnClickListener(v -> {
+            String value = shaValue.getText().toString();
+            if (!getString(R.string.file_details_calculating).contentEquals(value)
+                    && !getString(R.string.file_details_unavailable).contentEquals(value)) {
+                copyToClipboard("SHA-256", value);
+            }
+        });
+        LinearLayout.LayoutParams copyShaParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        copyShaParams.topMargin = dp(8);
+        content.addView(copySha, copyShaParams);
+
+        TextView copyUrl = M3Ui.outlinedButton(this, palette,
+                getString(R.string.file_details_copy_url), 0, TEXT);
+        copyUrl.setOnClickListener(v -> {
+            if (TextUtils.isEmpty(entry.sourceUrl)) {
+                Toast.makeText(this, R.string.preview_no_source_link,
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                copyToClipboard("source", entry.sourceUrl);
+            }
+        });
+        LinearLayout.LayoutParams copyUrlParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        copyUrlParams.topMargin = dp(8);
+        content.addView(copyUrl, copyUrlParams);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(content);
+        ThemeManager.dialog(this)
+                .setTitle(R.string.file_details_title)
+                .setView(scroll)
+                .setPositiveButton(R.string.file_details_close, null)
+                .show();
+
+        new Thread(() -> {
+            File temp = null;
+            try {
+                File inspect = file.file;
+                if (inspect == null && file.uri != null) {
+                    temp = copyUriToTemp(file.uri);
+                    inspect = temp;
+                }
+                DownloadedFileValidator.Details details =
+                        DownloadedFileValidator.inspect(this, inspect, entry.packageName);
+                final File tempFile = temp;
+                runOnUiThread(() -> {
+                    sizeValue.setText(formatSize(details.size));
+                    shaValue.setText(details.sha256);
+                    packageValue.setText(TextUtils.isEmpty(details.packageName)
+                            ? entry.packageName : details.packageName);
+                    versionValue.setText(TextUtils.isEmpty(details.versionName)
+                            ? entry.version : details.versionName);
+                    codeValue.setText(details.versionCode > 0
+                            ? String.valueOf(details.versionCode)
+                            : getString(R.string.file_details_unavailable));
+                    signatureValue.setText(shortHashes(details.signerHashes));
+                    if (!details.installed) {
+                        installedValue.setText(R.string.file_details_not_installed);
+                    } else if (details.signatureMatchesInstalled) {
+                        installedValue.setText(R.string.file_details_signature_match);
+                    } else {
+                        installedValue.setText(R.string.file_details_signature_different);
+                    }
+                    if (tempFile != null) {
+                        //noinspection ResultOfMethodCallIgnored
+                        tempFile.delete();
+                    }
+                });
+            } catch (Exception error) {
+                HelperLog.error("Could not read file details", error);
+                final File tempFile = temp;
+                if (tempFile != null) {
+                    //noinspection ResultOfMethodCallIgnored
+                    tempFile.delete();
+                }
+                runOnUiThread(() -> {
+                    shaValue.setText(R.string.file_details_unavailable);
+                    signatureValue.setText(R.string.file_details_unavailable);
+                    installedValue.setText(R.string.file_details_unavailable);
+                    Toast.makeText(this, R.string.file_details_error,
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+        }, "file-details").start();
+    }
+
+    private TextView addFileDetail(LinearLayout parent, String label, String value) {
+        TextView labelView = M3Ui.overline(this, label, MUTED);
+        labelView.setPadding(0, dp(10), 0, 0);
+        parent.addView(labelView);
+        TextView valueView = M3Ui.text(this, value, 12, TEXT, 400);
+        valueView.setTextIsSelectable(true);
+        valueView.setPadding(0, dp(2), 0, 0);
+        parent.addView(valueView);
+        return valueView;
+    }
+
+    private String shortHashes(java.util.Set<String> hashes) {
+        if (hashes == null || hashes.isEmpty()) {
+            return getString(R.string.file_details_unavailable);
+        }
+        StringBuilder text = new StringBuilder();
+        int count = 0;
+        for (String hash : hashes) {
+            if (text.length() > 0) {
+                text.append('\n');
+            }
+            text.append(hash);
+            if (++count >= 3) {
+                break;
+            }
+        }
+        return text.toString();
+    }
+
+    private void copyToClipboard(String label, String value) {
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            return;
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, value));
+        Toast.makeText(this, R.string.file_details_copied,
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private File copyUriToTemp(Uri uri) throws Exception {
+        File temp = File.createTempFile("details-", ".apk", getCacheDir());
+        try (java.io.InputStream input = getContentResolver().openInputStream(uri);
+             FileOutputStream output = new FileOutputStream(temp)) {
+            if (input == null) {
+                throw new Exception("Could not open file");
+            }
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+        }
+        return temp;
+    }
+
+    private void shareDownloadFile(DownloadEntry file) {
+        Uri uri = file.uri;
+        if (file.file != null) {
+            try {
+                uri = FileProvider.getUriForFile(this,
+                        getPackageName() + ".fileprovider", file.file);
+            } catch (Exception error) {
+                HelperLog.error("Could not share file", error);
+                Toast.makeText(this, R.string.preview_share_failed,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        if (uri == null) {
+            Toast.makeText(this, R.string.preview_share_failed,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent send = new Intent(Intent.ACTION_SEND)
+                .setType("application/vnd.android.package-archive")
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivity(Intent.createChooser(send,
+                    getString(R.string.preview_share_file)));
+        } catch (Exception error) {
+            Toast.makeText(this, R.string.preview_share_failed,
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     private View sectionLabel(String label) {

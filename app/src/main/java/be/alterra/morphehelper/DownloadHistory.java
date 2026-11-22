@@ -35,10 +35,18 @@ final class DownloadHistory {
         final String filePath;
         final long size;
         final long timestamp;
+        final String sourceUrl;
 
         Entry(String id, String appName, String packageName, String version,
               String fileType, String source, String fileName, String filePath,
               long size, long timestamp) {
+            this(id, appName, packageName, version, fileType, source, fileName,
+                    filePath, size, timestamp, "");
+        }
+
+        Entry(String id, String appName, String packageName, String version,
+              String fileType, String source, String fileName, String filePath,
+              long size, long timestamp, String sourceUrl) {
             this.id = id;
             this.appName = appName;
             this.packageName = packageName;
@@ -49,6 +57,7 @@ final class DownloadHistory {
             this.filePath = filePath;
             this.size = size;
             this.timestamp = timestamp;
+            this.sourceUrl = sourceUrl == null ? "" : sourceUrl;
         }
 
         JSONObject toJson() {
@@ -64,6 +73,7 @@ final class DownloadHistory {
                 object.put("file_path", filePath);
                 object.put("size", size);
                 object.put("timestamp", timestamp);
+                object.put("source_url", sourceUrl);
             } catch (Exception ignored) {
                 // Values are plain strings and numbers; serialization cannot fail.
             }
@@ -88,13 +98,20 @@ final class DownloadHistory {
                     fileName,
                     object.optString("file_path"),
                     object.optLong("size"),
-                    object.optLong("timestamp"));
+                    object.optLong("timestamp"),
+                    object.optString("source_url"));
         }
     }
 
     static synchronized void record(Context context, String appName, String pkg,
                                     String version, String fileType, String source,
                                     File file) {
+        record(context, appName, pkg, version, fileType, source, "", file);
+    }
+
+    static synchronized void record(Context context, String appName, String pkg,
+                                    String version, String fileType, String source,
+                                    String sourceUrl, File file) {
         if (file == null) {
             return;
         }
@@ -110,7 +127,8 @@ final class DownloadHistory {
                 fileName,
                 file.getAbsolutePath(),
                 file.length(),
-                now);
+                now,
+                sourceUrl);
 
         JSONArray previous = read(context);
         JSONArray next = new JSONArray();

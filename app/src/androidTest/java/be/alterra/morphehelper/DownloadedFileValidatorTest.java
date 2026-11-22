@@ -162,6 +162,18 @@ public class DownloadedFileValidatorTest {
         assertEquals("9.3", method.invoke(null, "v9.3"));
     }
 
+    @Test
+    public void inspectReadsArchiveMetadataEvenWithApkName() throws Exception {
+        File archive = archive("inspect.apk", null,
+                Map.of("base.apk", asset("correct.apk")));
+        DownloadedFileValidator.Details details =
+                DownloadedFileValidator.inspect(app, archive, "com.example.fixture");
+        assertEquals("com.example.fixture", details.packageName);
+        assertEquals("1.2.3", details.versionName);
+        assertEquals(123, details.versionCode);
+        assertTrue(details.sha256.length() == 64);
+    }
+
     private void validate(File file, String pkg, String version, long[] codes)
             throws Exception {
         Class<?> type = Class.forName("be.alterra.morphehelper.DownloadedFileValidator");

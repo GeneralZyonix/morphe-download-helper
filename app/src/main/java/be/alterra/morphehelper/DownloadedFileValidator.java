@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.Signature;
+import android.content.pm.SigningInfo;
 import android.os.Build;
 
 import net.dongliu.apk.parser.parser.BinaryXmlParser;
@@ -26,10 +28,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
@@ -645,5 +651,174 @@ final class DownloadedFileValidator {
             }
         }
         return false;
+    }
+
+    /** Metadata shown by the Downloads tab's file-details sheet. */
+    static final class Details {
+        final long size;
+        final String sha256;
+        final String packageName;
+        final String versionName;
+        final long versionCode;
+        final Set<String> signerHashes;
+        final boolean installed;
+        final Set<String> installedSignerHashes;
+        final boolean signatureMatchesInstalled;
+
+        Details(long size, String sha256, String packageName, String versionName,
+                long versionCode, Set<String> signerHashes, boolean installed,
+                Set<String> installedSignerHashes, boolean signatureMatchesInstalled) {
+            this.size = size;
+            this.sha256 = sha256;
+            this.packageName = packageName;
+            this.versionName = versionName;
+            this.versionCode = versionCode;
+            this.signerHashes = signerHashes;
+            this.installed = installed;
+            this.installedSignerHashes = installedSignerHashes;
+            this.signatureMatchesInstalled = signatureMatchesInstalled;
+        }
+    }
+
+    /**
+     * Reads size, SHA-256, manifest metadata, and signing certificates. This is
+     * informational; it never rejects a file. The installed comparison is
+     * expected to differ when the installed app is patched.
+     */
+    static Details inspect(Context context, File file, String pkg) throws IOException {
+        if (file == null || !file.isFile()) {
+            throw new IOException("File is no longer available");
+        }
+        String sha = sha256(file);
+        int flags = Build.VERSION.SDK_INT >= 28
+                ? PackageManager.GET_SIGNING_CERTIFICATES
+                : PackageManager.GET_SIGNATURES;
+        PackageManager manager = context.getPackageManager();
+        PackageInfo archive = null;
+        if (file.getName().toLowerCase(Locale.US).endsWith(".apk")) {
+            archive = manager.getPackageArchiveInfo(file.getAbsolutePath(), flags);
+        }
+        if (archive == null) {
+            // A MediaStore copy may have lost its .apkm/.xapk extension; inspect
+            // it as an archive as a fallback instead of reporting no metadata.
+            archive = findArchiveInfo(context, file, pkg, flags);
+        }
+
+        Set<String> signers = archive == null
+                ? Collections.emptySet() : signatureHashes(archive, false);
+        PackageInfo installedInfo = null;
+        try {
+            installedInfo = manager.getPackageInfo(pkg, flags);
+        } catch (Exception ignored) {
+        }
+        Set<String> installedHashes = installedInfo == null
+                ? Collections.emptySet() : signatureHashes(installedInfo, true);
+        boolean installed = installedInfo != null;
+        boolean matches = installed && !signers.isEmpty()
+                && installedHashes.containsAll(signers);
+
+        return new Details(
+                file.length(),
+                sha,
+                archive == null ? (pkg == null ? "" : pkg) : archive.packageName,
+                archive == null || archive.versionName == null ? "" : archive.versionName,
+                archive == null ? -1 : (Build.VERSION.SDK_INT >= 28
+                        ? archive.getLongVersionCode() : archive.versionCode),
+                signers,
+                installed,
+                installedHashes,
+                matches);
+    }
+
+    static String sha256(File file) throws IOException {
+        try (InputStream input = new java.io.FileInputStream(file)) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
+            return hex(digest.digest());
+        } catch (IOException error) {
+            throw error;
+        } catch (Exception error) {
+            throw new IOException("Could not calculate SHA-256", error);
+        }
+    }
+
+    private static PackageInfo findArchiveInfo(Context context, File file, String pkg,
+                                               int flags) throws IOException {
+        try (ZipFile zip = new ZipFile(file)) {
+            PackageInfo fallback = null;
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                String name = entry.getName().toLowerCase(Locale.US);
+                if (!name.endsWith(".apk")) {
+                    continue;
+                }
+                PackageInfo info = readEntry(context, zip, entry, flags);
+                if (info == null) {
+                    info = readEntryManifest(context, zip, entry);
+                }
+                if (info == null) {
+                    continue;
+                }
+                if (pkg != null && pkg.equals(info.packageName) && name.contains("base")) {
+                    return info;
+                }
+                if (pkg != null && pkg.equals(info.packageName) && fallback == null) {
+                    fallback = info;
+                }
+            }
+            return fallback;
+        } catch (IOException error) {
+            throw error;
+        } catch (Exception error) {
+            throw new IOException("Could not read archive for details", error);
+        }
+    }
+
+    private static Set<String> signatureHashes(PackageInfo info, boolean includeHistory) {
+        Set<String> hashes = new HashSet<>();
+        if (Build.VERSION.SDK_INT >= 28 && info.signingInfo != null) {
+            SigningInfo signing = info.signingInfo;
+            Signature[] current = signing.getApkContentsSigners();
+            if (current == null || current.length == 0) {
+                current = info.signatures;
+            }
+            addSignatureHashes(hashes, current);
+            if (includeHistory) {
+                addSignatureHashes(hashes, signing.getSigningCertificateHistory());
+            }
+        } else {
+            addSignatureHashes(hashes, info.signatures);
+        }
+        return hashes;
+    }
+
+    private static void addSignatureHashes(Set<String> hashes, Signature[] signatures) {
+        if (signatures == null) {
+            return;
+        }
+        for (Signature signature : signatures) {
+            if (signature == null) {
+                continue;
+            }
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                hashes.add(hex(digest.digest(signature.toByteArray())));
+            } catch (Exception ignored) {
+                // A malformed certificate cannot match; leave it out.
+            }
+        }
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder value = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            value.append(String.format(Locale.US, "%02x", b & 0xff));
+        }
+        return value.toString();
     }
 }
