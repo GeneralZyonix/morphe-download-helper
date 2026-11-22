@@ -27,6 +27,8 @@ the first **3.3.0 stable** release notes for users still on 3.2.1.
   24 hours (default), 3 days, or 7 days. A background alarm runs the check at
   that interval, reschedules after each run and after reboot, and is cancelled
   when **Check for updates** is turned off.
+- **Dutch translation** (`nl`), covering the full interface. This is a
+  maintainer-approved first pass and is still being reviewed for correct Dutch.
 
 ### Changed
 

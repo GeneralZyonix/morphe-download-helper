@@ -65,5 +65,9 @@ Please verify that:
 | --- | --- | --- |
 | English | `values/strings.xml` | Source |
 | French | `values-fr/strings.xml` | Contributed by @foXaCe |
+| Dutch | `values-nl/strings.xml` | Auto-translated with maintainer approval; review pending |
 
 The French translation covers the VirusTotal settings and upload-progress messages too.
+The Dutch file is a complete first pass and an exception to the normal contributor
+workflow. Community corrections are welcome; the project does not auto-translate
+other languages.

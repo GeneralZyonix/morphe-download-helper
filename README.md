@@ -292,6 +292,7 @@ or **Share log**.
 | --- | --- | --- |
 | English | `en` | [values/strings.xml](app/src/main/res/values/strings.xml) |
 | French | `fr` | [values-fr/strings.xml](app/src/main/res/values-fr/strings.xml) |
+| Dutch | `nl` | [values-nl/strings.xml](app/src/main/res/values-nl/strings.xml) |
 
 Want to add a language? See [TRANSLATING.md](TRANSLATING.md). New languages appear
 automatically in **Settings → App language** after their locale is added to
