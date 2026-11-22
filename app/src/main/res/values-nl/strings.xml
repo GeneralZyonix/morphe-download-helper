@@ -745,8 +745,8 @@
     <string name="preview_guide_body">Stapsgewijze instructies</string>
     <string name="preview_log_body">Bekijk helperactiviteit en logboeken</string>
     <string name="preview_log_sanitized_note">Exporten worden opgeschoond voordat ze het apparaat verlaten.</string>
-    <string name="preview_downloads_subtitle">Recente overdrachten en bewaarde APK\'s</string>
-    <string name="preview_downloads_recent">Recente overdrachten</string>
+    <string name="preview_downloads_subtitle">Recente downloads en opgeslagen APK\'s</string>
+    <string name="preview_downloads_recent">Recente downloads</string>
     <string name="preview_downloads_local">Op dit apparaat</string>
     <string name="preview_downloads_empty_title">Hier nog niets</string>
     <string name="preview_downloads_empty_body">Gedownloade APK\'s worden hier weergegeven zolang ze op dit apparaat worden bewaard.</string>
