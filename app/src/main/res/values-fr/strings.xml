@@ -107,9 +107,6 @@
     <string name="update_version_limit">Seules les 20 versions les plus récentes sont affichées.</string>
     <string name="update_stable">Stable</string>
     <string name="update_prerelease">Pré-version</string>
-    <string name="update_rc">RC</string>
-    <string name="update_beta">BETA</string>
-    <string name="update_alpha">ALPHA</string>
     <string name="update_release_notes_for">Notes de version de la v%1$s.</string>
     <string name="update_viewing_versions">Actuelle&#160;: v%1$s  •  Consultation&#160;: v%2$s</string>
     <string name="update_popup_title">Mise à jour disponible</string>
@@ -163,13 +160,6 @@
     <string name="settings_status_up_to_date">Actuelle&#160;: v%1$s • À jour</string>
     <string name="settings_check_updates">Rechercher les mises à jour</string>
     <string name="settings_check_updates_detail">Me notifier lorsqu’une nouvelle version existe</string>
-    <string name="settings_update_interval">Intervalle de vérification automatique</string>
-    <string name="settings_update_interval_6h">Toutes les 6 heures</string>
-    <string name="settings_update_interval_12h">Toutes les 12 heures</string>
-    <string name="settings_update_interval_24h">Toutes les 24 heures</string>
-    <string name="settings_update_interval_3d">Tous les 3 jours</string>
-    <string name="settings_update_interval_7d">Tous les 7 jours</string>
-    <string name="settings_update_interval_note">Les vérifications s’exécutent en arrière-plan. Android peut les retarder en mode Doze ; il s’agit donc d’un intervalle minimum.</string>
     <string name="settings_update_popup">Fenêtre de mise à jour</string>
     <string name="settings_update_popup_desc">Afficher une fenêtre à l’ouverture de l’appli si une mise à jour est disponible</string>
     <string name="settings_update_popup_enabled">Fenêtre de mise à jour activée.</string>
@@ -215,9 +205,6 @@
     <string name="settings_shizuku_not_installed_message">Installez Shizuku pour activer les mises à jour automatiques silencieuses. Sans lui, les mises à jour sont annoncées par notification.</string>
     <string name="settings_get_shizuku">Obtenir Shizuku</string>
     <string name="settings_shizuku_unsupported">Cette version de Shizuku n’est pas prise en charge.</string>
-    <string name="settings_storage">Téléchargements et stockage</string>
-    <string name="settings_group_downloads">Téléchargements</string>
-    <string name="settings_group_storage">Stockage</string>
     <string name="settings_download_folder">Dossier de téléchargement</string>
     <string name="settings_folder_public">Downloads/Morphe Helper (par défaut)</string>
     <string name="settings_folder_internal">Cache interne de l’appli</string>
@@ -610,7 +597,6 @@
     <string name="settings_sources_summary">Vérifications, Tester toutes les sources, avertissements et applis GitHub</string>
     <string name="settings_sources_advanced_hint">L’ordre et l’activation des sources se règlent dans l’onglet Sources. Ces options gèrent les vérifications, les avertissements et les applis GitHub.</string>
     <string name="settings_web_pages_summary">Blocage des publicités et pages intégrées</string>
-    <string name="settings_storage_summary">Comportement des téléchargements, dossier et nettoyage</string>
     <string name="settings_security_summary">Analyse VirusTotal et règles d’envoi</string>
     <string name="settings_background_summary">Optimisation de la batterie et limites d’arrière-plan</string>
     <string name="settings_backup">Sauvegarde</string>
@@ -723,9 +709,6 @@
     <string name="main_version_chip_version">Helper v%1$s</string>
     <string name="main_version_chip_build">· %1$s</string>
     <string name="main_version_badge_prerelease">Build de préversion</string>
-    <string name="main_version_badge_release_candidate">Build release candidate</string>
-    <string name="main_version_badge_beta">Build bêta</string>
-    <string name="main_version_badge_alpha">Build alpha</string>
     <string name="main_version_badge_release">Build stable</string>
     <string name="main_build_icon">Icône</string>
     <string name="main_build_no_icon">Sans icône</string>
@@ -802,8 +785,6 @@
     <string name="source_manager_immediate">Les modifications s\u2019appliquent imm\u00e9diatement.</string>
     <string name="settings_update_channel">Canal de mise à jour</string>
     <string name="settings_update_channel_stable">Stable uniquement</string>
-    <string name="settings_update_channel_prerelease">Inclure les versions candidates</string>
-    <string name="settings_update_channel_note">Inclure les versions candidates propose des builds RC/préversion et installe aussi une version stable plus récente lorsqu’elle est la plus récente.</string>
     <string name="sources_testing">Test en cours…</string>
     <string name="sources_test">Tester les sources</string>
     <string name="sources_test_enabled">Tester les sources activées</string>
