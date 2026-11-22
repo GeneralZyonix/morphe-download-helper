@@ -19,7 +19,10 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
-## [Unreleased]
+## [3.3.0-rc.6] - 2026-11-22
+
+<!-- prerelease -->
+Pre-release fix build for testing. This is not the latest stable release.
 
 ### Changed
 
@@ -37,6 +40,13 @@ the first **3.3.0 stable** release notes for users still on 3.2.1.
 - APKMirror variant selection now respects the minimum Android version. When a
   version offers an Android 8 universal build, it is chosen on Android 8 instead
   of an arm64 build that requires Android 10.
+
+### Notes
+
+- This is a fix build for rc.5. Users on rc.3, rc.4, or rc.5 can update in place
+  with the same permanent signing key.
+- The one-time export/uninstall/reinstall migration still applies only to 3.2.1,
+  rc.1, and rc.2.
 
 ## [3.3.0-rc.5] - 2026-11-22
 
