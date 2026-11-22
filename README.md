@@ -163,7 +163,7 @@ The full illustrated reference is in **[docs/SETTINGS.md](docs/SETTINGS.md)**. Q
 - **Appearance** — theme mode, accent, custom scheme, surface tinting, navigation
   bar order, and reset.
 - **Updates** — automatic checks, update mode, in-app popup, and a manual check.
-- **Download pages** — ad/tracker blocking and optional live AdGuard host checks.
+- **WebView settings** — ad/tracker blocking and optional live AdGuard host checks.
 - **Sources** - the single source editor: enable/disable, reorder, reset,
   per-source Test, and Test all with detailed results. Settings → Sources keeps
   Fast source checks, the Appteka warning, and GitHub apps.

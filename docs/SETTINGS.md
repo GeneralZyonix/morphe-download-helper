@@ -52,7 +52,7 @@ The **Updates** section controls the helper's own updater, not app downloads.
 | **Check now** | Runs a check immediately. |
 | **Changelog** | Opens the release notes. |
 
-## Download pages
+## WebView settings
 
 These options affect the in-app WebView pages used for source verification.
 
@@ -148,7 +148,7 @@ package, version, and build code before hand-off.
 | --- | --- |
 | **Download folder** | **Downloads/Morphe Helper** (default), **Internal app cache**, **App external storage**, or a custom folder. The hand-off to Morphe works regardless; this controls the convenience copy. |
 | **Keep downloads** | **Keep downloads**, **After hand-off**, **Delete after 1 hour**, **Delete after 24 hours**, or **Delete after 7 days**. Retention covers both the temporary cache and public copies. |
-| **Faster multi-connection downloads** | Splits large files into up to four connections when the server supports HTTP Range. On by default for new installs. APKMirror stays single-stream; unsupported servers fall back automatically. |
+| **Faster multi-connection downloads** | Splits large files across multiple connections when the server supports HTTP Range. The maximum is set under Maximum connections. On by default for new installs. APKMirror stays single-stream; unsupported servers fall back automatically. |
 | **Maximum connections** | 2, 4, 8, 16, or 32. The actual count is capped by file size and the 4 MiB chunk size. |
 | **Delete all downloaded APKs** | Removes cached downloads and public/custom copies. It also clears the local-cache index. Settings files are preserved. |
 

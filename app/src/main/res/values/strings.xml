@@ -158,7 +158,7 @@
     <string name="settings_sources">Sources</string>
     <string name="settings_sources_hint">Disabled sources are skipped completely. At least one source must stay enabled.</string>
     <string name="settings_webview_hint">APKPure may use an in-app WebView. APKCube and Uptodown use in-app verification pages.</string>
-    <string name="settings_web_pages">Download pages</string>
+    <string name="settings_web_pages">WebView settings</string>
     <string name="settings_block_ads">Block ads and trackers</string>
     <string name="settings_block_ads_detail">Blocks known ad and tracker hosts in the Uptodown, APKMirror, and APKPure pages. Cloudflare and captcha hosts stay allowed.</string>
     <string name="settings_live_adguard">Live AdGuard checks</string>
@@ -166,7 +166,7 @@
     <string name="settings_fast_source_checks">Fast source checks</string>
     <string name="settings_fast_source_checks_detail">Probes APKPure, Uptodown, APKMirror, F-Droid, and Aptoide together, skips recent not-found sources, and avoids APKCube/APKMirror pages that already report no match. Sources are still tried in your order. Uses a little more data.</string>
     <string name="settings_multi_thread">Faster multi-connection downloads</string>
-    <string name="settings_multi_thread_detail">Splits large files into up to 4 connections when the server supports HTTP Range. Falls back automatically. APKMirror stays single-stream. On by default for new installs; an existing settings file can override it.</string>
+    <string name="settings_multi_thread_detail">Splits large files across multiple connections when the server supports HTTP Range. The maximum is set under Maximum connections. Falls back automatically. APKMirror stays single-stream. On by default for new installs; an existing settings file can override it.</string>
     <string name="settings_max_connections">Maximum connections</string>
     <string name="settings_max_connections_value">%1$d connections</string>
     <string name="settings_max_connections_detail">Only used when multi-connection downloads are on. Larger files are split into 4 MiB chunks, and the count is capped by file size.</string>
@@ -218,7 +218,7 @@
     <string name="settings_updates_summary">Checks, update mode, and Shizuku</string>
     <string name="settings_sources_summary">Checks, Test all, warnings, and GitHub apps</string>
     <string name="settings_sources_advanced_hint">Source order and toggles are on the Sources tab. These options control checks, warnings, and GitHub apps.</string>
-    <string name="settings_web_pages_summary">Ad blocking and embedded pages</string>
+    <string name="settings_web_pages_summary">Ad blocking and embedded WebViews</string>
     <string name="settings_storage_summary">Download behavior, folder, and cleanup</string>
     <string name="settings_security_summary">VirusTotal scanning and upload rules</string>
     <string name="settings_background_summary">Battery optimization and background limits</string>

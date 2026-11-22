@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.LocaleList;
 import android.text.InputType;
+import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -721,14 +722,23 @@ public class AppearanceActivity extends Activity {
                 ColorStateList.valueOf(RIPPLE), background, null));
         M3Ui.motion(option);
 
+        String accentName = getString(ThemeManager.accentLabel(accent));
         PatchPassLogoView logo = new PatchPassLogoView(this);
         logo.setPreviewPalette(colors[0], colors[1], LIGHT);
-        logo.setContentDescription(getString(ThemeManager.accentLabel(accent)));
+        logo.setContentDescription(accentName);
         option.addView(logo, new LinearLayout.LayoutParams(dp(30), dp(30)));
 
-        TextView label = text(getString(ThemeManager.accentLabel(accent)),
+        TextView label = text(accentName,
                 12, selected ? TEXT : MUTED, selected);
         label.setPadding(dp(8), 0, 0, 0);
+        label.setMaxLines(1);
+        label.setEllipsize(TextUtils.TruncateAt.END);
+        if (Build.VERSION.SDK_INT >= 26) {
+            label.setAutoSizeTextTypeUniformWithConfiguration(
+                    9, 12, 1, TypedValue.COMPLEX_UNIT_SP);
+        } else if (accentName.length() > 10) {
+            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9);
+        }
         option.addView(label, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
