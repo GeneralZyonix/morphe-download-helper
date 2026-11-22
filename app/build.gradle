@@ -18,8 +18,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 84
-        versionName "3.3.0"
+        versionCode 85
+        versionName "3.3.0-rc.1"
 
         // true for pre-release builds; set false only for a stable release.
         // Drives the P/R badge and the Auto update channel.
@@ -56,7 +56,8 @@ android {
             // for in-place updates.
             minifyEnabled true
             shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                    'proguard-rules.pro'
             signingConfig signingConfigs.debug
         }
     }

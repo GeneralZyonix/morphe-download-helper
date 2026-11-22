@@ -5,8 +5,9 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [3.3.0] - 2026-11-22
+## [3.3.0-rc.1] - 2026-11-22
 
+<!-- prerelease -->
 Pre-release build for testing. This is not the latest stable release.
 
 ### Added

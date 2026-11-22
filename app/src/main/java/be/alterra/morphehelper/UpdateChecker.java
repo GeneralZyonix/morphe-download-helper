@@ -229,16 +229,21 @@ final class UpdateChecker {
         }
         String cleanVersion = version.startsWith("v") || version.startsWith("V")
                 ? version.substring(1) : version;
-        if (!includePrereleases && UpdateInfo.isPrerelease(cleanVersion)) {
+        String notesText = notes == null ? "" : notes.toString();
+        boolean markedPrerelease = notesText.toLowerCase(Locale.US)
+                .contains("<!-- prerelease -->");
+        if (!includePrereleases
+                && (UpdateInfo.isPrerelease(cleanVersion) || markedPrerelease)) {
             return;
         }
+        notesText = notesText.replace("<!-- prerelease -->", "").trim();
         String tag = "v" + cleanVersion;
         String assetName = ASSET_PREFIX + cleanVersion + assetSuffix();
         String releaseUrl = "https://github.com/" + REPO + "/releases/tag/" + tag;
         String assetUrl = "https://github.com/" + REPO
                 + "/releases/download/" + tag + "/" + assetName;
         result.add(new UpdateInfo(cleanVersion, releaseUrl, assetUrl,
-                assetName, 0L, notes == null ? "" : notes.toString().trim()));
+                assetName, 0L, notesText));
     }
 
     private static List<UpdateInfo> parseReleases(String body,

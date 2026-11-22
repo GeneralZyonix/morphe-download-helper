@@ -124,4 +124,29 @@ public class UpdateCheckerTest {
         assertEquals("1.6.16", stable.get(0).version);
         assertTrue(stable.get(0).notes.contains("Stable notes."));
     }
+
+    @Test
+    public void changelogHonorsThePrereleaseMarkerWithoutAVersionSuffix() {
+        String changelog = """
+                # Changelog
+
+                ## [9.9.9] - 2026-11-22
+
+                <!-- prerelease -->
+                Testing build.
+
+                ## [9.9.8] - 2026-11-21
+
+                Stable build.
+                """;
+
+        List<UpdateInfo> stable = UpdateChecker.parseChangelog(changelog, false);
+        assertEquals(1, stable.size());
+        assertEquals("9.9.8", stable.get(0).version);
+
+        List<UpdateInfo> all = UpdateChecker.parseChangelog(changelog, true);
+        assertEquals(2, all.size());
+        assertEquals("9.9.9", all.get(0).version);
+        assertTrue(!all.get(0).notes.contains("prerelease"));
+    }
 }
