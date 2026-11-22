@@ -40,6 +40,7 @@
     <string name="main_source_appteka">\u26A0 Appteka</string>
     <string name="main_open_morphe">Ouvrir Morphe Manager</string>
     <string name="main_share_log">Partager le journal</string>
+    <string name="main_share_log_attachment">Journal anonymisé en pièce jointe. Les jetons, cookies, en-têtes d’authentification, paramètres d’URL signés, adresses IP locales et adresses e-mail sont masqués.</string>
     <string name="main_preview_log">Aperçu du journal anonymisé</string>
     <string name="main_preview_log_title">Aperçu du journal anonymisé</string>
     <string name="main_delete_all_downloads">Supprimer tous les APK téléchargés</string>
@@ -51,6 +52,7 @@
     <string name="main_uninstall">Désinstaller l’assistant</string>
     <string name="main_about">À propos</string>
     <string name="main_developer_role">Développeur de Morphe Download Helper</string>
+    <string name="main_developer_avatar">GeneralZyonix sur GitHub</string>
     <string name="main_link_releases">Versions</string>
     <string name="guide_overline">Configuration</string>
     <string name="appearance_overline">Thème et couleurs</string>

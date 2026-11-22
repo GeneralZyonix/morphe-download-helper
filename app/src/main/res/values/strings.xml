@@ -70,6 +70,7 @@
     <string name="main_source_appteka">\u26A0 Appteka</string>
     <string name="main_open_morphe">Open Morphe Manager</string>
     <string name="main_share_log">Share log</string>
+    <string name="main_share_log_attachment">Sanitized helper log attached. Tokens, cookies, auth headers, signed URL parameters, local IP addresses, and email addresses are redacted.</string>
     <string name="main_preview_log">Preview sanitized log</string>
     <string name="main_preview_log_title">Sanitized log preview</string>
     <string name="main_save_log">Save log</string>
@@ -95,6 +96,7 @@
     <string name="main_uninstall">Uninstall helper</string>
     <string name="main_about">About</string>
     <string name="main_developer_role">Developer of Morphe Download Helper</string>
+    <string name="main_developer_avatar">GeneralZyonix on GitHub</string>
     <string name="main_link_releases">Releases</string>
 
     <!-- Material 3 Expressive section labels. -->

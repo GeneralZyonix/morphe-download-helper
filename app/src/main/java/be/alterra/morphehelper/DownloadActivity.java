@@ -1556,20 +1556,40 @@ public class DownloadActivity extends Activity {
                         + "return m?m[1]:'';})()",
                 value -> {
                     String found = value == null ? "" : value.replace("\"", "").trim();
-                    boolean searchPage = url != null
-                            && (url.contains("?s=") || url.contains("searchtype="));
                     if (uptodownPkg.equals(found)) {
                         cacheApkMirrorAppUrl(url);
                     } else {
                         HelperLog.info("APKMirror WebView page is " + found
                                 + ", not caching for " + uptodownPkg);
-                        if (!searchPage && !TextUtils.isEmpty(found)) {
+                        if (shouldFailApkMirrorPackage(found, uptodownPkg, url)) {
                             failWebFlowFast(getString(
                                     R.string.download_error_apkmirror_package,
                                     found, uptodownPkg));
                         }
                     }
                 });
+    }
+
+    /**
+     * Decides whether a Play Store package found on an APKMirror page proves
+     * that the page belongs to the wrong app. Search and download pages
+     * legitimately carry other packages: results may show unrelated apps, and
+     * APKMirror's download page promotes its own installer
+     * (com.apkmirror.helper.prod). Failing on those pages aborts a valid
+     * Cloudflare verification before the user can complete it.
+     */
+    static boolean shouldFailApkMirrorPackage(String found, String expected,
+                                              String url) {
+        if (found == null || found.isEmpty()
+                || expected == null || expected.isEmpty()
+                || found.equals(expected)) {
+            return false;
+        }
+        if (found.startsWith("com.apkmirror.")) {
+            return false;
+        }
+        return url == null || !(url.contains("?s=") || url.contains("searchtype=")
+                || url.contains("/download") || url.contains("key="));
     }
 
     private void cacheApkMirrorAppUrl(String url) {

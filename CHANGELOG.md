@@ -5,6 +5,29 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
+## [3.2.1] - 2026-11-22
+
+### Fixed
+
+- Share log now attaches the sanitized log as a `.txt` file and opens the
+  system share sheet. Sharing the full log as intent text could fail silently
+  on large logs.
+- APKMirror no longer treats its own installer promotion
+  (`com.apkmirror.helper.prod`) or a download page as a package mismatch. The
+  false mismatch aborted valid Cloudflare verification before the download
+  could continue.
+- Removed the height-changing header collapse on scroll. Slow scrolling could
+  fight the layout and glitch the screen; fast scrolling did not. Tab headers
+  now stay fixed without changing height.
+
+### Changed
+
+- Moved the Help question-mark button into the sticky Home header.
+- Removed the duplicate “Developer of Morphe Download Helper” line. The
+  developer block now shows only “Developed by GeneralZyonix”.
+- Restored the GZ GitHub avatar in the developer block; tapping it opens the
+  GitHub profile.
+
 ## [3.2.0] - 2026-11-21
 
 ### Added

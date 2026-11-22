@@ -13,6 +13,7 @@ import android.content.pm.ResolveInfo;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.Outline;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -43,6 +44,7 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
@@ -64,6 +66,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
@@ -125,7 +128,6 @@ public class MorphePreviewActivity extends Activity {
     private int CARD_HIGH;
 
     private LinearLayout sourceList;
-    private TextView homeSubtitle;
     private TextView sourceTestAllButton;
     private boolean sourceTestingAll;
     private final Map<String, TextView> sourceHealthViews = new LinkedHashMap<>();
@@ -537,10 +539,9 @@ public class MorphePreviewActivity extends Activity {
         root.addView(statusRow());
         root.addView(heroCard());
         root.addView(featureRow());
-        root.addView(quickActions());
         root.addView(developerBlock());
         addBottomSpacer(root);
-        return stickyTab(header, scroll, homeSubtitle);
+        return stickyTab(header, scroll);
     }
 
     private View homeHeader() {
@@ -560,10 +561,20 @@ public class MorphePreviewActivity extends Activity {
         TextView subtitle = M3Ui.text(this, getString(R.string.main_subtitle),
                 12, MUTED, 400);
         subtitle.setPadding(0, dp(3), 0, 0);
-        homeSubtitle = subtitle;
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView help = M3Ui.outlinedButton(this, palette, "?", 0, TEXT);
+        help.setTextSize(16);
+        help.setGravity(Gravity.CENTER);
+        help.setPadding(0, 0, 0, 0);
+        help.setContentDescription(getString(R.string.main_help));
+        help.setOnClickListener(v -> showHelp());
+        LinearLayout.LayoutParams helpParams = new LinearLayout.LayoutParams(
+                dp(44), dp(44));
+        helpParams.setMarginStart(dp(8));
+        header.addView(help, helpParams);
         return header;
     }
 
@@ -772,27 +783,6 @@ public class MorphePreviewActivity extends Activity {
         return tile;
     }
 
-    private View quickActions() {
-        LinearLayout block = new LinearLayout(this);
-        block.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = dp(14);
-        block.setLayoutParams(params);
-
-        TextView help = M3Ui.outlinedButton(this, palette, "?", 0, TEXT);
-        help.setTextSize(16);
-        help.setGravity(Gravity.CENTER);
-        help.setPadding(0, 0, 0, 0);
-        help.setContentDescription(getString(R.string.main_help));
-        help.setOnClickListener(v -> showHelp());
-        LinearLayout.LayoutParams helpParams = new LinearLayout.LayoutParams(
-                dp(48), dp(44));
-        helpParams.gravity = Gravity.END;
-        block.addView(help, helpParams);
-        return block;
-    }
-
     private void showHelp() {
         String message = getString(R.string.help_log)
                 + "\n\n" + getString(R.string.help_play_protect)
@@ -832,6 +822,25 @@ public class MorphePreviewActivity extends Activity {
         params.topMargin = dp(26);
         block.setLayoutParams(params);
 
+        ImageView avatar = new ImageView(this);
+        avatar.setImageResource(R.drawable.developer_gz);
+        avatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        avatar.setClipToOutline(true);
+        avatar.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setOval(0, 0, view.getWidth(), view.getHeight());
+            }
+        });
+        avatar.setContentDescription(getString(
+                R.string.main_developer_avatar));
+        avatar.setOnClickListener(v ->
+                openUrl("https://github.com/GeneralZyonix"));
+        LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(
+                dp(60), dp(60));
+        avatarParams.bottomMargin = dp(10);
+        block.addView(avatar, avatarParams);
+
         SpannableStringBuilder credit = new SpannableStringBuilder();
         credit.append(getString(R.string.preview_developer)).append(" ");
         int start = credit.length();
@@ -841,11 +850,6 @@ public class MorphePreviewActivity extends Activity {
         TextView creditView = M3Ui.text(this, credit.toString(), 13, MUTED, 400);
         creditView.setGravity(Gravity.CENTER);
         block.addView(creditView);
-        TextView role = M3Ui.text(this,
-                getString(R.string.main_developer_role), 11, MUTED, 400);
-        role.setGravity(Gravity.CENTER);
-        role.setPadding(0, dp(3), 0, 0);
-        block.addView(role);
 
         LinearLayout links = new LinearLayout(this);
         links.setOrientation(LinearLayout.HORIZONTAL);
@@ -966,7 +970,7 @@ public class MorphePreviewActivity extends Activity {
                     getString(R.string.preview_downloads_empty_body)));
         }
         addBottomSpacer(root);
-        return stickyTab(header, scroll, subtitle);
+        return stickyTab(header, scroll);
     }
 
     /**
@@ -1359,7 +1363,7 @@ public class MorphePreviewActivity extends Activity {
         root.addView(sourceList, listParams);
         rebuildSourceList();
         addBottomSpacer(root);
-        return stickyTab(header, scroll, subtitle);
+        return stickyTab(header, scroll);
     }
 
     private void rebuildSourceList() {
@@ -1825,7 +1829,7 @@ public class MorphePreviewActivity extends Activity {
         addBottomSpacer(root);
         renderPatchResults(false);
         refreshPatchCatalog(false);
-        return stickyTab(header, scroll, subtitle);
+        return stickyTab(header, scroll);
     }
 
     private SpannableStringBuilder patchSubtitleText() {
@@ -2998,7 +3002,7 @@ public class MorphePreviewActivity extends Activity {
                 "backup");
 
         addBottomSpacer(root);
-        return stickyTab(header, scroll, subtitle, hint);
+        return stickyTab(header, scroll);
     }
 
     private void addSettingsCard(LinearLayout root, int iconRes, int titleRes,
@@ -3092,10 +3096,10 @@ public class MorphePreviewActivity extends Activity {
     }
 
     /**
-     * Keeps the page header fixed above a scrolling body. Optional views (such
-     * as the subtitle and hint) collapse once the body starts scrolling.
+     * Keeps the page header fixed above a scrolling body. The header never
+     * changes height while scrolling, so slow drags cannot fight the layout.
      */
-    private View stickyTab(View header, ScrollView scroll, View... collapsing) {
+    private View stickyTab(View header, ScrollView scroll) {
         int screen = getResources().getDisplayMetrics().widthPixels;
         int horizontal = Math.max(dp(20), (screen - dp(720)) / 2);
         LinearLayout page = new LinearLayout(this);
@@ -3114,25 +3118,6 @@ public class MorphePreviewActivity extends Activity {
         divider.setBackgroundColor(M3Ui.outlineVariant(palette));
         page.addView(divider, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
-
-        final boolean[] compact = {false};
-        scroll.setOnScrollChangeListener((view, scrollX, scrollY,
-                                          oldScrollX, oldScrollY) -> {
-            boolean next = scrollY > dp(18);
-            if (next == compact[0]) {
-                return;
-            }
-            compact[0] = next;
-            if (collapsing.length > 0) {
-                TransitionManager.beginDelayedTransition(headerHost,
-                        new AutoTransition().setDuration(160));
-                for (View part : collapsing) {
-                    if (part != null) {
-                        part.setVisibility(next ? View.GONE : View.VISIBLE);
-                    }
-                }
-            }
-        });
 
         scroll.setPadding(horizontal, 0, horizontal, dp(24));
         page.addView(scroll, new LinearLayout.LayoutParams(
@@ -3453,6 +3438,46 @@ public class MorphePreviewActivity extends Activity {
                     Toast.LENGTH_SHORT).show();
             return;
         }
+
+        File dir = getExternalFilesDir("logs");
+        if (dir == null) {
+            dir = new File(getFilesDir(), "logs");
+        }
+        if (!dir.exists() && !dir.mkdirs()) {
+            shareLogText(text);
+            return;
+        }
+        File file = new File(dir, "helper-sanitized.log.txt");
+        try (FileOutputStream output = new FileOutputStream(file)) {
+            output.write(text.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception error) {
+            HelperLog.error("Could not prepare sanitized log for sharing", error);
+            shareLogText(text);
+            return;
+        }
+
+        try {
+            Uri uri = FileProvider.getUriForFile(this,
+                    getPackageName() + ".fileprovider", file);
+            Intent intent = new Intent(Intent.ACTION_SEND);
+            intent.setType("text/plain");
+            intent.putExtra(Intent.EXTRA_SUBJECT,
+                    getString(R.string.main_log_subject));
+            intent.putExtra(Intent.EXTRA_TEXT,
+                    getString(R.string.main_share_log_attachment));
+            intent.putExtra(Intent.EXTRA_STREAM, uri);
+            intent.setClipData(ClipData.newUri(getContentResolver(),
+                    "helper log", uri));
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(intent,
+                    getString(R.string.main_share_log_title)));
+        } catch (Exception error) {
+            HelperLog.error("Could not share log file", error);
+            shareLogText(text);
+        }
+    }
+
+    private void shareLogText(String text) {
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.setType("text/plain");
         intent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.main_log_subject));
