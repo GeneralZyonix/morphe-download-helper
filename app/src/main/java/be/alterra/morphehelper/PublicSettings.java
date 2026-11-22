@@ -155,6 +155,14 @@ final class PublicSettings {
         if (updateChannel != null) {
             AppSettings.setUpdateChannel(context, updateChannel);
         }
+        String updateInterval = values.get("update_interval_hours");
+        if (updateInterval != null) {
+            try {
+                AppSettings.setUpdateCheckIntervalHours(context,
+                        Integer.parseInt(updateInterval.trim()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
         String shizukuPackage = values.get("shizuku_package");
         if (shizukuPackage != null) {
             String trimmed = shizukuPackage.trim();
@@ -270,6 +278,7 @@ final class PublicSettings {
                 AppSettings::setVirusTotalAbortOnQuota);
         applyBoolean(context, values, "appteka_snaptube_only",
                 AppSettings::setApptekaSnapTubeOnly);
+        UpdateManager.scheduleNextCheck(context);
     }
 
     /**
@@ -442,6 +451,8 @@ final class PublicSettings {
                 .append(UpdateManager.mode(context)).append('\n');
         text.append("update_channel=")
                 .append(AppSettings.updateChannel(context)).append('\n');
+        text.append("update_interval_hours=")
+                .append(AppSettings.updateCheckIntervalHours(context)).append('\n');
         text.append("update_popup=")
                 .append(UpdateManager.isInAppPopupEnabled(context)).append('\n');
         text.append("shizuku_package=")

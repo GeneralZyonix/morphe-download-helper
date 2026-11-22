@@ -70,7 +70,6 @@ final class UpdateManager {
 
     private static final String CHANNEL = "updates";
     private static final int NOTIFICATION_ID = 73;
-    private static final long CHECK_INTERVAL = 6L * 60L * 60L * 1000L;
 
     private static final OkHttpClient HTTP = new OkHttpClient.Builder()
             // See UpdateChecker: HTTP/2 streams from GitHub are occasionally
@@ -115,9 +114,68 @@ final class UpdateManager {
 
     static void setEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply();
-        if (!enabled) {
+        if (enabled) {
+            scheduleNextCheck(context);
+        } else {
             cancelNotification(context);
+            cancelScheduledCheck(context);
         }
+    }
+
+    /** Schedules the next automatic check at the configured interval. */
+    static void scheduleNextCheck(Context context) {
+        AlarmManager manager = (AlarmManager) context.getSystemService(
+                Context.ALARM_SERVICE);
+        if (manager == null) {
+            return;
+        }
+        PendingIntent pending = scheduledCheckIntent(context);
+        manager.cancel(pending);
+        if (!isEnabled(context)) {
+            return;
+        }
+        long interval = TimeUnit.HOURS.toMillis(
+                AppSettings.updateCheckIntervalHours(context));
+        long now = System.currentTimeMillis();
+        long last = lastCheck(context);
+        long when = last > 0
+                ? Math.max(now + 60_000L, last + interval)
+                : now + interval;
+        if (Build.VERSION.SDK_INT >= 23) {
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, when, pending);
+        } else {
+            manager.set(AlarmManager.RTC_WAKEUP, when, pending);
+        }
+        HelperLog.info("Next automatic update check in "
+                + Math.max(0, (when - now) / 60_000L) + " minute(s)");
+    }
+
+    static void cancelScheduledCheck(Context context) {
+        AlarmManager manager = (AlarmManager) context.getSystemService(
+                Context.ALARM_SERVICE);
+        if (manager != null) {
+            manager.cancel(scheduledCheckIntent(context));
+        }
+    }
+
+    private static PendingIntent scheduledCheckIntent(Context context) {
+        Intent intent = new Intent(context, UpdateCheckReceiver.class);
+        return PendingIntent.getBroadcast(context, 44, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** Called by the alarm receiver, not by the user. */
+    static void runScheduledCheck(Context context) {
+        if (!isEnabled(context)) {
+            cancelScheduledCheck(context);
+            return;
+        }
+        if (System.currentTimeMillis()
+                < prefs(context).getLong(KEY_SNOOZE_UNTIL, 0)) {
+            scheduleNextCheck(context);
+            return;
+        }
+        checkAsync(context, false, null);
     }
 
     /** True only when the user explicitly opted into pre-releases. */
@@ -274,15 +332,21 @@ final class UpdateManager {
 
     static void maybeCheckOnLaunch(Context context, Runnable after) {
         if (!isEnabled(context)) {
+            cancelScheduledCheck(context);
             runAfter(after);
             return;
         }
         long now = System.currentTimeMillis();
         if (now < prefs(context).getLong(KEY_SNOOZE_UNTIL, 0)) {
+            scheduleNextCheck(context);
             runAfter(after);
             return;
         }
-        if (now - lastCheck(context) < CHECK_INTERVAL) {
+        long interval = TimeUnit.HOURS.toMillis(
+                AppSettings.updateCheckIntervalHours(context));
+        long last = lastCheck(context);
+        if (last > 0 && now - last < interval) {
+            scheduleNextCheck(context);
             runAfter(after);
             return;
         }
@@ -383,6 +447,9 @@ final class UpdateManager {
                 message = app.getString(R.string.update_msg_failed, error.getMessage());
             } finally {
                 checking.set(false);
+                prefs(app).edit().putLong(KEY_LAST_CHECK,
+                        System.currentTimeMillis()).apply();
+                scheduleNextCheck(app);
             }
             callbackDone(callback, message);
         }).start();

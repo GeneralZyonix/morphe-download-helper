@@ -70,8 +70,11 @@ final class AppSettings {
     private static final String KEY_THEME_TINT_SURFACES = "theme_tint_surfaces";
     private static final String LEGACY_KEY_DESIGN_STYLE = "design_style";
     private static final String KEY_UPDATE_CHANNEL = "update_channel";
+    private static final String KEY_UPDATE_INTERVAL = "update_interval_hours";
     static final String UPDATE_CHANNEL_STABLE = "stable";
     static final String UPDATE_CHANNEL_PRERELEASE = "prerelease";
+    static final int UPDATE_INTERVAL_DEFAULT = 6;
+    static final int[] UPDATE_INTERVAL_OPTIONS = {6, 12, 24, 72, 168};
     private static final String KEY_HOTBAR_ORDER = "hotbar_order";
     static final String HOTBAR_HOME = "home";
     static final String HOTBAR_SOURCES = "sources";
@@ -531,6 +534,29 @@ final class AppSettings {
         String value = UPDATE_CHANNEL_PRERELEASE.equals(channel)
                 ? UPDATE_CHANNEL_PRERELEASE : UPDATE_CHANNEL_STABLE;
         prefs(context).edit().putString(KEY_UPDATE_CHANNEL, value).apply();
+    }
+
+    /** Hours between automatic update checks. Unknown values fall back to 6h. */
+    static int updateCheckIntervalHours(Context context) {
+        int value = prefs(context).getInt(KEY_UPDATE_INTERVAL,
+                UPDATE_INTERVAL_DEFAULT);
+        for (int option : UPDATE_INTERVAL_OPTIONS) {
+            if (option == value) {
+                return option;
+            }
+        }
+        return UPDATE_INTERVAL_DEFAULT;
+    }
+
+    static void setUpdateCheckIntervalHours(Context context, int hours) {
+        int value = UPDATE_INTERVAL_DEFAULT;
+        for (int option : UPDATE_INTERVAL_OPTIONS) {
+            if (option == hours) {
+                value = option;
+                break;
+            }
+        }
+        prefs(context).edit().putInt(KEY_UPDATE_INTERVAL, value).apply();
     }
 
     /**

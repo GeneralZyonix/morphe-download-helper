@@ -603,7 +603,7 @@ public class MorphePreviewActivity extends Activity {
         TextView helperText = M3Ui.text(this, getString(
                 R.string.main_version_chip_version, helperVersion()), 12, TEXT, 500);
         helperChip.addView(helperText);
-        TextView badge = M3Ui.versionBadge(this, palette, BuildConfig.PRERELEASE);
+        TextView badge = M3Ui.versionBadge(this, palette, BuildConfig.VERSION_NAME);
         LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(dp(22), dp(22));
         badgeParams.setMarginStart(dp(7));
         helperChip.addView(badge, badgeParams);

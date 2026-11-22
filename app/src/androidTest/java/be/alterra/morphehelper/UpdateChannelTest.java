@@ -22,12 +22,17 @@ public class UpdateChannelTest {
     private Context app;
     private SharedPreferences prefs;
     private String previous;
+    private int previousInterval;
+    private boolean hadInterval;
 
     @Before
     public void setUp() {
         app = InstrumentationRegistry.getInstrumentation().getTargetContext();
         prefs = app.getSharedPreferences("app_settings", Context.MODE_PRIVATE);
         previous = prefs.getString("update_channel", null);
+        hadInterval = prefs.contains("update_interval_hours");
+        previousInterval = prefs.getInt("update_interval_hours",
+                AppSettings.UPDATE_INTERVAL_DEFAULT);
     }
 
     @After
@@ -36,6 +41,11 @@ public class UpdateChannelTest {
             prefs.edit().remove("update_channel").apply();
         } else {
             prefs.edit().putString("update_channel", previous).apply();
+        }
+        if (hadInterval) {
+            prefs.edit().putInt("update_interval_hours", previousInterval).apply();
+        } else {
+            prefs.edit().remove("update_interval_hours").apply();
         }
     }
 
@@ -57,5 +67,15 @@ public class UpdateChannelTest {
                 : AppSettings.UPDATE_CHANNEL_STABLE;
         assertEquals(expected, AppSettings.updateChannel(app));
         assertEquals(expected, prefs.getString("update_channel", ""));
+    }
+
+    @Test
+    public void updateIntervalAcceptsOnlySupportedValues() {
+        AppSettings.setUpdateCheckIntervalHours(app, 12);
+        assertEquals(12, AppSettings.updateCheckIntervalHours(app));
+
+        AppSettings.setUpdateCheckIntervalHours(app, 999);
+        assertEquals(AppSettings.UPDATE_INTERVAL_DEFAULT,
+                AppSettings.updateCheckIntervalHours(app));
     }
 }

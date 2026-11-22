@@ -41,6 +41,9 @@
     <string name="main_version_chip_version">Helper v%1$s</string>
     <string name="main_version_chip_build">· %1$s</string>
     <string name="main_version_badge_prerelease">Pre-release build</string>
+    <string name="main_version_badge_release_candidate">Release candidate build</string>
+    <string name="main_version_badge_beta">Beta build</string>
+    <string name="main_version_badge_alpha">Alpha build</string>
     <string name="main_version_badge_release">Release build</string>
     <string name="main_build_icon">Icon</string>
     <string name="main_build_no_icon">No icon</string>
@@ -255,6 +258,13 @@
     <string name="settings_status_up_to_date">Current v%1$s • Up to date</string>
     <string name="settings_check_updates">Check for updates</string>
     <string name="settings_check_updates_detail">Notify me when a new release exists</string>
+    <string name="settings_update_interval">Automatic check interval</string>
+    <string name="settings_update_interval_6h">Every 6 hours</string>
+    <string name="settings_update_interval_12h">Every 12 hours</string>
+    <string name="settings_update_interval_24h">Every 24 hours</string>
+    <string name="settings_update_interval_3d">Every 3 days</string>
+    <string name="settings_update_interval_7d">Every 7 days</string>
+    <string name="settings_update_interval_note">Checks run in the background. Android may delay them in Doze, so this is a minimum interval.</string>
     <string name="settings_checks_enabled">Update checks enabled.</string>
     <string name="settings_checks_disabled">Update checks disabled.</string>
     <string name="settings_mode_shizuku">Automatic via Shizuku</string>
@@ -262,8 +272,8 @@
     <string name="settings_update_mode">Update mode</string>
     <string name="settings_update_channel">Update channel</string>
     <string name="settings_update_channel_stable">Stable only</string>
-    <string name="settings_update_channel_prerelease">Include pre-releases</string>
-    <string name="settings_update_channel_note">Include pre-releases offers test builds and still installs a newer stable release when it is the newest version.</string>
+    <string name="settings_update_channel_prerelease">Include release candidates</string>
+    <string name="settings_update_channel_note">Include release candidates offers RC/pre-release test builds and still installs a newer stable release when it is the newest version.</string>
     <string name="settings_mode_notify_option">Notify me when available</string>
     <string name="settings_mode_shizuku_option">Automatically update via Shizuku</string>
     <string name="settings_update_popup">In-app update popup</string>
@@ -719,6 +729,9 @@
     <string name="update_version_limit">Only the 20 newest versions are shown.</string>
     <string name="update_stable">Stable</string>
     <string name="update_prerelease">Pre-release</string>
+    <string name="update_rc">RC</string>
+    <string name="update_beta">BETA</string>
+    <string name="update_alpha">ALPHA</string>
     <string name="update_release_notes_for">Release notes for v%1$s.</string>
     <string name="update_viewing_versions">Current v%1$s  •  Viewing v%2$s</string>
 

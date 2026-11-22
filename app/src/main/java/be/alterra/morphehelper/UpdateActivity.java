@@ -353,7 +353,7 @@ public class UpdateActivity extends Activity {
                 UpdateInfo release = releases.get(releaseIndex);
                 row.addView(text("v" + release.version, 16, TEXT, false));
 
-                TextView pill = releasePill(UpdateInfo.isPrerelease(release.version));
+                TextView pill = releasePill(release.version);
                 LinearLayout.LayoutParams pillParams = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT,
                         ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -385,10 +385,22 @@ public class UpdateActivity extends Activity {
                 .show();
     }
 
-    private TextView releasePill(boolean prerelease) {
-        TextView pill = text(getString(prerelease
-                        ? R.string.update_prerelease : R.string.update_stable),
-                10, prerelease ? 0xFF1F1300 : 0xFFFFFFFF, true);
+    private TextView releasePill(String version) {
+        boolean prerelease = UpdateInfo.isPrerelease(version);
+        String label;
+        String lower = version == null ? "" : version.toLowerCase(java.util.Locale.US);
+        if (lower.contains("-rc")) {
+            label = getString(R.string.update_rc);
+        } else if (lower.contains("-beta")) {
+            label = getString(R.string.update_beta);
+        } else if (lower.contains("-alpha")) {
+            label = getString(R.string.update_alpha);
+        } else {
+            label = getString(prerelease
+                    ? R.string.update_prerelease : R.string.update_stable);
+        }
+        TextView pill = text(label, 10,
+                prerelease ? 0xFF1F1300 : 0xFFFFFFFF, true);
         pill.setGravity(Gravity.CENTER);
         pill.setSingleLine(true);
         pill.setPadding(dp(8), dp(3), dp(8), dp(3));

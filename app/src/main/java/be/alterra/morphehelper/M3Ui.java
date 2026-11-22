@@ -363,22 +363,51 @@ final class M3Ui {
         ));
     }
 
-    static TextView versionBadge(Context context, ThemePalette palette, boolean prerelease) {
+    static TextView versionBadge(Context context, ThemePalette palette, String version) {
+        String label = versionBadgeLabel(version);
+        boolean prerelease = !"R".equals(label);
         int foreground = prerelease
                 ? palette.onPrimary
                 : (palette.light ? Color.WHITE : Color.BLACK);
-        TextView badge = text(context, prerelease ? "P" : "R", 12,
-                foreground, 700);
+        TextView badge = text(context, label, 12, foreground, 700);
         badge.setGravity(Gravity.CENTER);
         badge.setIncludeFontPadding(false);
-        badge.setContentDescription(context.getString(prerelease
-                ? R.string.main_version_badge_prerelease
-                : R.string.main_version_badge_release));
+        badge.setContentDescription(context.getString(versionBadgeDescription(label)));
         GradientDrawable background = prerelease
                 ? brandGradient(context, palette, 7)
                 : filled(context, palette.green, 7, 0, Color.TRANSPARENT);
         badge.setBackground(background);
         return badge;
+    }
+
+    private static String versionBadgeLabel(String version) {
+        String value = version == null ? "" : version.toLowerCase(java.util.Locale.US);
+        if (value.contains("-rc")) {
+            return "RC";
+        }
+        if (value.contains("-beta")) {
+            return "BETA";
+        }
+        if (value.contains("-alpha")) {
+            return "ALPHA";
+        }
+        return value.contains("-") ? "PRE" : "R";
+    }
+
+    private static int versionBadgeDescription(String label) {
+        if ("RC".equals(label)) {
+            return R.string.main_version_badge_release_candidate;
+        }
+        if ("BETA".equals(label)) {
+            return R.string.main_version_badge_beta;
+        }
+        if ("ALPHA".equals(label)) {
+            return R.string.main_version_badge_alpha;
+        }
+        if ("PRE".equals(label)) {
+            return R.string.main_version_badge_prerelease;
+        }
+        return R.string.main_version_badge_release;
     }
 
     // ------------------------------------------------------------------

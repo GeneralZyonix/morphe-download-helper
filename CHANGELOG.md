@@ -19,6 +19,22 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
+## [Unreleased]
+
+### Added
+
+- **Automatic update check interval**: choose every 6 hours (default), 12 hours,
+  24 hours, 3 days, or 7 days. A background alarm runs the check at that interval,
+  reschedules after each run and after reboot, and is cancelled when
+  **Check for updates** is turned off.
+
+### Changed
+
+- The Home version badge is now type-aware: **RC** for release candidates,
+  **BETA**, **ALPHA**, **PRE**, or **R** for a stable release.
+- The update selector now says **Include release candidates** instead of
+  **Include pre-releases**. It still accepts any GitHub pre-release marker.
+
 ## [3.3.0-rc.4] - 2026-11-22
 
 <!-- prerelease -->

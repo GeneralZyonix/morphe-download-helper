@@ -871,6 +871,7 @@ public class SettingsActivity extends Activity {
         enabledSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             UpdateManager.setEnabled(this, isChecked);
             PublicSettings.write(this);
+            scheduleUpdatesRebuild();
             if (isChecked) {
                 Toast.makeText(this, R.string.settings_checks_enabled, Toast.LENGTH_SHORT).show();
             } else {
@@ -879,6 +880,24 @@ public class SettingsActivity extends Activity {
         });
         enabledRow.addView(enabledSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(enabledRow);
+
+        if (UpdateManager.isEnabled(this)) {
+            LinearLayout intervalRow = settingRow(
+                    getString(R.string.settings_update_interval),
+                    updateIntervalLabel());
+            intervalRow.setOnClickListener(v -> showUpdateIntervalDialog());
+            LinearLayout.LayoutParams intervalParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            intervalParams.topMargin = dp(8);
+            card.addView(intervalRow, intervalParams);
+
+            TextView intervalNote = text(
+                    getString(R.string.settings_update_interval_note), 11, MUTED, false);
+            intervalNote.setLineSpacing(dp(2), 1f);
+            intervalNote.setPadding(0, dp(6), 0, dp(4));
+            card.addView(intervalNote);
+        }
 
         String mode = UpdateManager.mode(this);
         String modeLabel = UpdateManager.MODE_SHIZUKU.equals(mode)
@@ -1063,6 +1082,49 @@ public class SettingsActivity extends Activity {
                 }
             });
         }
+    }
+
+    private String updateIntervalLabel() {
+        return updateIntervalLabel(AppSettings.updateCheckIntervalHours(this));
+    }
+
+    private String updateIntervalLabel(int hours) {
+        if (hours == 12) {
+            return getString(R.string.settings_update_interval_12h);
+        }
+        if (hours == 24) {
+            return getString(R.string.settings_update_interval_24h);
+        }
+        if (hours == 72) {
+            return getString(R.string.settings_update_interval_3d);
+        }
+        if (hours == 168) {
+            return getString(R.string.settings_update_interval_7d);
+        }
+        return getString(R.string.settings_update_interval_6h);
+    }
+
+    private void showUpdateIntervalDialog() {
+        int current = AppSettings.updateCheckIntervalHours(this);
+        int[] options = AppSettings.UPDATE_INTERVAL_OPTIONS;
+        String[] labels = new String[options.length];
+        int checked = 0;
+        for (int i = 0; i < options.length; i++) {
+            labels[i] = updateIntervalLabel(options[i]);
+            if (options[i] == current) {
+                checked = i;
+            }
+        }
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_update_interval)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    AppSettings.setUpdateCheckIntervalHours(this, options[which]);
+                    UpdateManager.scheduleNextCheck(this);
+                    PublicSettings.write(this);
+                    scheduleUpdatesRebuild();
+                })
+                .show();
     }
 
     private String updateChannelLabel() {

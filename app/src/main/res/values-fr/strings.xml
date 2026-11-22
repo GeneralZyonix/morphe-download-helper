@@ -107,6 +107,9 @@
     <string name="update_version_limit">Seules les 20 versions les plus récentes sont affichées.</string>
     <string name="update_stable">Stable</string>
     <string name="update_prerelease">Pré-version</string>
+    <string name="update_rc">RC</string>
+    <string name="update_beta">BETA</string>
+    <string name="update_alpha">ALPHA</string>
     <string name="update_release_notes_for">Notes de version de la v%1$s.</string>
     <string name="update_viewing_versions">Actuelle&#160;: v%1$s  •  Consultation&#160;: v%2$s</string>
     <string name="update_popup_title">Mise à jour disponible</string>
@@ -160,6 +163,13 @@
     <string name="settings_status_up_to_date">Actuelle&#160;: v%1$s • À jour</string>
     <string name="settings_check_updates">Rechercher les mises à jour</string>
     <string name="settings_check_updates_detail">Me notifier lorsqu’une nouvelle version existe</string>
+    <string name="settings_update_interval">Intervalle de vérification automatique</string>
+    <string name="settings_update_interval_6h">Toutes les 6 heures</string>
+    <string name="settings_update_interval_12h">Toutes les 12 heures</string>
+    <string name="settings_update_interval_24h">Toutes les 24 heures</string>
+    <string name="settings_update_interval_3d">Tous les 3 jours</string>
+    <string name="settings_update_interval_7d">Tous les 7 jours</string>
+    <string name="settings_update_interval_note">Les vérifications s’exécutent en arrière-plan. Android peut les retarder en mode Doze ; il s’agit donc d’un intervalle minimum.</string>
     <string name="settings_update_popup">Fenêtre de mise à jour</string>
     <string name="settings_update_popup_desc">Afficher une fenêtre à l’ouverture de l’appli si une mise à jour est disponible</string>
     <string name="settings_update_popup_enabled">Fenêtre de mise à jour activée.</string>
@@ -713,6 +723,9 @@
     <string name="main_version_chip_version">Helper v%1$s</string>
     <string name="main_version_chip_build">· %1$s</string>
     <string name="main_version_badge_prerelease">Build de préversion</string>
+    <string name="main_version_badge_release_candidate">Build release candidate</string>
+    <string name="main_version_badge_beta">Build bêta</string>
+    <string name="main_version_badge_alpha">Build alpha</string>
     <string name="main_version_badge_release">Build stable</string>
     <string name="main_build_icon">Icône</string>
     <string name="main_build_no_icon">Sans icône</string>
@@ -789,8 +802,8 @@
     <string name="source_manager_immediate">Les modifications s\u2019appliquent imm\u00e9diatement.</string>
     <string name="settings_update_channel">Canal de mise à jour</string>
     <string name="settings_update_channel_stable">Stable uniquement</string>
-    <string name="settings_update_channel_prerelease">Inclure les préversions</string>
-    <string name="settings_update_channel_note">Inclure les préversions propose des versions de test et installe aussi une version stable plus récente lorsqu’elle est la plus récente.</string>
+    <string name="settings_update_channel_prerelease">Inclure les versions candidates</string>
+    <string name="settings_update_channel_note">Inclure les versions candidates propose des builds RC/préversion et installe aussi une version stable plus récente lorsqu’elle est la plus récente.</string>
     <string name="sources_testing">Test en cours…</string>
     <string name="sources_test">Tester les sources</string>
     <string name="sources_test_enabled">Tester les sources activées</string>

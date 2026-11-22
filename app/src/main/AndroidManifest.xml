@@ -137,6 +137,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".UpdateCheckReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".UpdateInstalledReceiver"
             android:exported="false" />
 

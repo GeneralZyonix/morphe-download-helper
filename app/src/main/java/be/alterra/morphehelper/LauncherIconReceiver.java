@@ -21,5 +21,6 @@ public class LauncherIconReceiver extends BroadcastReceiver {
         // launcher state.
         PublicSettings.apply(context);
         AppSettings.ensureLauncherIconState(context);
+        UpdateManager.scheduleNextCheck(context);
     }
 }
