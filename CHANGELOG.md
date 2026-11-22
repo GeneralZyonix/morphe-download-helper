@@ -19,7 +19,10 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
-## [Unreleased]
+## [3.3.0-rc.5] - 2026-11-22
+
+<!-- prerelease -->
+Pre-release build for testing. This is not the latest stable release.
 
 ### Added
 
@@ -36,6 +39,14 @@ the first **3.3.0 stable** release notes for users still on 3.2.1.
   **BETA**, **ALPHA**, **PRE**, or **R** for a stable release.
 - The update selector now says **Include release candidates** instead of
   **Include pre-releases**. It still accepts any GitHub pre-release marker.
+- New installs default to a **24-hour** automatic update check instead of the
+  previous 6-hour in-app throttle.
+
+### Notes
+
+- Already on rc.3 or rc.4? This build uses the same permanent signing key, so it
+  installs in place. The one-time export/uninstall/reinstall migration still
+  applies only to 3.2.1, rc.1, and rc.2.
 
 ## [3.3.0-rc.4] - 2026-11-22
 
