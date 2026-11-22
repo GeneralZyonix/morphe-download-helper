@@ -73,7 +73,7 @@ final class AppSettings {
     private static final String KEY_UPDATE_INTERVAL = "update_interval_hours";
     static final String UPDATE_CHANNEL_STABLE = "stable";
     static final String UPDATE_CHANNEL_PRERELEASE = "prerelease";
-    static final int UPDATE_INTERVAL_DEFAULT = 6;
+    static final int UPDATE_INTERVAL_DEFAULT = 24;
     static final int[] UPDATE_INTERVAL_OPTIONS = {6, 12, 24, 72, 168};
     private static final String KEY_HOTBAR_ORDER = "hotbar_order";
     static final String HOTBAR_HOME = "home";
