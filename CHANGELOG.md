@@ -27,8 +27,8 @@ the first **3.3.0 stable** release notes for users still on 3.2.1.
 - The multi-connection description no longer claims a 4-connection limit. The
   configured maximum can be 2, 4, 8, 16, or 32.
 - Dutch: the Downloads screen now says **Recente downloads** instead of
-  **Recente overdrachten**, and connection counts use **verbindingen** instead
-  of **aansluitingen**.
+  **Recente overdrachten**, connection counts use **verbindingen** instead of
+  **aansluitingen**, and **Material You** stays untranslated.
 
 ### Fixed
 

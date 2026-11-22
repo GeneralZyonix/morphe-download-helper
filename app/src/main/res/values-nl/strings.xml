@@ -718,7 +718,7 @@
     <string name="theme_accent_ice">IJs</string>
     <string name="theme_accent_ocean">Oceaan</string>
     <string name="theme_accent_mono">Mono</string>
-    <string name="theme_accent_material">Materiaal Jij</string>
+    <string name="theme_accent_material">Material You</string>
     <string name="theme_accent_custom">Aangepast</string>
     <string name="theme_accent_scheme">Aangepast schema</string>
     <string name="appearance_custom_hex_hint">#RRGGBB</string>
