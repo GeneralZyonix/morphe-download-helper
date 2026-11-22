@@ -46,8 +46,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          if grep -q 'PRERELEASE", "true"' app/build.gradle; then
+            RELEASE_FLAGS="--prerelease --latest=false"
+          else
+            RELEASE_FLAGS="--latest"
+          fi
           gh release create "$GITHUB_REF_NAME" \
             --title "Morphe Download Helper ${VERSION}" \
             --generate-notes \
-            --latest \
+            $RELEASE_FLAGS \
             release/*.apk "release/SHA256SUMS-${VERSION}.txt"
