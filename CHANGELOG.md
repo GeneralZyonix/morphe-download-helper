@@ -5,7 +5,7 @@ All notable changes to Morphe Download Helper are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows a simple `MAJOR.MINOR` version scheme.
 
-## [3.3.0-rc.1] - 2026-11-22
+## [3.3.0-rc.2] - 2026-11-22
 
 <!-- prerelease -->
 Pre-release build for testing. This is not the latest stable release.
@@ -28,8 +28,18 @@ Pre-release build for testing. This is not the latest stable release.
 
 ### Changed
 
+- **Update channels are now Stable only and Include pre-releases.** Auto is
+  removed. Existing Auto users are migrated once to Stable only, or to Include
+  pre-releases if they are already on a pre-release build.
+- **Include pre-releases** still installs a newer stable release when it is the
+  newest version, and the channel stays selected afterwards.
 - The release notes and source labels now use the existing download history
   source URL for new downloads.
+
+### Fixed
+
+- Stable installs no longer see pre-releases from the changelog.
+- Shizuku self-update no longer times out because R8 keeps the user-service class.
 
 ## [3.2.1] - 2026-11-22
 

@@ -70,7 +70,6 @@ final class AppSettings {
     private static final String KEY_THEME_TINT_SURFACES = "theme_tint_surfaces";
     private static final String LEGACY_KEY_DESIGN_STYLE = "design_style";
     private static final String KEY_UPDATE_CHANNEL = "update_channel";
-    static final String UPDATE_CHANNEL_AUTO = "auto";
     static final String UPDATE_CHANNEL_STABLE = "stable";
     static final String UPDATE_CHANNEL_PRERELEASE = "prerelease";
     private static final String KEY_HOTBAR_ORDER = "hotbar_order";
@@ -515,19 +514,22 @@ final class AppSettings {
     }
 
     static String updateChannel(Context context) {
-        String value = prefs(context).getString(KEY_UPDATE_CHANNEL,
-                UPDATE_CHANNEL_AUTO);
+        String value = prefs(context).getString(KEY_UPDATE_CHANNEL, "");
         if (UPDATE_CHANNEL_STABLE.equals(value)
                 || UPDATE_CHANNEL_PRERELEASE.equals(value)) {
             return value;
         }
-        return UPDATE_CHANNEL_AUTO;
+        // Migrate the old Auto/unknown value once: stable installs stay on
+        // stable, while an installed pre-release build keeps receiving them.
+        String migrated = BuildConfig.PRERELEASE
+                ? UPDATE_CHANNEL_PRERELEASE : UPDATE_CHANNEL_STABLE;
+        prefs(context).edit().putString(KEY_UPDATE_CHANNEL, migrated).apply();
+        return migrated;
     }
 
     static void setUpdateChannel(Context context, String channel) {
-        String value = UPDATE_CHANNEL_STABLE.equals(channel)
-                || UPDATE_CHANNEL_PRERELEASE.equals(channel)
-                ? channel : UPDATE_CHANNEL_AUTO;
+        String value = UPDATE_CHANNEL_PRERELEASE.equals(channel)
+                ? UPDATE_CHANNEL_PRERELEASE : UPDATE_CHANNEL_STABLE;
         prefs(context).edit().putString(KEY_UPDATE_CHANNEL, value).apply();
     }
 

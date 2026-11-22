@@ -120,17 +120,10 @@ final class UpdateManager {
         }
     }
 
-    /** Resolves the saved update channel; auto follows the installed build. */
+    /** True only when the user explicitly opted into pre-releases. */
     static boolean includePrereleases(Context context) {
-        String channel = AppSettings.updateChannel(context);
-        if (AppSettings.UPDATE_CHANNEL_STABLE.equals(channel)) {
-            return false;
-        }
-        if (AppSettings.UPDATE_CHANNEL_PRERELEASE.equals(channel)) {
-            return true;
-        }
-        return BuildConfig.PRERELEASE
-                || UpdateInfo.isPrerelease(UpdateChecker.installedVersion(context));
+        return AppSettings.UPDATE_CHANNEL_PRERELEASE.equals(
+                AppSettings.updateChannel(context));
     }
 
     static void remindLater(Context context) {

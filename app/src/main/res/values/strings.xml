@@ -261,9 +261,9 @@
     <string name="settings_mode_notify">Notify me when available</string>
     <string name="settings_update_mode">Update mode</string>
     <string name="settings_update_channel">Update channel</string>
-    <string name="settings_update_channel_auto">Auto (match installed build)</string>
     <string name="settings_update_channel_stable">Stable only</string>
-    <string name="settings_update_channel_prerelease">Pre-release</string>
+    <string name="settings_update_channel_prerelease">Include pre-releases</string>
+    <string name="settings_update_channel_note">Include pre-releases offers test builds and still installs a newer stable release when it is the newest version.</string>
     <string name="settings_mode_notify_option">Notify me when available</string>
     <string name="settings_mode_shizuku_option">Automatically update via Shizuku</string>
     <string name="settings_update_popup">In-app update popup</string>

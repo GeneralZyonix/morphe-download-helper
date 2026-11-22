@@ -785,10 +785,10 @@
     <string name="report_build_exact">Contrôle de build&#160;: code de version exact vérifié</string>
     <string name="report_build_name">Contrôle de build&#160;: nom de version uniquement (aucun code de build fourni)</string>
     <string name="source_manager_immediate">Les modifications s\u2019appliquent imm\u00e9diatement.</string>
-    <string name="settings_update_channel">Canal de mise \u00e0 jour</string>
-    <string name="settings_update_channel_auto">Auto (stable ou pr\u00e9version)</string>
+    <string name="settings_update_channel">Canal de mise à jour</string>
     <string name="settings_update_channel_stable">Stable uniquement</string>
-    <string name="settings_update_channel_prerelease">Pr\u00e9version</string>
+    <string name="settings_update_channel_prerelease">Inclure les préversions</string>
+    <string name="settings_update_channel_note">Inclure les préversions propose des versions de test et installe aussi une version stable plus récente lorsqu’elle est la plus récente.</string>
     <string name="sources_testing">Test en cours…</string>
     <string name="sources_test">Tester les sources</string>
     <string name="sources_test_enabled">Tester les sources activées</string>

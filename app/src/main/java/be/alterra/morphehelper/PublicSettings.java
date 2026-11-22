@@ -151,6 +151,10 @@ final class PublicSettings {
         } else if ("shizuku".equalsIgnoreCase(updateMode)) {
             UpdateManager.setMode(context, UpdateManager.MODE_SHIZUKU);
         }
+        String updateChannel = values.get("update_channel");
+        if (updateChannel != null) {
+            AppSettings.setUpdateChannel(context, updateChannel);
+        }
         String shizukuPackage = values.get("shizuku_package");
         if (shizukuPackage != null) {
             String trimmed = shizukuPackage.trim();
@@ -436,6 +440,8 @@ final class PublicSettings {
                 .append(UpdateManager.isEnabled(context)).append('\n');
         text.append("update_mode=")
                 .append(UpdateManager.mode(context)).append('\n');
+        text.append("update_channel=")
+                .append(AppSettings.updateChannel(context)).append('\n');
         text.append("update_popup=")
                 .append(UpdateManager.isInAppPopupEnabled(context)).append('\n');
         text.append("shizuku_package=")

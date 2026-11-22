@@ -917,6 +917,12 @@ public class SettingsActivity extends Activity {
         }
         card.addView(channelRow);
 
+        TextView channelNote = text(
+                getString(R.string.settings_update_channel_note), 11, MUTED, false);
+        channelNote.setLineSpacing(dp(2), 1f);
+        channelNote.setPadding(0, dp(6), 0, dp(4));
+        card.addView(channelNote);
+
         if (!UpdateManager.MODE_SHIZUKU.equals(mode)) {
             LinearLayout popupRow = new LinearLayout(this);
             popupRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -1060,35 +1066,23 @@ public class SettingsActivity extends Activity {
     }
 
     private String updateChannelLabel() {
-        switch (AppSettings.updateChannel(this)) {
-            case AppSettings.UPDATE_CHANNEL_STABLE:
-                return getString(R.string.settings_update_channel_stable);
-            case AppSettings.UPDATE_CHANNEL_PRERELEASE:
-                return getString(R.string.settings_update_channel_prerelease);
-            default:
-                return getString(R.string.settings_update_channel_auto);
-        }
+        return getString(AppSettings.UPDATE_CHANNEL_PRERELEASE.equals(
+                AppSettings.updateChannel(this))
+                ? R.string.settings_update_channel_prerelease
+                : R.string.settings_update_channel_stable);
     }
 
     private int updateChannelIndex() {
-        switch (AppSettings.updateChannel(this)) {
-            case AppSettings.UPDATE_CHANNEL_STABLE:
-                return 1;
-            case AppSettings.UPDATE_CHANNEL_PRERELEASE:
-                return 2;
-            default:
-                return 0;
-        }
+        return AppSettings.UPDATE_CHANNEL_PRERELEASE.equals(
+                AppSettings.updateChannel(this)) ? 1 : 0;
     }
 
     private void showUpdateChannelDialog() {
         String[] labels = {
-                getString(R.string.settings_update_channel_auto),
                 getString(R.string.settings_update_channel_stable),
                 getString(R.string.settings_update_channel_prerelease)
         };
         String[] values = {
-                AppSettings.UPDATE_CHANNEL_AUTO,
                 AppSettings.UPDATE_CHANNEL_STABLE,
                 AppSettings.UPDATE_CHANNEL_PRERELEASE
         };
