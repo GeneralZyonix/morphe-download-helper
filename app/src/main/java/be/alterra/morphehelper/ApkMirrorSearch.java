@@ -378,6 +378,31 @@ final class ApkMirrorSearch {
                 .replace("&nbsp;", " ");
     }
 
+    /**
+     * Returns the release page that contains an APKMirror variant page. For
+     * example, the parent of {@code .../app-1-2-3-release/app-1-2-3-android-apk-download/}
+     * is {@code .../app-1-2-3-release/}.
+     */
+    static String parentReleaseUrl(String variantUrl) {
+        if (variantUrl == null) {
+            return null;
+        }
+        String value = variantUrl;
+        int query = value.indexOf('?');
+        if (query >= 0) {
+            value = value.substring(0, query);
+        }
+        int hash = value.indexOf('#');
+        if (hash >= 0) {
+            value = value.substring(0, hash);
+        }
+        if (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        int slash = value.lastIndexOf('/');
+        return slash > 0 ? value.substring(0, slash + 1) : null;
+    }
+
     /** A build exists, but its minimum Android version is newer than the device. */
     static final class IncompatibleVariantException extends IOException {
         final int minSdk;

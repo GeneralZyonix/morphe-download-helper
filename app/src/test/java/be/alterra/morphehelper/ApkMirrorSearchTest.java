@@ -14,10 +14,15 @@ public class ApkMirrorSearchTest {
     }
 
     private static String variantRow(String href, String abi, String minAndroid) {
+        return variantRow(href, abi, minAndroid, "20003000");
+    }
+
+    private static String variantRow(String href, String abi, String minAndroid,
+                                     String code) {
         return "<div class=\"table-row\">"
                 + "<div class=\"table-cell\"><a href=\"" + href + "\">App 2.0.3</a>"
                 + "<span class=\"apkm-badge success\">BUNDLE</span>"
-                + "<span class=\"colorLightBlack\">20003000</span></div>"
+                + "<span class=\"colorLightBlack\">" + code + "</span></div>"
                 + "<div class=\"table-cell\">" + abi + "</div>"
                 + "<div class=\"table-cell\">" + minAndroid + "</div>"
                 + "<div class=\"table-cell\">480-640dpi</div>"
@@ -224,5 +229,36 @@ public class ApkMirrorSearchTest {
             return;
         }
         throw new AssertionError("Expected an incompatible-build rejection");
+    }
+
+    @Test
+    public void choosesTheRequestedBuildCodeInsteadOfTheFirstVariant() throws Exception {
+        String wrongBuild = "/apk/facebook-2/facebook/facebook-588-release/"
+                + "facebook-588-5-android-apk-download/";
+        String rightBuild = "/apk/facebook-2/facebook/facebook-588-release/"
+                + "facebook-588-9-android-apk-download/";
+        String page = variantRow(wrongBuild, "arm64-v8a", "Android 10+", "707615090")
+                + variantRow(rightBuild, "arm64-v8a", "Android 10+", "707615136");
+
+        String picked = ApkMirrorSearch.chooseVariant(page, "apkm",
+                new String[]{"arm64-v8a"}, new long[]{707615136, 707615135}, 37);
+
+        assertEquals(rightBuild, picked);
+    }
+
+    @Test
+    public void variantUrlParentIsTheReleasePage() {
+        assertEquals("https://www.apkmirror.com/apk/facebook-2/facebook/"
+                        + "facebook-588-release/",
+                ApkMirrorSearch.parentReleaseUrl(
+                        "https://www.apkmirror.com/apk/facebook-2/facebook/"
+                                + "facebook-588-release/"
+                                + "facebook-588-5-android-apk-download/"));
+        assertEquals("https://www.apkmirror.com/apk/facebook-2/facebook/"
+                        + "facebook-588-release/",
+                ApkMirrorSearch.parentReleaseUrl(
+                        "https://www.apkmirror.com/apk/facebook-2/facebook/"
+                                + "facebook-588-release/"
+                                + "facebook-588-5-android-apk-download/?x=1"));
     }
 }

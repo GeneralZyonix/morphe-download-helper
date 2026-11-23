@@ -1330,8 +1330,15 @@ public class DownloadActivity extends Activity {
         if (webParentSourceKey == null) {
             webParentSourceKey = activeSourceKey;
         }
-        pendingSourceKey = "uptodown".equals(source)
-                ? SourceSettings.FALLBACK : webSourceKey();
+        // A resolver APKMirror/APKPure link belongs to the Morphe link row.
+        // Keep the visible source on that row while the verification WebView is
+        // open, instead of making the provider look like a separate source.
+        if (SourceSettings.FALLBACK.equals(webParentSourceKey)) {
+            pendingSourceKey = SourceSettings.FALLBACK;
+        } else {
+            pendingSourceKey = "uptodown".equals(source)
+                    ? SourceSettings.FALLBACK : webSourceKey();
+        }
         activeSourceKey = pendingSourceKey;
         String webLabel;
         if ("apkpure".equals(source)) {
@@ -4343,6 +4350,7 @@ public class DownloadActivity extends Activity {
     private void markWebFlowResult(boolean ok, String message) {
         hideVerificationHint();
         pendingSourceKey = null;
+        boolean fromFallback = SourceSettings.FALLBACK.equals(webParentSourceKey);
         if ("uptodown".equals(webSource)) {
             // Uptodown is reached through the Morphe link, so it shares that
             // top-level row in the visible source list. Keep the sub-source in
@@ -4354,6 +4362,19 @@ public class DownloadActivity extends Activity {
             SourceHealth.record(this, SourceSettings.UPTODOWN, ok,
                     message == null ? "" : message);
             markSource(SourceSettings.FALLBACK, ok, message);
+        } else if (fromFallback) {
+            // A resolver-supplied APKMirror/APKPure page belongs to the Morphe
+            // link row. Record the provider result in health history, but keep
+            // that provider row unused in the visible list.
+            SourceHealth.record(this, webSourceKey(), ok,
+                    message == null ? "" : message);
+            String detail = message;
+            if (ok && "apkmirror".equals(webSource)) {
+                detail = getString(R.string.source_detail_resolver_apkmirror);
+            } else if (ok && "apkpure".equals(webSource)) {
+                detail = getString(R.string.source_detail_resolver_apkpure);
+            }
+            markSource(SourceSettings.FALLBACK, ok, detail);
         } else {
             markSource(webSourceKey(), ok, message);
         }
@@ -6427,33 +6448,32 @@ public class DownloadActivity extends Activity {
 
             // -android-apk-download/ is a variant page (APK/APKM/APKS choices).
             if (lower.contains("-android-apk-download/")) {
-                try {
-                    return downloadFromVariantPage(url, pkg, version, fileType);
-                } catch (ApkMirrorSearch.IncompatibleVariantException incompatible) {
-                    // The resolver may link to the arm64 variant even when the
-                    // same version has a universal build for an older Android
-                    // release. Re-run selection on the release page and retry.
-                    String releaseUrl = parentReleaseUrl(url);
-                    if (releaseUrl == null) {
-                        throw incompatible;
-                    }
-                    HelperLog.info("APKMirror variant is incompatible; trying "
-                            + releaseUrl);
-                    String releaseHtml;
+                // Resolver links sometimes point at a different build or ABI
+                // than the requested version codes. Re-run selection on the
+                // release page so the exact requested build is preferred.
+                String releaseUrl = ApkMirrorSearch.parentReleaseUrl(url);
+                if (releaseUrl != null) {
                     try {
-                        releaseHtml = httpGet(releaseUrl, null);
+                        String releaseHtml = httpGet(releaseUrl, null);
+                        String variant = chooseVariant(releaseHtml, fileType, abis);
+                        if (variant != null) {
+                            return downloadFromVariantPage(
+                                    absolute(variant), pkg, version, fileType);
+                        }
+                        HelperLog.info("APKMirror release page had no matching "
+                                + "variant; using the resolver variant");
+                    } catch (ApkMirrorSearch.IncompatibleVariantException incompatible) {
+                        throw incompatible;
                     } catch (IOException error) {
                         HelperLog.info("APKMirror release page failed: "
                                 + error.getMessage());
-                        throw incompatible;
+                        if (isApkMirrorWebFallback(error)) {
+                            handoffToApkMirrorWeb(
+                                    releaseUrl, pkg, version, fileType);
+                        }
                     }
-                    String variant = chooseVariant(releaseHtml, fileType, abis);
-                    if (variant == null) {
-                        throw incompatible;
-                    }
-                    return downloadFromVariantPage(
-                            absolute(variant), pkg, version, fileType);
                 }
+                return downloadFromVariantPage(url, pkg, version, fileType);
             }
 
             // -release/ is a version page; pick the best variant for the requested type.
@@ -6506,31 +6526,6 @@ public class DownloadActivity extends Activity {
 
         // Unknown host or unsupported page shape.
         throw new IOException("Fallback URL is not a supported APK source");
-    }
-
-    /**
-     * Returns the release page that contains an APKMirror variant page. For
-     * example, the parent of {@code .../app-1-2-3-release/app-1-2-3-android-apk-download/}
-     * is {@code .../app-1-2-3-release/}.
-     */
-    private String parentReleaseUrl(String variantUrl) {
-        if (variantUrl == null) {
-            return null;
-        }
-        String value = variantUrl;
-        int query = value.indexOf('?');
-        if (query >= 0) {
-            value = value.substring(0, query);
-        }
-        int hash = value.indexOf('#');
-        if (hash >= 0) {
-            value = value.substring(0, hash);
-        }
-        if (value.endsWith("/")) {
-            value = value.substring(0, value.length() - 1);
-        }
-        int slash = value.lastIndexOf('/');
-        return slash > 0 ? value.substring(0, slash + 1) : null;
     }
 
     /**

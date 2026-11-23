@@ -27,6 +27,10 @@ the first **3.3.0 stable** release notes for users still on 3.2.1.
   grow for longer translations instead of clipping the second line.
 - The APKMirror verification note now explains that a CAPTCHA must be completed
   manually and cannot be bypassed by the helper.
+- A Morphe link that resolves to APKMirror and needs WebView verification is now
+  credited to the **Morphe link** row instead of the APKMirror row.
+- Resolver APKMirror links are rechecked against the release page so the
+  requested build is chosen even when the link points at another build.
 
 ## [3.3.0-rc.6] - 2026-11-22
 
