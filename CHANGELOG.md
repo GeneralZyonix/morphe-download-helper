@@ -19,6 +19,50 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
+## [3.3.0] - 2026-11-23
+
+First stable 3.3.0 release. This includes all changes from 3.3.0-rc.1 through
+3.3.0-rc.7.
+
+### Added
+
+- **Manual APK import** when automatic sources fail.
+- **Mobile-data policy**: Ask, Wi-Fi only, or Always allow.
+- **File details and history actions**: SHA-256, package, version, source URL,
+  signing certificate, share, and copy source link.
+- **WebView toolbar**: Reload, open in browser, and copy page URL.
+- **Automatic update check interval**: 6 hours, 12 hours, 24 hours (default),
+  3 days, or 7 days, with a background alarm that reschedules after reboot.
+- **Dutch translation**, with English fallback until community review is done.
+- Type-aware version badge: **RC**, **BETA**, **ALPHA**, **PRE**, or **R**.
+
+### Changed
+
+- Update channels are now **Stable only** and **Include release candidates**.
+- Settings section **Downloads & storage** groups downloads and storage options.
+- **Download pages** is now **WebView settings**.
+- The multi-connection description is configurable from 2 to 32 connections.
+- The default automatic update check is **24 hours**.
+
+### Fixed
+
+- Shizuku self-update no longer times out.
+- Stable builds no longer see pre-releases from the changelog.
+- APKMirror variant selection respects the minimum Android version.
+- Resolver APKMirror links choose the requested build and are credited to the
+  Morphe link row.
+- APKMirror search skips unrelated results and no longer accepts a version match
+  without an app/package match.
+- Long accent names shrink instead of wrapping mid-word.
+- Dutch Downloads wording, source-switch label, connection labels, and
+  **Material You** naming are corrected.
+
+### Migration
+
+- Users on **3.2.1 or older** must export settings, uninstall once, install
+  3.3.0, then restore. Those builds used temporary CI keys.
+- Users on **3.3.0-rc.3 through rc.7** can update in place with the permanent key.
+
 ## [3.3.0-rc.7] - 2026-11-23
 
 <!-- prerelease -->
