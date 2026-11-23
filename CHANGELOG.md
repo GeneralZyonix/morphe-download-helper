@@ -31,6 +31,8 @@ the first **3.3.0 stable** release notes for users still on 3.2.1.
   credited to the **Morphe link** row instead of the APKMirror row.
 - Resolver APKMirror links are rechecked against the release page so the
   requested build is chosen even when the link points at another build.
+- APKMirror search now skips unrelated results instead of opening a provider
+  page for the wrong app.
 
 ## [3.3.0-rc.6] - 2026-11-22
 

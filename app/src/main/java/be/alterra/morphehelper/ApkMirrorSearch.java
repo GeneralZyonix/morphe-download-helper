@@ -128,7 +128,8 @@ final class ApkMirrorSearch {
         if (!nameSlug.isEmpty() && compact(text).contains(compact(nameSlug))) {
             score += 40;
         }
-        if (version != null && !version.isEmpty()) {
+        // Version text alone must not make an unrelated app look plausible.
+        if (score > 0 && version != null && !version.isEmpty()) {
             String versionSlug = version.replace('.', '-').toLowerCase(Locale.US);
             if (href.toLowerCase(Locale.US).contains(versionSlug)
                     || compact(text).contains(compact(version))) {

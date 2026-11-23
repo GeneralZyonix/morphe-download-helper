@@ -6501,8 +6501,15 @@ public class DownloadActivity extends Activity {
             }
 
             // Search URL or anything else: resolve from the first result.
+            String searchHtml = httpGet(url, null);
+            if ((lower.contains("?s=") || lower.contains("/search"))
+                    && !ApkMirrorSearch.hasPlausibleMatch(
+                            searchHtml, requestedAppName, pkg, version)) {
+                HelperLog.info("APKMirror search has no plausible match; skipping");
+                throw new IOException("No matching app on APKMirror");
+            }
             String firstVersion = ApkMirrorSearch.findBestVersionUrl(
-                    httpGet(url, null), requestedAppName, pkg, version);
+                    searchHtml, requestedAppName, pkg, version);
             if (firstVersion != null) {
                 String appUrl = ApkMirrorSearch.appPath(firstVersion);
                 if (appUrl.isEmpty()) {
@@ -6615,9 +6622,8 @@ public class DownloadActivity extends Activity {
         if (firstVersion == null) {
             throw new IOException("No matching app on APKMirror");
         }
-        if (AppSettings.fastSourceChecks(this)
-                && !ApkMirrorSearch.hasPlausibleMatch(
-                        searchHtml, requestedAppName, pkg, version)) {
+        if (!ApkMirrorSearch.hasPlausibleMatch(
+                searchHtml, requestedAppName, pkg, version)) {
             HelperLog.info("APKMirror search has no plausible match; skipping app page");
             throw new IOException("No matching app on APKMirror");
         }

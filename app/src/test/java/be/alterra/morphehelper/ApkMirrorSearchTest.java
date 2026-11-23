@@ -108,6 +108,26 @@ public class ApkMirrorSearchTest {
     }
 
     @Test
+    public void plausibleMatchRejectsTheWhatsAppSearchFallback() {
+        String html = link(
+                "/apk/whatsapp-inc/whatsapp-messenger/whatsapp-2-26-47-3-release/",
+                "WhatsApp 2.26.47.3");
+
+        assertFalse(ApkMirrorSearch.hasPlausibleMatch(
+                html, "AmoledPix", "com.androholic.amoledpix", "7.3"));
+    }
+
+    @Test
+    public void matchingVersionAloneDoesNotMakeAnUnrelatedAppPlausible() {
+        String html = link(
+                "/apk/someone/other-app/other-app-7-3-release/",
+                "Other App 7.3");
+
+        assertFalse(ApkMirrorSearch.hasPlausibleMatch(
+                html, "AmoledPix", "com.androholic.amoledpix", "7.3"));
+    }
+
+    @Test
     public void appPathHandlesAbsoluteAndRelativeUrls() {
         assertEquals("/apk/google-inc/youtube/", ApkMirrorSearch.appPath(
                 "https://www.apkmirror.com/apk/google-inc/youtube/"
