@@ -19,20 +19,35 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
-## [Unreleased]
+## [3.3.0-rc.7] - 2026-11-23
 
-### Fixed
+<!-- prerelease -->
+Pre-release fix build for testing. This is not the latest stable release.
+
+### Changed
 
 - Dutch: the source-switch action now reads **Wissel bron** and the button can
   grow for longer translations instead of clipping the second line.
 - The APKMirror verification note now explains that a CAPTCHA must be completed
   manually and cannot be bypassed by the helper.
+
+### Fixed
+
 - A Morphe link that resolves to APKMirror and needs WebView verification is now
   credited to the **Morphe link** row instead of the APKMirror row.
 - Resolver APKMirror links are rechecked against the release page so the
   requested build is chosen even when the link points at another build.
 - APKMirror search now skips unrelated results instead of opening a provider
   page for the wrong app.
+- A matching version string alone no longer makes an unrelated APKMirror result
+  look plausible.
+
+### Notes
+
+- This is a fix build for rc.6. Users on rc.3 through rc.6 can update in place
+  with the same permanent signing key.
+- The one-time export/uninstall/reinstall migration still applies only to 3.2.1,
+  rc.1, and rc.2.
 
 ## [3.3.0-rc.6] - 2026-11-22
 
