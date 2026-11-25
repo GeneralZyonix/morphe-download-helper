@@ -19,7 +19,10 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
-## [Unreleased]
+## [3.3.1-rc.1] - 2026-11-25
+
+<!-- prerelease -->
+Pre-release build for testing. 3.3.0 remains the latest stable release.
 
 ### Added
 
@@ -32,6 +35,12 @@ the first **3.3.0 stable** release notes for users still on 3.2.1.
 
 - Renamed **Live AdGuard checks** to **Live DNS checks** and added a provider
   picker under WebView settings.
+
+### Notes
+
+- Users on 3.3.0 or 3.3.0-rc.3 through rc.7 can update in place.
+- The one-time export/uninstall/reinstall migration still applies only to 3.2.1,
+  rc.1, and rc.2.
 
 ## [3.3.0] - 2026-11-23
 
