@@ -27,6 +27,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.text.Editable;
+import android.text.InputType;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.text.SpannableStringBuilder;
@@ -131,6 +132,8 @@ public class MorphePreviewActivity extends Activity {
     private TextView sourceTestAllButton;
     private boolean sourceTestingAll;
     private final Map<String, TextView> sourceHealthViews = new LinkedHashMap<>();
+    private LinearLayout manualLinksList;
+    private TextView manualLinksCount;
 
     private PatchSourceCatalog patchCatalog;
     private String patchCatalogHash;
@@ -1593,8 +1596,338 @@ public class MorphePreviewActivity extends Activity {
         listParams.topMargin = dp(10);
         root.addView(sourceList, listParams);
         rebuildSourceList();
+
+        LinearLayout.LayoutParams manualParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        manualParams.topMargin = dp(16);
+        root.addView(buildManualLinksCard(), manualParams);
+
         addBottomSpacer(root);
         return stickyTab(header, scroll);
+    }
+
+    private View buildManualLinksCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14), dp(14), dp(14), dp(14));
+        card.setBackground(M3Ui.card(this, palette));
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(M3Ui.text(this, getString(R.string.manual_links_title),
+                17, TEXT, 700), new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        manualLinksCount = M3Ui.text(this, "", 11, MUTED, 400);
+        header.addView(manualLinksCount);
+        card.addView(header);
+
+        TextView hint = M3Ui.text(this, getString(R.string.manual_links_hint),
+                11, MUTED, 400);
+        hint.setLineSpacing(dp(2), 1f);
+        hint.setPadding(0, dp(5), 0, dp(8));
+        card.addView(hint);
+
+        manualLinksList = new LinearLayout(this);
+        manualLinksList.setOrientation(LinearLayout.VERTICAL);
+        card.addView(manualLinksList);
+
+        rebuildManualLinks();
+        return card;
+    }
+
+    private void rebuildManualLinks() {
+        if (manualLinksList == null) {
+            return;
+        }
+        manualLinksList.removeAllViews();
+        List<ManualLinkStore.Entry> entries = ManualLinkStore.all(this);
+        if (manualLinksCount != null) {
+            manualLinksCount.setText(getString(
+                    R.string.manual_links_count, entries.size()));
+        }
+
+        if (entries.isEmpty()) {
+            TextView empty = M3Ui.text(this,
+                    getString(R.string.manual_links_empty), 12, MUTED, 400);
+            empty.setLineSpacing(dp(3), 1f);
+            empty.setPadding(0, dp(4), 0, dp(8));
+            manualLinksList.addView(empty);
+        } else {
+            for (int i = 0; i < entries.size(); i++) {
+                manualLinksList.addView(manualLinkRow(entries.get(i)));
+                if (i < entries.size() - 1) {
+                    View divider = new View(this);
+                    divider.setBackgroundColor(M3Ui.outlineVariant(palette));
+                    LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+                    dividerParams.leftMargin = dp(46);
+                    manualLinksList.addView(divider, dividerParams);
+                }
+            }
+        }
+
+        TextView add = M3Ui.outlinedButton(this, palette,
+                getString(R.string.manual_links_add), 0, ACCENT);
+        LinearLayout.LayoutParams addParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+        addParams.topMargin = dp(12);
+        add.setOnClickListener(v -> showManualLinkDialog(null));
+        manualLinksList.addView(add, addParams);
+    }
+
+    private View manualLinkRow(ManualLinkStore.Entry entry) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(4), dp(10), 0, dp(10));
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setContentDescription(getString(
+                R.string.manual_links_edit_desc, entry.label));
+        row.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(palette.ripple), null, null));
+        row.setOnClickListener(v -> showManualLinkDialog(entry));
+
+        View badge = SourceBadge.create(this, ManualLinkStore.SOURCE_KEY);
+        row.addView(badge, new LinearLayout.LayoutParams(dp(34), dp(34)));
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPadding(dp(10), 0, dp(4), 0);
+
+        TextView title = M3Ui.text(this, entry.label, 14,
+                entry.enabled ? TEXT : MUTED, 600);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        labels.addView(title);
+
+        TextView packageName = M3Ui.text(this, entry.packageName, 11, MUTED, 400);
+        packageName.setSingleLine(true);
+        packageName.setEllipsize(TextUtils.TruncateAt.END);
+        packageName.setPadding(0, dp(2), 0, 0);
+        labels.addView(packageName);
+
+        TextView url = M3Ui.text(this, entry.url, 10, palette.footer, 400);
+        url.setSingleLine(true);
+        url.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        url.setPadding(0, dp(3), 0, 0);
+        labels.addView(url);
+
+        LinearLayout badges = new LinearLayout(this);
+        badges.setOrientation(LinearLayout.HORIZONTAL);
+        badges.setPadding(0, dp(6), 0, 0);
+        if (!entry.enabled) {
+            badges.addView(manualLinkBadge(
+                    getString(R.string.manual_links_badge_off), RED));
+        } else if (entry.preferFirst) {
+            badges.addView(manualLinkBadge(
+                    getString(R.string.manual_links_badge_first), GREEN));
+        } else {
+            badges.addView(manualLinkBadge(
+                    getString(R.string.manual_links_badge_later), MUTED));
+        }
+        labels.addView(badges);
+
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Switch toggle = new Switch(this);
+        toggle.setChecked(entry.enabled);
+        M3Ui.styleSwitch(toggle, palette);
+        toggle.setContentDescription(getString(
+                R.string.manual_links_toggle_desc, entry.label));
+        toggle.setOnCheckedChangeListener((buttonView, checked) -> {
+            ManualLinkStore.put(this, entry.packageName, entry.url, entry.label,
+                    entry.preferFirst, checked);
+            PublicSettings.write(this);
+            rebuildManualLinks();
+        });
+        row.addView(toggle, new LinearLayout.LayoutParams(dp(56), dp(44)));
+
+        TextView remove = M3Ui.text(this, "X", 15, RED, 700);
+        remove.setGravity(Gravity.CENTER);
+        remove.setPadding(dp(8), dp(8), dp(8), dp(8));
+        remove.setContentDescription(getString(
+                R.string.manual_links_remove, entry.label));
+        remove.setClickable(true);
+        remove.setFocusable(true);
+        remove.setOnClickListener(v -> {
+            ManualLinkStore.remove(this, entry.packageName);
+            PublicSettings.write(this);
+            Toast.makeText(this,
+                    getString(R.string.manual_links_removed, entry.label),
+                    Toast.LENGTH_SHORT).show();
+            rebuildManualLinks();
+        });
+        row.addView(remove, new LinearLayout.LayoutParams(dp(40), dp(44)));
+        return row;
+    }
+
+    private TextView manualLinkBadge(String label, int color) {
+        TextView badge = M3Ui.text(this, label, 9, color, 700);
+        badge.setLetterSpacing(0.04f);
+        badge.setPadding(dp(7), dp(3), dp(7), dp(3));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(M3Ui.secondaryContainer(palette));
+        background.setCornerRadius(dp(999));
+        background.setStroke(dp(1), M3Ui.outlineVariant(palette));
+        badge.setBackground(background);
+        return badge;
+    }
+
+    private void showManualLinkDialog(ManualLinkStore.Entry existing) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(20);
+        content.setPadding(padding, dp(8), padding, dp(4));
+
+        content.addView(dialogFieldLabel(getString(R.string.manual_links_label)));
+        EditText labelInput = dialogFieldInput(
+                getString(R.string.manual_links_label_hint));
+        labelInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        if (existing != null) {
+            labelInput.setText(existing.label);
+            labelInput.setSelection(labelInput.getText().length());
+        }
+        content.addView(labelInput);
+
+        content.addView(dialogFieldLabel(getString(R.string.manual_links_package)));
+        EditText packageInput = dialogFieldInput(
+                getString(R.string.manual_links_package_hint));
+        packageInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        if (existing != null) {
+            packageInput.setText(existing.packageName);
+            packageInput.setEnabled(false);
+            packageInput.setTextColor(MUTED);
+        }
+        content.addView(packageInput);
+        if (existing != null) {
+            content.addView(dialogFieldHelp(
+                    getString(R.string.manual_links_package_locked)));
+        }
+
+        content.addView(dialogFieldLabel(getString(R.string.manual_links_url)));
+        EditText urlInput = dialogFieldInput(
+                getString(R.string.manual_links_url_hint));
+        urlInput.setInputType(InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_VARIATION_URI);
+        if (existing != null) {
+            urlInput.setText(existing.url);
+            urlInput.setSelection(urlInput.getText().length());
+        }
+        content.addView(urlInput);
+        content.addView(dialogFieldHelp(getString(R.string.manual_links_url_help)));
+
+        LinearLayout preferRow = new LinearLayout(this);
+        preferRow.setOrientation(LinearLayout.HORIZONTAL);
+        preferRow.setGravity(Gravity.CENTER_VERTICAL);
+        preferRow.setPadding(0, dp(14), 0, 0);
+        LinearLayout preferLabels = new LinearLayout(this);
+        preferLabels.setOrientation(LinearLayout.VERTICAL);
+        preferLabels.addView(M3Ui.text(this,
+                getString(R.string.manual_links_prefer), 14, TEXT, 600));
+        TextView preferDetail = M3Ui.text(this,
+                getString(R.string.manual_links_prefer_detail), 11, MUTED, 400);
+        preferDetail.setLineSpacing(dp(2), 1f);
+        preferDetail.setPadding(0, dp(3), 0, 0);
+        preferLabels.addView(preferDetail);
+        preferRow.addView(preferLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        Switch preferSwitch = new Switch(this);
+        preferSwitch.setChecked(existing == null || existing.preferFirst);
+        M3Ui.styleSwitch(preferSwitch, palette);
+        preferRow.addView(preferSwitch, new LinearLayout.LayoutParams(dp(56), dp(44)));
+        content.addView(preferRow);
+
+        LinearLayout enabledRow = new LinearLayout(this);
+        enabledRow.setOrientation(LinearLayout.HORIZONTAL);
+        enabledRow.setGravity(Gravity.CENTER_VERTICAL);
+        enabledRow.setPadding(0, dp(12), 0, 0);
+        LinearLayout enabledLabels = new LinearLayout(this);
+        enabledLabels.setOrientation(LinearLayout.VERTICAL);
+        enabledLabels.addView(M3Ui.text(this,
+                getString(R.string.manual_links_enabled), 14, TEXT, 600));
+        TextView enabledDetail = M3Ui.text(this,
+                getString(R.string.manual_links_enabled_detail), 11, MUTED, 400);
+        enabledDetail.setLineSpacing(dp(2), 1f);
+        enabledDetail.setPadding(0, dp(3), 0, 0);
+        enabledLabels.addView(enabledDetail);
+        enabledRow.addView(enabledLabels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        Switch enabledSwitch = new Switch(this);
+        enabledSwitch.setChecked(existing == null || existing.enabled);
+        M3Ui.styleSwitch(enabledSwitch, palette);
+        enabledRow.addView(enabledSwitch, new LinearLayout.LayoutParams(dp(56), dp(44)));
+        content.addView(enabledRow);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(content);
+
+        AlertDialog dialog = ThemeManager.dialog(this)
+                .setTitle(existing == null
+                        ? R.string.manual_links_new : R.string.manual_links_edit)
+                .setView(scroll)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setPositiveButton(R.string.common_save, null)
+                .show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String packageName = packageInput.getText().toString().trim();
+            String url = ManualLinkStore.normalizeUrl(
+                    urlInput.getText().toString());
+            if (!AppSettings.isValidPackageName(packageName)) {
+                Toast.makeText(this, R.string.manual_links_package_invalid,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (url.isEmpty()) {
+                Toast.makeText(this, R.string.manual_links_url_invalid,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (existing == null && ManualLinkStore.get(this, packageName) != null) {
+                Toast.makeText(this, R.string.manual_links_package_in_use,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String label = labelInput.getText().toString().trim();
+            if (label.isEmpty()) {
+                label = packageName;
+            }
+            ManualLinkStore.put(this, packageName, url, label,
+                    preferSwitch.isChecked(), enabledSwitch.isChecked());
+            PublicSettings.write(this);
+            Toast.makeText(this, R.string.manual_links_saved,
+                    Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+            rebuildManualLinks();
+        });
+    }
+
+    private TextView dialogFieldLabel(String label) {
+        TextView view = M3Ui.text(this, label, 12, TEXT, 700);
+        view.setPadding(0, dp(10), 0, dp(4));
+        return view;
+    }
+
+    private EditText dialogFieldInput(String hint) {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        input.setTextColor(TEXT);
+        input.setHintTextColor(MUTED);
+        input.setHint(hint);
+        int padding = dp(12);
+        input.setPadding(padding, dp(8), padding, dp(8));
+        return input;
+    }
+
+    private TextView dialogFieldHelp(String help) {
+        TextView view = M3Ui.text(this, help, 11, MUTED, 400);
+        view.setLineSpacing(dp(2), 1f);
+        view.setPadding(0, dp(4), 0, 0);
+        return view;
     }
 
     private void rebuildSourceList() {

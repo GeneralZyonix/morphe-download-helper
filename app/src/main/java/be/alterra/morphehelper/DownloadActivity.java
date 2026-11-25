@@ -3864,7 +3864,8 @@ public class DownloadActivity extends Activity {
         if (metricSourceBadge == null) {
             return;
         }
-        String key = sourceKeyForLabel(activeSourceName);
+        String key = ManualLinkStore.SOURCE_KEY.equals(activeSourceKey)
+                ? ManualLinkStore.SOURCE_KEY : sourceKeyForLabel(activeSourceName);
         metricSourceBadge.removeAllViews();
         if (key == null) {
             metricSourceBadge.setVisibility(View.GONE);
@@ -3925,6 +3926,9 @@ public class DownloadActivity extends Activity {
             return null;
         }
         String value = label.toLowerCase(Locale.US);
+        if (value.contains("manual") || value.contains("handmatige")) {
+            return ManualLinkStore.SOURCE_KEY;
+        }
         if (value.contains("github")) {
             return value.contains("user")
                     ? GitHubAppStore.SOURCE_KEY : SourceSettings.GITHUB;
@@ -3945,6 +3949,13 @@ public class DownloadActivity extends Activity {
     private String sourceLabelForKey(String key) {
         if (TextUtils.isEmpty(key)) {
             return "";
+        }
+        if (ManualLinkStore.SOURCE_KEY.equals(key)) {
+            ManualLinkStore.Entry entry = requestPkg == null
+                    ? null : ManualLinkStore.get(this, requestPkg);
+            return entry == null
+                    ? getString(R.string.source_manual_link)
+                    : getString(R.string.source_label_manual_link, entry.label);
         }
         if (GitHubAppStore.SOURCE_KEY.equals(key)) {
             GitHubAppStore.Entry entry = requestPkg == null
@@ -3975,6 +3986,9 @@ public class DownloadActivity extends Activity {
         int details = label.indexOf(" (");
         String base = details > 0 ? label.substring(0, details) : label;
         String lower = base.toLowerCase(Locale.US);
+        if (lower.startsWith("manual") || lower.startsWith("handmatige")) {
+            return base;
+        }
         if (lower.startsWith("apkpure")) return "APKPure";
         if (lower.startsWith("apkmirror")) return "APKMirror";
         if (lower.startsWith("uptodown")) return "Uptodown";
@@ -4120,6 +4134,12 @@ public class DownloadActivity extends Activity {
         setSourceCardExpanded(true);
         List<String> keys = new ArrayList<>();
         List<String> labels = new ArrayList<>();
+        ManualLinkStore.Entry manualEntry = requestPkg == null
+                ? null : ManualLinkStore.get(this, requestPkg);
+        if (manualEntry != null && manualEntry.enabled && manualEntry.preferFirst) {
+            keys.add(ManualLinkStore.SOURCE_KEY);
+            labels.add(getString(R.string.source_manual_link_picker, manualEntry.label));
+        }
         GitHubAppStore.Entry userEntry = requestPkg == null
                 ? null : GitHubAppStore.get(this, requestPkg);
         if (userEntry != null && userEntry.manual) {
@@ -4131,6 +4151,10 @@ public class DownloadActivity extends Activity {
                 keys.add(key);
                 labels.add(AppSettings.sourceLabel(this, key));
             }
+        }
+        if (manualEntry != null && manualEntry.enabled && !manualEntry.preferFirst) {
+            keys.add(ManualLinkStore.SOURCE_KEY);
+            labels.add(getString(R.string.source_manual_link_picker, manualEntry.label));
         }
         if (keys.isEmpty()) {
             return;
@@ -4470,6 +4494,10 @@ public class DownloadActivity extends Activity {
         boolean showUser = manualUser
                 && (userEntry.preferFirst || userLatest != null || userActive);
 
+        ManualLinkStore.Entry manualEntry = requestPkg == null
+                ? null : ManualLinkStore.get(this, requestPkg);
+        boolean showManual = manualEntry != null && manualEntry.enabled;
+
         if (manualUser && !userEntry.preferFirst && userLatest == null && !userActive) {
             TextView fallbackNote = text(getString(
                     R.string.download_user_github_available, userEntry.repo),
@@ -4484,6 +4512,9 @@ public class DownloadActivity extends Activity {
         }
 
         List<String> display = new ArrayList<>();
+        if (showManual && manualEntry.preferFirst) {
+            display.add(ManualLinkStore.SOURCE_KEY);
+        }
         if (showUser) {
             display.add(GitHubAppStore.SOURCE_KEY);
         }
@@ -4491,6 +4522,9 @@ public class DownloadActivity extends Activity {
             if (SourceSettings.isEnabled(this, key)) {
                 display.add(key);
             }
+        }
+        if (showManual && !manualEntry.preferFirst) {
+            display.add(ManualLinkStore.SOURCE_KEY);
         }
 
         boolean currentMarked = false;
@@ -4534,7 +4568,9 @@ public class DownloadActivity extends Activity {
             row.addView(badge, new LinearLayout.LayoutParams(dp(28), dp(28)));
 
             String name;
-            if (GitHubAppStore.SOURCE_KEY.equals(key)) {
+            if (ManualLinkStore.SOURCE_KEY.equals(key)) {
+                name = getString(R.string.source_manual_link);
+            } else if (GitHubAppStore.SOURCE_KEY.equals(key)) {
                 name = getString(R.string.source_github_user);
             } else if (SourceSettings.APPTEKA.equals(key)) {
                 name = getString(R.string.main_source_appteka);
@@ -4551,6 +4587,14 @@ public class DownloadActivity extends Activity {
                 TextView skipReason = text(latest.detail, 10, MUTED, false);
                 skipReason.setPadding(0, dp(2), 0, 0);
                 labelColumn.addView(skipReason);
+            }
+            if (ManualLinkStore.SOURCE_KEY.equals(key) && manualEntry != null) {
+                String detail = manualEntry.label;
+                String host = hostOf(manualEntry.url);
+                if (!host.isEmpty()) {
+                    detail += " \u00b7 " + host;
+                }
+                labelColumn.addView(text(detail, 10, MUTED, false));
             }
             if (GitHubAppStore.SOURCE_KEY.equals(key) && userEntry != null) {
                 labelColumn.addView(text(userEntry.repo, 10, MUTED, false));
@@ -5127,6 +5171,12 @@ public class DownloadActivity extends Activity {
     }
 
     private boolean sourceAllowed(String key) {
+        if (ManualLinkStore.SOURCE_KEY.equals(key)) {
+            ManualLinkStore.Entry entry = requestPkg == null
+                    ? null : ManualLinkStore.get(this, requestPkg);
+            return entry != null && entry.enabled
+                    && (retrySources == null || retrySources.contains(key));
+        }
         if (GitHubAppStore.SOURCE_KEY.equals(key)) {
             GitHubAppStore.Entry entry = requestPkg == null
                     ? null : GitHubAppStore.get(this, requestPkg);
@@ -5193,7 +5243,14 @@ public class DownloadActivity extends Activity {
         boolean hasCodes = codes != null && codes.length > 0;
         resolvedVersionCodes = codes;
 
-        if (cacheAllowed) {
+        // A preferred manual link is an explicit override for this package, so
+        // it takes precedence over the validated local cache too. When the link
+        // is set to run after the normal sources, the cache still applies.
+        ManualLinkStore.Entry manualEntry = ManualLinkStore.get(this, pkg);
+        boolean manualFirst = manualEntry != null && manualEntry.enabled
+                && manualEntry.preferFirst;
+
+        if (cacheAllowed && !manualFirst) {
             File cached = DownloadCache.find(this, pkg, version, codes, fileType);
             if (cached != null) {
                 HelperLog.info("Using validated cached download "
@@ -5364,6 +5421,38 @@ public class DownloadActivity extends Activity {
     }
 
     /**
+     * Tries the direct link the user mapped to this package. Validation runs in
+     * the normal download pipeline, so a wrong package, wrong version, or an
+     * HTML page fails and the remaining sources are still tried.
+     */
+    private File customManualLink(ManualLinkStore.Entry entry, String pkg, String version,
+                                  String fileType) {
+        if (entry == null || !entry.enabled) {
+            markSource(ManualLinkStore.SOURCE_KEY, false,
+                    getString(R.string.source_detail_manual_link_missing));
+            return null;
+        }
+        pendingSourceKey = ManualLinkStore.SOURCE_KEY;
+        main.post(this::renderSourceSteps);
+        setSourceLabel(getString(R.string.source_label_manual_link, entry.label));
+        setStatus(R.string.download_checking_manual_link);
+        HelperLog.info("Trying manual link for " + pkg + " on " + hostOf(entry.url));
+        try {
+            File file = downloadFile(entry.url, null, pkg, version, fileType);
+            markSource(ManualLinkStore.SOURCE_KEY, true,
+                    getString(R.string.source_detail_manual_link, hostOf(entry.url)));
+            return file;
+        } catch (Exception error) {
+            HelperLog.error("Manual link failed for " + pkg, error);
+            markSource(ManualLinkStore.SOURCE_KEY, false, error.getMessage());
+            return null;
+        } finally {
+            pendingSourceKey = null;
+            main.post(this::renderSourceSteps);
+        }
+    }
+
+    /**
      * Tries the GitHub repository the user explicitly mapped to this package.
      * Used both as the preferred automatic source and when forced from the
      * Switch source picker.
@@ -5407,14 +5496,24 @@ public class DownloadActivity extends Activity {
             GitHubAppStore.put(this, pkg, fallbackRepo, requestedAppName);
         }
         List<String> order = AppSettings.sourceOrder(this);
+        ManualLinkStore.Entry manualLink = ManualLinkStore.get(this, pkg);
+        boolean manualEnabled = manualLink != null && manualLink.enabled;
+        boolean manualFirst = manualEnabled && manualLink.preferFirst;
+        boolean manualLast = manualEnabled && !manualLink.preferFirst;
         GitHubAppStore.Entry userGitHub = GitHubAppStore.get(this, pkg);
         boolean userFirst = userGitHub != null && userGitHub.manual && userGitHub.preferFirst;
 
         List<String> sequence = new ArrayList<>();
+        if (manualFirst) {
+            sequence.add(ManualLinkStore.SOURCE_KEY);
+        }
         if (userFirst) {
             sequence.add(GitHubAppStore.SOURCE_KEY);
         }
         sequence.addAll(order);
+        if (manualLast) {
+            sequence.add(ManualLinkStore.SOURCE_KEY);
+        }
 
         boolean forcedOnly = false;
         String wanted = forcedSource;
@@ -5468,7 +5567,9 @@ public class DownloadActivity extends Activity {
                 renderSourceSteps();
             });
             File file = null;
-            if (GitHubAppStore.SOURCE_KEY.equals(source)) {
+            if (ManualLinkStore.SOURCE_KEY.equals(source)) {
+                file = customManualLink(manualLink, pkg, version, fileType);
+            } else if (GitHubAppStore.SOURCE_KEY.equals(source)) {
                 file = customUserGitHub(userGitHub, pkg, version, fileType, abis);
             } else if (SourceSettings.APKPURE.equals(source)) {
                 file = customApkPure(pkg, version, codes, hasCodes, fileType, abis);

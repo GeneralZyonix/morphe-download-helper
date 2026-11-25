@@ -28,6 +28,8 @@ final class SourceBadge {
         ThemePalette palette = ThemeManager.palette(context);
         if (SourceSettings.GITHUB.equals(key)) {
             logo.setColorFilter(palette.text);
+        } else if (ManualLinkStore.SOURCE_KEY.equals(key)) {
+            logo.setColorFilter(palette.primaryStart);
         } else if (SourceSettings.FALLBACK.equals(key)) {
             logo.setColorFilter(palette.light ? 0xFF0369A1 : 0xFF38BDF8);
         }
@@ -51,6 +53,7 @@ final class SourceBadge {
             case SourceSettings.APPTEKA: return R.drawable.source_logo_appteka;
             case SourceSettings.GITHUB: return R.drawable.source_logo_github;
             case GitHubAppStore.SOURCE_KEY: return R.drawable.source_logo_github;
+            case ManualLinkStore.SOURCE_KEY: return R.drawable.ic_external_link;
             case SourceSettings.FALLBACK: return R.drawable.source_logo_morphe_link;
             default: return R.drawable.ic_logo_mark;
         }

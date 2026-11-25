@@ -140,6 +140,30 @@ count next to the title shows how many mappings exist.
 You are responsible for the repositories you add. The helper still validates the APK's
 package, version, and build code before hand-off.
 
+### Manual links
+
+A manual link maps one package to a direct download URL. Use it when an app is not in the
+normal sources or when you need a specific build from an official site.
+
+- **Add manual link** — enter the package name, an optional display name, and a direct
+  APK, APKM, XAPK, or APKS URL.
+- **Try before other sources** — tries the link before the Morphe link and the normal source
+  order, including the validated local cache. When off, the link is tried after the enabled
+  sources.
+- **Enabled** — keeps the entry but skips it for automatic downloads when off.
+- **Remove** — deletes the mapping.
+
+The package name is the key. A link is only used when Morphe requests that exact package.
+The helper still checks the downloaded package, version, and Android compatibility. If the
+link is unreachable, returns HTML, or contains the wrong build, the helper records the
+failure and continues with the normal sources.
+
+Manual link URLs can contain private tokens or signed parameters. They are **not** written to
+`helper-settings.txt` during normal export. Use the explicit secret-including export if you
+want to back them up, and treat that file as private. They are restored only by importing
+that file through **Settings → Backup**; a `helper-settings.txt` placed in Downloads does not
+add manual links on startup.
+
 ## Storage
 
 ![Storage settings](screenshots/settings-storage-3.0.0.png)

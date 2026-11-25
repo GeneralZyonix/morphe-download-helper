@@ -19,6 +19,37 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
+## [3.3.1-rc.2] - 2026-11-25
+
+<!-- prerelease -->
+Pre-release build for testing. 3.3.0 remains the latest stable release.
+
+### Added
+
+- **Manual links** on the Sources tab: map a package to a direct APK/APKM/XAPK/
+  APKS HTTPS URL and try it before or after the normal sources. Links are
+  matched by package name, validated like every other download, and skipped
+  automatically when they fail. Requested by
+  [@nightznero](https://github.com/nightznero) in
+  [#69](https://github.com/GeneralZyonix/morphe-download-helper/issues/69).
+- Each manual link can be enabled, disabled, edited, or removed without changing
+  the normal source order. The Sources tab shows FIRST, AFTER, or OFF state.
+- Manual link failures are recorded in the download source details, and the
+  normal source chain continues.
+
+### Privacy
+
+- Manual link URLs are only included in an exported configuration when secrets
+  are explicitly included, because a link can contain a private token. They are
+  restored only through the explicit import flow.
+
+### Notes
+
+- Manual links use direct file URLs; this is not a general website scraper.
+- Users on 3.3.0, 3.3.0-rc.3 through rc.7, or 3.3.1-rc.1 can update in place.
+- The one-time export/uninstall/reinstall migration still applies only to 3.2.1,
+  3.3.0-rc.1, and 3.3.0-rc.2.
+
 ## [3.3.1-rc.1] - 2026-11-25
 
 <!-- prerelease -->

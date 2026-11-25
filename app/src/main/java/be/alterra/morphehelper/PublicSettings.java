@@ -213,6 +213,12 @@ final class PublicSettings {
         }
 
         applyGitHubApps(context, values, replaceGitHubApps);
+        if (replaceGitHubApps) {
+            // Manual links are only applied by an explicit import. A file
+            // dropped into Downloads must not silently add a download URL for
+            // an existing package.
+            applyManualLinks(context, values);
+        }
 
         String apiKey = values.get("virustotal_api_key");
         if (apiKey != null) {
@@ -342,6 +348,53 @@ final class PublicSettings {
     }
 
     /**
+     * Imports manual links from an explicit configuration import. These URLs can
+     * contain private tokens, so they are only exported with
+     * {@link #exportText(Context, boolean)} when secrets are explicitly included.
+     */
+    private static void applyManualLinks(Context context, Map<String, String> values) {
+        String raw = values.get("manual_links");
+        if (raw == null) {
+            return;
+        }
+        int count;
+        try {
+            count = Integer.parseInt(raw.trim());
+        } catch (NumberFormatException error) {
+            HelperLog.info("Ignoring invalid manual_links=" + raw);
+            return;
+        }
+        if (count < 0 || count > 200) {
+            HelperLog.info("Ignoring out-of-range manual_links=" + count);
+            return;
+        }
+        Map<String, ManualLinkStore.Entry> imported = new LinkedHashMap<>();
+        for (int i = 0; i < count; i++) {
+            String prefix = "manual_link_" + (i + 1) + "_";
+            String packageName = values.get(prefix + "package");
+            String url = ManualLinkStore.normalizeUrl(values.get(prefix + "url"));
+            if (packageName == null || !AppSettings.isValidPackageName(packageName.trim())
+                    || url.isEmpty()) {
+                HelperLog.info("Ignoring invalid manual link import " + (i + 1));
+                continue;
+            }
+            packageName = packageName.trim();
+            String label = values.get(prefix + "label");
+            if (label == null || label.trim().isEmpty()) {
+                label = packageName;
+            }
+            Boolean preferFirst = bool(values, prefix + "prefer_first");
+            Boolean enabled = bool(values, prefix + "enabled");
+            imported.put(packageName, new ManualLinkStore.Entry(
+                    packageName, label.trim(), url, System.currentTimeMillis(),
+                    preferFirst == null || preferFirst,
+                    enabled == null || enabled));
+        }
+        ManualLinkStore.replaceAll(context, new ArrayList<>(imported.values()));
+        HelperLog.info("Imported " + imported.size() + " manual links");
+    }
+
+    /**
      * Rewrites the public file from the current settings, but only when the
      * user has explicitly created it. New installs stay file-free.
      */
@@ -444,8 +497,8 @@ final class PublicSettings {
         text.append("# or start a download from Morphe to apply the changes.\n");
         text.append("# Download location and retention are included below.\n");
         text.append(includeSecrets
-                ? "# Includes the VirusTotal API key in plain text.\n\n"
-                : "# Secrets such as the VirusTotal API key are not included.\n\n");
+                ? "# Includes the VirusTotal API key and manual link URLs in plain text.\n\n"
+                : "# Secrets such as the VirusTotal API key and manual link URLs are not included.\n\n");
 
         text.append("theme_mode=").append(AppSettings.themeMode(context)).append('\n');
         text.append("theme_accent=").append(AppSettings.themeAccent(context)).append('\n');
@@ -475,6 +528,9 @@ final class PublicSettings {
                 .append("\n\n");
 
         appendGitHubApps(text, context);
+        if (includeSecrets) {
+            appendManualLinks(text, context);
+        }
 
         text.append("block_web_ads=")
                 .append(AppSettings.blockWebAds(context)).append('\n');
@@ -553,6 +609,32 @@ final class PublicSettings {
                     .append(singleLine(entry.assetFilter)).append('\n');
             text.append("github_app_").append(index).append("_prefer_first=")
                     .append(entry.preferFirst).append('\n');
+        }
+        text.append('\n');
+    }
+
+    /**
+     * Exports every manual link, including disabled entries. Only called when
+     * the caller explicitly asks for secrets because the URL may be signed.
+     */
+    private static void appendManualLinks(StringBuilder text, Context context) {
+        List<ManualLinkStore.Entry> entries = ManualLinkStore.all(context);
+        text.append("# Manual links are private because their URLs may contain tokens.\n");
+        text.append("# Package, label, URL, order, and enabled state are preserved.\n");
+        text.append("manual_links=").append(entries.size()).append('\n');
+        for (int i = 0; i < entries.size(); i++) {
+            ManualLinkStore.Entry entry = entries.get(i);
+            int index = i + 1;
+            text.append("manual_link_").append(index).append("_package=")
+                    .append(entry.packageName).append('\n');
+            text.append("manual_link_").append(index).append("_label=")
+                    .append(singleLine(entry.label)).append('\n');
+            text.append("manual_link_").append(index).append("_url=")
+                    .append(singleLine(entry.url)).append('\n');
+            text.append("manual_link_").append(index).append("_prefer_first=")
+                    .append(entry.preferFirst).append('\n');
+            text.append("manual_link_").append(index).append("_enabled=")
+                    .append(entry.enabled).append('\n');
         }
         text.append('\n');
     }

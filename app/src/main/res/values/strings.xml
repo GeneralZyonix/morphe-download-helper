@@ -33,6 +33,38 @@
     <string name="settings_test_all_result">%1$d passed, %2$d failed.</string>
     <string name="settings_source_drag_hint">Drag the handle to change which source is tried first. Disabled sources stay at the bottom.</string>
     <string name="main_logs_local">Logs stay on this device</string>
+
+    <!-- Manual links on the Sources tab. -->
+    <string name="manual_links_title">Manual links</string>
+    <string name="manual_links_count">(%1$d)</string>
+    <string name="manual_links_hint">Try a link you choose before the normal sources when Morphe requests the same package.</string>
+    <string name="manual_links_empty">No manual links yet. Add one for an app that the normal sources cannot provide.</string>
+    <string name="manual_links_add">Add manual link</string>
+    <string name="manual_links_new">New manual link</string>
+    <string name="manual_links_edit">Edit manual link</string>
+    <string name="manual_links_label">App name (optional)</string>
+    <string name="manual_links_label_hint">Proton Pass</string>
+    <string name="manual_links_package">Package name</string>
+    <string name="manual_links_package_hint">com.example.app</string>
+    <string name="manual_links_package_locked">The package name cannot be changed after saving.</string>
+    <string name="manual_links_url">Direct file URL</string>
+    <string name="manual_links_url_hint">https://example.com/app.apk</string>
+    <string name="manual_links_url_help">Use a direct HTTPS link to an APK, APKM, XAPK, or APKS file. The helper still checks the package and version before handing the file to Morphe. Only add links you trust.</string>
+    <string name="manual_links_prefer">Try before other sources</string>
+    <string name="manual_links_prefer_detail">Use this link first for the package above. When off, it is tried after the enabled sources.</string>
+    <string name="manual_links_enabled">Enabled</string>
+    <string name="manual_links_toggle_desc">Enabled: %1$s</string>
+    <string name="manual_links_enabled_detail">When off, the link is kept but not used for downloads.</string>
+    <string name="manual_links_badge_first">FIRST</string>
+    <string name="manual_links_badge_later">AFTER</string>
+    <string name="manual_links_badge_off">OFF</string>
+    <string name="manual_links_saved">Manual link saved.</string>
+    <string name="manual_links_removed">%1$s removed.</string>
+    <string name="manual_links_package_invalid">Enter a valid Android package name.</string>
+    <string name="manual_links_package_in_use">A manual link for this package already exists.</string>
+    <string name="manual_links_url_invalid">Enter a valid HTTPS link.</string>
+    <string name="manual_links_remove">Remove manual link %1$s</string>
+    <string name="manual_links_edit_desc">Edit manual link %1$s</string>
     <string name="main_status_detected">Morphe detected</string>
     <string name="main_status_detected_version">Morphe %1$s</string>
     <string name="main_status_missing">Morphe not installed</string>
@@ -240,11 +272,11 @@
     <string name="settings_import_detail">Restore a backup file</string>
     <string name="settings_export_title">Export configuration</string>
     <string name="settings_export_without_secrets">Settings only</string>
-    <string name="settings_export_with_secrets">Include VirusTotal API key (plain text)</string>
+    <string name="settings_export_with_secrets">Include VirusTotal API key and manual links (plain text)</string>
     <string name="settings_export_success">Configuration exported.</string>
     <string name="settings_export_failed">Could not export the configuration.</string>
     <string name="settings_import_confirm_title">Import configuration?</string>
-    <string name="settings_import_confirm_message">This will replace your current settings with the selected file. Continue?</string>
+    <string name="settings_import_confirm_message">This will replace your current settings with the selected file. Imported source mappings will be used automatically for their packages. Continue?</string>
     <string name="settings_import_success">Configuration imported.</string>
     <string name="settings_import_failed">Could not import the configuration.</string>
     <string name="settings_import_empty">The selected file is empty.</string>
@@ -574,6 +606,12 @@
     <string name="download_user_github_available">User GitHub source available via Switch source: %1$s</string>
     <string name="download_checking_user_github">Checking user GitHub release.</string>
     <string name="source_detail_user_github_missing">No user GitHub mapping</string>
+    <string name="source_manual_link">Manual link</string>
+    <string name="source_label_manual_link">Manual link (%1$s)</string>
+    <string name="source_manual_link_picker">Manual link - %1$s</string>
+    <string name="download_checking_manual_link">Trying the manual link for this app.</string>
+    <string name="source_detail_manual_link">manual link · %1$s</string>
+    <string name="source_detail_manual_link_missing">No manual link for this package</string>
 
     <!-- Update manager notifications and messages. -->
     <string name="update_msg_checks_disabled">Update checks are disabled.</string>

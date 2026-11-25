@@ -1282,6 +1282,8 @@ final class AppSettings {
                 return context.getString(R.string.source_github_releases);
             case GitHubAppStore.SOURCE_KEY:
                 return context.getString(R.string.source_github_user);
+            case ManualLinkStore.SOURCE_KEY:
+                return context.getString(R.string.source_manual_link);
             case SourceSettings.CACHE:
                 return context.getString(R.string.source_cache);
             default:

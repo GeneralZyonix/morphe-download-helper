@@ -26,7 +26,8 @@ It is a downloader, not a patcher. It never installs, modifies, or uploads an ap
 - **Exact-build matching.** The helper validates package name, version name, version code,
   ABI, and archive type before handing a file to Morphe.
 - **Many sources, one flow.** Morphe's resolver link, APKMirror, APKPure, APKCube,
-  Uptodown, F-Droid, Aptoide, Appteka, and GitHub releases are tried in your chosen order.
+  Uptodown, F-Droid, Aptoide, Appteka, and GitHub releases are tried in your chosen
+  order. You can also pin a direct manual link to one package.
 - **Patch discovery.** Search an app on the Patches tab to see which community patch
   sources support it, then add one through Morphe's own confirmation.
 - **Fast source resolution.** Parallel metadata checks, APKCube no-match preflight,
@@ -92,9 +93,10 @@ The in-app **Visual guide** and **Help** buttons repeat these steps with screens
 1. Morphe sends the package, version, version codes, file type, ABIs, and fallback link to
    the helper.
 2. The helper checks its validated local cache for an exact repeat request.
-3. Otherwise it follows the enabled sources in your order. With **Fast source checks** on,
-   HTTP/API metadata is prefetched and the APKPure/Uptodown/APKCube paths are prepared in
-   parallel.
+3. Otherwise it follows the enabled sources in your order. A manual link for the requested
+   package is tried before or after the normal order, depending on its setting. With
+   **Fast source checks** on, HTTP/API metadata is prefetched and the
+   APKPure/Uptodown/APKCube paths are prepared in parallel.
 4. The first source that produces a valid file wins. Split requests use `.xapk`, `.apks`,
    or `.apkm` bundles and are never replaced with a standalone `base.apk`.
 5. The downloaded file is checked against the request. GitHub releases additionally get a
@@ -104,7 +106,7 @@ The in-app **Visual guide** and **Help** buttons repeat these steps with screens
 
 ## Sources
 
-The order is configurable in **Settings → Sources**. The default is:
+The order is configurable on the **Sources** tab. The default is:
 
 | # | Source | What it does |
 | --- | --- | --- |
@@ -164,8 +166,8 @@ The full illustrated reference is in **[docs/SETTINGS.md](docs/SETTINGS.md)**. Q
 - **Updates** — automatic checks, update mode, in-app popup, and a manual check.
 - **WebView settings** — ad/tracker blocking and optional live AdGuard host checks.
 - **Sources** - the single source editor: enable/disable, reorder, reset,
-  per-source Test, and Test all with detailed results. Settings → Sources keeps
-  Fast source checks, the Appteka warning, and GitHub apps.
+  per-source Test, Test all with detailed results, and per-package manual links.
+  Settings → Sources keeps Fast source checks, the Appteka warning, and GitHub apps.
 - **Storage** — download folder, retention, multi-connection downloads, maximum connections,
   and deleting all downloaded APKs.
 - **Security** — optional VirusTotal API key, detection action, upload rules, and quota
