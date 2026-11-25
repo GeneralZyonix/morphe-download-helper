@@ -124,8 +124,6 @@
     <string name="settings_web_pages">Pages de téléchargement</string>
     <string name="settings_block_ads">Bloquer les publicités et les traqueurs</string>
     <string name="settings_block_ads_detail">Bloque les hôtes publicitaires et de suivi connus dans les pages Uptodown, APKMirror et APKPure. Les hôtes Cloudflare et de captcha restent autorisés.</string>
-    <string name="settings_live_adguard">Vérifications AdGuard en direct</string>
-    <string name="settings_live_adguard_detail">Interroge AdGuard DNS pour les hôtes absents de la liste intégrée. Ajoute une requête par nouvel hôte et envoie ce nom d’hôte à AdGuard. Désactivé par défaut.</string>
     <string name="settings_fast_source_checks">Vérifications rapides des sources</string>
     <string name="settings_fast_source_checks_detail">Interroge APKPure, Uptodown, APKMirror, F-Droid et Aptoide en parallèle, ignore les sources récemment introuvables et évite les pages APKCube/APKMirror qui signalent déjà une absence. Les sources restent essayées dans votre ordre. Utilise un peu plus de données.</string>
     <string name="settings_multi_thread">Téléchargements multi-connexions plus rapides</string>

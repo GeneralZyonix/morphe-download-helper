@@ -63,6 +63,12 @@ final class AppSettings {
     private static final String KEY_METERED_POLICY = "metered_policy";
     static final int[] MAX_CONNECTION_OPTIONS = {2, 4, 8, 16, 32};
     private static final String KEY_LIVE_ADGUARD = "live_adguard_checks";
+    private static final String KEY_LIVE_DNS_PROVIDER = "live_dns_provider";
+    private static final String KEY_LIVE_DNS_CUSTOM_URL = "live_dns_custom_url";
+    static final String DNS_PROVIDER_ADGUARD = "adguard";
+    static final String DNS_PROVIDER_CONTROLD = "controld";
+    static final String DNS_PROVIDER_CUSTOM = "custom";
+    static final String DNS_PROVIDER_DEFAULT = DNS_PROVIDER_ADGUARD;
     private static final String KEY_THEME_MODE = "theme_mode";
     private static final String KEY_THEME_ACCENT = "theme_accent";
     private static final String KEY_THEME_CUSTOM_HEX = "theme_custom_hex";
@@ -414,6 +420,38 @@ final class AppSettings {
 
     static void setLiveAdGuardChecks(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_LIVE_ADGUARD, enabled).apply();
+    }
+
+    /** Selected DoH provider for live WebView checks. */
+    static String liveDnsProvider(Context context) {
+        String value = prefs(context).getString(KEY_LIVE_DNS_PROVIDER,
+                DNS_PROVIDER_DEFAULT);
+        if (DNS_PROVIDER_CONTROLD.equals(value)
+                || DNS_PROVIDER_CUSTOM.equals(value)) {
+            return value;
+        }
+        return DNS_PROVIDER_DEFAULT;
+    }
+
+    static void setLiveDnsProvider(Context context, String provider) {
+        String value = DNS_PROVIDER_DEFAULT;
+        if (DNS_PROVIDER_CONTROLD.equals(provider)
+                || DNS_PROVIDER_CUSTOM.equals(provider)) {
+            value = provider;
+        }
+        prefs(context).edit().putString(KEY_LIVE_DNS_PROVIDER, value).apply();
+        WebAdBlocker.clearLiveCache();
+    }
+
+    /** Custom DoH endpoint used when the provider is Custom. */
+    static String liveDnsCustomUrl(Context context) {
+        return prefs(context).getString(KEY_LIVE_DNS_CUSTOM_URL, "").trim();
+    }
+
+    static void setLiveDnsCustomUrl(Context context, String url) {
+        String value = url == null ? "" : url.trim();
+        prefs(context).edit().putString(KEY_LIVE_DNS_CUSTOM_URL, value).apply();
+        WebAdBlocker.clearLiveCache();
     }
 
     /** Enables parallel metadata probes and early source-page rejection. */

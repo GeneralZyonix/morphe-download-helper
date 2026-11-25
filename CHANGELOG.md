@@ -19,6 +19,20 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
+## [Unreleased]
+
+### Added
+
+- **Live DNS checks** can use **AdGuard**, **ControlD**, or a custom HTTPS DoH
+  URL. Live lookups now use DNS wireformat, so providers that do not support the
+  JSON API work too.
+- The selected provider and custom URL are exported in `helper-settings.txt`.
+
+### Changed
+
+- Renamed **Live AdGuard checks** to **Live DNS checks** and added a provider
+  picker under WebView settings.
+
 ## [3.3.0] - 2026-11-23
 
 First stable 3.3.0 release. This includes all changes from 3.3.0-rc.1 through

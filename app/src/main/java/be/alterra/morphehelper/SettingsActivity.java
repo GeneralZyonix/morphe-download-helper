@@ -111,6 +111,8 @@ public class SettingsActivity extends Activity {
     private ScrollView settingsScroll;
     private TextView updateChannelValue;
     private TextView updateStatusView;
+    private LinearLayout liveProviderRow;
+    private LinearLayout liveCustomUrlRow;
     private TextView maxConnectionsValue;
     private final Map<String, LinearLayout> sectionBodies = new HashMap<>();
     private final Map<String, Integer> sectionTitles = new HashMap<>();
@@ -1648,9 +1650,20 @@ public class SettingsActivity extends Activity {
         liveSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             AppSettings.setLiveAdGuardChecks(this, isChecked);
             PublicSettings.write(this);
+            updateLiveDnsRows();
         });
         liveRow.addView(liveSwitch, new LinearLayout.LayoutParams(dp(64), dp(48)));
         card.addView(liveRow);
+
+        liveProviderRow = settingRow(
+                getString(R.string.settings_dns_provider), dnsProviderLabel());
+        liveProviderRow.setOnClickListener(v -> showDnsProviderDialog());
+        card.addView(liveProviderRow);
+
+        liveCustomUrlRow = settingRow(
+                getString(R.string.settings_dns_custom_url), customDohValueLabel());
+        liveCustomUrlRow.setOnClickListener(v -> showCustomDohDialog());
+        card.addView(liveCustomUrlRow);
 
         TextView note = text(getString(R.string.settings_block_ads_note), 11, MUTED, false);
         note.setLineSpacing(dp(3), 1f);
@@ -1658,6 +1671,7 @@ public class SettingsActivity extends Activity {
         card.addView(note);
 
         setWebPagesDetailsVisible(card, AppSettings.blockWebAds(this));
+        updateLiveDnsRows();
     }
 
     /** Keeps the live-check row and note visible only while the master switch is on. */
@@ -1666,6 +1680,107 @@ public class SettingsActivity extends Activity {
         for (int i = 1; i < card.getChildCount(); i++) {
             card.getChildAt(i).setVisibility(state);
         }
+        updateLiveDnsRows();
+    }
+
+    private void updateLiveDnsRows() {
+        boolean live = AppSettings.blockWebAds(this)
+                && AppSettings.liveAdGuardChecks(this);
+        if (liveProviderRow != null) {
+            liveProviderRow.setVisibility(live ? View.VISIBLE : View.GONE);
+        }
+        boolean custom = live && AppSettings.DNS_PROVIDER_CUSTOM.equals(
+                AppSettings.liveDnsProvider(this));
+        if (liveCustomUrlRow != null) {
+            liveCustomUrlRow.setVisibility(custom ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private String dnsProviderLabel() {
+        return dnsProviderLabel(AppSettings.liveDnsProvider(this));
+    }
+
+    private String dnsProviderLabel(String provider) {
+        if (AppSettings.DNS_PROVIDER_CONTROLD.equals(provider)) {
+            return getString(R.string.settings_dns_provider_controld);
+        }
+        if (AppSettings.DNS_PROVIDER_CUSTOM.equals(provider)) {
+            return getString(R.string.settings_dns_provider_custom);
+        }
+        return getString(R.string.settings_dns_provider_adguard);
+    }
+
+    private String customDohValueLabel() {
+        String url = AppSettings.liveDnsCustomUrl(this);
+        if (TextUtils.isEmpty(url)) {
+            return getString(R.string.settings_dns_custom_url_not_set);
+        }
+        String host = Uri.parse(url).getHost();
+        return TextUtils.isEmpty(host) ? url : host;
+    }
+
+    private void showDnsProviderDialog() {
+        String[] values = {
+                AppSettings.DNS_PROVIDER_ADGUARD,
+                AppSettings.DNS_PROVIDER_CONTROLD,
+                AppSettings.DNS_PROVIDER_CUSTOM
+        };
+        String[] labels = new String[values.length];
+        int checked = 0;
+        String current = AppSettings.liveDnsProvider(this);
+        for (int i = 0; i < values.length; i++) {
+            labels[i] = dnsProviderLabel(values[i]);
+            if (values[i].equals(current)) {
+                checked = i;
+            }
+        }
+        ThemeManager.dialog(this)
+                .setTitle(R.string.settings_dns_provider)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    AppSettings.setLiveDnsProvider(this, values[which]);
+                    PublicSettings.write(this);
+                    scheduleSectionRebuild(SECTION_WEB);
+                })
+                .show();
+    }
+
+    private void showCustomDohDialog() {
+        EditText input = dialogFieldInput(
+                getString(R.string.settings_dns_custom_url_hint));
+        input.setInputType(InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setText(AppSettings.liveDnsCustomUrl(this));
+        input.setSelection(input.getText().length());
+
+        AlertDialog dialog = ThemeManager.dialog(this)
+                .setTitle(R.string.settings_dns_custom_url)
+                .setMessage(R.string.settings_dns_custom_url_detail)
+                .setView(input)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setNeutralButton(R.string.settings_dns_custom_url_clear, null)
+                .setPositiveButton(R.string.common_save, null)
+                .create();
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+            AppSettings.setLiveDnsCustomUrl(this, "");
+            PublicSettings.write(this);
+            dialog.dismiss();
+            scheduleSectionRebuild(SECTION_WEB);
+        });
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String value = input.getText().toString().trim();
+            if (!value.isEmpty() && !value.startsWith("https://")) {
+                Toast.makeText(this,
+                        R.string.settings_dns_custom_url_invalid,
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+            AppSettings.setLiveDnsCustomUrl(this, value);
+            PublicSettings.write(this);
+            dialog.dismiss();
+            scheduleSectionRebuild(SECTION_WEB);
+        });
     }
 
     /** Keeps the master switch visible and hides its dependent rows when off. */

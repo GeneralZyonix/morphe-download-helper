@@ -259,6 +259,14 @@ final class PublicSettings {
         }
         applyBoolean(context, values, "live_adguard_checks",
                 AppSettings::setLiveAdGuardChecks);
+        String dnsProvider = values.get("live_dns_provider");
+        if (dnsProvider != null) {
+            AppSettings.setLiveDnsProvider(context, dnsProvider);
+        }
+        String dnsCustomUrl = values.get("live_dns_custom_url");
+        if (dnsCustomUrl != null) {
+            AppSettings.setLiveDnsCustomUrl(context, dnsCustomUrl);
+        }
         applyBoolean(context, values, "virustotal_enabled",
                 AppSettings::setVirusTotalEnabled);
         String detectionAction = values.get("virustotal_detection_action");
@@ -480,6 +488,10 @@ final class PublicSettings {
                 .append(AppSettings.meteredPolicy(context)).append('\n');
         text.append("live_adguard_checks=")
                 .append(AppSettings.liveAdGuardChecks(context)).append('\n');
+        text.append("live_dns_provider=")
+                .append(AppSettings.liveDnsProvider(context)).append('\n');
+        text.append("live_dns_custom_url=")
+                .append(AppSettings.liveDnsCustomUrl(context)).append('\n');
         text.append("virustotal_enabled=")
                 .append(AppSettings.virusTotalEnabled(context)).append('\n');
         text.append("virustotal_detection_action=")

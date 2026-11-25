@@ -3,17 +3,16 @@ package be.alterra.morphehelper;
 import android.content.Context;
 import android.webkit.WebResourceResponse;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -22,9 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import okhttp3.dnsoverhttps.DnsOverHttps;
 
 /**
  * Lightweight blocker for the in-app source WebViews.
@@ -34,12 +31,15 @@ import okhttp3.ResponseBody;
  * small set of high-confidence ad/tracker hosts through
  * {@code shouldInterceptRequest} gives most of the benefit without a VPN
  * permission, a persistent notification, or any extra network round trips.</p>
+ *
+ * <p>Optional live checks ask a selected DoH provider about unknown hosts. Only
+ * uncached hostnames are sent, and the checks fail open.</p>
  */
 final class WebAdBlocker {
 
     private static final String ASSET = "ad_hosts.txt";
-    private static final String DOH_ENDPOINT = "https://dns.adguard-dns.com/resolve";
-    private static final String DOH_FALLBACK = "https://dns.google/resolve";
+    private static final String DOH_ADGUARD = "https://dns.adguard-dns.com/dns-query";
+    private static final String DOH_CONTROLD = "https://freedns.controld.com/p2";
     private static final long LIVE_BLOCK_TTL_MS = 30L * 60L * 1000L;
     private static final long LIVE_ALLOW_TTL_MS = 10L * 60L * 1000L;
     private static final long LIVE_DISABLED_MS = 60L * 1000L;
@@ -80,7 +80,7 @@ final class WebAdBlocker {
     /** Parsed once; the asset is tiny but should not be read per request. */
     private static volatile Set<String> blockedHosts;
 
-    /** Live AdGuard answers, cached so a page does not repeat the same lookup. */
+    /** Live DoH answers, cached so a page does not repeat the same lookup. */
     private static final Map<String, LiveEntry> liveCache = new ConcurrentHashMap<>();
     private static final Map<String, Object> liveLocks = new ConcurrentHashMap<>();
     private static volatile long liveDisabledUntil;
@@ -108,7 +108,7 @@ final class WebAdBlocker {
     }
 
     /**
-     * Asks AdGuard's public DoH endpoint whether [host] is on its blocklist.
+     * Asks the selected DoH provider whether [host] is on its blocklist.
      * The result is cached, and failures fail open so a page still loads.
      */
     static boolean shouldBlockLive(Context context, String host) {
@@ -140,9 +140,10 @@ final class WebAdBlocker {
                 if (now < liveDisabledUntil) {
                     return false;
                 }
-                boolean blocked = queryAdGuard(normalized);
-                HelperLog.info("Live AdGuard check " + normalized + " -> "
-                        + (blocked ? "blocked" : "allowed"));
+                String provider = AppSettings.liveDnsProvider(context);
+                boolean blocked = queryProvider(context, normalized);
+                HelperLog.info("Live DNS check (" + provider + ") " + normalized
+                        + " -> " + (blocked ? "blocked" : "allowed"));
                 long ttl = blocked ? LIVE_BLOCK_TTL_MS : LIVE_ALLOW_TTL_MS;
                 if (liveCache.size() > LIVE_CACHE_LIMIT) {
                     liveCache.clear();
@@ -155,64 +156,51 @@ final class WebAdBlocker {
         }
     }
 
-    private static boolean queryAdGuard(String host) {
+    private static boolean queryProvider(Context context, String host) {
         try {
-            return queryDoh(DOH_ENDPOINT, host);
-        } catch (Exception first) {
-            HelperLog.error("AdGuard DoH check failed for " + host, first);
-            try {
-                boolean blocked = queryDoh(DOH_FALLBACK, host);
-                HelperLog.info("Fallback DoH check " + host + " -> "
-                        + (blocked ? "blocked" : "allowed"));
-                return blocked;
-            } catch (Exception second) {
-                disableLive();
-                HelperLog.error("Fallback DoH check failed for " + host, second);
+            String endpoint = providerEndpoint(context);
+            if (endpoint == null) {
                 return false;
             }
+            DnsOverHttps doh = new DnsOverHttps.Builder()
+                    .client(DOH_HTTP)
+                    .url(HttpUrl.get(endpoint))
+                    .post(true)
+                    .build();
+            List<InetAddress> addresses = doh.lookup(host);
+            if (addresses == null || addresses.isEmpty()) {
+                return false;
+            }
+            for (InetAddress address : addresses) {
+                if (!address.isAnyLocalAddress()) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (Exception error) {
+            disableLive();
+            HelperLog.error("Live DNS check failed for " + host, error);
+            return false;
         }
     }
 
-    private static boolean queryDoh(String endpoint, String host) throws Exception {
-        HttpUrl url = HttpUrl.get(endpoint).newBuilder()
-                .addQueryParameter("name", host)
-                .addQueryParameter("type", "A")
-                .build();
-        Request request = new Request.Builder()
-                .url(url)
-                .header("Accept", "application/dns-json")
-                .header("User-Agent", "Morphe-Download-Helper/1.6.15")
-                .build();
-        try (Response response = DOH_HTTP.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("DoH HTTP " + response.code());
-            }
-            ResponseBody body = response.body();
-            if (body == null) {
-                throw new IOException("DoH response was empty");
-            }
-            JSONObject root = new JSONObject(body.string());
-            if (root.optInt("Status", -1) != 0) {
-                return false;
-            }
-            JSONArray answers = root.optJSONArray("Answer");
-            if (answers == null) {
-                return false;
-            }
-            for (int i = 0; i < answers.length(); i++) {
-                JSONObject answer = answers.optJSONObject(i);
-                if (answer == null || answer.optInt("type", -1) != 1) {
-                    continue;
-                }
-                String data = answer.optString("data", "");
-                if ("0.0.0.0".equals(data)
-                        || "::".equals(data)
-                        || "0:0:0:0:0:0:0:0".equals(data)) {
-                    return true;
-                }
-            }
-            return false;
+    private static String providerEndpoint(Context context) {
+        String provider = AppSettings.liveDnsProvider(context);
+        if (AppSettings.DNS_PROVIDER_CONTROLD.equals(provider)) {
+            return DOH_CONTROLD;
         }
+        if (AppSettings.DNS_PROVIDER_CUSTOM.equals(provider)) {
+            String custom = AppSettings.liveDnsCustomUrl(context);
+            return custom.startsWith("https://") ? custom : null;
+        }
+        return DOH_ADGUARD;
+    }
+
+    /** Clears cached live answers after a provider or custom URL change. */
+    static void clearLiveCache() {
+        liveCache.clear();
+        liveLocks.clear();
+        liveDisabledUntil = 0;
     }
 
     private static void disableLive() {

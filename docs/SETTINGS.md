@@ -61,7 +61,7 @@ These options affect the in-app WebView pages used for source verification.
 | Setting | What it does |
 | --- | --- |
 | **Block ads and trackers** | Blocks known ad and tracker hosts inside the helper's pages. Cloudflare and captcha hosts stay allowed so verification can still work. |
-| **Live AdGuard checks** | For hosts not in the bundled list, asks AdGuard DNS whether to block them. This sends the hostname to AdGuard. Off by default. |
+| **Live DNS checks** | For hosts not in the bundled list, asks the selected DoH provider whether to block them. AdGuard, ControlD, or a custom HTTPS DoH URL. This sends the hostname to the provider. Off by default. |
 
 If a verification page stops working, turn **Block ads and trackers** off and retry. This only
 affects pages opened inside the helper, not your browser.
