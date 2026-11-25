@@ -35,8 +35,8 @@
     <string name="settings_source_drag_hint">Przeciągnij uchwyt, aby zmienić, które źródło jest sprawdzane jako pierwsze. Wyłączone źródła pozostają na samym dole.</string>
     <string name="main_logs_local">Dzienniki pozostają i wyłącznie na tym urządzeniu</string>
 
-    <!-- Linki ręczne na karcie Źródła. -->
-    <string name="manual_links_title">Linki ręczne</string>
+    <!-- Linki własne na karcie Źródła. -->
+    <string name="manual_links_title">Linki własne</string>
     <string name="manual_links_count">(%1$d)</string>
     <string name="manual_links_hint">Gdy Morphe żąda tego samego pakietu, wybrany przez Ciebie link jest sprawdzany przed zwykłymi źródłami.</string>
     <string name="manual_links_empty">Brak linków własnych. Dodaj link dla aplikacji, której nie mogą dostarczyć zwykłe źródła.</string>
@@ -611,12 +611,12 @@
     <string name="download_user_github_available">Źródło GitHub użytkownika dostępne przez Zmień źródło: %1$s</string>
     <string name="download_checking_user_github">Sprawdzanie wydania GitHub użytkownika.</string>
     <string name="source_detail_user_github_missing">Brak mapowania GitHub użytkownika</string>
-    <string name="source_manual_link">Link ręczny</string>
-    <string name="source_label_manual_link">Link ręczny (%1$s)</string>
-    <string name="source_manual_link_picker">Link ręczny - %1$s</string>
-    <string name="download_checking_manual_link">Próba linku ręcznego dla tej aplikacji.</string>
-    <string name="source_detail_manual_link">link ręczny · %1$s</string>
-    <string name="source_detail_manual_link_missing">Brak linku ręcznego dla tego pakietu</string>
+    <string name="source_manual_link">Link własny</string>
+    <string name="source_label_manual_link">Link własny (%1$s)</string>
+    <string name="source_manual_link_picker">Link własny - %1$s</string>
+    <string name="download_checking_manual_link">Próba własnego linku dla tej aplikacji.</string>
+    <string name="source_detail_manual_link">link własny · %1$s</string>
+    <string name="source_detail_manual_link_missing">Brak linku własnego dla tego pakietu</string>
 
     <!-- Powiadomienia i komunikaty menedżera aktualizacji. -->
     <string name="update_msg_checks_disabled">Sprawdzanie aktualizacji jest wyłączone.</string>
