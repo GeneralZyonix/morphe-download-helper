@@ -20,10 +20,10 @@
 
     <!-- Ekran launchera. -->
     <string name="main_subtitle">Pomocnik pobierania APK dla Morphe</string>
-    <string name="main_hero_kicker">GOTOWY DO DZIAŁANIA</string>
+    <string name="main_hero_kicker">GOTOWY DO DZIAŁANIA,TAK JAK TY</string>
     <string name="main_hero_title">Pobierz oryginalny plik APK.</string>
-    <string name="main_hero_body">Morphe nakłada łatki na aplikację. Pomocnik znajduje odpowiednią wersję i przekazuje ją dalej.</string>
-    <string name="source_manager_hint">Włączone źródła są sprawdzane w pierwszej kolejności. Przeciągnij uchwyt, aby zmienić kolejność; stuknij go, aby przesunąć w górę/w dół. Wyłączone źródła pozostają na dole.</string>
+    <string name="main_hero_body">Morphe zajmuje się modyfikacjami aplikacji. Ta aplikacja znajduje odpowiednią wersję i przekazuje ją z powrotem do Morphe.</string>
+    <string name="source_manager_hint">Włączone źródła są sprawdzane w pierwszej kolejności. Przeciągnij uchwyt, aby zmienić kolejność; przytrzymaj, aby przesunąć w górę/w dół. Wyłączone źródła pozostają na samym dole.</string>
     <string name="source_manager_immediate">Zmiany są stosowane natychmiast.</string>
     <string name="source_manager_full_settings">Zaawansowane opcje źródeł</string>
     <string name="settings_test_all">Przetestuj wszystkie źródła</string>
@@ -31,19 +31,19 @@
     <string name="sources_testing">Testowanie…</string>
     <string name="sources_test">Przetestuj źródła</string>
     <string name="sources_test_enabled">Przetestuj włączone źródła</string>
-    <string name="settings_test_all_result">Zaliczone: %1$d, niezaliczone: %2$d.</string>
-    <string name="settings_source_drag_hint">Przeciągnij uchwyt, aby zmienić, które źródło jest sprawdzane jako pierwsze. Wyłączone źródła pozostają na dole.</string>
-    <string name="main_logs_local">Dzienniki pozostają na tym urządzeniu</string>
+    <string name="settings_test_all_result">Działa: %1$d, Błąd: %2$d.</string>
+    <string name="settings_source_drag_hint">Przeciągnij uchwyt, aby zmienić, które źródło jest sprawdzane jako pierwsze. Wyłączone źródła pozostają na samym dole.</string>
+    <string name="main_logs_local">Dzienniki pozostają i wyłącznie na tym urządzeniu</string>
 
     <!-- Linki ręczne na karcie Źródła. -->
     <string name="manual_links_title">Linki ręczne</string>
     <string name="manual_links_count">(%1$d)</string>
     <string name="manual_links_hint">Gdy Morphe żąda tego samego pakietu, wybrany przez Ciebie link jest sprawdzany przed zwykłymi źródłami.</string>
-    <string name="manual_links_empty">Brak linków ręcznych. Dodaj link dla aplikacji, której nie mogą dostarczyć zwykłe źródła.</string>
-    <string name="manual_links_add">Dodaj link ręczny</string>
-    <string name="manual_links_new">Nowy link ręczny</string>
-    <string name="manual_links_edit">Edytuj link ręczny</string>
-    <string name="manual_links_label">Nazwa aplikacji (opcjonalnie)</string>
+    <string name="manual_links_empty">Brak linków własnych. Dodaj link dla aplikacji, której nie mogą dostarczyć zwykłe źródła.</string>
+    <string name="manual_links_add">Dodaj link własny</string>
+    <string name="manual_links_new">Nowy własny link</string>
+    <string name="manual_links_edit">Edytuj link własny</string>
+    <string name="manual_links_label">Nazwa aplikacji (opcjonalne)</string>
     <string name="manual_links_label_hint">Proton Pass</string>
     <string name="manual_links_package">Nazwa pakietu</string>
     <string name="manual_links_package_hint">com.example.app</string>
@@ -59,13 +59,13 @@
     <string name="manual_links_badge_first">PIERWSZY</string>
     <string name="manual_links_badge_later">PÓŹNIEJ</string>
     <string name="manual_links_badge_off">WYŁ.</string>
-    <string name="manual_links_saved">Zapisano link ręczny.</string>
+    <string name="manual_links_saved">Link własny zapisany.</string>
     <string name="manual_links_removed">Usunięto %1$s.</string>
     <string name="manual_links_package_invalid">Wprowadź prawidłową nazwę pakietu Androida.</string>
-    <string name="manual_links_package_in_use">Link ręczny dla tego pakietu już istnieje.</string>
+    <string name="manual_links_package_in_use">Link własny dla tego pakietu już istnieje.</string>
     <string name="manual_links_url_invalid">Wprowadź prawidłowy link HTTPS.</string>
-    <string name="manual_links_remove">Usuń link ręczny %1$s</string>
-    <string name="manual_links_edit_desc">Edytuj link ręczny %1$s</string>
+    <string name="manual_links_remove">Usuń link własny %1$s</string>
+    <string name="manual_links_edit_desc">Edytuj link własny %1$s</string>
     <string name="main_status_detected">Wykryto Morphe</string>
     <string name="main_status_detected_version">Morphe %1$s</string>
     <string name="main_status_missing">Morphe nie jest zainstalowany</string>
@@ -77,7 +77,7 @@
     <string name="main_version_badge_release_candidate">Kompilacja RC</string>
     <string name="main_version_badge_beta">Kompilacja beta</string>
     <string name="main_version_badge_alpha">Kompilacja alfa</string>
-    <string name="main_version_badge_release">Kompilacja finalna</string>
+    <string name="main_version_badge_release">Kompilacja stabilna</string>
     <string name="main_build_icon">Ikona</string>
     <string name="main_build_no_icon">Brak ikony</string>
     <string name="main_log_title">Dziennik pomocnika</string>
@@ -86,7 +86,7 @@
     <string name="main_report_github">Zgłoś błąd na GitHubie</string>
     <string name="main_suggest_feature">Zaproponuj funkcję na GitHubie</string>
     <string name="main_report_title">Zgłoszenie na GitHubie</string>
-    <string name="main_report_message">Wybierz, co dołączyć. GitHub otworzy się do podglądu; nic nie zostanie wysłane, dopóki nie stukniesz przycisku Submit. Podpisane adresy URL i tokeny są automatycznie usuwane.</string>
+    <string name="main_report_message">Wybierz, co dołączyć. GitHub otworzy się w podglądzie; nic nie zostanie wysłane, dopóki nie stukniesz przycisku Submit. Podpisane adresy URL i tokeny są automatycznie usuwane.</string>
     <string name="main_report_short">Krótkie zgłoszenie — podsumowanie i ostatnie wiersze dziennika</string>
     <string name="main_report_full">Pełny dziennik — skopiowany i zapisany do wklejenia lub załączenia</string>
     <string name="main_report_full_saved">Pełny dziennik zapisano w Downloads/Morphe Helper.</string>
@@ -133,7 +133,7 @@
     <string name="main_about">O aplikacji</string>
     <string name="main_developer_role">Twórca Morphe Download Helper</string>
     <string name="main_developer_avatar">GeneralZyonix na GitHubie</string>
-    <string name="main_link_releases">Wydania</string>
+    <string name="main_link_releases">Wydania aplikacji</string>
 
     <!-- Etykiety sekcji Material 3 Expressive. -->
     <string name="guide_overline">Konfiguracja</string>
@@ -207,7 +207,7 @@
     <string name="settings_dns_custom_url_clear">Wyczyść</string>
     <string name="settings_dns_custom_url_not_set">Nie ustawiono</string>
     <string name="settings_fast_source_checks">Szybkie sprawdzanie źródeł</string>
-    <string name="settings_fast_source_checks_detail">Sprawdza równolegle APKPure, Uptodown, APKMirror, F-Droid i Aptoide, pomija źródła, które ostatnio nic nie znalazły, oraz omija strony APKCube/APKMirror, które już zgłosiły brak dopasowania. Źródła nadal są sprawdzane w Twojej kolejności. Zużywa nieco więcej danych.</string>
+    <string name="settings_fast_source_checks_detail">Sprawdza równolegle APKPure, Uptodown, APKMirror, F-Droid i Aptoide, pomija źródła, które ostatnio nic nie znalazły, oraz omija strony APKCube/APKMirror, które już zgłosiły brak dopasowania. Źródła nadal są sprawdzane w Twojej kolejności. Zużywa nieco więcej danych internetowych.</string>
     <string name="settings_multi_thread">Szybsze pobieranie wieloma połączeniami</string>
     <string name="settings_multi_thread_detail">Dzieli duże pliki na wiele połączeń, gdy serwer obsługuje HTTP Range. Maksimum ustawisz w opcji Maksymalna liczba połączeń. W razie potrzeby automatycznie wraca do pojedynczego połączenia. APKMirror pozostaje przy jednym strumieniu. Domyślnie włączone przy nowych instalacjach; istniejący plik ustawień może to nadpisać.</string>
     <string name="settings_max_connections">Maksymalna liczba połączeń</string>
@@ -215,8 +215,8 @@
     <string name="settings_max_connections_detail">Używane tylko przy włączonym pobieraniu wieloma połączeniami. Większe pliki są dzielone na fragmenty po 4 MiB, a liczba połączeń jest ograniczana rozmiarem pliku.</string>
     <string name="settings_multi_thread_enabled">Pobieranie wieloma połączeniami włączone.</string>
     <string name="settings_multi_thread_disabled">Pobieranie wieloma połączeniami wyłączone.</string>
-    <string name="settings_block_ads_note">Jeśli strona weryfikacji przestanie działać, wyłącz tę opcję i spróbuj ponownie. Wpływa tylko na strony otwierane w pomocniku.</string>
-    <string name="settings_source_apkpure_desc">Szybka ścieżka bezpośrednia/API, potem awaryjny WebView</string>
+    <string name="settings_block_ads_note">Jeśli strona weryfikacji przestanie działać, wyłącz tę opcję i spróbuj ponownie. Wpływa tylko na strony otwierane w tej aplikacji.</string>
+    <string name="settings_source_apkpure_desc">Szybkie połączenie bezpośrednie/API, potem awaryjny WebView</string>
     <string name="settings_source_fallback_title">Awaryjny link Morphe</string>
     <string name="settings_source_fallback_desc">Link resolvera dostarczony przez Morphe</string>
     <string name="settings_source_apkmirror_desc">Wyszukiwanie pakietu i wersji</string>
@@ -232,15 +232,15 @@
     <string name="source_type_test">Testuj</string>
     <string name="settings_testing_source">Testowanie…</string>
     <string name="settings_source_fdroid_desc">Repozytorium open source; tylko aplikacje, które hostuje</string>
-    <string name="settings_source_aptoide_desc">Wyszukiwanie przez API; tylko przesłane pliki oznaczone jako TRUSTED</string>
+    <string name="settings_source_aptoide_desc">Wyszukiwanie przez API; tylko przesłane pliki oznaczone jako TRUSTED(zaufane)</string>
     <string name="settings_source_appteka_title">\u26A0 Appteka</string>
     <string name="settings_source_appteka_desc">Katalog zmodyfikowanych plików APK; niezalecany dla aplikacji innych niż SnapTube</string>
     <string name="settings_source_github_title">Wydania GitHub</string>
     <string name="settings_source_github_desc">Awaryjne automatyczne wyszukiwanie; linki GitHub dostarczone przez resolver działają nawet po wyłączeniu tej opcji. Podpis jest sprawdzany, gdy aplikacja jest zainstalowana.</string>
     <string name="settings_launcher_icon">Ikona aplikacji</string>
     <string name="settings_hide_launcher_icon">Pokazuj ikonę aplikacji</string>
-    <string name="settings_launcher_icon_build_shown">Zawsze widoczna w tej kompilacji.</string>
-    <string name="settings_launcher_icon_build_hidden">Ukryta w tej kompilacji. Otwórz pomocnika z Morphe lub z ustawień Androida.</string>
+    <string name="settings_launcher_icon_build_shown">Zawsze widoczna w tej wersji.</string>
+    <string name="settings_launcher_icon_build_hidden">Ukryta w tej wersji. Otwórz pomocnika z Morphe lub z ustawień Androida.</string>
     <string name="settings_hide_launcher_icon_detail">Zachowaj widoczność aplikacji w launcherze</string>
     <string name="settings_hide_launcher_icon_confirm_title">Ukryć ikonę aplikacji?</string>
     <string name="settings_hide_launcher_icon_confirm_message">Aplikacja zniknie z launchera. Nadal możesz ją otworzyć przez Ustawienia Androida → Aplikacje → Morphe Download Helper → Otwórz lub gdy Morphe rozpocznie pobieranie. Możesz też ustawić show_launcher_icon=true w pliku Downloads/Morphe Helper/helper-settings.txt. Niektóre launchery mogą zachować stary skrót na ekranie głównym; jeśli pozostanie, usuń go ręcznie. Kontynuować?</string>
@@ -273,7 +273,7 @@
     <string name="settings_import_detail">Przywróć plik kopii zapasowej</string>
     <string name="settings_export_title">Eksport konfiguracji</string>
     <string name="settings_export_without_secrets">Tylko ustawienia</string>
-    <string name="settings_export_with_secrets">Uwzględnij klucz API VirusTotal i linki ręczne (zwykły tekst)</string>
+    <string name="settings_export_with_secrets">Uwzględnij klucz API VirusTotal i linki własne (zwykły tekst .txt)</string>
     <string name="settings_export_success">Wyeksportowano konfigurację.</string>
     <string name="settings_export_failed">Nie udało się wyeksportować konfiguracji.</string>
     <string name="settings_import_confirm_title">Zaimportować konfigurację?</string>
