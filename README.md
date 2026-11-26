@@ -151,7 +151,8 @@ times out, the helper marks that source failed and continues with the next one.
 - Optional **VirusTotal** hash check before hand-off; uploads are separate opt-ins.
 - Theme options: Dark, AMOLED, Light, System, 11 color accents, a custom color scheme,
   and Material You accent on Android 12+.
-- French translation included; the app language can follow the system or be set in Settings.
+- French, Dutch, and Turkish translations included; the app language can follow the system
+  or be set in Settings.
 - Built-in update checker with a changelog screen and optional Shizuku silent install.
 - **Report on GitHub** with short/full log options and automatic redaction of signed URLs
   and tokens.
@@ -294,6 +295,7 @@ or **Share log**.
 | English | `en` | [values/strings.xml](app/src/main/res/values/strings.xml) |
 | French | `fr` | [values-fr/strings.xml](app/src/main/res/values-fr/strings.xml) |
 | Dutch | `nl` | [values-nl/strings.xml](app/src/main/res/values-nl/strings.xml) |
+| Turkish | `tr` | [values-tr/strings.xml](app/src/main/res/values-tr/strings.xml) |
 
 Want to add a language? See [TRANSLATING.md](TRANSLATING.md). New languages appear
 automatically in **Settings → App language** after their locale is added to

@@ -8,7 +8,9 @@ A French example is available in
 
 New strings are added in English only. Translations are community-maintained: missing
 translations fall back to English until a contributor submits them. Please do not
-auto-translate new strings in pull requests.
+auto-translate new strings in pull requests. The Dutch and Turkish first passes were added
+at the maintainer’s request and are still being reviewed; other languages should follow the
+contributor workflow below.
 
 ## Add a language
 
@@ -66,8 +68,9 @@ Please verify that:
 | English | `values/strings.xml` | Source |
 | French | `values-fr/strings.xml` | Contributed by @foXaCe |
 | Dutch | `values-nl/strings.xml` | Auto-translated with maintainer approval; review pending |
+| Turkish | `values-tr/strings.xml` | Maintainer-requested first pass; review pending |
 
 The French translation covers the VirusTotal settings and upload-progress messages too.
-The Dutch file is a complete first pass and an exception to the normal contributor
-workflow. Community corrections are welcome; the project does not auto-translate
-other languages.
+The Dutch and Turkish files are complete first passes and exceptions to the normal
+contributor workflow. Community corrections are welcome; the project does not
+auto-translate other languages.

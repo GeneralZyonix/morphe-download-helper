@@ -19,6 +19,14 @@ and your patches are not affected.
 The full steps are in [SIGNING.md](SIGNING.md). This notice must also appear in
 the first **3.3.0 stable** release notes for users still on 3.2.1.
 
+## [Unreleased]
+
+### Added
+
+- **Turkish translation** (`tr`), covering the full interface. This is a
+  maintainer-requested first pass and is still being reviewed for correct
+  Turkish.
+
 ## [3.3.1-rc.2] - 2026-11-25
 
 <!-- prerelease -->

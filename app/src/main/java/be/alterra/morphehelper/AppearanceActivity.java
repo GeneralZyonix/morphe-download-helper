@@ -629,6 +629,7 @@ public class AppearanceActivity extends Activity {
             tags.add("en");
             tags.add("fr");
             tags.add("nl");
+            tags.add("tr");
         }
         return tags;
     }

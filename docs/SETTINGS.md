@@ -28,7 +28,7 @@ language, and launcher icon. The old General section has been removed.
 | **Tint backgrounds from accent** | Colors the background, cards, borders, and controls from the selected accent. Turn it off for neutral surfaces. A custom scheme always keeps its tint. |
 | **Accent** | Sets the color used by buttons, progress, switches, highlights, and the preview. Eleven color presets are included, plus a custom color scheme and, on Android 12+, Material You. |
 | **Navigation bar** | Reorders the hotbar tabs with up/down arrows. The default is Home, Sources, Patches, Downloads, Settings. Reset restores the default. |
-| **App language** | Follow the system language or force English/French. In-app language selection requires Android 13 or newer. |
+| **App language** | Follow the system language or force English, French, Dutch, or Turkish. In-app language selection requires Android 13 or newer. |
 | **App icon** | Read-only. It shows whether this build always shows the launcher icon (**Icon**) or always hides it (**No-icon**). |
 | **Reset appearance** | Returns to System mode with the Aurora accent. |
 
