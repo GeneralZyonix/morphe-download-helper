@@ -39,12 +39,12 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // Bump both values for every public release.
-        versionCode 94
-        versionName "3.3.1-rc.2"
+        versionCode 95
+        versionName "3.3.1"
 
         // true for pre-release builds; set false only for a stable release.
         // Drives the P/R badge and the Auto update channel.
-        buildConfigField "boolean", "PRERELEASE", "true"
+        buildConfigField "boolean", "PRERELEASE", "false"
     }
 
     buildFeatures {

@@ -44,27 +44,28 @@ It is a downloader, not a patcher. It never installs, modifies, or uploads an ap
 Grab one of the two current builds from the
 [Releases page](https://github.com/GeneralZyonix/morphe-download-helper/releases):
 
-> **3.3.0 is the latest stable release.** It adds manual APK import,
-> mobile-data controls, file details, a configurable update interval, Dutch,
-> and the APKMirror source fixes from the 3.3.0 release candidates.
+> **3.3.1 is the latest stable release.** It adds manual links for apps the
+> normal sources cannot provide, Turkish, and selectable live DNS providers.
 
-> **Important: one-time reinstall for 3.3.0.** Builds before 3.3.0-rc.3 were
-> signed with temporary CI debug keys. Export your settings, uninstall the
-> helper once, then install 3.3.0. Full instructions: [SIGNING.md](SIGNING.md).
+> **Important: one-time reinstall for older builds.** Builds before 3.3.0-rc.3
+> were signed with temporary CI debug keys. Users on 3.2.1, 3.3.0-rc.1, or
+> 3.3.0-rc.2 must export settings, uninstall the helper once, install 3.3.1, then
+> restore the backup. Users on 3.3.0 or a later pre-release can update in place.
+> Full instructions: [SIGNING.md](SIGNING.md).
 
 | Build | Launcher icon | Best for |
 | --- | --- | --- |
-| **Icon** - `MorpheDownloadHelper-v3.3.0-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
-| **No-icon** - `MorpheDownloadHelper-v3.3.0-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
+| **Icon** - `MorpheDownloadHelper-v3.3.1-universal.apk` | Always shown | Normal use. The icon appears immediately after installation. There is no hide toggle. |
+| **No-icon** - `MorpheDownloadHelper-v3.3.1-universal-noicon.apk` | Never shown | A clean app drawer. Open the helper from Morphe or Android Settings → Apps → Morphe Download Helper → Open. |
 
 Both builds have the same package name, version, signing key, and features. Install one or
 the other, not both. The in-app updater stays on the build you installed. When switching
 from the icon build to the no-icon build, do a fresh install or remove the old home-screen
 shortcut if your launcher keeps it.
 
-> Release APKs are signed with the Android debug key so they can be sideloaded, and the
-> release build is non-debuggable. A proper release keystore can be added later for
-> Play Store-style signing continuity.
+> Release APKs are signed with the permanent **Morphe Download Helper** release key
+> (`SHA-256: 0048a4775b8a58326fcb0882e8f894e00f89000c76e7a0c8de4f5f9f45cdb947`) and are
+> non-debuggable.
 
 ## Screenshots
 
