@@ -54,9 +54,34 @@ jobs:
           sha256sum *.apk > "SHA256SUMS-${VERSION}.txt"
           cat "SHA256SUMS-${VERSION}.txt"
 
+      - name: Prepare release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="$RUNNER_TEMP/release-notes.md"
+          echo "## Morphe Download Helper ${VERSION}" > "$NOTES"
+          echo >> "$NOTES"
+          awk -v version="$VERSION" '
+            index($0, "## [" version "]") == 1 { found=1; next }
+            found && substr($0, 1, 4) == "## [" { exit }
+            found { print }
+          ' CHANGELOG.md >> "$NOTES"
+          if [ "$(wc -l < "$NOTES")" -le 2 ]; then
+            echo "No changelog section found for ${VERSION}" >&2
+            exit 1
+          fi
+          cat "$NOTES"
+
+      - name: Check release token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "::warning::RELEASE_TOKEN is not set; the release will be authored by github-actions[bot]."
+          fi
+
       - name: Publish GitHub release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           if grep -q 'PRERELEASE", "true"' app/build.gradle; then
@@ -66,6 +91,6 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" \
             --title "Morphe Download Helper ${VERSION}" \
-            --generate-notes \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
             $RELEASE_FLAGS \
             release/*.apk "release/SHA256SUMS-${VERSION}.txt"
